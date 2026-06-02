@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بوابة دعم التعلم (النسخة التجريبية)</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .diag-radio { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+    .diag-radio input { display:none; }
+    .diag-dot {
+      width:38px; height:38px; border-radius:9px;
+      border:2px solid var(--border); display:flex;
+      align-items:center; justify-content:center;
+      font-size:14px; font-weight:700; color:var(--muted);
+      transition:all .2s; cursor:pointer;
+    }
+    input:checked + .diag-dot.mastered { background:var(--success); border-color:var(--success); color:#fff; }
+    input:checked + .diag-dot.partial  { background:var(--gold);    border-color:var(--gold);    color:#fff; }
+    input:checked + .diag-dot.need     { background:var(--danger);  border-color:var(--danger);  color:#fff; }
+    .diag-dot:hover { border-color:var(--primary); }
+    .welcome-banner {
+      background:
+        radial-gradient(120% 140% at 100% 0%, rgba(79,168,119,.35) 0%, rgba(79,168,119,0) 55%),
+        linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+      color:#fff; border-radius:var(--radius-lg); padding:26px 28px; margin-bottom:24px;
+      box-shadow: var(--shadow-lg);
+      position:relative; overflow:hidden;
+    }
+    .welcome-banner::after{
+      content:""; position:absolute; inset:0;
+      background:radial-gradient(closest-side, rgba(255,255,255,.08), transparent 70%);
+      pointer-events:none;
+    }
+    .welcome-banner h2 { font-size:20px; margin-bottom:6px; font-weight:800; }
+    .welcome-banner p  { font-size:13.5px; opacity:.9; line-height:1.7; }
+    #ap-admin-note {
+      background:#fffbeb; border:1.5px solid #fde68a;
+      border-radius:10px; padding:12px 16px; margin-bottom:16px;
+      font-size:14px; line-height:1.7; display:none;
+    }
+    .brand-logo { display:block; margin:0 auto; width:280px; height:280px;
+      object-fit:contain; filter:drop-shadow(0 12px 32px rgba(0,0,0,.25)); }
+    .topbar-logo { width:90px; height:90px; object-fit:contain; border-radius:10px;
+      background:transparent; padding:0; }
+    .import-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .import-row input[type=file] { display:none; }
+    .import-btn { flex:1; min-width:140px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 0: LANDING PAGE
+═══════════════════════════════════════════════════════ -->
+<div id="screen-landing" class="screen active">
+  <div style="background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);min-height:100vh;display:flex;flex-direction:column;overflow:hidden;">
+    <!-- Header bar -->
+    <div style="padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="color:rgba(255,255,255,.8);font-size:13px;">بوابة دعم التعلم</div>
+      <button onclick="show('screen-school')"
+        style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.35);
+               color:#fff;border-radius:99px;padding:8px 20px;font-size:13px;
+               font-family:inherit;font-weight:600;cursor:pointer;">
+        دخول
+      </button>
+    </div>
+
+    <!-- Hero -->
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;
+                justify-content:center;text-align:center;padding:32px 24px;">
+      <img src="logo-white.png" alt="وزارة التعليم" class="brand-logo" style="margin-bottom:20px;margin-top:-30px;">
+      <h1 style="color:#fff;font-size:32px;font-weight:900;margin-bottom:6px;line-height:1.3;">
+        بوابة دعم التعلم
+      </h1>
+      <p style="color:rgba(255,255,255,.75);font-size:13px;margin-bottom:8px;
+                background:rgba(255,255,255,.12);display:inline-block;
+                padding:3px 14px;border-radius:20px;">
+        النسخة التجريبية
+      </p>
+      <p style="color:rgba(255,255,255,.9);font-size:17px;margin-bottom:6px;margin-top:8px;">
+        منصة الاستعداد والتشخيص الذاتي
+      </p>
+      <p style="color:rgba(255,255,255,.7);font-size:14px;margin-bottom:48px;">
+        للمرحلة الثانوية
+      </p>
+
+      <!-- Feature cards -->
+      <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center;
+                  max-width:520px;margin-bottom:48px;">
+        <div style="background:rgba(255,255,255,.12);backdrop-filter:blur(8px);
+                    border:1px solid rgba(255,255,255,.22);border-radius:16px;
+                    padding:20px 22px;width:140px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:10px;">🧠</div>
+          <div style="color:#fff;font-size:13px;font-weight:600;line-height:1.5;">تشخيص ذاتي دقيق</div>
+        </div>
+        <div style="background:rgba(255,255,255,.12);backdrop-filter:blur(8px);
+                    border:1px solid rgba(255,255,255,.22);border-radius:16px;
+                    padding:20px 22px;width:140px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:10px;">📊</div>
+          <div style="color:#fff;font-size:13px;font-weight:600;line-height:1.5;">تحليل آلي للفجوات</div>
+        </div>
+        <div style="background:rgba(255,255,255,.12);backdrop-filter:blur(8px);
+                    border:1px solid rgba(255,255,255,.22);border-radius:16px;
+                    padding:20px 22px;width:140px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:10px;">📋</div>
+          <div style="color:#fff;font-size:13px;font-weight:600;line-height:1.5;">خطة دعم مخصصة</div>
+        </div>
+      </div>
+
+      <button onclick="show('screen-school')"
+        style="background:#fff;color:var(--primary);border:none;border-radius:14px;
+               padding:16px 52px;font-size:17px;font-weight:800;font-family:inherit;
+               cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+        ابدأ الآن ←
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 0b: SCHOOL SELECTION
+═══════════════════════════════════════════════════════ -->
+<div id="screen-school" class="screen">
+  <div style="background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+              min-height:100vh;display:flex;flex-direction:column;
+              justify-content:center;align-items:center;text-align:center;padding:40px 20px;">
+    <img src="logo-white.png" alt="وزارة التعليم" class="brand-logo"
+         style="margin-bottom:16px;width:200px;height:200px;">
+    <h1 style="color:#fff;font-size:26px;font-weight:900;margin-bottom:6px;">
+      بوابة دعم التعلم
+    </h1>
+    <p style="color:rgba(255,255,255,.75);font-size:13px;margin-bottom:4px;
+              background:rgba(255,255,255,.12);display:inline-block;
+              padding:3px 14px;border-radius:20px;">
+      النسخة التجريبية
+    </p>
+    <p style="color:rgba(255,255,255,.9);font-size:16px;margin-top:16px;margin-bottom:36px;">
+      اختر مدرستك للمتابعة
+    </p>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
+      <button class="identity-card" onclick="App.selectSchool('ثانوية الخالدية')">
+        <div class="card-icon">🏫</div>
+        <div class="card-title">ثانوية الخالدية</div>
+        <div class="card-desc">اضغط للمتابعة</div>
+      </button>
+      <button class="identity-card" onclick="App.selectSchool('ثانوية ذات الصواري')">
+        <div class="card-icon">🏫</div>
+        <div class="card-title">ثانوية ذات الصواري</div>
+        <div class="card-desc">اضغط للمتابعة</div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 1: IDENTITY GATE
+═══════════════════════════════════════════════════════ -->
+<div id="screen-identity" class="screen">
+  <div style="background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+              min-height:100vh;display:flex;flex-direction:column;
+              justify-content:center;align-items:center;text-align:center;padding:40px 20px;">
+    <div style="margin-bottom:48px;">
+      <img src="logo-white.png" alt="وزارة التعليم" class="brand-logo" style="margin-bottom:16px;width:260px;height:260px;">
+      <h1 style="color:#fff;font-size:30px;font-weight:800;margin-bottom:10px;">
+        بوابة دعم التعلم
+      </h1>
+      <p style="color:rgba(255,255,255,.85);font-size:16px;">منصة الاستعداد والتشخيص الذاتي</p>
+      <p style="color:rgba(255,255,255,.65);font-size:14px;margin-top:6px;" id="id-school-name"></p>
+    </div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
+      <button class="identity-card" onclick="App.selectRole('student')">
+        <div class="card-icon">📚</div>
+        <div class="card-title">طالب</div>
+        <div class="card-desc">ابدأ رحلة التشخيص والاستعداد</div>
+      </button>
+      <button class="identity-card" onclick="App.selectRole('admin')">
+        <div class="card-icon">👨‍💼</div>
+        <div class="card-title">مشرف</div>
+        <div class="card-desc">إدارة الطلاب ومراجعة الخطط</div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 2a: STUDENT LOGIN
+═══════════════════════════════════════════════════════ -->
+<div id="screen-student-login" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="show('screen-identity')">←</button>
+    <img src="logo-white.png" alt="" class="topbar-logo">
+    <div>
+      <div class="topbar-title">تسجيل الدخول</div>
+      <div class="topbar-sub">بيانات الطالب</div>
+    </div>
+  </div>
+  <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
+    <div style="text-align:center;margin-bottom:32px;">
+      <h2 style="font-size:22px;color:var(--primary);margin-bottom:6px;">تسجيل دخول الطالب</h2>
+    </div>
+    <div class="card">
+      <div id="sl-err" class="alert alert-error"></div>
+      <div class="form-group">
+        <label class="form-label">رقم السجل المدني</label>
+        <input type="text" id="sl-code" class="form-input"
+               placeholder="١٠ أرقام — مثال: 1012345678"
+               inputmode="numeric" pattern="[0-9]{10}" maxlength="10" autocomplete="off"
+               oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+               onkeydown="if(event.key==='Enter') App.studentLogin()">
+      </div>
+      <button class="btn btn-primary" onclick="App.studentLogin()">دخول ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 2b: ADMIN LOGIN
+═══════════════════════════════════════════════════════ -->
+<div id="screen-admin-login" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="show('screen-identity')">←</button>
+    <img src="logo-white.png" alt="" class="topbar-logo">
+    <div>
+      <div class="topbar-title">دخول المشرف</div>
+    </div>
+  </div>
+  <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
+    <div style="text-align:center;margin-bottom:32px;">
+      <h2 style="font-size:22px;color:var(--primary);margin-bottom:6px;">لوحة المشرف</h2>
+    </div>
+    <div class="card">
+      <div id="al-err" class="alert alert-error"></div>
+      <div class="form-group">
+        <label class="form-label">رقم السجل المدني</label>
+        <input type="tel" id="al-code" class="form-input" inputmode="numeric"
+               maxlength="10" placeholder="١٠ أرقام"
+               onkeydown="if(event.key==='Enter') App.adminLogin()">
+      </div>
+      <button class="btn btn-primary" onclick="App.adminLogin()">دخول ←</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
+        يتم الدخول بالسجل المدني المسجَّل لدى الإدارة.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 3a: STUDENT HOME
+═══════════════════════════════════════════════════════ -->
+<div id="screen-student-home" class="screen">
+  <div class="topbar">
+    <img src="logo-white.png" alt="" class="topbar-logo">
+    <div style="flex:1;">
+      <div class="topbar-title">بوابة دعم التعلم</div>
+      <div class="topbar-sub" id="sh-school-sub"></div>
+    </div>
+    <button class="topbar-back" onclick="App.logout()" title="خروج" style="font-size:14px;">خروج</button>
+  </div>
+  <div class="page-wrap">
+    <div class="welcome-banner">
+      <h2>مرحباً بك أخي الطالب، <span id="sh-name"></span> 👋</h2>
+      <p>هنا ندعم خبراتك ... ونكون بعد الله تعالى سنداً لك في التعلم الذاتي.</p>
+      <p style="margin-top:8px;font-size:13px;opacity:.9;">
+        اختر المجال الذي ترغب الدعم فيه من خلال المسارات التالية:
+      </p>
+    </div>
+
+    <!-- Plan status banner -->
+    <div id="sh-plan-banner" style="display:none;margin-bottom:20px;"></div>
+
+    <div class="service-section-title">مسارات الدعم التعليمي</div>
+    <div class="service-cards">
+      <div class="service-card disabled">
+        <div class="service-card-icon">📗</div>
+        <div class="service-card-info">
+          <div class="service-card-name">دعم التعلم والتحصيل في المواد الدراسية</div>
+          <div class="service-card-desc">دعم أكاديمي في المواد الدراسية المختلفة</div>
+        </div>
+        <span class="service-badge badge-soon">قريباً</span>
+      </div>
+      <div class="service-card disabled">
+        <div class="service-card-icon">🎯</div>
+        <div class="service-card-info">
+          <div class="service-card-name">التدريب على مهارات التعلم الذاتي</div>
+          <div class="service-card-desc">تطوير مهارات التعلم المستقل والذاتي</div>
+        </div>
+        <span class="service-badge badge-soon">قريباً</span>
+      </div>
+      <div class="service-card disabled">
+        <div class="service-card-icon">📋</div>
+        <div class="service-card-info">
+          <div class="service-card-name">تصميم خطة استذكار مناسبة</div>
+          <div class="service-card-desc">بناء خطة استذكار شخصية تناسب احتياجاتك</div>
+        </div>
+        <span class="service-badge badge-soon">قريباً</span>
+      </div>
+      <div class="service-card active" onclick="App.startCapabilities()">
+        <div class="service-card-icon">🧠</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الاستعداد لاختبار القدرات</div>
+          <div class="service-card-desc">تشخيص ذاتي + اختبار قبلي + خطة دعم مخصصة</div>
+        </div>
+        <span class="service-badge badge-active">متاح</span>
+      </div>
+      <div class="service-card disabled">
+        <div class="service-card-icon">📘</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الاستعداد للاختبار التحصيلي</div>
+          <div class="service-card-desc">مسار متخصص للاستعداد للاختبار التحصيلي</div>
+        </div>
+        <span class="service-badge badge-soon">قريباً</span>
+      </div>
+      <div class="service-card disabled">
+        <div class="service-card-icon">🔬</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الاستعداد لاختبار ستيم</div>
+          <div class="service-card-desc">مسار متخصص للاستعداد لاختبار ستيم</div>
+        </div>
+        <span class="service-badge badge-soon">قريباً</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 4: CAPABILITIES INTRO
+═══════════════════════════════════════════════════════ -->
+<div id="screen-intro" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="show('screen-student-home')">←</button>
+    <div>
+      <div class="topbar-title">مسار القدرات</div>
+      <div class="topbar-sub">المقدمة التوجيهية</div>
+    </div>
+  </div>
+  <div class="page-wrap">
+    <div class="intro-box" style="margin-bottom:20px;">
+      <h2 style="font-size:17px;font-weight:800;color:var(--primary);margin-bottom:8px;">
+        مرحباً بك أخي الطالب في مسار
+      </h2>
+      <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px;">
+        دعم التعلم لتحسين الاستعداد لاختبار القدرات
+      </p>
+      <p style="font-size:13.5px;color:var(--muted);font-weight:600;">
+        اقرأ هذه المقدمة بعناية لتحقق استفادة جيدة من الخدمة المتاحة
+      </p>
+    </div>
+
+    <h3 style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:14px;">
+      قمنا بتوفيق الله تعالى بتصميم هذا الموقع ليساعدك على:
+    </h3>
+
+    <div class="intro-steps" style="margin-bottom:24px;">
+      <div class="intro-step">
+        <div class="step-num">١</div>
+        <div class="step-text">تقييمك الذاتي لاستعدادك لاختبار القدرات.</div>
+      </div>
+      <div class="intro-step">
+        <div class="step-num">٢</div>
+        <div class="step-text">تشخيص مستواك ومدى استعدادك لاختبار القدرات من خلال اختبار تجريبي محاكٍ، وتحديد نقاط القوة والضعف والفجوات التي تتطلب منك تركيزاً عليها.</div>
+      </div>
+      <div class="intro-step">
+        <div class="step-num">٣</div>
+        <div class="step-text">مساعدتك في بناء خطة تتناسب مع احتياجاتك التدريبية والتعليمية على ضوء تشخيص مستواك.</div>
+      </div>
+      <div class="intro-step">
+        <div class="step-num">٤</div>
+        <div class="step-text">تزويدك بأهم المواد العلمية التي تحتاجها لتحسين مستوى الاستعداد، سواء مقروءة أو مشاهدة ومسموعة، لتتمكن من تنفيذ خطتك للاستعداد.</div>
+      </div>
+      <div class="intro-step">
+        <div class="step-num">٥</div>
+        <div class="step-text">التوجيه الأكاديمي وتقديم الاستشارة ومتابعة مستوى التقدم من قبل موجهك المختص.</div>
+      </div>
+    </div>
+
+    <h3 style="font-size:15px;font-weight:800;color:var(--primary);margin-bottom:14px;">
+      لديك خطوتان في الصفحات التالية:
+    </h3>
+
+    <div class="intro-steps" style="margin-bottom:20px;">
+      <div class="intro-step">
+        <div class="step-num" style="background:var(--accent);min-width:32px;">أ</div>
+        <div class="step-text">
+          <strong>أولاً / التشخيص الذاتي</strong>
+          <span style="display:block;margin-top:6px;line-height:1.8;">
+            وهو بمثابة استطلاع رأي تُقيّم فيه مدى استعدادك السابق بالتدرب أو الاطلاع، وهو مختصر وثلاثي الخيارات.
+            ستظهر أمامك مهارات القسم اللفظي ثم مهارات القسم الكمي، وفي كل مهارة تختار مدى استعدادك بأحد الخيارات الثلاثة:
+          </span>
+          <ul style="margin-top:8px;margin-right:16px;line-height:2.1;font-size:13.5px;list-style:none;">
+            <li>أ. متقن لهذه المهارة ولا أحتاج التدرب فيها.</li>
+            <li>ب. متوسط الإتقان وأحتاج لمراجعتها.</li>
+            <li>ج. غير متقن لها وأحتاج مادة علمية لها.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="intro-step">
+        <div class="step-num" style="background:var(--accent);min-width:32px;">ب</div>
+        <div class="step-text">
+          <strong>ثانياً / الاختبار التجريبي التشخيصي</strong>
+          <span style="display:block;margin-top:6px;line-height:1.8;">
+            يهدف هذا الاختبار إلى تحديد مستواك القبلي، وهذا القسم يتطلب أن تكون مهيأً له في وقت مناسب ومكان يساعد على التركيز.
+          </span>
+          <div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:8px;
+                      padding:10px 14px;margin-top:10px;font-size:13.5px;line-height:1.75;">
+            ⚠️ <strong>ملاحظة مهمة:</strong> في السؤال الذي لا تعرف إجابته لا تختر إجابة عشوائية أو بمجرد التخمين، بل اختر خيار <strong>"لا أعرف الإجابة"</strong> حتى تحصل على نتائج مطابقة لمستواك الفعلي.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="intro-box" style="margin-bottom:24px;
+         background:linear-gradient(135deg,#dcfce7,#d1fae5);border-color:#86efac;">
+      <strong style="font-size:15px;color:#166534;">📋 ماذا بعد الانتهاء من الاختبار التشخيصي؟</strong>
+      <p style="font-size:13.5px;color:#15803d;margin-top:8px;line-height:1.8;">
+        ستظهر لك مسودة الخطة متضمنةً الفجوات التي تتطلب منك التدرب عليها، ثم تنتقل لاختيار المواد العلمية المناسبة لمستواك بإشراف من الموجه المختص.
+      </p>
+    </div>
+
+    <button class="btn btn-primary" onclick="App.startSelfDiag()">
+      ابدأ التشخيص الذاتي ←
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 5: SELF-DIAGNOSTIC
+═══════════════════════════════════════════════════════ -->
+<div id="screen-selfdiag" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="show('screen-intro')">←</button>
+    <div>
+      <div class="topbar-title">التشخيص الذاتي</div>
+      <div class="topbar-sub">قيّم مستواك في كل مهارة</div>
+    </div>
+  </div>
+  <div class="page-wrap">
+    <div class="alert alert-info show" style="margin-bottom:20px;">
+      ✅ مُتقنتُها &nbsp;|&nbsp; ~ نسبياً &nbsp;|&nbsp; ✗ أحتاج تدريب
+    </div>
+    <div id="selfdiag-content"></div>
+    <div style="margin-top:24px;">
+      <button id="selfdiag-submit" class="btn btn-primary" onclick="App.submitSelfDiag()">
+        انتقل للاختبار التشخيصي ←
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 6: PRE-TEST
+═══════════════════════════════════════════════════════ -->
+<div id="screen-pretest" class="screen">
+  <div class="topbar">
+    <div style="flex:1;">
+      <div class="topbar-title">الاختبار التشخيصي القبلي</div>
+    </div>
+  </div>
+  <div class="page-wrap">
+    <div class="test-progress-bar-wrap">
+      <div class="test-progress-bar" id="test-progress-bar" style="width:0%"></div>
+    </div>
+    <div class="test-progress-label" id="test-progress-label">السؤال 1 من 50</div>
+
+    <div id="test-section-badge" class="test-section-badge badge-verbal">📚 القسم اللفظي</div>
+
+    <div class="q-card">
+      <div class="q-num" id="q-num">سؤال 1</div>
+      <div class="q-text" id="q-text"></div>
+      <div class="q-options" id="q-opts"></div>
+    </div>
+
+    <div class="test-nav">
+      <button class="btn btn-outline" id="btn-prev" onclick="App.prevQ()">← السابق</button>
+      <button class="btn btn-primary" id="btn-next" onclick="App.nextQ()">التالي →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 6b: PROCESSING
+═══════════════════════════════════════════════════════ -->
+<div id="screen-processing" class="screen">
+  <div class="processing-screen">
+    <div class="processing-icon">🤖</div>
+    <div class="processing-title">يحلل النظام نتائجك...</div>
+    <div class="processing-sub">
+      جارٍ تحليل الفجوات وبناء خطة دعم مخصصة بناءً على أدائك وتشخيصك الذاتي.
+    </div>
+    <div class="processing-bar">
+      <div class="processing-bar-fill"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 7a: PLAN PENDING
+═══════════════════════════════════════════════════════ -->
+<div id="screen-plan-pending" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">←</button>
+    <div>
+      <div class="topbar-title">نتائج التشخيص</div>
+    </div>
+  </div>
+  <div class="page-wrap">
+    <div class="status-banner pending">
+      <div class="status-icon">⏳</div>
+      <div>
+        <div class="status-title">خطتك قيد المراجعة</div>
+        <div class="status-desc">تم إنشاء خطة دعم وإرسالها للمشرف. ستُنشر تلقائياً فور الاعتماد.</div>
+      </div>
+    </div>
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:14px;">نتائج التشخيص (ترتيب الأولوية)</h3>
+    <div class="gap-list" id="pending-gaps"></div>
+    <div style="margin-top:24px;">
+      <button class="btn btn-outline btn-full" onclick="show('screen-student-home');App.renderStudentHome()">
+        العودة للرئيسية
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 7b: ACTIVE PLAN
+═══════════════════════════════════════════════════════ -->
+<div id="screen-active-plan" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">←</button>
+    <div>
+      <div class="topbar-title">خطة دعم التعلم</div>
+      <div class="topbar-sub">معتمدة من المشرف ✅</div>
+    </div>
+  </div>
+  <div class="page-wrap">
+    <div class="status-banner active" style="margin-bottom:20px;">
+      <div class="status-icon">🎯</div>
+      <div>
+        <div class="status-title">خطتك جاهزة — ابدأ التدريب!</div>
+        <div class="status-desc">ركّز على المهارات المرتبة أدناه من الأضعف للأقوى.</div>
+      </div>
+    </div>
+    <div id="ap-admin-note"></div>
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:14px;">مهاراتك مرتبة بالأولوية</h3>
+    <div class="gap-list" id="ap-gaps"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 3b: ADMIN DASHBOARD
+═══════════════════════════════════════════════════════ -->
+<div id="screen-admin" class="screen">
+  <div class="topbar">
+    <img src="logo-white.png" alt="" class="topbar-logo">
+    <div style="flex:1;">
+      <div class="topbar-title">لوحة تحكم المشرف</div>
+      <div class="topbar-sub" id="ad-school-sub"></div>
+    </div>
+    <button class="topbar-back" onclick="App.logout()" style="font-size:14px;">خروج</button>
+  </div>
+  <div class="page-wrap">
+    <!-- Stats -->
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-num" id="stat-total">0</div>
+        <div class="stat-lbl">إجمالي الطلاب</div>
+      </div>
+      <div class="stat-box" style="border-top:3px solid var(--warn);">
+        <div class="stat-num" id="stat-pending" style="color:var(--warn)">0</div>
+        <div class="stat-lbl">خطط معلقة</div>
+      </div>
+      <div class="stat-box" style="border-top:3px solid var(--success);">
+        <div class="stat-num" id="stat-active" style="color:var(--success)">0</div>
+        <div class="stat-lbl">خطط نشطة</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="pending"  onclick="App.setTab('pending')">⏳ معلقة</button>
+      <button class="tab-btn" data-tab="active"   onclick="App.setTab('active')">✅ نشطة</button>
+      <button class="tab-btn" data-tab="manage"   onclick="App.setTab('manage')">👥 الطلاب</button>
+    </div>
+
+    <!-- Student manage tab content -->
+    <div id="tab-manage" style="display:none;margin-bottom:20px;">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title-sm">إضافة طالب جديد</div>
+        <div id="add-st-err" class="alert alert-error"></div>
+        <div class="form-group">
+          <label class="form-label">اسم الطالب</label>
+          <input type="text" id="add-st-name" class="form-input" placeholder="الاسم الكامل">
+        </div>
+        <div class="form-group">
+          <label class="form-label">رقم السجل المدني</label>
+          <input type="text" id="add-st-code" class="form-input" placeholder="١٠ أرقام"
+                 inputmode="numeric" maxlength="10"
+                 oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                 onkeydown="if(event.key==='Enter') App.addStudent()">
+        </div>
+        <button class="btn btn-primary" onclick="App.addStudent()">+ إضافة</button>
+      </div>
+
+      <!-- Excel import: students -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title-sm">📥 استيراد طلاب من Excel</div>
+        <p style="font-size:13px;color:var(--muted);margin:6px 0 12px;line-height:1.7;">
+          حمّل القالب، عبّئ بيانات الطلاب (السجل المدني + الاسم)، ثم ارفع الملف.
+        </p>
+        <div class="import-row">
+          <a href="templates/students-template.xlsx" download
+             class="btn btn-outline import-btn">⬇️ تحميل القالب</a>
+          <label class="btn btn-primary import-btn" for="imp-students">📤 رفع ملف Excel</label>
+          <input type="file" id="imp-students" accept=".xlsx,.xls"
+                 onchange="App.importStudents(this)">
+        </div>
+      </div>
+
+      <!-- Excel import: questions -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title-sm">📝 استيراد أسئلة الاختبار من Excel</div>
+        <p style="font-size:13px;color:var(--muted);margin:6px 0 12px;line-height:1.7;">
+          حمّل القالب وعبّئ الأسئلة. عند الرفع تُستبدل أسئلة الاختبار الحالية.
+        </p>
+        <div class="import-row">
+          <a href="templates/questions-template.xlsx" download
+             class="btn btn-outline import-btn">⬇️ تحميل القالب</a>
+          <label class="btn btn-primary import-btn" for="imp-questions">📤 رفع ملف Excel</label>
+          <input type="file" id="imp-questions" accept=".xlsx,.xls"
+                 onchange="App.importQuestions(this)">
+        </div>
+      </div>
+    </div>
+
+    <div class="student-list" id="admin-student-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     REVIEW MODAL
+═══════════════════════════════════════════════════════ -->
+<div id="review-modal" class="modal-overlay" onclick="if(event.target===this)App.closeModal()">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-student-name"></div>
+    <div class="modal-sub"   id="modal-plan-date"></div>
+    <div class="gap-list"    id="modal-gaps" style="margin-bottom:16px;"></div>
+    <label class="form-label">ملاحظات المشرف (اختياري)</label>
+    <textarea id="modal-admin-note" class="admin-note" placeholder="أضف ملاحظات أو توجيهات للطالب..."></textarea>
+    <div class="modal-actions">
+      <button id="btn-modal-approve" class="btn btn-success" onclick="App.approvePlan()">
+        ✅ اعتماد ونشر للطالب
+      </button>
+      <button class="btn btn-outline" onclick="App.closeModal()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+  // Lovable Cloud (Supabase) public config
+  window.SB = window.supabase.createClient(
+    "https://ijedmkbhztfmpxzlmkri.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZWRta2JoenRmbXB4emxta3JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjc3MzYsImV4cCI6MjA5NTgwMzczNn0.ApxpBu1W4JCJfo2L7HK_fYkWiDYBOxgzTrD9vJManp0"
+  );
+</script>
+<script src="js/app.js"></script>
+</body>
+</html>

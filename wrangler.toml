@@ -4,4 +4,4 @@ pages_build_output_dir = "./public/khaldiya"
 [[d1_databases]]
 binding = "DB"
 database_name = "learngate-db"
-database_id   = "REPLACE_WITH_YOUR_D1_ID"
+database_id   = "b7fd1279-91c6-45ac-a762-a9eb5e840d42"

@@ -90,11 +90,7 @@ h1,h2,h3,h4 {
 
 /* ── Identity Screen ─────────────────────────────────── */
 #screen-identity {
-  background: linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  padding: 40px 20px;
+  /* align-items: stretch (default) so inner div fills full width */
 }
 .identity-hero { margin-bottom: 48px; }
 .identity-icon { font-size: 72px; margin-bottom: 16px; }

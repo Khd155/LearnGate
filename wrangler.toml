@@ -1,5 +1,2 @@
 name = "learngate"
-compatibility_date = "2025-01-01"
-
-[assets]
-directory = "./public/khaldiya"
+pages_build_output_dir = "./public/khaldiya"

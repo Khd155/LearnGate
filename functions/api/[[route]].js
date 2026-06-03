@@ -240,8 +240,45 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true });
       }
 
+      // GET /api/dev/students — all students (optional ?school=X filter)
+      if (sub === 'students' && method === 'GET') {
+        const filterSchool = url.searchParams.get('school');
+        let q = `SELECT s.id, s.code, s.name, s.school, s.created_at,
+                        p.status as plan_status
+                 FROM students s
+                 LEFT JOIN plans p ON p.student_id = s.id`;
+        const params = [];
+        if (filterSchool) { q += ' WHERE s.school = ?'; params.push(filterSchool); }
+        q += ' ORDER BY s.school, s.name ASC';
+        const { results } = await DB.prepare(q).bind(...params).all();
+        return ok({ students: results });
+      }
+
+      // POST /api/dev/students — add single student from dev panel
+      if (sub === 'students' && method === 'POST') {
+        const { name, code, school: bodySchool } = await request.json();
+        if (!name || !code) return err('name and code required');
+        const sid = crypto.randomUUID();
+        const now = new Date().toISOString();
+        try {
+          await DB.prepare(
+            'INSERT INTO students (id, code, name, school, created_at) VALUES (?, ?, ?, ?, ?)'
+          ).bind(sid, code, name, bodySchool || '', now).run();
+        } catch (e) {
+          if (e.message && e.message.includes('UNIQUE')) return err('السجل المدني مسجّل مسبقاً', 409);
+          throw e;
+        }
+        return ok({ student: { id: sid, code, name, school: bodySchool || '', created_at: now } }, 201);
+      }
+
+      // DELETE /api/dev/students/:id — delete single student
+      if (sub === 'students' && subsub && method === 'DELETE') {
+        await DB.prepare('DELETE FROM students WHERE id = ?').bind(subsub).run();
+        return ok({ ok: true });
+      }
+
       // DELETE /api/dev/students?school=X — clear all students of a school
-      if (sub === 'students' && method === 'DELETE') {
+      if (sub === 'students' && !subsub && method === 'DELETE') {
         const targetSchool = url.searchParams.get('school');
         if (!targetSchool) return err('school param required');
         await DB.prepare('DELETE FROM students WHERE school = ?').bind(targetSchool).run();

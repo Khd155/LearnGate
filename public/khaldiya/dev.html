@@ -154,6 +154,7 @@
 
   <div class="tabs-bar">
     <button class="tab-btn active" data-tab="overview"  onclick="Dev.setTab('overview')">📊 نظرة عامة</button>
+    <button class="tab-btn"        data-tab="students"  onclick="Dev.setTab('students')">👥 الطلاب</button>
     <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')">🏫 المدارس والمشرفون</button>
     <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')">📝 الأسئلة</button>
     <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')">⚠️ أدوات</button>
@@ -172,6 +173,66 @@
       <div class="section">
         <div class="section-title"><span>🏫</span> إحصائيات كل مدرسة</div>
         <div id="school-stats-list"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+    </div>
+
+    <!-- ── Students ── -->
+    <div id="tab-students" class="tab-pane">
+
+      <!-- Add Single Student -->
+      <div class="section">
+        <div class="section-title"><span>➕</span> إضافة طالب</div>
+        <div id="add-st-err" class="alert alert-err"></div>
+        <div id="add-st-ok"  class="alert alert-ok"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <div class="form-label">اسم الطالب</div>
+            <input type="text" id="st-name" class="form-input" placeholder="الاسم الكامل">
+          </div>
+          <div class="form-group">
+            <div class="form-label">رقم السجل المدني (١٠ أرقام)</div>
+            <input type="text" id="st-code" class="form-input" placeholder="1234567890"
+                   maxlength="10" inputmode="numeric"
+                   oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                   onkeydown="if(event.key==='Enter') Dev.addStudent()">
+          </div>
+          <div class="form-group">
+            <div class="form-label">المدرسة</div>
+            <select id="st-school" class="form-select"></select>
+          </div>
+          <button class="btn btn-success" onclick="Dev.addStudent()">+ إضافة</button>
+        </div>
+      </div>
+
+      <!-- Bulk Import -->
+      <div class="section">
+        <div class="section-title"><span>📥</span> استيراد جماعي من Excel</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.7;">
+          حمّل ملف Excel يحتوي على عمودين: <strong style="color:#e2e8f0">اسم الطالب</strong> و <strong style="color:#e2e8f0">السجل المدني</strong>.
+          جميع الطلاب المستوردين سيُضافون للمدرسة المحددة.
+        </p>
+        <div class="form-row" style="align-items:center;gap:14px;flex-wrap:wrap">
+          <div class="form-group" style="max-width:260px">
+            <div class="form-label">المدرسة المستهدفة</div>
+            <select id="bulk-school" class="form-select"></select>
+          </div>
+          <label class="btn btn-primary" for="bulk-file" style="align-self:flex-end">📤 رفع ملف Excel</label>
+          <input type="file" id="bulk-file" accept=".xlsx,.xls" style="display:none"
+                 onchange="Dev.bulkImport(this)">
+          <a href="#" onclick="Dev.downloadTemplate();return false;" class="btn btn-warn" style="align-self:flex-end">⬇️ تحميل القالب</a>
+        </div>
+        <div id="bulk-result" style="margin-top:12px"></div>
+      </div>
+
+      <!-- Student List -->
+      <div class="section">
+        <div class="section-title">
+          <span>📋</span> قائمة الطلاب
+          <select id="filter-school" class="form-select" style="margin-right:auto;width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadStudents()">
+            <option value="">كل المدارس</option>
+          </select>
+        </div>
+        <div id="students-list"><div class="empty">جارٍ التحميل...</div></div>
       </div>
     </div>
 
@@ -344,6 +405,7 @@ const Dev = {
   async loadAll() {
     await Promise.all([Dev.loadStats(), Dev.loadAdmins(), Dev.loadQuestions()]);
     Dev.populateSchoolSelects();
+    Dev.loadStudents();
   },
 
   async loadStats() {
@@ -417,15 +479,114 @@ const Dev = {
 
   async populateSchoolSelects() {
     const { schools } = await apiDev('/dev/schools');
+    const schoolOpts = schools.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+
     // Admin school select
-    const adminSel = document.getElementById('new-admin-school');
-    const opts = `<option value="*">⭐ سوبر مشرف (كل المدارس)</option>` +
-      schools.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
-    adminSel.innerHTML = opts;
+    document.getElementById('new-admin-school').innerHTML =
+      `<option value="*">⭐ سوبر مشرف (كل المدارس)</option>` + schoolOpts;
+
+    // Student add selects
+    document.getElementById('st-school').innerHTML   = schoolOpts;
+    document.getElementById('bulk-school').innerHTML = schoolOpts;
+
+    // Filter school select
+    document.getElementById('filter-school').innerHTML =
+      `<option value="">كل المدارس</option>` + schoolOpts;
 
     // Clear school select
-    const clearSel = document.getElementById('clear-school-select');
-    clearSel.innerHTML = schools.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+    document.getElementById('clear-school-select').innerHTML = schoolOpts;
+  },
+
+  async loadStudents() {
+    const school = document.getElementById('filter-school')?.value || '';
+    const url    = '/api/dev/students' + (school ? '?school=' + encodeURIComponent(school) : '');
+    const { students } = await apiDev(url);
+    const el = document.getElementById('students-list');
+    if (!students.length) { el.innerHTML = '<div class="empty">لا يوجد طلاب' + (school ? ' في هذه المدرسة' : '') + '</div>'; return; }
+    el.innerHTML = `
+      <div style="margin-bottom:10px;font-size:13px;color:var(--muted)">${students.length} طالب</div>
+      <table class="data-table">
+        <thead><tr><th>#</th><th>الاسم</th><th>رقم السجل</th><th>المدرسة</th><th>حالة الخطة</th><th></th></tr></thead>
+        <tbody>${students.map((s, i) => `
+          <tr>
+            <td style="color:var(--muted)">${i + 1}</td>
+            <td>${s.name}</td>
+            <td style="direction:ltr;text-align:right">${s.code}</td>
+            <td><span class="badge badge-school">${s.school || '—'}</span></td>
+            <td>${s.plan_status === 'active' ? '<span class="badge badge-school">نشطة ✅</span>'
+              : s.plan_status === 'pending' ? '<span class="badge" style="background:rgba(245,158,11,.15);color:#fbbf24">معلقة ⏳</span>'
+              : '<span class="badge" style="background:rgba(148,163,184,.1);color:var(--muted)">لم يبدأ</span>'}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${s.name}')">حذف</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  },
+
+  async addStudent() {
+    const name   = document.getElementById('st-name').value.trim();
+    const code   = document.getElementById('st-code').value.trim();
+    const school = document.getElementById('st-school').value;
+    const errEl  = document.getElementById('add-st-err');
+    const okEl   = document.getElementById('add-st-ok');
+    if (!name) { showAlert('add-st-err', 'أدخل اسم الطالب'); return; }
+    if (!/^\d{10}$/.test(code)) { showAlert('add-st-err', 'رقم السجل يجب أن يكون ١٠ أرقام'); return; }
+    if (!school) { showAlert('add-st-err', 'اختر مدرسة'); return; }
+    try {
+      await apiDev('/dev/students', { method: 'POST', body: JSON.stringify({ name, code, school }) });
+      document.getElementById('st-name').value = '';
+      document.getElementById('st-code').value = '';
+      okEl.textContent = `✅ تمت إضافة ${name}`;
+      okEl.classList.add('show');
+      setTimeout(() => okEl.classList.remove('show'), 3000);
+      Dev.loadStudents(); Dev.loadStats();
+    } catch (e) { showAlert('add-st-err', e.message); }
+  },
+
+  async bulkImport(input) {
+    const file   = input.files && input.files[0];
+    const school = document.getElementById('bulk-school').value;
+    input.value  = '';
+    if (!file) return;
+    if (!school) { showToast('اختر مدرسة أولاً', true); return; }
+    const resultEl = document.getElementById('bulk-result');
+    resultEl.innerHTML = '<div style="color:var(--muted);font-size:13px">⏳ جارٍ الاستيراد...</div>';
+    try {
+      const rows   = await readExcel(file);
+      const parsed = rows.map(r => ({
+        code: String(r['السجل المدني'] ?? r['code'] ?? r['رمز الدخول'] ?? '').trim(),
+        name: String(r['اسم الطالب']  ?? r['name']  ?? r['الاسم']      ?? '').trim(),
+        school,
+      })).filter(r => /^\d{10}$/.test(r.code) && r.name);
+      if (!parsed.length) { resultEl.innerHTML = '<div style="color:#f87171;font-size:13px">⚠️ لم يتم العثور على صفوف صالحة</div>'; return; }
+      // Use regular API for bulk (same logic, includes school in each row)
+      const res = await fetch(API + '/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed),
+      }).then(r => r.json());
+      resultEl.innerHTML = `<div style="color:#86efac;font-size:13px">✅ تمت إضافة <strong>${res.added}</strong> طالب${res.skipped ? ' · تجاهل ' + res.skipped + ' مكرر' : ''}</div>`;
+      Dev.loadStudents(); Dev.loadStats();
+    } catch (e) {
+      resultEl.innerHTML = `<div style="color:#f87171;font-size:13px">❌ ${e.message}</div>`;
+    }
+  },
+
+  downloadTemplate() {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['اسم الطالب', 'السجل المدني'],
+      ['محمد أحمد العمري', '1234567890'],
+      ['فهد سالم القحطاني', '1098765432'],
+    ]);
+    XLSX.utils.book_append_sheet(wb, ws, 'طلاب');
+    XLSX.writeFile(wb, 'students-template.xlsx');
+  },
+
+  async deleteStudent(id, name) {
+    if (!confirm(`حذف الطالب "${name}"؟`)) return;
+    await apiDev(`/dev/students/${id}`, { method: 'DELETE' });
+    showToast('تم الحذف');
+    Dev.loadStudents(); Dev.loadStats();
   },
 
   async addSchool() {

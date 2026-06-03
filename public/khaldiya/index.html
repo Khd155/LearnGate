@@ -51,11 +51,14 @@
       filter:drop-shadow(0 8px 28px rgba(0,0,0,.28));
     }
     .topbar-logo {
-      width: 80px;
-      height: 58px;
+      width: 130px;
+      height: 94px;
       object-fit: cover;
       object-position: top center;
       flex-shrink: 0;
+    }
+    @media (max-width:640px) {
+      .topbar-logo { width: 100px; height: 72px; }
     }
     @media (max-width:480px) {
       .brand-logo { width:min(270px,80vw); height:min(196px,56vw); }
@@ -207,7 +210,8 @@
 <div id="screen-student-login" class="screen">
   <div class="topbar">
     <button class="topbar-back" onclick="show('screen-identity')">←</button>
-        <div>
+    <img src="logo-white.png" alt="" class="topbar-logo">
+    <div>
       <div class="topbar-title">تسجيل الدخول</div>
       <div class="topbar-sub">بيانات الطالب</div>
     </div>
@@ -237,7 +241,8 @@
 <div id="screen-admin-login" class="screen">
   <div class="topbar">
     <button class="topbar-back" onclick="show('screen-identity')">←</button>
-        <div>
+    <img src="logo-white.png" alt="" class="topbar-logo">
+    <div>
       <div class="topbar-title">دخول المشرف</div>
     </div>
   </div>
@@ -266,7 +271,8 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-student-home" class="screen">
   <div class="topbar">
-        <div style="flex:1;">
+    <img src="logo-white.png" alt="" class="topbar-logo">
+    <div style="flex:1;">
       <div class="topbar-title">بوابة دعم التعلم</div>
       <div class="topbar-sub" id="sh-school-sub"></div>
     </div>
@@ -566,7 +572,8 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-admin" class="screen">
   <div class="topbar">
-        <div style="flex:1;">
+    <img src="logo-white.png" alt="" class="topbar-logo">
+    <div style="flex:1;">
       <div class="topbar-title">لوحة تحكم المشرف</div>
       <div class="topbar-sub" id="ad-school-sub"></div>
     </div>

@@ -498,10 +498,11 @@ const Dev = {
   },
 
   async loadStudents() {
+    const el = document.getElementById('students-list');
+    try {
     const school = document.getElementById('filter-school')?.value || '';
     const url    = '/api/dev/students' + (school ? '?school=' + encodeURIComponent(school) : '');
     const { students } = await apiDev(url);
-    const el = document.getElementById('students-list');
     if (!students.length) { el.innerHTML = '<div class="empty">لا يوجد طلاب' + (school ? ' في هذه المدرسة' : '') + '</div>'; return; }
     el.innerHTML = `
       <div style="margin-bottom:10px;font-size:13px;color:var(--muted)">${students.length} طالب</div>
@@ -520,6 +521,9 @@ const Dev = {
           </tr>`).join('')}
         </tbody>
       </table>`;
+    } catch (e) {
+      el.innerHTML = `<div class="empty">❌ خطأ في التحميل: ${e.message}<br><span style="font-size:12px;color:var(--muted)">تأكد من تشغيل Migration v2 في D1 Console</span></div>`;
+    }
   },
 
   async addStudent() {

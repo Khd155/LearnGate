@@ -243,15 +243,26 @@ export async function onRequest({ request, env }) {
       // GET /api/dev/students — all students (optional ?school=X filter)
       if (sub === 'students' && method === 'GET') {
         const filterSchool = url.searchParams.get('school');
-        let q = `SELECT s.id, s.code, s.name, s.school, s.created_at,
-                        p.status as plan_status
-                 FROM students s
-                 LEFT JOIN plans p ON p.student_id = s.id`;
-        const params = [];
-        if (filterSchool) { q += ' WHERE s.school = ?'; params.push(filterSchool); }
-        q += ' ORDER BY s.school, s.name ASC';
-        const { results } = await DB.prepare(q).bind(...params).all();
-        return ok({ students: results });
+        try {
+          let q = `SELECT s.id, s.code, s.name, s.school, s.created_at,
+                          p.status as plan_status
+                   FROM students s
+                   LEFT JOIN plans p ON p.student_id = s.id`;
+          const params = [];
+          if (filterSchool) { q += ' WHERE s.school = ?'; params.push(filterSchool); }
+          q += ' ORDER BY s.school, s.name ASC';
+          const { results } = await DB.prepare(q).bind(...params).all();
+          return ok({ students: results });
+        } catch (e) {
+          // Fallback if school column not yet added (migration not run)
+          if (e.message && e.message.includes('no such column')) {
+            const { results } = await DB.prepare(
+              'SELECT s.id, s.code, s.name, s.created_at, p.status as plan_status FROM students s LEFT JOIN plans p ON p.student_id = s.id ORDER BY s.name ASC'
+            ).all();
+            return ok({ students: results.map(r => ({ ...r, school: '' })) });
+          }
+          throw e;
+        }
       }
 
       // POST /api/dev/students — add single student from dev panel

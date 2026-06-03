@@ -501,7 +501,7 @@ const Dev = {
     const el = document.getElementById('students-list');
     try {
     const school = document.getElementById('filter-school')?.value || '';
-    const url    = '/api/dev/students' + (school ? '?school=' + encodeURIComponent(school) : '');
+    const url    = '/dev/students' + (school ? '?school=' + encodeURIComponent(school) : '');
     const { students } = await apiDev(url);
     if (!students.length) { el.innerHTML = '<div class="empty">لا يوجد طلاب' + (school ? ' في هذه المدرسة' : '') + '</div>'; return; }
     el.innerHTML = `

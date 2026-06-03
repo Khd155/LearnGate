@@ -44,18 +44,23 @@
     }
     .brand-logo {
       display:block; margin:0 auto;
-      width: min(460px, 88vw);
-      height: auto;
-      object-fit:contain;
-      filter:drop-shadow(0 16px 48px rgba(0,0,0,.30));
+      width: min(420px, 88vw);
+      height: min(160px, 38vw);
+      object-fit: cover;
+      object-position: top center;
+      filter:drop-shadow(0 8px 28px rgba(0,0,0,.28));
     }
     .topbar-logo {
-      width:72px; height:72px; object-fit:contain;
-      border-radius:10px; background:transparent; padding:0; flex-shrink:0;
+      width: auto;
+      height: 44px;
+      max-width: 90px;
+      object-fit: cover;
+      object-position: top center;
+      flex-shrink: 0;
     }
     @media (max-width:480px) {
-      .brand-logo { width:min(300px,82vw); }
-      .topbar-logo { width:58px; height:58px; }
+      .brand-logo { width:min(280px,82vw); height:min(108px,30vw); }
+      .topbar-logo { height: 36px; }
     }
     .import-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     .import-row input[type=file] { display:none; }
@@ -140,7 +145,7 @@
               min-height:100vh;width:100%;display:flex;flex-direction:column;
               justify-content:center;align-items:center;text-align:center;padding:40px 20px;">
     <img src="logo-white.png" alt="وزارة التعليم" class="brand-logo"
-         style="margin-bottom:16px;width:min(340px,78vw);height:auto;">
+         style="margin-bottom:16px;width:min(300px,76vw);height:min(115px,32vw);object-fit:cover;object-position:top center;">
     <h1 style="color:#fff;font-size:26px;font-weight:900;margin-bottom:6px;">
       بوابة دعم التعلم
     </h1>
@@ -175,7 +180,7 @@
               min-height:100vh;width:100%;display:flex;flex-direction:column;
               justify-content:center;align-items:center;text-align:center;padding:40px 20px;">
     <div style="margin-bottom:32px;">
-      <img src="logo-white.png" alt="وزارة التعليم" class="brand-logo" style="margin-bottom:16px;width:min(320px,76vw);height:auto;">
+      <img src="logo-white.png" alt="وزارة التعليم" class="brand-logo" style="margin-bottom:16px;width:min(280px,72vw);height:min(108px,30vw);object-fit:cover;object-position:top center;">
       <h1 style="color:#fff;font-size:30px;font-weight:800;margin-bottom:10px;">
         بوابة دعم التعلم
       </h1>

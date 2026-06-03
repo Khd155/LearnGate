@@ -27,9 +27,10 @@ const DB = {
   plans:    () => Cache.plans,
 
   async loadAll() {
+    const school = State.school ? '?school=' + encodeURIComponent(State.school) : '';
     const [s, p] = await Promise.all([
-      apiFetch('/students'),
-      apiFetch('/plans'),
+      apiFetch('/students' + school),
+      apiFetch('/plans'    + school),
     ]);
     Cache.students = (s.students || []).map(_mapStudent);
     Cache.plans    = (p.plans    || []).map(_mapPlan);
@@ -52,7 +53,7 @@ const DB = {
   async addStudent({ name, code }) {
     const { student } = await apiFetch('/students', {
       method: 'POST',
-      body: JSON.stringify({ name, code }),
+      body: JSON.stringify({ name, code, school: State.school || '' }),
     });
     const s = _mapStudent(student);
     Cache.students.push(s);
@@ -79,7 +80,7 @@ const DB = {
   async upsertPlan(plan) {
     const { plan: p } = await apiFetch('/plans', {
       method: 'POST',
-      body: JSON.stringify(plan),
+      body: JSON.stringify({ ...plan, school: State.school || '' }),
     });
     const mapped = _mapPlan(p);
     Cache.plans = Cache.plans.filter(pl => pl.studentId !== plan.studentId);
@@ -181,7 +182,8 @@ const App = {
     }
     let admin;
     try {
-      const data = await apiFetch(`/admins/${code}`);
+      const school = encodeURIComponent(State.school || '');
+      const data = await apiFetch(`/admins/${code}?school=${school}`);
       admin = data.admin;
     } catch (e) {
       if (e.message && e.message.includes('404')) {

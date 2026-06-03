@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LearnGate — لوحة المطور</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Tajawal','Cairo',sans-serif;background:#0f172a;color:#e2e8f0;direction:rtl;min-height:100vh;font-size:15px}
+    :root{
+      --bg:#0f172a;--surface:#1e293b;--surface2:#334155;
+      --border:#334155;--border2:#475569;
+      --primary:#3b82f6;--primary-dk:#2563eb;
+      --success:#22c55e;--danger:#ef4444;--warn:#f59e0b;--muted:#94a3b8;
+      --radius:12px;
+    }
+    /* ── Lock Screen ── */
+    #lock-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999}
+    .lock-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;width:340px;text-align:center}
+    .lock-icon{font-size:52px;margin-bottom:16px}
+    .lock-title{font-size:20px;font-weight:800;margin-bottom:6px;color:#f1f5f9}
+    .lock-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+    .lock-input{width:100%;background:var(--bg);border:1.5px solid var(--border2);color:#f1f5f9;border-radius:10px;padding:13px 16px;font-size:15px;font-family:inherit;text-align:center;letter-spacing:2px}
+    .lock-input:focus{outline:none;border-color:var(--primary)}
+    .lock-btn{width:100%;margin-top:14px;background:var(--primary);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer}
+    .lock-btn:hover{background:var(--primary-dk)}
+    .lock-err{color:#f87171;font-size:13px;margin-top:10px;min-height:20px}
+
+    /* ── Layout ── */
+    #app{display:none}
+    .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+    .topbar-brand{display:flex;align-items:center;gap:12px}
+    .topbar-icon{font-size:24px}
+    .topbar-name{font-size:17px;font-weight:800;color:#f1f5f9}
+    .topbar-badge{background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:1px}
+    .topbar-logout{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+    .topbar-logout:hover{background:rgba(239,68,68,.25)}
+
+    /* ── Tabs ── */
+    .tabs-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;display:flex;gap:4px}
+    .tab-btn{padding:14px 20px;font-size:14px;font-weight:600;color:var(--muted);border:none;background:transparent;cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;transition:all .2s}
+    .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+    .tab-btn:hover:not(.active){color:#e2e8f0}
+
+    /* ── Content ── */
+    .content{padding:28px;max-width:1100px;margin:0 auto}
+    .tab-pane{display:none}.tab-pane.active{display:block}
+
+    /* ── Cards ── */
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
+    .stat-num{font-size:36px;font-weight:800;color:var(--primary)}
+    .stat-lbl{font-size:13px;color:var(--muted);margin-top:4px}
+
+    /* ── Section ── */
+    .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px}
+    .section-title{font-size:15px;font-weight:800;color:#f1f5f9;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .section-title span{font-size:18px}
+
+    /* ── Table ── */
+    .data-table{width:100%;border-collapse:collapse}
+    .data-table th{background:var(--surface2);font-size:12px;color:var(--muted);padding:10px 14px;text-align:right;font-weight:600}
+    .data-table td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:14px}
+    .data-table tr:last-child td{border-bottom:none}
+    .data-table tr:hover td{background:rgba(255,255,255,.03)}
+
+    /* ── Forms ── */
+    .form-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px}
+    .form-group{display:flex;flex-direction:column;gap:6px;flex:1;min-width:160px}
+    .form-label{font-size:12px;color:var(--muted);font-weight:600}
+    .form-input{background:var(--bg);border:1.5px solid var(--border2);color:#f1f5f9;border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit}
+    .form-input:focus{outline:none;border-color:var(--primary)}
+    .form-select{background:var(--bg);border:1.5px solid var(--border2);color:#f1f5f9;border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;cursor:pointer}
+
+    /* ── Buttons ── */
+    .btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s}
+    .btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dk)}
+    .btn-success{background:var(--success);color:#fff}.btn-success:hover{filter:brightness(1.1)}
+    .btn-danger{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}.btn-danger:hover{background:rgba(239,68,68,.25)}
+    .btn-warn{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}.btn-warn:hover{background:rgba(245,158,11,.25)}
+    .btn-sm{padding:6px 12px;font-size:12px}
+
+    /* ── Badge ── */
+    .badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700}
+    .badge-any{background:rgba(59,130,246,.2);color:#93c5fd}
+    .badge-school{background:rgba(34,197,94,.15);color:#86efac}
+    .badge-super{background:rgba(245,158,11,.15);color:#fbbf24}
+
+    /* ── School table ── */
+    .school-row-block{background:rgba(255,255,255,.03);border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid var(--border)}
+    .school-row-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .school-name{font-size:15px;font-weight:700;color:#f1f5f9}
+    .school-stats{display:flex;gap:12px}
+    .school-stat{font-size:12px;color:var(--muted)}
+    .school-stat strong{color:#e2e8f0}
+
+    /* ── Alert ── */
+    .alert{padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:14px;display:none}
+    .alert.show{display:block}
+    .alert-err{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+    .alert-ok{background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.3)}
+
+    /* ── Toast ── */
+    #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1e40af;color:#fff;padding:12px 28px;border-radius:12px;font-size:14px;font-weight:600;z-index:9999;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+
+    /* ── Empty ── */
+    .empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px}
+
+    /* ── Danger confirm box ── */
+    .danger-box{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:16px;margin-top:12px}
+    .danger-box p{font-size:13px;color:#fca5a5;margin-bottom:12px}
+
+    @media(max-width:640px){
+      .content{padding:16px}
+      .tabs-bar{padding:0 16px;overflow-x:auto}
+      .tab-btn{padding:12px 14px;font-size:13px;white-space:nowrap}
+      .topbar{padding:12px 16px}
+      .stat-grid{grid-template-columns:repeat(2,1fr)}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Lock Screen ───────────────────────────────────────── -->
+<div id="lock-screen">
+  <div class="lock-box">
+    <div class="lock-icon">🔐</div>
+    <div class="lock-title">لوحة المطور</div>
+    <div class="lock-sub">LearnGate — واجهة إدارة النظام</div>
+    <input type="password" id="dev-pass" class="lock-input"
+           placeholder="كلمة المرور"
+           onkeydown="if(event.key==='Enter') Dev.login()">
+    <button class="lock-btn" onclick="Dev.login()">دخول ←</button>
+    <div class="lock-err" id="lock-err"></div>
+  </div>
+</div>
+
+<!-- ── App ───────────────────────────────────────────────── -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-icon">⚙️</div>
+      <div>
+        <div class="topbar-name">LearnGate Dev Panel</div>
+      </div>
+      <div class="topbar-badge">DEVELOPER</div>
+    </div>
+    <button class="topbar-logout" onclick="Dev.logout()">خروج 🔒</button>
+  </div>
+
+  <div class="tabs-bar">
+    <button class="tab-btn active" data-tab="overview"  onclick="Dev.setTab('overview')">📊 نظرة عامة</button>
+    <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')">🏫 المدارس والمشرفون</button>
+    <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')">📝 الأسئلة</button>
+    <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')">⚠️ أدوات</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ── Overview ── -->
+    <div id="tab-overview" class="tab-pane active">
+      <div class="stat-grid" id="total-stats">
+        <div class="stat-card"><div class="stat-num" id="tot-schools">—</div><div class="stat-lbl">مدارس</div></div>
+        <div class="stat-card"><div class="stat-num" id="tot-students">—</div><div class="stat-lbl">طلاب إجمالي</div></div>
+        <div class="stat-card"><div class="stat-num" id="tot-admins">—</div><div class="stat-lbl">مشرفون</div></div>
+        <div class="stat-card"><div class="stat-num" id="tot-questions">—</div><div class="stat-lbl">أسئلة</div></div>
+      </div>
+      <div class="section">
+        <div class="section-title"><span>🏫</span> إحصائيات كل مدرسة</div>
+        <div id="school-stats-list"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+    </div>
+
+    <!-- ── Schools & Admins ── -->
+    <div id="tab-schools" class="tab-pane">
+
+      <!-- Add School -->
+      <div class="section">
+        <div class="section-title"><span>➕</span> إضافة مدرسة جديدة</div>
+        <div id="add-school-err" class="alert alert-err"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <div class="form-label">اسم المدرسة</div>
+            <input type="text" id="new-school-name" class="form-input" placeholder="ثانوية ..." onkeydown="if(event.key==='Enter') Dev.addSchool()">
+          </div>
+          <button class="btn btn-success" onclick="Dev.addSchool()">+ إضافة مدرسة</button>
+        </div>
+      </div>
+
+      <!-- Add Admin -->
+      <div class="section">
+        <div class="section-title"><span>👤</span> إضافة مشرف</div>
+        <div id="add-admin-err" class="alert alert-err"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <div class="form-label">الاسم</div>
+            <input type="text" id="new-admin-name" class="form-input" placeholder="اسم المشرف">
+          </div>
+          <div class="form-group">
+            <div class="form-label">رقم السجل المدني (١٠ أرقام)</div>
+            <input type="text" id="new-admin-code" class="form-input" placeholder="1234567890" maxlength="10" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          </div>
+          <div class="form-group">
+            <div class="form-label">المدرسة</div>
+            <select id="new-admin-school" class="form-select">
+              <option value="*">⭐ سوبر مشرف (كل المدارس)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="Dev.addAdmin()">+ إضافة</button>
+        </div>
+      </div>
+
+      <!-- Admins List -->
+      <div class="section">
+        <div class="section-title"><span>📋</span> قائمة المشرفين</div>
+        <div id="admins-list"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+    </div>
+
+    <!-- ── Questions ── -->
+    <div id="tab-questions" class="tab-pane">
+      <div class="section">
+        <div class="section-title"><span>📝</span> بنك الأسئلة</div>
+        <div class="stat-grid" style="margin-bottom:20px">
+          <div class="stat-card"><div class="stat-num" id="q-count">—</div><div class="stat-lbl">سؤال في البنك</div></div>
+          <div class="stat-card"><div class="stat-num" id="q-verbal">—</div><div class="stat-lbl">لفظي</div></div>
+          <div class="stat-card"><div class="stat-num" id="q-quant">—</div><div class="stat-lbl">كمي</div></div>
+        </div>
+        <div class="form-row" style="flex-wrap:wrap;gap:12px">
+          <label class="btn btn-primary" for="q-import-file">📤 استيراد أسئلة (Excel)</label>
+          <input type="file" id="q-import-file" accept=".xlsx,.xls" style="display:none" onchange="Dev.importQuestions(this)">
+          <button class="btn btn-warn" onclick="Dev.exportQuestions()">⬇️ تصدير الأسئلة (Excel)</button>
+        </div>
+        <div id="q-table-wrap" style="margin-top:16px;overflow-x:auto">
+          <div class="empty">جارٍ التحميل...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Danger Zone ── -->
+    <div id="tab-danger" class="tab-pane">
+      <div class="section">
+        <div class="section-title"><span>⚠️</span> أدوات النظام</div>
+
+        <div class="danger-box">
+          <p>🗑️ <strong>مسح طلاب مدرسة بالكامل</strong> — حذف دائم لا يمكن التراجع عنه</p>
+          <div class="form-row">
+            <select id="clear-school-select" class="form-select" style="flex:1"></select>
+            <button class="btn btn-danger" onclick="Dev.clearSchoolStudents()">🗑️ مسح الطلاب</button>
+          </div>
+        </div>
+
+        <div class="danger-box" style="margin-top:16px">
+          <p>🗑️ <strong>مسح بنك الأسئلة كاملاً</strong> — سيتم استخدام الأسئلة الافتراضية</p>
+          <button class="btn btn-danger" onclick="Dev.clearQuestions()">🗑️ مسح كل الأسئلة</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>ℹ️</span> معلومات النظام</div>
+        <table class="data-table">
+          <tr><td>الإصدار</td><td>LearnGate v2.0 — Cloudflare D1</td></tr>
+          <tr><td>قاعدة البيانات</td><td>Cloudflare D1 (SQLite)</td></tr>
+          <tr><td>الاستضافة</td><td>Cloudflare Pages</td></tr>
+          <tr><td>API</td><td>Pages Functions (/api/*)</td></tr>
+          <tr><td>كلمة مرور المطور</td><td><span style="color:var(--warn)">تُعدَّل عبر متغير البيئة DEV_KEY في Pages Settings</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<div id="toast"></div>
+
+<script>
+const API = '/api';
+let devKey = '';
+
+function apiDev(path, opts = {}) {
+  return fetch(API + path, {
+    headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
+    ...opts,
+  }).then(async r => {
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    return d;
+  });
+}
+
+function showToast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isErr ? '#7f1d1d' : '#1e40af';
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+function showAlert(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 5000);
+}
+
+const Dev = {
+
+  async login() {
+    const pass = document.getElementById('dev-pass').value;
+    if (!pass) return;
+    // Test key by calling a protected endpoint
+    devKey = pass;
+    try {
+      await apiDev('/dev/stats');
+      sessionStorage.setItem('devKey', pass);
+      document.getElementById('lock-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      Dev.loadAll();
+    } catch (e) {
+      devKey = '';
+      document.getElementById('lock-err').textContent = 'كلمة المرور غير صحيحة';
+    }
+  },
+
+  logout() {
+    sessionStorage.removeItem('devKey');
+    devKey = '';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('lock-screen').style.display = 'flex';
+    document.getElementById('dev-pass').value = '';
+    document.getElementById('lock-err').textContent = '';
+  },
+
+  setTab(tab) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.getElementById('tab-' + tab).classList.add('active');
+  },
+
+  async loadAll() {
+    await Promise.all([Dev.loadStats(), Dev.loadAdmins(), Dev.loadQuestions()]);
+    Dev.populateSchoolSelects();
+  },
+
+  async loadStats() {
+    const { stats, totals } = await apiDev('/dev/stats');
+    document.getElementById('tot-schools').textContent  = totals.schools;
+    document.getElementById('tot-students').textContent = totals.students;
+    document.getElementById('tot-admins').textContent   = totals.admins;
+    document.getElementById('tot-questions').textContent = totals.questions;
+
+    const listEl = document.getElementById('school-stats-list');
+    if (!stats.length) { listEl.innerHTML = '<div class="empty">لا توجد مدارس مضافة</div>'; return; }
+    listEl.innerHTML = stats.map(s => `
+      <div class="school-row-block">
+        <div class="school-row-header">
+          <div class="school-name">🏫 ${s.school}</div>
+          <button class="btn btn-danger btn-sm" onclick="Dev.deleteSchool('${s.school}')">حذف المدرسة</button>
+        </div>
+        <div class="school-stats">
+          <div class="school-stat">طلاب: <strong>${s.students}</strong></div>
+          <div class="school-stat">خطط معلقة: <strong style="color:var(--warn)">${s.pending}</strong></div>
+          <div class="school-stat">خطط نشطة: <strong style="color:var(--success)">${s.active}</strong></div>
+        </div>
+      </div>`).join('');
+  },
+
+  async loadAdmins() {
+    const { admins } = await apiDev('/dev/admins');
+    const el = document.getElementById('admins-list');
+    if (!admins.length) { el.innerHTML = '<div class="empty">لا يوجد مشرفون</div>'; return; }
+    el.innerHTML = `<table class="data-table">
+      <thead><tr><th>الاسم</th><th>رقم السجل</th><th>المدرسة</th><th></th></tr></thead>
+      <tbody>${admins.map(a => `
+        <tr>
+          <td>${a.name}</td>
+          <td style="direction:ltr;text-align:right">${a.code}</td>
+          <td>${a.school === '*'
+            ? '<span class="badge badge-super">⭐ كل المدارس</span>'
+            : a.school
+              ? '<span class="badge badge-school">' + a.school + '</span>'
+              : '<span class="badge badge-any">—</span>'}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="Dev.deleteAdmin('${a.id}','${a.name}')">حذف</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  },
+
+  async loadQuestions() {
+    const { questions } = await apiDev('/dev/stats').then(() => fetch(API + '/questions', { headers: { 'X-Dev-Key': devKey } }).then(r => r.json())).catch(() => ({ questions: [] }));
+    // Actually load questions directly
+    const qres = await fetch(API + '/questions').then(r => r.json()).catch(() => ({ questions: [] }));
+    const qs = qres.questions || [];
+    document.getElementById('q-count').textContent  = qs.length;
+    document.getElementById('q-verbal').textContent = qs.filter(q => q.type === 'verbal').length;
+    document.getElementById('q-quant').textContent  = qs.filter(q => q.type === 'quantitative').length;
+
+    const wrap = document.getElementById('q-table-wrap');
+    if (!qs.length) { wrap.innerHTML = '<div class="empty">لا توجد أسئلة في البنك حالياً — يتم استخدام الأسئلة الافتراضية</div>'; return; }
+    wrap.innerHTML = `<table class="data-table">
+      <thead><tr><th>#</th><th>السؤال</th><th>النوع</th><th>المهارة</th></tr></thead>
+      <tbody>${qs.slice(0,20).map(q => `
+        <tr>
+          <td style="color:var(--muted)">${q.qnum}</td>
+          <td>${q.text.substring(0,60)}${q.text.length>60?'...':''}</td>
+          <td>${q.type === 'verbal' ? '📚 لفظي' : '🔢 كمي'}</td>
+          <td style="color:var(--muted)">${q.skill_id}</td>
+        </tr>`).join('')}
+      ${qs.length > 20 ? `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:12px">... و ${qs.length - 20} سؤال آخر</td></tr>` : ''}
+      </tbody>
+    </table>`;
+  },
+
+  async populateSchoolSelects() {
+    const { schools } = await apiDev('/dev/schools');
+    // Admin school select
+    const adminSel = document.getElementById('new-admin-school');
+    const opts = `<option value="*">⭐ سوبر مشرف (كل المدارس)</option>` +
+      schools.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+    adminSel.innerHTML = opts;
+
+    // Clear school select
+    const clearSel = document.getElementById('clear-school-select');
+    clearSel.innerHTML = schools.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+  },
+
+  async addSchool() {
+    const name = document.getElementById('new-school-name').value.trim();
+    if (!name) { showAlert('add-school-err', 'أدخل اسم المدرسة'); return; }
+    try {
+      await apiDev('/dev/schools', { method: 'POST', body: JSON.stringify({ name }) });
+      document.getElementById('new-school-name').value = '';
+      showToast('تمت إضافة المدرسة ✅');
+      Dev.loadStats(); Dev.populateSchoolSelects();
+    } catch (e) { showAlert('add-school-err', e.message); }
+  },
+
+  async deleteSchool(name) {
+    if (!confirm(`حذف مدرسة "${name}"؟ لن يتم حذف الطلاب.`)) return;
+    const { schools } = await apiDev('/dev/schools');
+    const school = schools.find(s => s.name === name);
+    if (!school) return;
+    await apiDev(`/dev/schools/${school.id}`, { method: 'DELETE' });
+    showToast('تم الحذف');
+    Dev.loadStats(); Dev.populateSchoolSelects();
+  },
+
+  async addAdmin() {
+    const name   = document.getElementById('new-admin-name').value.trim();
+    const code   = document.getElementById('new-admin-code').value.trim();
+    const school = document.getElementById('new-admin-school').value;
+    if (!name) { showAlert('add-admin-err', 'أدخل الاسم'); return; }
+    if (!/^\d{10}$/.test(code)) { showAlert('add-admin-err', 'رقم السجل يجب أن يكون ١٠ أرقام'); return; }
+    try {
+      await apiDev('/dev/admins', { method: 'POST', body: JSON.stringify({ name, code, school }) });
+      document.getElementById('new-admin-name').value = '';
+      document.getElementById('new-admin-code').value = '';
+      showToast('تمت إضافة المشرف ✅');
+      Dev.loadAdmins();
+    } catch (e) { showAlert('add-admin-err', e.message); }
+  },
+
+  async deleteAdmin(id, name) {
+    if (!confirm(`حذف المشرف "${name}"؟`)) return;
+    await apiDev(`/dev/admins/${id}`, { method: 'DELETE' });
+    showToast('تم الحذف');
+    Dev.loadAdmins();
+  },
+
+  async importQuestions(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    const action = confirm('استبدال الأسئلة الحالية بالكامل؟\nاضغط OK للاستبدال، Cancel للإضافة فقط.') ? 'replace' : 'append';
+    try {
+      const rows = await readExcel(file);
+      const parsed = rows.map(r => ({
+        qnum:    Number(r['رقم السؤال'] ?? r['qnum'] ?? r['id']),
+        type:    String(r['النوع'] ?? r['type'] ?? '').trim(),
+        skillId: String(r['رمز المهارة'] ?? r['skillId'] ?? r['skill'] ?? '').trim(),
+        text:    String(r['نص السؤال'] ?? r['text'] ?? '').trim(),
+        opts: [String(r['الخيار الأول']??r['opt1']??'').trim(), String(r['الخيار الثاني']??r['opt2']??'').trim(), String(r['الخيار الثالث']??r['opt3']??'').trim(), String(r['الخيار الرابع']??r['opt4']??'').trim()],
+        ans: Number(r['رقم الإجابة الصحيحة'] ?? r['ans']),
+      })).filter(q => q.qnum && q.text && ['verbal','quantitative'].includes(q.type) && q.opts.every(o => o) && q.ans >= 0 && q.ans <= 3);
+      if (!parsed.length) { alert('لا توجد أسئلة صالحة'); return; }
+      const res = await fetch(API + '/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, questions: parsed }),
+      }).then(r => r.json());
+      showToast(`تمت إضافة ${res.added} سؤالاً ✅`);
+      Dev.loadQuestions();
+    } catch (e) { showToast('فشل الاستيراد: ' + e.message, true); }
+  },
+
+  async exportQuestions() {
+    const { questions } = await fetch(API + '/questions').then(r => r.json());
+    if (!questions.length) { alert('لا توجد أسئلة'); return; }
+    const rows = questions.map(q => ({
+      'رقم السؤال': q.qnum, 'النوع': q.type, 'رمز المهارة': q.skill_id,
+      'نص السؤال': q.text, 'الخيار الأول': q.opt1, 'الخيار الثاني': q.opt2,
+      'الخيار الثالث': q.opt3, 'الخيار الرابع': q.opt4, 'رقم الإجابة الصحيحة': q.ans,
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Questions');
+    XLSX.writeFile(wb, 'learngate-questions.xlsx');
+    showToast('تم التصدير ✅');
+  },
+
+  async clearSchoolStudents() {
+    const school = document.getElementById('clear-school-select').value;
+    if (!school) return;
+    if (!confirm(`حذف جميع طلاب "${school}" نهائياً؟`)) return;
+    if (!confirm('هذا الإجراء لا يمكن التراجع عنه. متأكد؟')) return;
+    await apiDev('/dev/students?school=' + encodeURIComponent(school), { method: 'DELETE' });
+    showToast('تم الحذف ✅');
+    Dev.loadStats();
+  },
+
+  async clearQuestions() {
+    if (!confirm('مسح جميع الأسئلة من قاعدة البيانات؟ سيتم استخدام الأسئلة الافتراضية.')) return;
+    await apiDev('/dev/questions', { method: 'DELETE' });
+    showToast('تم مسح الأسئلة ✅');
+    Dev.loadQuestions();
+  },
+};
+
+function readExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('تعذّر قراءة الملف'));
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '', raw: false }));
+      } catch (err) { reject(err); }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// Auto-login if key in sessionStorage
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = sessionStorage.getItem('devKey');
+  if (saved) {
+    devKey = saved;
+    apiDev('/dev/stats').then(() => {
+      document.getElementById('lock-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      Dev.loadAll();
+    }).catch(() => { devKey = ''; sessionStorage.removeItem('devKey'); });
+  }
+});
+</script>
+</body>
+</html>

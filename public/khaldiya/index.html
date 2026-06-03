@@ -51,12 +51,13 @@
     }
     .topbar-logo {
       width: 72px;
-      height: auto;
-      object-fit: contain;
+      height: 57px;
+      background: url(logo-white.png) center/contain no-repeat;
+      display: block;
       flex-shrink: 0;
     }
     @media (max-width:640px) {
-      .topbar-logo { width: 58px; }
+      .topbar-logo { width: 58px; height: 46px; }
     }
     @media (max-width:480px) {
       .brand-logo { width: min(260px, 78vw); }
@@ -207,7 +208,7 @@
 <div id="screen-student-login" class="screen">
   <div class="topbar">
     <button class="topbar-back" onclick="show('screen-identity')">←</button>
-    <img src="logo-white.png" alt="" class="topbar-logo">
+    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
     <div>
       <div class="topbar-title">تسجيل الدخول</div>
       <div class="topbar-sub">بيانات الطالب</div>
@@ -238,7 +239,7 @@
 <div id="screen-admin-login" class="screen">
   <div class="topbar">
     <button class="topbar-back" onclick="show('screen-identity')">←</button>
-    <img src="logo-white.png" alt="" class="topbar-logo">
+    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
     <div>
       <div class="topbar-title">دخول المشرف</div>
     </div>
@@ -268,7 +269,7 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-student-home" class="screen">
   <div class="topbar">
-    <img src="logo-white.png" alt="" class="topbar-logo">
+    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
     <div style="flex:1;">
       <div class="topbar-title">بوابة دعم التعلم</div>
       <div class="topbar-sub" id="sh-school-sub"></div>
@@ -569,7 +570,7 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-admin" class="screen">
   <div class="topbar">
-    <img src="logo-white.png" alt="" class="topbar-logo">
+    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
     <div style="flex:1;">
       <div class="topbar-title">لوحة تحكم المشرف</div>
       <div class="topbar-sub" id="ad-school-sub"></div>

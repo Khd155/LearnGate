@@ -65,8 +65,9 @@ const DB = {
       method: 'POST',
       body: JSON.stringify(rows),
     });
-    // Reload full list after bulk insert
-    const { students } = await apiFetch('/students');
+    // Reload full list after bulk insert (filtered by school)
+    const school = State.school ? '?school=' + encodeURIComponent(State.school) : '';
+    const { students } = await apiFetch('/students' + school);
     Cache.students = (students || []).map(_mapStudent);
     return { added: res.added, skipped: res.skipped };
   },

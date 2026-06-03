@@ -404,7 +404,7 @@ const Dev = {
 
   async loadAll() {
     await Promise.all([Dev.loadStats(), Dev.loadAdmins(), Dev.loadQuestions()]);
-    Dev.populateSchoolSelects();
+    await Dev.populateSchoolSelects();
     Dev.loadStudents();
   },
 

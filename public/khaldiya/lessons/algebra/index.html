@@ -1,499 +1,692 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="ar">
+<html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta content="width=device-width,initial-scale=1" name="viewport">
-<title>فيديوهات الجبر</title>
-<link href="https://fonts.googleapis.com" rel="preconnect">
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شروحات الجبر — بوابة دعم التعلم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg1:#9333ea; --bg2:#f59e0b; --glass: rgba(255,255,255,.18); --glass-2: rgba(255,255,255,.10);
-    --text:#0b1220; --text-inv:#ffffff; --stroke: rgba(255,255,255,.40);
-    --shadow: 0 10px 30px rgba(2,8,23,.18); --radius:22px;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0;font-family:"Cairo",system-ui,-apple-system,"Segoe UI",Roboto,Arial,"Noto Sans",sans-serif;color:var(--text)}
-  body{min-height:100dvh; overflow-x:hidden; background: linear-gradient(120deg, var(--bg1), var(--bg2));}
-  .container{max-width:1160px;margin:32px auto 60px;padding:0 20px}
-  .hero{ color:var(--text-inv); margin:18px 0 10px; text-align:center; }
-  .hero h1{ margin:0; font-size:clamp(26px,3.8vw,40px); font-weight:800; text-shadow:0 6px 24px rgba(2,8,23,.32); }
-  .hero p{ margin:8px 0 0; color:#eef2ff; font-size:clamp(14px,1.6vw,16px); opacity:.95; font-weight:600; }
-  .grid{ display:grid; gap:18px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-top:22px; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  a.card{
-    position:relative; display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-    padding:24px; aspect-ratio:1/1; text-decoration:none; color:#0b1220;
-    background: linear-gradient(180deg, var(--glass), var(--glass-2));
-    border: 1px solid var(--stroke); border-radius: var(--radius);
-    backdrop-filter: blur(10px) saturate(120%); box-shadow: var(--shadow);
+  :root {
+    --primary:    #3F7CB8;
+    --primary-dk: #2B5F94;
+    --accent:     #4FA877;
+    --bg:         #f4f8fb;
+    --surface:    #ffffff;
+    --border:     #e2e8f0;
+    --text:       #0f172a;
+    --muted:      #64748b;
+    --radius:     16px;
+    --radius-lg:  22px;
+    --shadow:     0 8px 24px -8px rgba(63,124,184,.20), 0 2px 6px rgba(15,23,42,.04);
+    --shadow-lg:  0 24px 60px -20px rgba(63,124,184,.30);
+    --grad-hero:  linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  }
+
+  html, body {
+    min-height: 100vh;
+    font-family: 'Tajawal', 'Cairo', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    direction: rtl;
+    font-size: 16px;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+    font-weight: 800;
+  }
+
+  /* ── Top Bar ── */
+  .topbar {
+    background: var(--grad-hero);
+    color: #fff;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 6px 24px -10px rgba(7,54,105,.55);
+  }
+  .topbar-title {
+    font-family: 'Cairo', sans-serif;
+    font-weight: 800;
+    font-size: 17px;
+  }
+  .topbar-back {
+    background: rgba(255,255,255,.18);
+    border: 1.5px solid rgba(255,255,255,.35);
+    color: #fff;
+    border-radius: 99px;
+    padding: 6px 18px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .18s;
+  }
+  .topbar-back:hover { background: rgba(255,255,255,.28); }
+
+  /* ── Hero Banner ── */
+  .hero-banner {
+    background: var(--grad-hero);
+    color: #fff;
+    padding: 36px 24px 48px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 120%, rgba(255,255,255,.12), transparent 70%);
+    pointer-events: none;
+  }
+  .hero-banner h1 {
+    font-size: clamp(22px, 4vw, 34px);
+    text-shadow: 0 4px 16px rgba(7,54,105,.35);
+    margin-bottom: 8px;
+  }
+  .hero-banner p {
+    font-size: 15px;
+    opacity: .88;
+    font-weight: 500;
+  }
+  .hero-pill {
+    display: inline-block;
+    background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.35);
+    border-radius: 99px;
+    padding: 4px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  /* ── Container ── */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+
+  /* ── Section Header ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .section-header h2 {
+    font-size: 18px;
+    color: var(--primary);
+  }
+  .count-badge {
+    background: var(--primary);
+    color: #fff;
+    border-radius: 99px;
+    padding: 2px 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  /* ── Grid ── */
+  .grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  /* ── Card ── */
+  a.card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px 14px;
+    aspect-ratio: 1 / 1;
+    text-decoration: none;
+    color: var(--text);
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
     transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    position: relative;
   }
-  a.card:hover{ transform: translateY(-4px); }
-
-  .icon{
-    width:92px; height:92px; border-radius:24px;
-    background: conic-gradient(from 30deg, rgba(255,255,255,.85), rgba(255,255,255,.65));
-    border:1px solid rgba(255,255,255,.75); display:flex; align-items:center; justify-content:center;
-    box-shadow: inset 0 2px 12px rgba(2,8,23,.12);
-    position:relative; overflow:hidden;
+  a.card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary);
   }
 
-  .yt{
-    width:78px; height:54px;
-    background: #ef4444;
-    border-radius:18px/14px;
-    display:flex; align-items:center; justify-content:center;
-    position:relative; box-shadow: inset 0 6px 14px rgba(0,0,0,.22);
-    border:2px solid rgba(255,255,255,.5);
-  }
-  .yt::before{
-    content:""; position:absolute; inset:0;
-    background: radial-gradient(100% 120% at 70% 10%, rgba(255,255,255,.18), transparent 48%);
-    border-radius:inherit;
-    pointer-events:none;
-  }
-  .play{
-    width:0; height:0; border-top:12px solid transparent; border-bottom:12px solid transparent; border-left:18px solid #fff;
-    margin-right:4px;
+  /* Intro card */
+  a.card.intro {
+    background: linear-gradient(135deg,#eaf2f9 0%,#e8f4ee 100%);
+    border-color: var(--primary);
+    border-style: dashed;
+    border-width: 2px;
   }
 
-  .badge{
-    position:absolute; top:8px; left:8px;
-    display:flex; align-items:center; justify-content:center;
-    width:34px; height:34px; border-radius:50%;
-    background: linear-gradient(180deg,#ffffff,#eef2ff);
-    border:2px solid rgba(17,24,39,.65);
-    font-weight:800; font-size:14px;
+  /* Coming soon */
+  a.card.soon {
+    opacity: .45;
+    pointer-events: none;
+    box-shadow: none;
   }
 
-  .label{ font-weight:800; font-size:18px; color:#0b1220; }
-  .hint{ font-size:12px; color:#374151; text-align:center; }
+  /* ── Play Icon ── */
+  .play-wrap {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #eaf2f9, #e8f4ee);
+    border: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .card.intro .play-wrap {
+    background: linear-gradient(135deg, #dbeafe, #d1fae5);
+  }
+  .yt-btn {
+    width: 64px;
+    height: 44px;
+    background: var(--primary);
+    border-radius: 12px / 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(63,124,184,.35);
+    position: relative;
+  }
+  .card.intro .yt-btn { background: var(--accent); }
+  .play-tri {
+    width: 0; height: 0;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-left: 15px solid #fff;
+    margin-right: 3px;
+  }
 
-  .intro{ outline:2px dashed rgba(255,255,255,.7); outline-offset:6px }
-  footer{ color:#e5e7eb; margin-top:24px; font-size:14px; text-align:center; font-weight:700 }
+  /* ── Badge ── */
+  .badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--grad-hero);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(63,124,184,.35);
+  }
+
+  /* ── Labels ── */
+  .card-label {
+    font-family: 'Cairo', sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--text);
+    text-align: center;
+  }
+  .card-hint {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  /* ── Divider ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 28px 0;
+  }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    padding: 24px 0 40px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 480px) {
+    .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+    .play-wrap { width: 66px; height: 66px; }
+    .yt-btn { width: 52px; height: 36px; }
+    .hero-banner { padding: 28px 16px 38px; }
+  }
 </style>
 </head>
 <body>
-<div class="container">
-  <section class="hero">
-    <h1>فيديوهات الجبر</h1>
-    <p>اختر المقطع وشاهد الشرح المصوّر</p>
-  </section>
-  <section class="grid" id="clips">
 
-    <a class="card intro" href="https://drive.google.com/file/d/1kUk6AeARFMqiyMyDUK0FAsTdT3nIP89H/view?usp=drive_link" target="_blank" title="تمهيد للمحتوى">
-      <div class="icon"><div class="yt"><div class="play"></div></div></div>
-      <div class="label">تأسيس</div>
-      <div class="hint">أسس فهمك لقواعد الجبر</div>
-    </a>
-
-    <a class="card" data-video="1" href="https://drive.google.com/file/d/1sgDlN4DZky_PqdYU0l0DeUNHDWzluXFo/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">1</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 1</div><div class="hint">واصل تقدمك</div>
-    </a>
-    <a class="card" data-video="2" href="https://drive.google.com/file/d/1X_lPCHRMf1sBVEo_mwO6jTYqQVvDy6ih/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">2</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 2</div><div class="hint">فكرة جديدة</div>
-    </a>
-    <a class="card" data-video="3" href="https://drive.google.com/file/d/173Af1FJlLQuJ9E99o9-cY8_nLUCsq9AM/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">3</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 3</div><div class="hint">خطوة نحو الإتقان</div>
-    </a>
-    <a class="card" data-video="4" href="https://drive.google.com/file/d/1mgS2renviyvst54gilyOfck9I-hulKjK/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">4</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 4</div><div class="hint">تعلم أكثر</div>
-    </a>
-    <a class="card" data-video="5" href="https://drive.google.com/file/d/1ptm64QJMP0DAn7fA4-_EdXuSbGl8j97V/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">5</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 5</div><div class="hint">الجبر أسهل</div>
-    </a>
-    <a class="card" data-video="6" href="https://drive.google.com/file/d/1o-JHp3vHr3UAM91yIx6e714xWd_EN6Qy/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">6</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 6</div><div class="hint">خطوة نجاح</div>
-    </a>
-    <a class="card" data-video="7" href="https://drive.google.com/file/d/17SxPTP0VGPk7FyFKlVJ37FRoujb_Lpqf/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">7</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 7</div><div class="hint">استمر للتميز</div>
-    </a>
-    <a class="card" data-video="8" href="https://drive.google.com/file/d/1S39gHb22ww794STSIbsK9os8oijsF5XZ/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">8</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 8</div><div class="hint">دقائق تصنع الفرق</div>
-    </a>
-    <a class="card" data-video="9" href="https://drive.google.com/file/d/1nvQIVlsIy4YfIGi-rNh5vAFuOXhHYldF/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">9</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 9</div><div class="hint">المعلومة قريبة</div>
-    </a>
-    <a class="card" data-video="10" href="https://drive.google.com/file/d/1iwwuemHOxflJmMmVYVrimBNIOs-MMT9n/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">10</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 10</div><div class="hint">ركز فأنت قادر</div>
-    </a>
-    <a class="card" data-video="11" href="https://drive.google.com/file/d/1_Vl8U10YJfUp3kGUGr5GWoMC6L_yCypJ/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">11</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 11</div><div class="hint">تعلم بذكاء</div>
-    </a>
-    <a class="card" data-video="12" href="https://drive.google.com/file/d/1n6aMuBeaKlaCRCS2Tt2PM8KdSmTtDxCR/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">12</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 12</div><div class="hint">كل مقطع خبرة</div>
-    </a>
-    <a class="card" data-video="13" href="https://drive.google.com/file/d/1hoNQXxb5c7ghCA5JzeoEjG7yhltmmB_W/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">13</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 13</div><div class="hint">شغفك يقودك</div>
-    </a>
-    <a class="card" data-video="14" href="https://drive.google.com/file/d/1pu7UUqvoPNyGXhh4kSv_5Mhg72zm4YjH/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">14</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 14</div><div class="hint">الممارسة تفوق</div>
-    </a>
-    <a class="card" data-video="15" href="https://drive.google.com/file/d/1ObgWEFa7KRLVMHB7_ylFJlwPThwW0trz/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">15</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 15</div><div class="hint">خطوة بخطوة</div>
-    </a>
-    <a class="card" data-video="16" href="https://drive.google.com/file/d/1QGFywMTgQvn4oc9uccsVQeD6yv66MjuQ/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">16</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 16</div><div class="hint">اجعلها عادة</div>
-    </a>
-    <a class="card" data-video="17" href="https://drive.google.com/file/d/1WzQLLgdgzT1Tz3dtjy8bfwgdUoM7YfAa/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">17</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 17</div><div class="hint">اليوم أفضل</div>
-    </a>
-    <a class="card" data-video="18" href="https://drive.google.com/file/d/19phAN_GNdWu0Lf69amXWhwcOAQ70wOlL/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">18</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 18</div><div class="hint">العلم قوة</div>
-    </a>
-    <a class="card" data-video="19" href="https://drive.google.com/file/d/1xMcmeBv-odpE5Ow0yYDZJfL4WytJFD6O/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">19</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 19</div><div class="hint">حلقة جديدة</div>
-    </a>
-    <a class="card" data-video="20" href="https://drive.google.com/file/d/1zykFSskdkd-xp2ZzaYHDScBFraX7VdsF/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">20</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 20</div><div class="hint">لا تتوقف</div>
-    </a>
-    <a class="card" data-video="21" href="https://drive.google.com/file/d/1U5jOa5oR_U6T4bJVncH5ZgmjxqY0eTnQ/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">21</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 21</div><div class="hint">واصل تقدمك</div>
-    </a>
-    <a class="card" data-video="22" href="https://drive.google.com/file/d/1SZFlVnCqvzMN1H4CbCi2ysNPK69HIlAN/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">22</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 22</div><div class="hint">فكرة جديدة</div>
-    </a>
-    <a class="card" data-video="23" href="https://drive.google.com/file/d/1axzAvLWKABqzEGceauMt4kqO8COzcQFu/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">23</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 23</div><div class="hint">خطوة نحو الإتقان</div>
-    </a>
-    <a class="card" data-video="24" href="https://drive.google.com/file/d/19JNQoDGAF8JmXQqQiGZsCrHvk7s9WyKM/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">24</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 24</div><div class="hint">تعلم أكثر</div>
-    </a>
-    <a class="card" data-video="25" href="https://drive.google.com/file/d/1LDj-paelti1tEkRzsQJjyRDiaXx50Ctw/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">25</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 25</div><div class="hint">الجبر أسهل</div>
-    </a>
-    <a class="card" data-video="26" href="https://drive.google.com/file/d/1U_hjC20LEWdcQ1GndcYb3Lm3P9MoKXum/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">26</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 26</div><div class="hint">خطوة نجاح</div>
-    </a>
-    <a class="card" data-video="27" href="https://drive.google.com/file/d/1MFk-y3dxv2d3c_a36_tsdhzMwaxgVca_/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">27</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 27</div><div class="hint">استمر للتميز</div>
-    </a>
-    <a class="card" data-video="28" href="https://drive.google.com/file/d/17ARbgIxmuJObgd4OqDT-ill5e2W7glgl/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">28</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 28</div><div class="hint">دقائق تصنع الفرق</div>
-    </a>
-    <a class="card" data-video="29" href="https://drive.google.com/file/d/1w6oyWNcqRErKmmkD_iRRPVSZauppDzk5/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">29</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 29</div><div class="hint">المعلومة قريبة</div>
-    </a>
-    <a class="card" data-video="30" href="https://drive.google.com/file/d/1XagaFwJXru5JCIuR4uLomiZwcQkV-4cm/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">30</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 30</div><div class="hint">ركز فأنت قادر</div>
-    </a>
-    <a class="card" data-video="31" href="https://drive.google.com/file/d/14y1ud3FATHqX8RSK-bOygZ_vEJX40EuY/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">31</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 31</div><div class="hint">تعلم بذكاء</div>
-    </a>
-    <a class="card" data-video="32" href="https://drive.google.com/file/d/14z6KzFGM9yXx-cyAKbKnEeQiD3b6-pyV/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">32</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 32</div><div class="hint">كل مقطع خبرة</div>
-    </a>
-    <a class="card" data-video="33" href="https://drive.google.com/file/d/1QXRkSjhP3o3RkHT-3972uMErLtbHhl0D/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">33</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 33</div><div class="hint">شغفك يقودك</div>
-    </a>
-    <a class="card" data-video="34" href="https://drive.google.com/file/d/1qcRUnV9nNAVHWwTu6tBT94SBgG-dvq1c/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">34</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 34</div><div class="hint">الممارسة تفوق</div>
-    </a>
-    <a class="card" data-video="35" href="https://drive.google.com/file/d/1uAgqiQKc-qHxPEsgY3m-K4x6UqizX2ur/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">35</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 35</div><div class="hint">خطوة بخطوة</div>
-    </a>
-    <a class="card" data-video="36" href="https://drive.google.com/file/d/10S10DcpCcikLdDzqhLZQbk2LvLYu1cNn/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">36</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 36</div><div class="hint">اجعلها عادة</div>
-    </a>
-    <a class="card" data-video="37" href="https://drive.google.com/file/d/1ZfjljlG6kpnQOss9DBif9MmW3gDfdO0G/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">37</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 37</div><div class="hint">اليوم أفضل</div>
-    </a>
-    <a class="card" data-video="38" href="https://drive.google.com/file/d/1B7gD07xE776X5K8yvaNrhBXo_-sZ7Brc/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">38</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 38</div><div class="hint">العلم قوة</div>
-    </a>
-    <a class="card" data-video="39" href="https://drive.google.com/file/d/1kf31yXH7ML-hrWXliGzX2TUKtmHFWcoq/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">39</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 39</div><div class="hint">حلقة جديدة</div>
-    </a>
-    <a class="card" data-video="40" href="https://drive.google.com/file/d/1fu81C-43kqWC2AriIxzfRW0xKR7KXnzs/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">40</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 40</div><div class="hint">لا تتوقف</div>
-    </a>
-    <a class="card" data-video="41" href="https://drive.google.com/file/d/179N3JzTcQAKPt-WZQSEzzGgMYZ2VjlSC/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">41</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 41</div><div class="hint">واصل تقدمك</div>
-    </a>
-    <a class="card" data-video="42" href="https://drive.google.com/file/d/1Vthj3drkcoFay-9yv5RXOzX_SVuTqSn1/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">42</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 42</div><div class="hint">فكرة جديدة</div>
-    </a>
-    <a class="card" data-video="43" href="https://drive.google.com/file/d/1UcMBme9gLYgpOX-umWFNyuWP-P6S_L0U/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">43</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 43</div><div class="hint">خطوة نحو الإتقان</div>
-    </a>
-    <a class="card" data-video="44" href="https://drive.google.com/file/d/1kSg1hI5mPpauQBf5rIshGfVn2zG_2-nt/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">44</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 44</div><div class="hint">تعلم أكثر</div>
-    </a>
-    <a class="card" data-video="45" href="https://drive.google.com/file/d/1PCfXZls47vCbm0-MEQZJKgjpfm-XmVma/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">45</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 45</div><div class="hint">الجبر أسهل</div>
-    </a>
-    <a class="card" data-video="46" href="https://drive.google.com/file/d/1QysHW67lNkqUHdiYZXNoNK6-XwaCz7Of/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">46</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 46</div><div class="hint">خطوة نجاح</div>
-    </a>
-    <a class="card" data-video="47" href="https://drive.google.com/file/d/1YHCSa3tP1kLhn1MK9Pg0nYTUnsrEnZ8m/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">47</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 47</div><div class="hint">استمر للتميز</div>
-    </a>
-    <a class="card" data-video="48" href="https://drive.google.com/file/d/1-DkgFKX_L878Tg428WvNgPasgiXAprcG/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">48</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 48</div><div class="hint">دقائق تصنع الفرق</div>
-    </a>
-    <a class="card" data-video="49" href="https://drive.google.com/file/d/1qJHf9c88hVMVlLGslQT0Tl0lQ82nHSlq/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">49</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 49</div><div class="hint">المعلومة قريبة</div>
-    </a>
-    <a class="card" data-video="50" href="https://drive.google.com/file/d/12u6U4r8_0W6NcterG3a7DFDyZmgZITiL/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">50</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 50</div><div class="hint">ركز فأنت قادر</div>
-    </a>
-    <a class="card" data-video="51" href="https://drive.google.com/file/d/1FE2uM5A0opG-w0p20TpLTuIBEMAJ4VtN/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">51</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 51</div><div class="hint">تعلم بذكاء</div>
-    </a>
-    <a class="card" data-video="52" href="https://drive.google.com/file/d/1mChrBiU35wVXXQai1j1u1QvwiCXQLaTH/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">52</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 52</div><div class="hint">كل مقطع خبرة</div>
-    </a>
-    <a class="card" data-video="53" href="https://drive.google.com/file/d/17ZUyiMlYgjyO4DYgeZw4Y5qmHdo5o7OM/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">53</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 53</div><div class="hint">شغفك يقودك</div>
-    </a>
-    <a class="card" data-video="54" href="https://drive.google.com/file/d/1oXhe1wrWaQRcvexhexehx92NeTTtKbB8/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">54</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 54</div><div class="hint">الممارسة تفوق</div>
-    </a>
-    <a class="card" data-video="55" href="https://drive.google.com/file/d/1nz8lJnZf3nIfGkmMHl_8P2Pqk5pf8oP2/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">55</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 55</div><div class="hint">خطوة بخطوة</div>
-    </a>
-    <a class="card" data-video="56" href="https://drive.google.com/file/d/1kh_f_BrXKb3Ew8bHJycVhc9ORZ6Wqjt1/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">56</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 56</div><div class="hint">اجعلها عادة</div>
-    </a>
-    <a class="card" data-video="57" href="https://drive.google.com/file/d/100JHdGza3yIKGWqNahIrZRa9kxIf-X5-/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">57</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 57</div><div class="hint">اليوم أفضل</div>
-    </a>
-    <a class="card" data-video="58" href="https://drive.google.com/file/d/1dpbJGLnSTu3FJD0RSN3mTw7LXtt89Med/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">58</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 58</div><div class="hint">العلم قوة</div>
-    </a>
-    <a class="card" data-video="59" href="https://drive.google.com/file/d/1DbNW-2gbfWxv6NLBvS1PKHslS9ckYojm/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">59</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 59</div><div class="hint">حلقة جديدة</div>
-    </a>
-    <a class="card" data-video="60" href="https://drive.google.com/file/d/1Mt3EI6uG-ZURMk1MXzYnYKW_LrHAqrPz/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">60</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 60</div><div class="hint">لا تتوقف</div>
-    </a>
-    <a class="card" data-video="61" href="https://drive.google.com/file/d/1kJJ6yUsLHgVjCccdMXmez7Zbw1y5nJRM/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">61</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 61</div><div class="hint">واصل تقدمك</div>
-    </a>
-    <a class="card" data-video="62" href="https://drive.google.com/file/d/11SSRC8LuHcUMeyk3R8LL42GJtkzozpL4/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">62</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 62</div><div class="hint">فكرة جديدة</div>
-    </a>
-    <a class="card" data-video="63" href="https://drive.google.com/file/d/1Qf0Il9SMKijF1ub7GRS9cKyocf2EiQvd/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">63</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 63</div><div class="hint">خطوة نحو الإتقان</div>
-    </a>
-    <a class="card" data-video="64" href="https://drive.google.com/file/d/1E1i4WWMuq5M4_IlfMJVqejz1iqYZHcd-/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">64</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 64</div><div class="hint">تعلم أكثر</div>
-    </a>
-    <a class="card" data-video="65" href="https://drive.google.com/file/d/1hjEsN-Rji3qxkp7jK7P8ee9NEVCDdcLG/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">65</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 65</div><div class="hint">الجبر أسهل</div>
-    </a>
-    <a class="card" data-video="66" href="https://drive.google.com/file/d/1ikOSWFMJMBdWFR0JLc1Jipb63YJxKy74/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">66</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 66</div><div class="hint">خطوة نجاح</div>
-    </a>
-    <a class="card" data-video="67" href="https://drive.google.com/file/d/11lBwyDANFADlFe7hz3mleGT5VG-5rJOp/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">67</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 67</div><div class="hint">استمر للتميز</div>
-    </a>
-    <a class="card" data-video="68" href="https://drive.google.com/file/d/1EGMh8dGgPF_PwcnxZTkdWLBnFgH_fvvc/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">68</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 68</div><div class="hint">دقائق تصنع الفرق</div>
-    </a>
-    <a class="card" data-video="69" href="https://drive.google.com/file/d/1QQhcZ-87GQbHKnxMR24DQrLCZCqx8IQ3/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">69</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 69</div><div class="hint">المعلومة قريبة</div>
-    </a>
-    <a class="card" data-video="70" href="https://drive.google.com/file/d/1M_AYLg0UCUQFv6Juex90BOMp62sCBpCZ/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">70</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 70</div><div class="hint">ركز فأنت قادر</div>
-    </a>
-    <a class="card" data-video="71" href="https://drive.google.com/file/d/1UymRw2gS7AxCjklw4xO-CHoymA4u1gyN/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">71</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 71</div><div class="hint">تعلم بذكاء</div>
-    </a>
-    <a class="card" data-video="72" href="https://drive.google.com/file/d/1h2h_SlhPS7xwuqfy6d6aAb7fb0bkHo_g/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">72</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 72</div><div class="hint">كل مقطع خبرة</div>
-    </a>
-    <a class="card" data-video="73" href="https://drive.google.com/file/d/1iPQvXHd6qq_Fg5YZfSRX6KqryzJCrmdw/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">73</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 73</div><div class="hint">شغفك يقودك</div>
-    </a>
-    <a class="card" data-video="74" href="https://drive.google.com/file/d/1jOfQid_PC2CtvMSdL-ZKLfkqJchQF6PG/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">74</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 74</div><div class="hint">الممارسة تفوق</div>
-    </a>
-    <a class="card" data-video="75" href="https://drive.google.com/file/d/14GWvnTugpfniTbCm_S-l8jZ2dQmvHR0d/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">75</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 75</div><div class="hint">خطوة بخطوة</div>
-    </a>
-    <a class="card" data-video="76" href="https://drive.google.com/file/d/1KsABfXyHYctxnQ3AJulLEKKFHmTiJP15/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">76</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 76</div><div class="hint">اجعلها عادة</div>
-    </a>
-    <a class="card" data-video="77" href="https://drive.google.com/file/d/1EYOv_Laov6RiHnWTbzN1Su3_2vmc_Cts/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">77</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 77</div><div class="hint">اليوم أفضل</div>
-    </a>
-    <a class="card" data-video="78" href="https://drive.google.com/file/d/12deFWrK9QX3tgSFcZMnQ-xEw_2gEgxFJ/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">78</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 78</div><div class="hint">العلم قوة</div>
-    </a>
-    <a class="card" data-video="79" href="https://drive.google.com/file/d/13TZuU6CjAciKU8f82EKOCGE9z0_kv7i2/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">79</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 79</div><div class="hint">حلقة جديدة</div>
-    </a>
-    <a class="card" data-video="80" href="https://drive.google.com/file/d/1DETDLZ8q2BFcHGtVKHtY7Va7iAa4jl3v/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">80</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 80</div><div class="hint">لا تتوقف</div>
-    </a>
-    <a class="card" data-video="81" href="https://drive.google.com/file/d/1Gyse-QQZJQXeWgHP_i6d1xfRcNkfKtWk/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">81</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 81</div><div class="hint">واصل تقدمك</div>
-    </a>
-    <a class="card" data-video="82" href="https://drive.google.com/file/d/1Ce4IgLB0CML2vgWX2bkq-i-flOqdg9qe/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">82</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 82</div><div class="hint">فكرة جديدة</div>
-    </a>
-    <a class="card" data-video="83" href="https://drive.google.com/file/d/1PA1onoRiX8X5fkGnGlyctrkPBwMwwpdX/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">83</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 83</div><div class="hint">خطوة نحو الإتقان</div>
-    </a>
-    <a class="card" data-video="84" href="https://drive.google.com/file/d/1RJUYxIm3Y7BoPM84X0D5WxoQn4ZdT03H/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">84</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 84</div><div class="hint">تعلم أكثر</div>
-    </a>
-    <a class="card" data-video="85" href="https://drive.google.com/file/d/1YFC5WU5Ct4UD5cwq_FvWNbFC4xhK3NLa/view?usp=drive_link" target="_blank">
-      <div class="icon"><div class="badge">85</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 85</div><div class="hint">لحظات تصنع الفرق</div>
-    </a>
-
-    <!-- قريباً: 86-100 -->
-    <a class="card" data-video="86" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">86</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 86</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="87" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">87</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 87</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="88" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">88</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 88</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="89" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">89</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 89</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="90" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">90</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 90</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="91" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">91</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 91</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="92" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">92</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 92</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="93" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">93</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 93</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="94" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">94</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 94</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="95" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">95</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 95</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="96" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">96</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 96</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="97" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">97</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 97</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="98" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">98</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 98</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="99" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">99</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 99</div><div class="hint">قريباً</div>
-    </a>
-    <a class="card" data-video="100" href="#" style="opacity:0.5;pointer-events:none;">
-      <div class="icon"><div class="badge">100</div><div class="yt"><div class="play"></div></div></div>
-      <div class="label">المقطع 100</div><div class="hint">قريباً</div>
-    </a>
-
-  </section>
-  <footer>📌 تذكير: التدريب اليومي يُصنع الفارق ✨</footer>
+<!-- Top Bar -->
+<div class="topbar">
+  <span class="topbar-title">شروحات الجبر</span>
+  <a class="topbar-back" href="../../index.html">← الرئيسية</a>
 </div>
+
+<!-- Hero -->
+<div class="hero-banner">
+  <div class="hero-pill">الجبر والمسائل الكلامية</div>
+  <h1>شروحات الجبر المصوّرة</h1>
+  <p>اختر المقطع وشاهد الشرح — 85 مقطع متاح</p>
+</div>
+
+<!-- Content -->
+<div class="container">
+
+  <!-- Active videos -->
+  <div class="section-header">
+    <h2>المقاطع المتاحة</h2>
+    <span class="count-badge">86 مقطع</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- Intro -->
+    <a class="card intro" href="https://drive.google.com/file/d/1kUk6AeARFMqiyMyDUK0FAsTdT3nIP89H/view?usp=drive_link" target="_blank">
+      <div class="play-wrap">
+        <div class="yt-btn"><div class="play-tri"></div></div>
+      </div>
+      <div class="card-label">تأسيس</div>
+      <div class="card-hint">ابدأ من هنا</div>
+    </a>
+
+    <a class="card" href="https://drive.google.com/file/d/1sgDlN4DZky_PqdYU0l0DeUNHDWzluXFo/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">1</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 1</div><div class="card-hint">واصل تقدمك</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1X_lPCHRMf1sBVEo_mwO6jTYqQVvDy6ih/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">2</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 2</div><div class="card-hint">فكرة جديدة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/173Af1FJlLQuJ9E99o9-cY8_nLUCsq9AM/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">3</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 3</div><div class="card-hint">خطوة نحو الإتقان</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1mgS2renviyvst54gilyOfck9I-hulKjK/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">4</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 4</div><div class="card-hint">تعلم أكثر</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1ptm64QJMP0DAn7fA4-_EdXuSbGl8j97V/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">5</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 5</div><div class="card-hint">الجبر أسهل</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1o-JHp3vHr3UAM91yIx6e714xWd_EN6Qy/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">6</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 6</div><div class="card-hint">خطوة نجاح</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/17SxPTP0VGPk7FyFKlVJ37FRoujb_Lpqf/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">7</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 7</div><div class="card-hint">استمر للتميز</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1S39gHb22ww794STSIbsK9os8oijsF5XZ/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">8</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 8</div><div class="card-hint">دقائق تصنع الفرق</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1nvQIVlsIy4YfIGi-rNh5vAFuOXhHYldF/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">9</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 9</div><div class="card-hint">المعلومة قريبة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1iwwuemHOxflJmMmVYVrimBNIOs-MMT9n/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">10</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 10</div><div class="card-hint">ركز فأنت قادر</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1_Vl8U10YJfUp3kGUGr5GWoMC6L_yCypJ/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">11</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 11</div><div class="card-hint">تعلم بذكاء</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1n6aMuBeaKlaCRCS2Tt2PM8KdSmTtDxCR/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">12</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 12</div><div class="card-hint">كل مقطع خبرة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1hoNQXxb5c7ghCA5JzeoEjG7yhltmmB_W/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">13</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 13</div><div class="card-hint">شغفك يقودك</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1pu7UUqvoPNyGXhh4kSv_5Mhg72zm4YjH/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">14</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 14</div><div class="card-hint">الممارسة تفوق</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1ObgWEFa7KRLVMHB7_ylFJlwPThwW0trz/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">15</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 15</div><div class="card-hint">خطوة بخطوة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1QGFywMTgQvn4oc9uccsVQeD6yv66MjuQ/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">16</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 16</div><div class="card-hint">اجعلها عادة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1WzQLLgdgzT1Tz3dtjy8bfwgdUoM7YfAa/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">17</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 17</div><div class="card-hint">اليوم أفضل</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/19phAN_GNdWu0Lf69amXWhwcOAQ70wOlL/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">18</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 18</div><div class="card-hint">العلم قوة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1xMcmeBv-odpE5Ow0yYDZJfL4WytJFD6O/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">19</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 19</div><div class="card-hint">حلقة جديدة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1zykFSskdkd-xp2ZzaYHDScBFraX7VdsF/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">20</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 20</div><div class="card-hint">لا تتوقف</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1U5jOa5oR_U6T4bJVncH5ZgmjxqY0eTnQ/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">21</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 21</div><div class="card-hint">واصل تقدمك</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1SZFlVnCqvzMN1H4CbCi2ysNPK69HIlAN/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">22</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 22</div><div class="card-hint">فكرة جديدة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1axzAvLWKABqzEGceauMt4kqO8COzcQFu/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">23</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 23</div><div class="card-hint">خطوة نحو الإتقان</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/19JNQoDGAF8JmXQqQiGZsCrHvk7s9WyKM/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">24</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 24</div><div class="card-hint">تعلم أكثر</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1LDj-paelti1tEkRzsQJjyRDiaXx50Ctw/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">25</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 25</div><div class="card-hint">الجبر أسهل</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1U_hjC20LEWdcQ1GndcYb3Lm3P9MoKXum/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">26</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 26</div><div class="card-hint">خطوة نجاح</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1MFk-y3dxv2d3c_a36_tsdhzMwaxgVca_/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">27</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 27</div><div class="card-hint">استمر للتميز</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/17ARbgIxmuJObgd4OqDT-ill5e2W7glgl/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">28</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 28</div><div class="card-hint">دقائق تصنع الفرق</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1w6oyWNcqRErKmmkD_iRRPVSZauppDzk5/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">29</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 29</div><div class="card-hint">المعلومة قريبة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1XagaFwJXru5JCIuR4uLomiZwcQkV-4cm/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">30</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 30</div><div class="card-hint">ركز فأنت قادر</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/14y1ud3FATHqX8RSK-bOygZ_vEJX40EuY/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">31</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 31</div><div class="card-hint">تعلم بذكاء</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/14z6KzFGM9yXx-cyAKbKnEeQiD3b6-pyV/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">32</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 32</div><div class="card-hint">كل مقطع خبرة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1QXRkSjhP3o3RkHT-3972uMErLtbHhl0D/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">33</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 33</div><div class="card-hint">شغفك يقودك</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1qcRUnV9nNAVHWwTu6tBT94SBgG-dvq1c/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">34</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 34</div><div class="card-hint">الممارسة تفوق</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1uAgqiQKc-qHxPEsgY3m-K4x6UqizX2ur/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">35</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 35</div><div class="card-hint">خطوة بخطوة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/10S10DcpCcikLdDzqhLZQbk2LvLYu1cNn/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">36</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 36</div><div class="card-hint">اجعلها عادة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1ZfjljlG6kpnQOss9DBif9MmW3gDfdO0G/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">37</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 37</div><div class="card-hint">اليوم أفضل</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1B7gD07xE776X5K8yvaNrhBXo_-sZ7Brc/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">38</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 38</div><div class="card-hint">العلم قوة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1kf31yXH7ML-hrWXliGzX2TUKtmHFWcoq/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">39</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 39</div><div class="card-hint">حلقة جديدة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1fu81C-43kqWC2AriIxzfRW0xKR7KXnzs/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">40</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 40</div><div class="card-hint">لا تتوقف</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/179N3JzTcQAKPt-WZQSEzzGgMYZ2VjlSC/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">41</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 41</div><div class="card-hint">واصل تقدمك</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1Vthj3drkcoFay-9yv5RXOzX_SVuTqSn1/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">42</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 42</div><div class="card-hint">فكرة جديدة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1UcMBme9gLYgpOX-umWFNyuWP-P6S_L0U/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">43</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 43</div><div class="card-hint">خطوة نحو الإتقان</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1kSg1hI5mPpauQBf5rIshGfVn2zG_2-nt/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">44</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 44</div><div class="card-hint">تعلم أكثر</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1PCfXZls47vCbm0-MEQZJKgjpfm-XmVma/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">45</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 45</div><div class="card-hint">الجبر أسهل</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1QysHW67lNkqUHdiYZXNoNK6-XwaCz7Of/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">46</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 46</div><div class="card-hint">خطوة نجاح</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1YHCSa3tP1kLhn1MK9Pg0nYTUnsrEnZ8m/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">47</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 47</div><div class="card-hint">استمر للتميز</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1-DkgFKX_L878Tg428WvNgPasgiXAprcG/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">48</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 48</div><div class="card-hint">دقائق تصنع الفرق</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1qJHf9c88hVMVlLGslQT0Tl0lQ82nHSlq/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">49</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 49</div><div class="card-hint">المعلومة قريبة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/12u6U4r8_0W6NcterG3a7DFDyZmgZITiL/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">50</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 50</div><div class="card-hint">ركز فأنت قادر</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1FE2uM5A0opG-w0p20TpLTuIBEMAJ4VtN/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">51</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 51</div><div class="card-hint">تعلم بذكاء</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1mChrBiU35wVXXQai1j1u1QvwiCXQLaTH/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">52</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 52</div><div class="card-hint">كل مقطع خبرة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/17ZUyiMlYgjyO4DYgeZw4Y5qmHdo5o7OM/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">53</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 53</div><div class="card-hint">شغفك يقودك</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1oXhe1wrWaQRcvexhexehx92NeTTtKbB8/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">54</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 54</div><div class="card-hint">الممارسة تفوق</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1nz8lJnZf3nIfGkmMHl_8P2Pqk5pf8oP2/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">55</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 55</div><div class="card-hint">خطوة بخطوة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1kh_f_BrXKb3Ew8bHJycVhc9ORZ6Wqjt1/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">56</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 56</div><div class="card-hint">اجعلها عادة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/100JHdGza3yIKGWqNahIrZRa9kxIf-X5-/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">57</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 57</div><div class="card-hint">اليوم أفضل</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1dpbJGLnSTu3FJD0RSN3mTw7LXtt89Med/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">58</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 58</div><div class="card-hint">العلم قوة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1DbNW-2gbfWxv6NLBvS1PKHslS9ckYojm/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">59</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 59</div><div class="card-hint">حلقة جديدة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1Mt3EI6uG-ZURMk1MXzYnYKW_LrHAqrPz/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">60</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 60</div><div class="card-hint">لا تتوقف</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1kJJ6yUsLHgVjCccdMXmez7Zbw1y5nJRM/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">61</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 61</div><div class="card-hint">واصل تقدمك</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/11SSRC8LuHcUMeyk3R8LL42GJtkzozpL4/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">62</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 62</div><div class="card-hint">فكرة جديدة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1Qf0Il9SMKijF1ub7GRS9cKyocf2EiQvd/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">63</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 63</div><div class="card-hint">خطوة نحو الإتقان</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1E1i4WWMuq5M4_IlfMJVqejz1iqYZHcd-/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">64</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 64</div><div class="card-hint">تعلم أكثر</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1hjEsN-Rji3qxkp7jK7P8ee9NEVCDdcLG/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">65</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 65</div><div class="card-hint">الجبر أسهل</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1ikOSWFMJMBdWFR0JLc1Jipb63YJxKy74/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">66</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 66</div><div class="card-hint">خطوة نجاح</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/11lBwyDANFADlFe7hz3mleGT5VG-5rJOp/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">67</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 67</div><div class="card-hint">استمر للتميز</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1EGMh8dGgPF_PwcnxZTkdWLBnFgH_fvvc/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">68</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 68</div><div class="card-hint">دقائق تصنع الفرق</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1QQhcZ-87GQbHKnxMR24DQrLCZCqx8IQ3/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">69</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 69</div><div class="card-hint">المعلومة قريبة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1M_AYLg0UCUQFv6Juex90BOMp62sCBpCZ/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">70</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 70</div><div class="card-hint">ركز فأنت قادر</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1UymRw2gS7AxCjklw4xO-CHoymA4u1gyN/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">71</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 71</div><div class="card-hint">تعلم بذكاء</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1h2h_SlhPS7xwuqfy6d6aAb7fb0bkHo_g/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">72</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 72</div><div class="card-hint">كل مقطع خبرة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1iPQvXHd6qq_Fg5YZfSRX6KqryzJCrmdw/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">73</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 73</div><div class="card-hint">شغفك يقودك</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1jOfQid_PC2CtvMSdL-ZKLfkqJchQF6PG/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">74</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 74</div><div class="card-hint">الممارسة تفوق</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/14GWvnTugpfniTbCm_S-l8jZ2dQmvHR0d/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">75</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 75</div><div class="card-hint">خطوة بخطوة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1KsABfXyHYctxnQ3AJulLEKKFHmTiJP15/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">76</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 76</div><div class="card-hint">اجعلها عادة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1EYOv_Laov6RiHnWTbzN1Su3_2vmc_Cts/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">77</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 77</div><div class="card-hint">اليوم أفضل</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/12deFWrK9QX3tgSFcZMnQ-xEw_2gEgxFJ/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">78</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 78</div><div class="card-hint">العلم قوة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/13TZuU6CjAciKU8f82EKOCGE9z0_kv7i2/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">79</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 79</div><div class="card-hint">حلقة جديدة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1DETDLZ8q2BFcHGtVKHtY7Va7iAa4jl3v/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">80</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 80</div><div class="card-hint">لا تتوقف</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1Gyse-QQZJQXeWgHP_i6d1xfRcNkfKtWk/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">81</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 81</div><div class="card-hint">واصل تقدمك</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1Ce4IgLB0CML2vgWX2bkq-i-flOqdg9qe/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">82</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 82</div><div class="card-hint">فكرة جديدة</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1PA1onoRiX8X5fkGnGlyctrkPBwMwwpdX/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">83</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 83</div><div class="card-hint">خطوة نحو الإتقان</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1RJUYxIm3Y7BoPM84X0D5WxoQn4ZdT03H/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">84</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 84</div><div class="card-hint">تعلم أكثر</div>
+    </a>
+    <a class="card" href="https://drive.google.com/file/d/1YFC5WU5Ct4UD5cwq_FvWNbFC4xhK3NLa/view?usp=drive_link" target="_blank">
+      <div class="play-wrap"><div class="badge">85</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+      <div class="card-label">المقطع 85</div><div class="card-hint">لحظات تصنع الفرق</div>
+    </a>
+
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Coming Soon -->
+  <div class="section-header">
+    <h2>قريباً</h2>
+    <span class="count-badge" style="background:var(--muted);">15 مقطع</span>
+  </div>
+
+  <div class="grid">
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">86</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 86</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">87</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 87</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">88</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 88</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">89</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 89</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">90</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 90</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">91</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 91</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">92</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 92</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">93</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 93</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">94</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 94</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">95</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 95</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">96</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 96</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">97</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 97</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">98</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 98</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">99</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 99</div><div class="card-hint">قريباً</div></a>
+    <a class="card soon" href="#"><div class="play-wrap"><div class="badge">100</div><div class="yt-btn"><div class="play-tri"></div></div></div><div class="card-label">المقطع 100</div><div class="card-hint">قريباً</div></a>
+  </div>
+
+  <footer>📌 التدريب اليومي يُصنع الفارق ✨</footer>
+</div>
+
 </body>
 </html>

@@ -149,6 +149,35 @@ const App = {
     show('screen-identity');
   },
 
+  async showOtherSchools() {
+    const list = document.getElementById('other-schools-list');
+    list.innerHTML = '<p style="color:rgba(255,255,255,.7);font-size:14px;">جارٍ التحميل…</p>';
+    document.getElementById('school-cards').style.display = 'none';
+    document.getElementById('other-schools-panel').style.display = 'block';
+    try {
+      const data = await apiFetch('/schools');
+      const others = (data.schools || []).filter(s => s.name !== 'ثانوية الخالدية');
+      if (!others.length) {
+        list.innerHTML = '<p style="color:rgba(255,255,255,.7);font-size:14px;">لا توجد مدارس أخرى مضافة حالياً.</p>';
+      } else {
+        list.innerHTML = others.map(s =>
+          `<button class="identity-card" onclick="App.selectSchool('${s.name.replace(/'/g,"\\'")}')">
+            <div class="card-icon">🏫</div>
+            <div class="card-title">${s.name}</div>
+            <div class="card-desc">اضغط للمتابعة</div>
+          </button>`
+        ).join('');
+      }
+    } catch {
+      list.innerHTML = '<p style="color:rgba(255,255,255,.7);font-size:14px;">تعذّر تحميل قائمة المدارس.</p>';
+    }
+  },
+
+  hideOtherSchools() {
+    document.getElementById('other-schools-panel').style.display = 'none';
+    document.getElementById('school-cards').style.display = 'flex';
+  },
+
   // ── Identity ─────────────────────────────────────────────────────────────
   selectRole(role) {
     State.role = role;

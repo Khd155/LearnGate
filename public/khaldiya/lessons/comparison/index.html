@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شروحات المقارنات الكمية — بوابة دعم التعلم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary:#3F7CB8; --primary-dk:#2B5F94; --accent:#4FA877;
+    --bg:#f4f8fb; --surface:#ffffff; --border:#e2e8f0;
+    --text:#0f172a; --muted:#64748b; --radius:16px; --radius-lg:22px;
+    --shadow:0 8px 24px -8px rgba(63,124,184,.20),0 2px 6px rgba(15,23,42,.04);
+    --shadow-lg:0 24px 60px -20px rgba(63,124,184,.30);
+    --grad-hero:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  }
+  html,body{min-height:100vh;font-family:'Tajawal','Cairo',Arial,sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
+
+  /* Modal */
+  #modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;}
+  #modal-box{background:#fff;border-radius:24px;padding:36px 32px;max-width:420px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(15,23,42,.25);}
+  #modal-box .modal-icon{font-size:48px;margin-bottom:12px;}
+  #modal-box h2{font-size:22px;color:var(--text);margin-bottom:10px;}
+  #modal-box p{font-size:15px;color:var(--muted);line-height:1.7;margin-bottom:24px;}
+  #modal-box button{background:var(--grad-hero);color:#fff;border:none;border-radius:99px;padding:12px 32px;font-size:15px;font-family:inherit;font-weight:800;cursor:pointer;width:100%;}
+  #modal-box button:hover{opacity:.9;}
+
+  .topbar{background:var(--grad-hero);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);}
+  .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;}
+  .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;}
+  .topbar-back:hover{background:rgba(255,255,255,.28);}
+
+  .hero-banner{background:var(--grad-hero);color:#fff;padding:36px 24px 48px;text-align:center;position:relative;overflow:hidden;}
+  .hero-banner::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(255,255,255,.12),transparent 70%);pointer-events:none;}
+  .hero-banner h1{font-size:clamp(22px,4vw,34px);text-shadow:0 4px 16px rgba(7,54,105,.35);margin-bottom:8px;}
+  .hero-banner p{font-size:15px;opacity:.88;font-weight:500;}
+  .hero-pill{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:4px 18px;font-size:13px;font-weight:700;margin-bottom:12px;}
+
+  .container{max-width:1200px;margin:0 auto;padding:32px 20px 60px;}
+  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+  .section-header h2{font-size:18px;color:var(--primary);}
+  .count-badge{background:var(--primary);color:#fff;border-radius:99px;padding:2px 12px;font-size:13px;font-weight:700;}
+
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+
+  a.card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px 14px;aspect-ratio:1/1;text-decoration:none;color:var(--text);background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;position:relative;}
+  a.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--primary);}
+  a.card.intro{background:linear-gradient(135deg,#eaf2f9 0%,#e8f4ee 100%);border-color:var(--primary);border-style:dashed;border-width:2px;}
+  a.card.soon,a.card.disabled{opacity:.45;pointer-events:none;box-shadow:none;}
+
+  .play-wrap{width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,#eaf2f9,#e8f4ee);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative;}
+  .card.intro .play-wrap{background:linear-gradient(135deg,#dbeafe,#d1fae5);}
+  .yt-btn{width:64px;height:44px;background:var(--primary);border-radius:12px/10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(63,124,184,.35);position:relative;}
+  .card.intro .yt-btn{background:var(--accent);}
+  .play-tri{width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:15px solid #fff;margin-right:3px;}
+
+  .badge{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:50%;background:var(--grad-hero);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;box-shadow:0 2px 8px rgba(63,124,184,.35);}
+  .card-label{font-family:'Cairo',sans-serif;font-weight:800;font-size:15px;color:var(--text);text-align:center;}
+  .card-hint{font-size:12px;color:var(--muted);text-align:center;line-height:1.4;}
+
+  .divider{height:1px;background:var(--border);margin:28px 0;}
+  footer{text-align:center;font-size:13px;color:var(--muted);padding:24px 0 40px;font-weight:600;}
+
+  @media(max-width:480px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
+    .play-wrap{width:66px;height:66px;}
+    .yt-btn{width:52px;height:36px;}
+    .hero-banner{padding:28px 16px 38px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div class="modal-icon">📌</div>
+    <h2>ابدأ من مقطع التأسيس</h2>
+    <p>قبل أي مقطع آخر، نوصيك بمشاهدة مقطع <strong>التأسيس</strong> أولاً — فهو الأساس الذي يبني عليه كل ما يليه.</p>
+    <button onclick="document.getElementById('modal-overlay').style.display='none'">فهمت، لنبدأ ✓</button>
+  </div>
+</div>
+
+<div class="topbar">
+  <span class="topbar-title">شروحات المقارنات الكمية</span>
+  <a class="topbar-back" href="../../index.html">← الرئيسية</a>
+</div>
+
+<div class="hero-banner">
+  <div class="hero-pill">المقارنات الكمية</div>
+  <h1>شروحات المقارنات الكمية المصوّرة</h1>
+  <p id="hero-sub">اختر المقطع وشاهد الشرح</p>
+</div>
+
+<div class="container">
+  <div class="section-header">
+    <h2>المقاطع المتاحة</h2>
+    <span class="count-badge" id="active-count">...</span>
+  </div>
+  <div class="grid" id="video-grid"></div>
+  <div class="divider"></div>
+  <footer>بوابة دعم التعلم — خلدية</footer>
+</div>
+
+<script>
+// ===== قسم المطور: أضف روابط الفيديوهات الجديدة هنا =====
+// { n: رقم_المقطع, id: 'معرف_Google_Drive' }
+const DEV_OVERRIDES = [
+  // { n: 1, id: 'DRIVE_FILE_ID' },
+];
+// ================================================================
+
+const INTRO_ID = '1zwtDqTLLjxdYvIiPRvqcg8YxkC5p7ssx';
+const VIDEOS = [
+  '10Z75-o-6a4nwnM4Ti0i9EqT_cUHlaSGD','1oWl8sXFnJnFIbIjFw0D-9zH5ktd4-wNg','1A5Bv8vKe_07_ju-dsObnsyBd5odDoRw8','1kkbswC07QMLVzLkYAnkZX2mr8enrK9tn','1ZLqBIzG8SMHyF7leli6pjK8VpYyOMcxA',
+  '1G5mi6PRxia3VuoXKI4rerNqiFfcCn2Gd','1z6Ei_2G6D0L__TCJA3O3N0HiA1iRLgz3','1-35owLJg7j-9BeOFv1GWJOqCCd30pUTd','1rkHCQJN2tR4SvAtWxQ-9WmlGyFb3yRxi','1e3_Bl4WSkSJYUSmCEOhsGadDqS-sa8Pv',
+  '1_xLSHyYnWBbH4GCmEWTauYJRAVySCawx','1aHepyIKmXtQ4IafSvQ-p4JScwrlwt17s','14PA59eq55n1dJVRJDcKytEsaq7NAlwYC','1JDGzRQt3E8q5_6TzQ_aL5cFIF7f4wLPa','1GC4ifwKf-kB5eVMzx6gBABjTluTl4rjZ',
+  '1D0IlwQG2D163UkQndi59UrpvYNEH4Pgc','118fK5C63I8pU8-qZgB95d5Qc8PjAgdVG','1Oq_ggZVEF3lBuOFjJSQPqdRVZdNiym4w','15wJpbAX5Qh_2CPvAXwllQ0Gjl_NLzgTb','1eBTYbYx-Z43QDqCp-sjbwkSDphJWvkuA',
+  '1SIxtx-CZRLdRwxWGiIG4S3xvG6cNc8xk','1_11BuSa1zGHbqN-2WwRUVygPCg11SprH','1CBOlN2AEuBg9PR9UNfL-DRJxM4zFuZqo','17Evj9PCxwmIflSK2mhntdaliik7Ep6RK','1k7uT2G6bhuiqgl46G0aDH-2QRxTqXBPd',
+  '1pflqcvPBsYkj9gHMx4Whg7GnmZjpI0ME','1_tK1PaSR_tzg1sA743NMi0qOddGAWw16','1KAcim8KqZP7Ke2g_jvAAPLhZIRahev3b','17kNBzh-nD23iD7j0BzsJoDhVh0n9GQem','1tpz7KdGnteCGsURfPH6_WRZMVTka49UC',
+  '1gw22FZgZGO77ivFcGcIyZnbBQIbeFJyS','15clAJu-lqefj_1-v2YLEla_h8Dq4f_Es','1I_jPftVchySy1P2d-_3NICSDmAnNfei_','14VQ84nJvb-jHPP_laLy1zuFNdSzaXYc0','1ZctigQ1ZINGamqPFavqlaMwIe9syhPmm',
+  null,'1mSoBmURf1diAfU_PxjcOTCMA9SIYXGQn','1BfvXx8HaEiEGKhoBOz2xRS8YBW-EsFBZ','1oGzqsZxEsh8QiLMqUNjuXUeX7XtbQpfq','11Zqs5LU0Pb9bfoXkQQR35AM7CN-bBS0I',
+  '1ecALL6lxioRKgBC0eDsVT_0IBEWIE-45','1b3kkRQ0XzxY30aJip-xMVNWtSG40uXdO','1DkP66kkZoJcObyvH9VVC9A_51V5aAA2c','18DfdOQIEU-g-OHCodZkrkCGPMuZAR3ih','1TJ-TQcUBWJzLGINe2qApfWJ8YH40UBR0',
+  '1ogJr3-fWs-eqHsPdrlxOfVyXSrJZ4tf2','1_zAyXCxDZO4RaiJ2ZhVpGniASK4HAVmq','1iNOOU0vZzZNlyJ5Z7pZ9aG8rOKfbHV7R','12K2js-SttfJNgPrMo0VwhZMHuavI3s7d','1qB-skCBgoD0XGUKnyyhb37tH8-jBsmh8',
+  '1euOTKMr_mvvTiyZrSVrtt7YAS0aoPuIs','1oJFaOraY8X6z_HkL5-MBsaJVNQp3u7jU','1jdcYJZ8StYrqrmEweyK-UeGOPUsxmVm1','1H3VM204vFE5WK0g2rP9FEsUWhwOOZVbm','1M0x6AN90rxeuRQcNDDon7VyeO0e75Ue6',
+  '16HvSshtd0tjmcu-QTTTFYDnr8SX9hsSN','13Iha_mBxCgEE7k3CN_v5UzObwtkI6JQH','12bsw0JBm8DN9COVIKkJ1wDacOB1UtD5b','1sgW8BK65ilAuNXd6qsELwDpfex9LbaOx','1HUQfipCp9j01hs-GE7pi3wYurn1qTtIX',
+  '1AxssLGJKwtrRTcRxyW3hlSpXF1vqc9bW','10AnrNTi9qvRquZJaMYrOtD4FnHakbvVz','1Q41rywNJLyplL8Vx_B3lBM-CvjiaR71p','1blo8dyZys6EHccpRvH_ZtkMMiWnqDRO3','1J0actqK_z-pblW4-V7ri0wYYZ2tqctjH',
+  '1QObID3MiOfKV6aaZ6g0JJtCtAk3ry74g','1X8qjSCgheRCO8STvlzTaNEW6VR0muhUK','1lUuw0F23UxolgNRXoR1tZ4sVzoYemPDu','1BZuhYgMzKCbx1bcWTXy_YUwtmr9-4QsH','1GfBLYN9SNJyud3pmQNClqjWq07EqX7VS',
+  '1gzuna1aXU2P4b8iYSucKAMa7CLah9-SK','1iB4Evm_vW2d5BKul5gH2hpTmt5tmHO-l','19M24jsqd2Cy91Yna5cfPBBGiSJj54sZT','1AuxTSC_0BgHL3NK4-bccV29TGTp9MnvU','1cJPTcNwkDTSpdKhbN8u3Bl7yvJkaAkJ6',
+  '14ztCwuXU_sMU6Q5iXVhWlSBvVgln-zcy','1WJPRYKnZG3cEQ0MILkxwGYgsNb6m7MfC','107XcpckCYQ7eHq2-1_CMmWRgAAV-5SEn','16XRWmtHfugPBiGVpn9BUjUX3MlpZkFHK','1dS-N1r7nsVF2nq9wGSQnGqsuR_yn2H1n',
+  '1rcqjN2gq4yNYNmOhXwYGvrWDi-RYO5z9','1_oB1xbw3_DYb5IWFfQA-T3bXSgo6MRZg','1LVcSWkinniX1mEA70vgYxno4DI8DwsNC','1XpTzdXAcovXg_h3GjAAOVnyRMr3B5QMs','18Ql27WmekrgqM8L2-eHUVkc8LkgXpIHS',
+  '1GlV55e_mGT7wHOmKyZMcRGc6AN0CudCq','1W-tWqZDJRKFAvBlhXwsO2m5grM9BIQRO','1wQLt5U5L9RDJkhxctG3gvCjMvP4x6-sg','1-CS5NaEgZr9Gz-LbZwT_S2aPFWCEDVes','1MdLQvbCd8dRZ0Z5Z2ZyyKBMIjhlU0nzS',
+  '15x3K9BjxX9jJOv3CQMVF8ThlXe5HMuFX','1s5f57oS0dhqFY-idZeSIvXOoT1nS3UKh','1Q2Qk0xhGjcZSfFzEUkf90OZ0DUbBix7n','11auisB5zr54-OhGglGwGdGwdvkhMO_ZO','1_SwxncWfd26l_URs1pp55O8JCVI8oIBH',
+  '1mAOene0eBy7r1wu5HLR2FF11lmQE3uV5','1PJmOSe8uymSsOD9nH3Gw7uRyUgdVhBac','1PGzrib432J4lFM1ua4a7_OU03eiFMpuP','1Se_EvRN8U1mYxu63k602nIcAmh3k_i8h','1Own-msPvqjQ6f1vZnUhazxlZseU1XDZ0',
+  '14U_6QRM8kwk93pqeT3QwEzjAmzfNnv3O','1kk4neXp4tVxXchVWOoiajSULeB8HL_we','1XD7b5dTF0me9SvUEZfG0g7FmYt-AcJIL','1SW9NOqz-fI20SkHbn2o1q57qTa4xIbpG','1X_OaOypOQ27MIX6hPSmzay1-Yn3h6Mf6',
+  '1-zSeaMv6d9FXvO92hZ47SoT7D3q0fvAX','12fT9Dpu7BUJGqv4v2NQJeJXO3NKk_Q9z','165W1OATtXeb8buHIEoBP9kU2wMQ5CluG','18yRdpPs707AptATzLq-WEFaEMJNUwmHn',null,
+  '1GXoeWm9CfuhsUm0219XZjyJKobcZ75GP','1X62PN5GvKaEA5l-81QYnVflz2_FCMy16','1zcqzFLYbJHpGyIfCSX6CCfkuJjKNpRVv','1H98Z2rFzFEbzRxOb2esVqpmZOS4TFc4i','10UqwgLd_6XfDWyQnN7x_PilKSISu5siY',
+  '1UWFRAoUZ23l73HF8bRec6VQw2-AWlDdR','1D5YRuz0LA7KbLefpvz9T0XEcBEyzSvFj','1ogPPNeIlMOWot5Na0wwQXNKsMxnybgX7','14fpGsKtALzQMHYu9bQaM2wTFDD-R8rhn','1oPtxeFX7MzxY38KMIpZBuoRiHNZCdWGw',
+  '1Usxu2EOT9G1d5z4WkipEydOUpwn1NNe-','1muTR7QENFem4kGsBuFdrBNZLWdyZlw4p',{id:'1XZ3fdNN7Kn4nqp6McOzcZ1Ey5el5BOmV',disabled:true},{id:'1wgcM66ZOBpDGyiIxxHss304vbOgfiGx1',disabled:true},{id:'1Ne-pIU-OgCbZboPgJsDzUKSZwqFQap1A',disabled:true},
+  {id:'1yFNAASLoB30mNsDsxtquk0jNaD2Kgp7p',disabled:true},{id:'13y3v5Ta3Nq-GVgDDjGlqHMdSfr6kXV0v',disabled:true},{id:'1pFxD2Clrxr56A4ki5IQAnW05l21wGPaH',disabled:true},{id:'1IdkTD0ci_FMwj5SkU62luJyJUcB123Jq',disabled:true},{id:'15f4LwipP2e3AjfWbLJy0TdLLstrRLCwW',disabled:true},
+  {id:'1SDna9_HGlxj5wRNfdgXwYN6aYQF4tUu4',disabled:true},{id:'1F38os00w7kasswLtUZJ5L12_SG8vsrmG',disabled:true},null,null,null,
+  null,null,null,null,null,
+  null,null,null,null,null,
+  null,null,null,null,null
+];
+
+DEV_OVERRIDES.forEach(({n,id})=>{
+  if(n>=1&&n<=VIDEOS.length){VIDEOS[n-1]=id;}
+  else if(n>VIDEOS.length){while(VIDEOS.length<n-1)VIDEOS.push(null);VIDEOS.push(id);}
+});
+
+const HINTS=["واصل تقدمك","فكرة جديدة","خطوة نحو الإتقان","تعلم أكثر","خطوة نجاح","استمر للتميز","دقائق تصنع الفرق","المعلومة قريبة","ركز فأنت قادر","تعلم بذكاء","كل مقطع خبرة","شغفك يقودك","الممارسة تفوق","خطوة بخطوة","اجعلها عادة","اليوم أفضل","العلم قوة","حلقة جديدة","لا تتوقف","استثمر وقتك"];
+const url=id=>`https://drive.google.com/file/d/${id}/view?usp=drive_link`;
+
+function render(){
+  const grid=document.getElementById('video-grid');
+  let h=`<a class="card intro" href="${url(INTRO_ID)}" target="_blank">
+    <div class="play-wrap"><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">تأسيس</div><div class="card-hint">ابدأ من هنا</div></a>`;
+  VIDEOS.forEach((v,i)=>{
+    const n=i+1,hint=HINTS[i%HINTS.length];
+    if(v&&typeof v==='string'){h+=`<a class="card" href="${url(v)}" target="_blank">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">${hint}</div></a>`;}
+    else if(v&&typeof v==='object'){h+=`<a class="card disabled" href="${url(v.id)}" target="_blank">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">قريباً</div></a>`;}
+    else{h+=`<a class="card soon" href="#" onclick="return false">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">قريباً</div></a>`;}
+  });
+  grid.innerHTML=h;
+  const active=1+VIDEOS.filter(v=>v&&typeof v==='string').length;
+  document.getElementById('active-count').textContent=active+' مقطع';
+  document.getElementById('hero-sub').textContent=`اختر المقطع وشاهد الشرح — ${active} مقطع متاح`;
+}
+render();
+</script>
+</body>
+</html>

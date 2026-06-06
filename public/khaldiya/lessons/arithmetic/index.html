@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شروحات العمليات الحسابية — بوابة دعم التعلم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary:#3F7CB8; --primary-dk:#2B5F94; --accent:#4FA877;
+    --bg:#f4f8fb; --surface:#ffffff; --border:#e2e8f0;
+    --text:#0f172a; --muted:#64748b; --radius:16px; --radius-lg:22px;
+    --shadow:0 8px 24px -8px rgba(63,124,184,.20),0 2px 6px rgba(15,23,42,.04);
+    --shadow-lg:0 24px 60px -20px rgba(63,124,184,.30);
+    --grad-hero:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  }
+  html,body{min-height:100vh;font-family:'Tajawal','Cairo',Arial,sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
+
+  /* Modal */
+  #modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;}
+  #modal-box{background:#fff;border-radius:24px;padding:36px 32px;max-width:420px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(15,23,42,.25);}
+  #modal-box .modal-icon{font-size:48px;margin-bottom:12px;}
+  #modal-box h2{font-size:22px;color:var(--text);margin-bottom:10px;}
+  #modal-box p{font-size:15px;color:var(--muted);line-height:1.7;margin-bottom:24px;}
+  #modal-box button{background:var(--grad-hero);color:#fff;border:none;border-radius:99px;padding:12px 32px;font-size:15px;font-family:inherit;font-weight:800;cursor:pointer;width:100%;}
+  #modal-box button:hover{opacity:.9;}
+
+  .topbar{background:var(--grad-hero);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);}
+  .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;}
+  .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;}
+  .topbar-back:hover{background:rgba(255,255,255,.28);}
+
+  .hero-banner{background:var(--grad-hero);color:#fff;padding:36px 24px 48px;text-align:center;position:relative;overflow:hidden;}
+  .hero-banner::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(255,255,255,.12),transparent 70%);pointer-events:none;}
+  .hero-banner h1{font-size:clamp(22px,4vw,34px);text-shadow:0 4px 16px rgba(7,54,105,.35);margin-bottom:8px;}
+  .hero-banner p{font-size:15px;opacity:.88;font-weight:500;}
+  .hero-pill{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:4px 18px;font-size:13px;font-weight:700;margin-bottom:12px;}
+
+  .container{max-width:1200px;margin:0 auto;padding:32px 20px 60px;}
+  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+  .section-header h2{font-size:18px;color:var(--primary);}
+  .count-badge{background:var(--primary);color:#fff;border-radius:99px;padding:2px 12px;font-size:13px;font-weight:700;}
+
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+
+  a.card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px 14px;aspect-ratio:1/1;text-decoration:none;color:var(--text);background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;position:relative;}
+  a.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--primary);}
+  a.card.intro{background:linear-gradient(135deg,#eaf2f9 0%,#e8f4ee 100%);border-color:var(--primary);border-style:dashed;border-width:2px;}
+  a.card.soon,a.card.disabled{opacity:.45;pointer-events:none;box-shadow:none;}
+
+  .play-wrap{width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,#eaf2f9,#e8f4ee);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative;}
+  .card.intro .play-wrap{background:linear-gradient(135deg,#dbeafe,#d1fae5);}
+  .yt-btn{width:64px;height:44px;background:var(--primary);border-radius:12px/10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(63,124,184,.35);position:relative;}
+  .card.intro .yt-btn{background:var(--accent);}
+  .play-tri{width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:15px solid #fff;margin-right:3px;}
+
+  .badge{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:50%;background:var(--grad-hero);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;box-shadow:0 2px 8px rgba(63,124,184,.35);}
+  .card-label{font-family:'Cairo',sans-serif;font-weight:800;font-size:15px;color:var(--text);text-align:center;}
+  .card-hint{font-size:12px;color:var(--muted);text-align:center;line-height:1.4;}
+
+  .divider{height:1px;background:var(--border);margin:28px 0;}
+  footer{text-align:center;font-size:13px;color:var(--muted);padding:24px 0 40px;font-weight:600;}
+
+  @media(max-width:480px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
+    .play-wrap{width:66px;height:66px;}
+    .yt-btn{width:52px;height:36px;}
+    .hero-banner{padding:28px 16px 38px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div class="modal-icon">📌</div>
+    <h2>ابدأ من مقطع التأسيس</h2>
+    <p>قبل أي مقطع آخر، نوصيك بمشاهدة مقطع <strong>التأسيس</strong> أولاً — فهو الأساس الذي يبني عليه كل ما يليه.</p>
+    <button onclick="document.getElementById('modal-overlay').style.display='none'">فهمت، لنبدأ ✓</button>
+  </div>
+</div>
+
+<div class="topbar">
+  <span class="topbar-title">شروحات العمليات الحسابية</span>
+  <a class="topbar-back" href="../../index.html">← الرئيسية</a>
+</div>
+
+<div class="hero-banner">
+  <div class="hero-pill">العمليات الحسابية</div>
+  <h1>شروحات العمليات الحسابية المصوّرة</h1>
+  <p id="hero-sub">اختر المقطع وشاهد الشرح</p>
+</div>
+
+<div class="container">
+  <div class="section-header">
+    <h2>المقاطع المتاحة</h2>
+    <span class="count-badge" id="active-count">...</span>
+  </div>
+  <div class="grid" id="video-grid"></div>
+  <div class="divider"></div>
+  <footer>بوابة دعم التعلم — خلدية</footer>
+</div>
+
+<script>
+// ===== قسم المطور: أضف روابط الفيديوهات الجديدة هنا =====
+// { n: رقم_المقطع, id: 'معرف_Google_Drive' }
+const DEV_OVERRIDES = [
+  // { n: 1, id: 'DRIVE_FILE_ID' },
+];
+// ================================================================
+
+const INTRO_ID = '15nHYNC6O21T9CqVwQKbXzSjauSHa6o_A';
+const VIDEOS = [
+  '1kKZr13hzulPVHJuPQKI6m12qhwh5_gOA','14hi5Qb0NovZSVFPprOFmywGQwQkz0URW','146gMXeq80Hd0CPty3Nl2_R6DRoR0uo5V','1mEN_Kyy0O2ZEgduEtA_OuCP6z7bW4SI2','1bDI2kZnLFD0urVA25F_qnlfm9_r247n9',
+  '1O6R5MIaghlcDzzrazmyoCE3q12sdnr5q','1p5bWv8kayX3Qqa0zvvLHw1pGA7PSH8vN','1W8_R6OFQ7IapKDRth-X3zjmbFbTZiPBh','1miEWOx3_sVG0ZF1eXeoG_WS7hwDuQ77c','1JlJYaoJChw6aPIFCAXHVvXj04GN2y-H7',
+  '101BynbLmPmfccVoAsFJyP6WBorUoz7vc','1dE7nG4GBN32Kr4YnhEH5jUlvmZp2xq60','1NxGzHsV2sA1C7Ji_upZXbG8LGhdmpuD1','1elXO8HSNigSeDDXJ4cEaoV6Pu5_5VYPp','1BsjWAamrBBLKAUPafu1rr3ca06fcAxXL',
+  '1oj_hjixYeneug2i6NNgGe6YJBa3dxw-O','1Xwg0r3Lmg9XXNZ7gb2e-jTs53s6THkvJ','1l7Xp-_0esvH-7uPKEoJBQj8Tl-O-9IT3','1DqDrvV8ueWLG8_8esUiSKNDaTwMo_Spw','1wh-36RpMXpFY9Mt1G0BZxnB9epUI0sfO',
+  '1KKi5T2oX3xapkhGULhqcMyMNN0Mx0O70','1nMIm8YqG_65igpGUwi7TlHd-NqLV16VT','1mPYED74MRZTGnVmfhsWUe3EkeadZ3es2','12poKhYcGo-YhO3FqyR2iZ0gAgMk9vOhc','15V99lNPd-ng8jDharV-yEBd3oLJ_Nuxj',
+  '1tO0kaeVcEPuuRNKgi0DarKD8QJGJc4OL','1jLdDkriNviuahpD5b5nPcmJKUHOHAECX','1i1ezl3SusjWUDr68Lz69ZVwll_UtKi6v','1OsuG9p2-qiSd8pAEgPh7Ob-m6gFj5uEn','17UE0V942tQRjNhL54L17DQ88-C-lTgMq',
+  '1sgYXveEOW7UmmesWICB49EECoo5xXLnY','1DA0FkpZtSriG9Jo923c32HbZn9YcSQr5','1e_ydXNL-h81TNk0kQwJvNDt_CMZeE7Ll','1uy-Vks0ipTWbQl37wASpwum5SeyWUFRC','1XmbwiaZFRyZCNoD6Wbgyg9e9vu_4O69T',
+  '1a1A25QqNwl5Pvl6Iop86NqTqK_Qi6d3M','1Fu14RrgYgLu830GT2tSq_qae786AjTD5','1LyymsXDyCtkI9mvMIPhv-iL7OkAcJcHP','1hZFCKZ3HP4LAZwmKmQJHmUHbl7Cp7PBi','1qPad1GcDoDujQWBF3e-UgtifLW8tJnFX',
+  '15biIA_t85-aj8grmJWyFb6j82khL4AUS','1E4TX1dIOXdHbaeOj6xV2HlJr2hqfD1nv','1CV9Sl8Q4NUQJVlBoSmFjqjioPL5bCxDY','1vmyyQovulGhNkj3DKXmZb8ybODYlrOS8','1Pz7h7ej-0cVMEgDOloul8knsyw5kR5b0',
+  '1izPynhLEuO7opOxPAR46V5cFL0aW69_3','1QxZiSWSq9SxbCFBdYxkIC2PM5441Gplh','19odnr_p5Mr3r8VAi1A6yZs7ZHqIlCHC5','1Lu26K5snIQmqoALezUmFL0-uA6EFoxxD','1mhSNysSZBC-ycw3QHVNPEI25XvGqGTN6',
+  '1UFiY1n5bCJgxCvnVWrQUR-menNB8kQAv','12FgJr1ucbpe8L44QKiDf2HyEzwvimAse','1uGYaWnAjK_ej-jvRaH4pGvNgLqnAqkXY',null,'1xqsuVbbtJioBb3ZAxihPEzDD938eQqyp',
+  '1ndesWhsd_moQEn75Kh78vDbB6-acqMO9','1AOi9rQUUWVdwQtDBLS6ewrjUoWHxKVh3','1tcyOjD5mlmyZKgzlEJispfKhaesiFLWm','1xerNaIbm7a-YNIHokk7qJMX4tVm9PlQO','125c6EAvaJ8vBPnaQztOuLNLtCx6ijO4J',
+  '1CJaOAZLNrWDlGdys_mNFN9ET7Ea5a9Ki','12SQ10qjkFWFZ7BMIDZhXvimBDXKBQ7E3','1cJiEx3S5fPO9XekwbFSFOUQunpaD8Wly','1GIF7MWGjOjiPbFJNJ9vqg_2NM2c4gfKB','12v16CyuyrEmNoIsw2uxf7nyAKiC9KF37',
+  '1mmw2S1x7fuz6vPynx1yxdiDjk60kEWby','1hPTLnYcLrnuYyRJVfpXpn0tWt8Tzh2Ty','1FKD8jIWg5hPttMEZKwOOOkD3NB1O-5rq','1uXsbdrAmPXUuZJ3GPF5VTWVdXBNHnSUE','1cN53A1en6Hk_ojlo-zonRhBvDNs6Q6dK',
+  '1BlSNjFVnkK1buTvjG9I_bMqmUEAAQQCc','1-P2mOMctZsdbw3wQCWE9-0omYLTprQHx','17oJTfuN8g_LEki6oyo-vFKEIG5RDW-XZ','1Ivg-b4R7tWDNxeaZ6xfbymtTzbEq7CYG','1Y0BD6jhwft3K0p7SBXh-XhKc_XLfVm7C',
+  '1B1y3mlB2bM06msoc7vOHVqM-mNB9ptXp','1VjZH6l5A2pJElnpJPcuN25nms3JwLEbH','1QsKu5cHUbC5jRUAy43arv5GM5nC7vmpD','1_2gA4gLsRY8LD6OHvpsF7sGkW5yjwjpQ','1mLHx6kuOBGx51x6VCQqMQ3ur5WA9QBmm',
+  '1ZBZvNao4sSM5CnX1c2Fhzyz9mRQlaJYe','19t_CjoClBomAbD_jDTAA13NlVRVni8je','1bN_9CcvNieJAmKCjttFax6rRQupmwrWT','1FtWmQJcKAzJhEyFJ_yEPG2vMCqm5u6KJ','1ArSnRWzZ1iCTsANqTIx06pVAVCiw_A6f',
+  '1ee0bf8lg39PoilCQ6EkCGNiTSPZocb9Y','1sLcGgJR2zfmQPU7W_ireL4HQxwpLp2aO','153_UNpVdlbXgu0LQEeXOqHnzGOkL8mRQ','1IlpGdH6IvVCrMrV6hwQAy8nUM-xrEVht','1cjcEFRzxzKy1y98LMPPGlotMf_mFdJHu',
+  '1qBtr7CSwGTvvPjpYL9UMN2wZ4vrFz_q4','12QUG8hUl_tYY_YlxOKjzmWUejl3MZnDx','1BS52loJmrFIgY2k_0rb69Yjiaohebk1t','1KQgGkKFya7HKiOl7PLAo-kzAjxJuuby1','1zDptthFKs-c95Aq0XaLSjBQbO6DXvJf5',
+  '1SJfks1xz13AInRkkOtVjIp7_MJmCOaXw','1yHU7-0hZNLNAP6nF5nNFryYI-37cJ-bR','1EzHIjAHP7GlTpMMvZwtVWHnVndaPzCQB','14j6gANuG3q0rKbuvAdYGDnTKd2LxzOLx','1CPTRwI1Vs2McBE5M3g0AqfOetMdCYnQp',
+  '1hW2zIIYMlWsPxOsRnSPlfSRzT1IAaa52','1xzhm45dPxDuhC6HEKTJeOJdFMGJnA3WV','150uBW4IpiV3xAQgzhv81dFWGVVOzC9Qd','1YIhQKJxcUI2-mv3S2f4322dEDrcj-NrW','1cbtfho_ARGLYGLzmEbw32gbtnWDIL4Lv',
+  '1ARvgZdxWEnAaWGu5mtWpjIRNQQRyELEp','1h3y3qhIoSInzJrYj3KdItsiYifp56Yz6','18qg9wEyrbnm0ktFxqTdKiawuzeDTTT_M','1rOr6Pcrvwevr9Lwe621C6-IkAP-rfeEs','1kIGwhlic9aiobFuwQIsfKuRJTUinUYph',
+  '1FEtheQ1sMzbH0-cpR6j2gO3C-WsPFuU0','1yZN7wKIANFHYeySFVDYK-IlhF3oExIeO','1P67wzk4SJGRC1ocJfS3nHEA-i4Mr1tRs','1P8z6qu734cF9wf2N893LBL7b-94EGl32','1JYIPkmSmq-TBYc5JLcBVxqkG54q2AvEl',
+  '1onImYKWLpFxsRrncPoSVdBxU3UdmTMsZ','1TRbKy34GF8BQq7kp50_XsZ4-SI3PEUO7','1UoR6B9gAQ9kSFNMVKGl7gI00qvVICPab','19vBJZHxs9pIqDCm4ds5mHy4sgSA-MqQ6','1QCKHpG3Z67KWu3fvMMlnvMzGMmHr-pUf',
+  '1otj08elwxrFh6FnXDSlKkDs0FiupcSRr','1z7JuhmWAHiwm8vQn3yBSF1Do8SpqAPts','1ssGM61KoWH4K0PHCaZ645md9aTHPGVop','1IZ-1bWeuJzVqpwHQF2ACTLD86r-JVbGk','1eIyY0hKrx66wSRRrkS676zVieEXZ5vRT',
+  '1zDdd1F7sUR8UrAufKTYbYasYmH79ex1A','1SkEC15HvQnfQQ-FNubetxv3yOf9EDknS','1t9hRPpMXOusOA9MeqIs7siyT8uH88xwh','1Py1Brmk2yCrDop8NNofCrzYtM5rB1sAl','13X_9fdv55kcGX-j_BXUxU7ph7cNK1CNy',
+  '1zwOvzeGNAb7W8pSE46B4HE-3a3gjM3a6','1QtrWkOwoN725dgM2is3rdKFrXcw6qql5','1a3Lq39S_NXQQfvX8QWfF_-MzW62pb8KK','1R_dane7ZFaEdCbxw4sZ2i1AoIMZKHT5Z','1bzqFogPKFXgryYOEmoAsgT2lK5TTrKyk',
+  '1v8JiXAbTy32kP6UKZEMGv_Qm6ULLbTRp','1_zaeRnQ6iAMt-an6It5ETkumnzMe_IOS','16GMGM7SawiaDU_klSAn6Ru7HD-YEYABk','18gbn8I2vJlGFi-87iipfmi_QSsus_WWP','1Si075OWQg6uVizywpoeFx8udkTui7vPd',
+  '1XQyMdAC3gqNa0yN9NX63b_1z4ZU0uCXU','1QUOlJiZc8rWxIojqvq5vLbMd-kTBJC1x','1NP-ScKgdOBj6I2olLCQch1k9zTdaRXkJ','1o5S1_eFPOdxMYF5Nr_sgp6tRUNhHZ3XE','1G5XS7qk6FtoQBOHltnhJfvaTdVsc3_sh',
+  '1qsrlWMNCYxZ3FgYKlqxgLrw76_7k1A8S','178FmuHgfTy2W4w6yTtSTtreV3MmjUxef','1n3jyalvS9Musl-sBH9z_W_RQprepQ3ez','1LpNQel18xjI4M6tKNXWYjo0h2zwHZ3td','1xylRZZN_sP5N85eEOXjPV1h-3gYtQ1E2',
+  '1QYvlerIeUHvniJ4SRomscfw424AZVtqP','15mhD2UBzLmSSrR6XxR3unMf5Dt51A8n0','1s0IY7uSinMr1LuhqvkIION6sRYCeooz5','17y4CYXYC2D0jDw1IahmME-3HjaLJC_bK','11nXekS-f5SGwLUcuNSkcFgO8huq4RKEh',
+  '127DPvhKFqg7Bt8X7xSiBbbl_e6XXMNXs','1qtmBkIrV6rDpgrn34CBYYqrPBKXzoCIf','1e4pEEgmldOPwKfqLFBRSLo-7iLm5Eya2','10cvW7eIpfTUIFEXtIBtPLDLFpuslT13J','1TTjmnAfe14x4ZEqXjJbDkCimiKwk-bfC',
+  '1YwYODX-qNtIn-mxUMUrm5oRHtCLTyTdV','1BejGlUJpy3OGL5PGNPNCieVbGU6S9xvp','15mWmPxkYWqLNVHjq8yvL8tAwKuaA5dhl','1X8XE_31L5ZLZEzZ8tMPVTV_qKpedOh_Q','1MNkTsl_2OTjYRRqoRvSnrI4TeryCq1r-',
+  '1drSIR_MJ7itQyIqnhtuDL19uhSrCiTJn','1uhH2S1p2klSpX2vPSTK8KlM1PQk3mQ1H','1E9fXbPr-o1B8mrRENRKNPZYzAYfP-DSh','1OyjiuTlf3BSYfHRMm6WA-neH__cBRADM','1K7_ba08i744BOJKCa0Qxm7fMVJiDqvoM',
+  '1QnLi5mc7NBjW7j5vtGU7O6fEJw49aOZv','1GvnfpOIK2G1ajCH7b1XD7ziajtteC5Hp','1FoIda2sU_oOXmi9rELEMBzwNCZW7ctn4','1qvSRxMxxv-6AuT5mmfnCoA4ExutzpiHw','1gikaLeeiDXfejm_rA3Aedz2YYwJxB_id',
+  '1JNXU7-gA9SGqWqUW5ymjDRKERP_e6jFT','1ePlth09GMfgq4eZojj_kwKeiEJOqzGan','1-XZGxLASxsDMqkNSeD95-FB6A9R9THsk','1Jcjy80GSPebAN2RoDwtNRvRfAR4v_1hm','1eVGZVi4PoYDhaRSu1B046TIyJT7oYyp8',
+  '1yfRPjIiBaui28CViXMQRmIZKIapHZrdB','1nCNHUJdKSgM6Wu8zRTrneTLBM5HMQ0bb','10x7A3mGUaFTEzbll1M11n4TlWMhD8_KI','1CRgzcesRPjnw8b1TaLQ2wiGW2BjEzy9D','1nA_L7JTGn8P_ka528gezIKgGvGG3DoZR',
+  '11VtHfqfHEPteDmFY2mIoza8IkROJH27n','1CsoOlg1PAM3Cg_RkGCqGAk1JA2QbrhnO','1OPwOW4FRmeRQv2YXHkgo2K2712uuKpnL','1ST8acWlj7fdUskeS02Xk8PKaax5jEwO8','1W8JVM_tG7g7ktbC0Ne96v7IY9pNy1tnr',
+  '1bcgktAgjC-3kA8q9Yzd8_jksH1M0Y4UA','1uL4XHnshbSx2kSMeYDPRLtiOkV4OZoOV','1DEayHSPtR6JpiNspLaXeruPG7YfklK43','1F7GdNPLU402l9kkHyOnfMy4-77bYVEFy','1Fz9YmUzJyeHNJJSDOdcNFWjYFGCfTE8Z',
+  '1rrfwpsezbk_YtFp21a830p2qTys55RdN','1LaSJ5QkpYJbTE2Jk979SbgR99HTT0Xdc','123UZbYjgliyxNPVYOgu9mJTnkVVehfnH','18j5OtOqQSxLAe5MoowJhH8XAUffFqkuu','1HVh7YXVTypfiTI86Ugd4u-DL_2rznwon',
+  '1W-qEgfLbxkMlyvuKgtBrCIImroyNbJPv','1oaMFhyg65R9CxYRzawLw3Cd2TXGz2xUs','1nti39vX7LPdrqZM3ExfbyZWHc26SLBxc','1ZLUS8yW4jYln0xwipOrqU3VTm1qy5t6F','1uAnQIP4UPhq4QKHnC4BLmFtcbLuyLMgH',
+  '1J0wIPAvhJuMHBTTGHbe9UeiaTFxbcQM6','1fNGBUHDTPcR2BbRQkLX0cMD5ZjUPyNpR','19PBa7PFP-i37y2P8WioOtVBvNEu2aTiD','1tShREVqrCs-MXmpjcslHmyNTWDsRZ3We','1pslhWQfSF1brMJR6qedvAnngAufA-fDE',
+  '1HuIEHPxNasdFB0lcc-khnyi3cZ61uEqU','1hqktJnjaOUbXVIgVnjZSyJqagZwDXnO1','1u2GD1JlAd8i857aytRxmMwP1corJMUs2','1YBPadzQRl1n9rIabe4Cvyu7K9dBe6iMD','1e4cbl2kSFPbD2yQHYIrqZ95AoayD0t8e',
+  '1g4BCLouf8PSu-ldBJgU_LlQWgE9KdeVm','1pVBFcXBJwy2DppOsHVe1aoRc_Tqi1jMX','1OYQU_fOK7-BJEWyNR4R6xf2yrO8xM3PY','1R5oHSQCqBYVcxzboblEsVdvEf2s1tGFR','1_4dbgk0LQEwKwSyT3Llj-YtkPebxqVuk',
+  '1qTf8valUd5E1Chz5b75OFFoKuWWmGQoY','1Lx0DAf0SGaWJYrJC9Sy0cSk2BGMul1gy','1K79wzn1G63ol5MQuqeYC7dpytMiqfPbD','1afbckVpU__BtylymXjXVDyRsFkKsaKQ_','1M9NpkYGE4BKGkFTlloXfOgnAwp3CHX7L',
+  '1qsOqfxAfkjC7xXZHToB6l55z-qnaEu-U','1AyEyR-TK69F3fc2-TVjevOR0XOCMSGmh','1NdZ2OydcDJyj4VHlgpc6ewsiJlSb9JjA','1seRtKEyHLLsfsZ47uwejSYrsTEZhd4-q','1znW7ZHgu3TUPXhVzqM3Ceujv79UDGBvj',
+  '14QgzSnXSkVekxSmrYTNRCDVkgrrJogat','14ffGevQRqWUwPgTTkV8f4DSRT17vIqOx','1gHs3AYDpPJTj3am3FKmawvU94OIC3FZD','1nLYbvzJfyINL6CENA7p-iqzC-NCdWd-r','16B7ZSTcX-fu4_LXLMdTLgsV31YpgaaE0',
+  '1DIWwNxSNp12RiWiJVJ6EWWnBlo2l1CWv','1MeKw4R16xrckQNimcOSzJOLLFqKPMDyY','1U4SVzSAXI2O4vvTstagd003E6YqUrJla','1SzTci9poIS4R1BAeCSLRnHD2Xhf_Y5G9','14mjz0Zw_L6CHsfOjNdhGXvg-pJeqiuKp',
+  '1U0_3ZqAnAi3g2wYmNZ81U-_x6Tlfe-vY','1xBZ8lmiPYt81mmQE7xRUMRCd9HbhI-YV','1K2iI2GbD98y-vbmqB2o800XFYjMCZkUk','1gAS-z8YDpxrmR5oepmdqUrQxa6AhoQRi',null,
+  null,null,null,null,null
+];
+
+DEV_OVERRIDES.forEach(({n,id})=>{
+  if(n>=1&&n<=VIDEOS.length){VIDEOS[n-1]=id;}
+  else if(n>VIDEOS.length){while(VIDEOS.length<n-1)VIDEOS.push(null);VIDEOS.push(id);}
+});
+
+const HINTS=["واصل تقدمك","فكرة جديدة","خطوة نحو الإتقان","تعلم أكثر","خطوة نجاح","استمر للتميز","دقائق تصنع الفرق","المعلومة قريبة","ركز فأنت قادر","تعلم بذكاء","كل مقطع خبرة","شغفك يقودك","الممارسة تفوق","خطوة بخطوة","اجعلها عادة","اليوم أفضل","العلم قوة","حلقة جديدة","لا تتوقف","استثمر وقتك"];
+const url=id=>`https://drive.google.com/file/d/${id}/view?usp=drive_link`;
+
+function render(){
+  const grid=document.getElementById('video-grid');
+  let h=`<a class="card intro" href="${url(INTRO_ID)}" target="_blank">
+    <div class="play-wrap"><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">تأسيس</div><div class="card-hint">ابدأ من هنا</div></a>`;
+  VIDEOS.forEach((v,i)=>{
+    const n=i+1,hint=HINTS[i%HINTS.length];
+    if(v&&typeof v==='string'){h+=`<a class="card" href="${url(v)}" target="_blank">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">${hint}</div></a>`;}
+    else if(v&&typeof v==='object'){h+=`<a class="card disabled" href="${url(v.id)}" target="_blank">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">قريباً</div></a>`;}
+    else{h+=`<a class="card soon" href="#" onclick="return false">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">قريباً</div></a>`;}
+  });
+  grid.innerHTML=h;
+  const active=1+VIDEOS.filter(v=>v&&typeof v==='string').length;
+  document.getElementById('active-count').textContent=active+' مقطع';
+  document.getElementById('hero-sub').textContent=`اختر المقطع وشاهد الشرح — ${active} مقطع متاح`;
+}
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شروحات الخطأ السياقي — بوابة دعم التعلم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary:#3F7CB8; --primary-dk:#2B5F94; --accent:#4FA877;
+    --bg:#f4f8fb; --surface:#ffffff; --border:#e2e8f0;
+    --text:#0f172a; --muted:#64748b; --radius:16px; --radius-lg:22px;
+    --shadow:0 8px 24px -8px rgba(63,124,184,.20),0 2px 6px rgba(15,23,42,.04);
+    --shadow-lg:0 24px 60px -20px rgba(63,124,184,.30);
+    --grad-hero:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  }
+  html,body{min-height:100vh;font-family:'Tajawal','Cairo',Arial,sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
+
+  /* Modal */
+  #modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;}
+  #modal-box{background:#fff;border-radius:24px;padding:36px 32px;max-width:420px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(15,23,42,.25);}
+  #modal-box .modal-icon{font-size:48px;margin-bottom:12px;}
+  #modal-box h2{font-size:22px;color:var(--text);margin-bottom:10px;}
+  #modal-box p{font-size:15px;color:var(--muted);line-height:1.7;margin-bottom:24px;}
+  #modal-box button{background:var(--grad-hero);color:#fff;border:none;border-radius:99px;padding:12px 32px;font-size:15px;font-family:inherit;font-weight:800;cursor:pointer;width:100%;}
+  #modal-box button:hover{opacity:.9;}
+
+  .topbar{background:var(--grad-hero);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);}
+  .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;}
+  .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;}
+  .topbar-back:hover{background:rgba(255,255,255,.28);}
+
+  .hero-banner{background:var(--grad-hero);color:#fff;padding:36px 24px 48px;text-align:center;position:relative;overflow:hidden;}
+  .hero-banner::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(255,255,255,.12),transparent 70%);pointer-events:none;}
+  .hero-banner h1{font-size:clamp(22px,4vw,34px);text-shadow:0 4px 16px rgba(7,54,105,.35);margin-bottom:8px;}
+  .hero-banner p{font-size:15px;opacity:.88;font-weight:500;}
+  .hero-pill{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:4px 18px;font-size:13px;font-weight:700;margin-bottom:12px;}
+
+  .container{max-width:1200px;margin:0 auto;padding:32px 20px 60px;}
+  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+  .section-header h2{font-size:18px;color:var(--primary);}
+  .count-badge{background:var(--primary);color:#fff;border-radius:99px;padding:2px 12px;font-size:13px;font-weight:700;}
+
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+
+  a.card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px 14px;aspect-ratio:1/1;text-decoration:none;color:var(--text);background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;position:relative;}
+  a.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--primary);}
+  a.card.intro{background:linear-gradient(135deg,#eaf2f9 0%,#e8f4ee 100%);border-color:var(--primary);border-style:dashed;border-width:2px;}
+  a.card.soon,a.card.disabled{opacity:.45;pointer-events:none;box-shadow:none;}
+
+  .play-wrap{width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,#eaf2f9,#e8f4ee);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative;}
+  .card.intro .play-wrap{background:linear-gradient(135deg,#dbeafe,#d1fae5);}
+  .yt-btn{width:64px;height:44px;background:var(--primary);border-radius:12px/10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(63,124,184,.35);position:relative;}
+  .card.intro .yt-btn{background:var(--accent);}
+  .play-tri{width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:15px solid #fff;margin-right:3px;}
+
+  .badge{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:50%;background:var(--grad-hero);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;box-shadow:0 2px 8px rgba(63,124,184,.35);}
+  .card-label{font-family:'Cairo',sans-serif;font-weight:800;font-size:15px;color:var(--text);text-align:center;}
+  .card-hint{font-size:12px;color:var(--muted);text-align:center;line-height:1.4;}
+
+  .divider{height:1px;background:var(--border);margin:28px 0;}
+  footer{text-align:center;font-size:13px;color:var(--muted);padding:24px 0 40px;font-weight:600;}
+
+  @media(max-width:480px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
+    .play-wrap{width:66px;height:66px;}
+    .yt-btn{width:52px;height:36px;}
+    .hero-banner{padding:28px 16px 38px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div class="modal-icon">📌</div>
+    <h2>ابدأ من مقطع التأسيس</h2>
+    <p>قبل أي مقطع آخر، نوصيك بمشاهدة مقطع <strong>التأسيس</strong> أولاً — فهو الأساس الذي يبني عليه كل ما يليه.</p>
+    <button onclick="document.getElementById('modal-overlay').style.display='none'">فهمت، لنبدأ ✓</button>
+  </div>
+</div>
+
+<div class="topbar">
+  <span class="topbar-title">شروحات الخطأ السياقي</span>
+  <a class="topbar-back" href="../../index.html">← الرئيسية</a>
+</div>
+
+<div class="hero-banner">
+  <div class="hero-pill">الخطأ السياقي</div>
+  <h1>شروحات الخطأ السياقي المصوّرة</h1>
+  <p id="hero-sub">اختر المقطع وشاهد الشرح</p>
+</div>
+
+<div class="container">
+  <div class="section-header">
+    <h2>المقاطع المتاحة</h2>
+    <span class="count-badge" id="active-count">...</span>
+  </div>
+  <div class="grid" id="video-grid"></div>
+  <div class="divider"></div>
+  <footer>بوابة دعم التعلم — خلدية</footer>
+</div>
+
+<script>
+// ===== قسم المطور: أضف روابط الفيديوهات الجديدة هنا =====
+// { n: رقم_المقطع, id: 'معرف_Google_Drive' }
+const DEV_OVERRIDES = [
+  // { n: 1, id: 'DRIVE_FILE_ID' },
+];
+// ================================================================
+
+const INTRO_ID = '1UKb8rkoFM1RoQaqlyGHz6ngt_EdHtfA2';
+const VIDEOS = [
+  '18XUPYYUpRNL2fm8Iy71H4MKgI89N7-Rr','1NIg_p2tK9lbsprrolHSKJ7FZnjmjciNX','1TIGqW_poGmfCf95IeWKxjRienCD0GrBA','1Tnyh8YUG0WpPe7ss1LshbuNRSo0vpCeM','1dHHd3rfySXSvlTcKrvgPvedntn1p9ZVN',
+  '1fu0vHARXMpN2b8jjVmoiEdfX8Nm-Pbsg','1PkzCxTIyCVSUlPrBssHh0_h7eoLmEdMK','18iARqtBE5NVZwDWFRTFcCXKhrjYA1AYf','17KHV7y3sjEZwhHa4_nfLkfbKaZjcdREO','1cm1Mq8RpEcZ2PZeQNSyPbhcGTyShJvSZ',
+  '1GfjkAIUvFAqPDyNg7JCiLxBhDNGLi_OC','1BcnAODrU-F9zY-0tBfAhCAAtG69bng4g','15MpwF2ucSACliSUDiO3KhOpqj36v1YLN','1plD97SPq59ehyy5vK4CmhDgG_AMJnzAW','19YJ6346_fxMs0Xke_4hP35QTkT1hIjE8',
+  '12giSPRjQbuzpUZ6cytkjCuo4TFqwgPCz','1G09XMydO7uQxe2ReBgFmEINCGEC0t3e5','1p4aIRDH3ST27CTiUpOIYTc221flU10i5','1v7_-VjU8GgJhCfo9eQp4mxpQr3xmAPfo','1cUq5dyzpNXYewjS4GORJjmX1d_rT7X4p',
+  '1HY0ukjkaJWzb1ZzMgzhm_wCXzRvNFIWT','1aB0ehh2LndabsZ0fS1XgMlVR927MHeHZ','1BQdFzqId3dEmtq8Nk839wyfQzVvmV0AK','1bE8SJIfHWVhSk_TGET-9R6Uh7fAqKUxp','1jcCPG0lXTEb3VKjbRjkA32NWdN7Ei08w',
+  '1bgioGig3PFfAIatzaJy07xRZCFCLJIM6','1oZLbFb-7iYJnZPXP9NHt0YiYJlUNk1Nw','1-PQozNbYuE5VDe9jXr-umkHtBOH_ltI-','12rVqH6f0W11K7rDMgYF9Nm7oOoJtUFdm','13F3cuDyjB1qyVez7Dt8SCNm1t6JT78bz',
+  '1975cMBVIn0u1Z-c7llBqfVxBHUGqoDXH','19py8eP3OkgnzI0-WXEOOxsctrflTveTH','1ccIVtSI28TM0_OTGs4lp4MBCOa_3UOw2','1kDd-RT8in8ja8irl5RqCauSUn3Z9f4tJ','1FMjZ4PBukDOacVdPLylsbqpRyEQp84zt',
+  '1NXXTIRI3DIdE1oSYCHbsGikEgPSvTQKe','1l_AMe-6iW3WDIcvxvn58pEfo6HTpp6wa','1CrXxsIKb2z95NmFSoFpbBnd-epPRIfGX','1XGavVox4T69wbD_I8dz7oZv474Dl-FLS','1K7L8M0f1oR1Irb817eSxfhVycAoJnwm9',
+  '19pCMCoK6O59vm2I0-6kgkMC5Xayq2UH3','10NxwR1PCieYX8FeT87YGR6CUuWJUxtz5','1KvwJbh9ndfjt-TOzCPapp-N_XRFfnuNL','1g7Jds44cmzrUbHo16jRt2e922NpkCib8','1jYxx2HDRKxB98rWjx2KplRRnixh8UMeS',
+  '1aITCIXJ_kBya2BzZLwIJZiXGlqYYjbHf','1XNXNvLkxXy0d8EBQmm88nHkj0i2c26J_','1WdMDa_e8S_upnSY_i4L7GRkCkA6qgX25','10dSQKXWsGbAmyBF1D2fpwjZpr1agrikn','1TW5LxK5w9JS7ZGt-rlwo4uchh-j3uGMo',
+  '1YT0m5044vYWpvX4nEp8G_ZXRGlNx11W9','1qhePz_hAkIJdjMJaT5bRY5IhfJ3J_JLK','1PptfqIeBA6ka1r8OLtxJa0aJzKBJsOvP','1v_neo0r8SJ-GnxQv4-h2rZtuwM0nlWiP','1BzUE35UMhicgxepritaHOMdjRcYCOVHN',
+  '1OnHFmj7Lst3rEwVMkGeeNQQOEIDhtAiX','1V77mA_KVQjXPTEnzEVApgFiNYEvZGPAH','15X0K8GOIL1CZkWpYcsbh25XZS5jHZ55b','1fQeICgou4JMM2eK3gpRqecOfmnygmJgs','1WDTwLdpNijUqXJ4xfWskO3KePnPRG90R',
+  '1RXMQuT6S0lcBJvY-KBGpkoierO_Exn8k','1ea7Qs2j9ssDRMiyACozf8QWF_gCGr43q','19pHyFn1fppTEvL5ehY5jYKkfosbtJMel','1JLejMVQ1AruU2Kh0Ad8A3NPb21Jzwqs5','17eNtT3rP7h3YoHRowzdZLNYnflLFwn_F',
+  '1XNJ-L-e6YRFPwgu4SJox6giakBUE_Krq','10qIbPqR6jNo4FtPO5cYvjdWsvh6kDbl7','1UZ5Tg5vDGKThIX2uLw0O7zoFBOgDASCV','1Y4YMPtrA8U2j4GL7brgU7OY6FT8DXsTL','1cqe4XdWoZf24Rwm6T9g8-Ze3eXkfoWhp',
+  '1hVZZtPzyV_dyf_kEO6Ct2O-3G86plVcW','11mUYqzvgmTE9K2U4ECQL2GqGn3H_YS06','1tf61a6_XUgtUsggvop4EczoaeqzKio6-','1ClW9-Eet4J6RyzQGCb7aDUWM9lhg38zA','1FX2sxi6IfdgJmxfLGXfSHi9NYTykdS7u',
+  '1NvwWzH-HH1Bj5ztigqOQooZhRLL6ZcLh','1FQB4Xfzi0-Vuoyu9ENz2CLh2e9oJ9SGA','1Lo87qGATXsrOSWnQfzkxbDYp9zHmU1iT','1vU01ypWYNM5ZhGuHTwDK4RI1swus7HR5','1BQvabavQBc_mUiNNhHyUyii0Ghmx8GTw',
+  '1v_neo0r8SJ-GnxQv4-h2rZtuwM0nlWiP','1K5rSVu9lCnud8QcaP5Jfplr4ti7iAIxT','1U2OoaeOn7Hru-DERBAnjXCS2rzlk6OIA','1_NjMUaiQwLmmP66DpdtMISD9-bO1uq08','1zAVoiI-30vyKohDCH6yQ-Jy6QWiyDtK9',
+  '1Uohv5uGYM9vMiLQZgkfV2jgzmEVXSD8M','1awwmjjg8_TF7RL9harXTswZ7S6YFjUlE','11wn-0tRD0Bsr7uU3ec1BanPfVYfQwkNS','1OxKz0vnyf7ZhQCBHLjSt1aOgNlFV4b4J','1PZ6PACbqVXdg2sEa1LobIhk80GlMsfrH',
+  '1_OcPreUw4hGwThW51nIM2X1oNfzjCK85','1ysYjeejl0nDmePGqQo62KJgqSpGFtdv3','1zgBMlfCtV0UrFcVjBZFqJmFS4d2RE5ax','17aQoWzR3VA-8xhRtYpjBGXqjkgbaurk8','1RJagdNBUEs7pFnf0pPikUqKrQsdufzEa',
+  null,null,null,null,null
+];
+
+DEV_OVERRIDES.forEach(({n,id})=>{
+  if(n>=1&&n<=VIDEOS.length){VIDEOS[n-1]=id;}
+  else if(n>VIDEOS.length){while(VIDEOS.length<n-1)VIDEOS.push(null);VIDEOS.push(id);}
+});
+
+const HINTS=["واصل تقدمك","فكرة جديدة","خطوة نحو الإتقان","تعلم أكثر","خطوة نجاح","استمر للتميز","دقائق تصنع الفرق","المعلومة قريبة","ركز فأنت قادر","تعلم بذكاء","كل مقطع خبرة","شغفك يقودك","الممارسة تفوق","خطوة بخطوة","اجعلها عادة","اليوم أفضل","العلم قوة","حلقة جديدة","لا تتوقف","استثمر وقتك"];
+const url=id=>`https://drive.google.com/file/d/${id}/view?usp=drive_link`;
+
+function render(){
+  const grid=document.getElementById('video-grid');
+  let h=`<a class="card intro" href="${url(INTRO_ID)}" target="_blank">
+    <div class="play-wrap"><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">تأسيس</div><div class="card-hint">ابدأ من هنا</div></a>`;
+  VIDEOS.forEach((v,i)=>{
+    const n=i+1,hint=HINTS[i%HINTS.length];
+    if(v&&typeof v==='string'){h+=`<a class="card" href="${url(v)}" target="_blank">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">${hint}</div></a>`;}
+    else if(v&&typeof v==='object'){h+=`<a class="card disabled" href="${url(v.id)}" target="_blank">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">قريباً</div></a>`;}
+    else{h+=`<a class="card soon" href="#" onclick="return false">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">قريباً</div></a>`;}
+  });
+  grid.innerHTML=h;
+  const active=1+VIDEOS.filter(v=>v&&typeof v==='string').length;
+  document.getElementById('active-count').textContent=active+' مقطع';
+  document.getElementById('hero-sub').textContent=`اختر المقطع وشاهد الشرح — ${active} مقطع متاح`;
+}
+render();
+</script>
+</body>
+</html>

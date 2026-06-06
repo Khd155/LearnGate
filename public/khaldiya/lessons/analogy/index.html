@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شروحات التناسب اللفظي — بوابة دعم التعلم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary:#3F7CB8; --primary-dk:#2B5F94; --accent:#4FA877;
+    --bg:#f4f8fb; --surface:#ffffff; --border:#e2e8f0;
+    --text:#0f172a; --muted:#64748b; --radius:16px; --radius-lg:22px;
+    --shadow:0 8px 24px -8px rgba(63,124,184,.20),0 2px 6px rgba(15,23,42,.04);
+    --shadow-lg:0 24px 60px -20px rgba(63,124,184,.30);
+    --grad-hero:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  }
+  html,body{min-height:100vh;font-family:'Tajawal','Cairo',Arial,sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
+
+  /* Modal */
+  #modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;}
+  #modal-box{background:#fff;border-radius:24px;padding:36px 32px;max-width:420px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(15,23,42,.25);}
+  #modal-box .modal-icon{font-size:48px;margin-bottom:12px;}
+  #modal-box h2{font-size:22px;color:var(--text);margin-bottom:10px;}
+  #modal-box p{font-size:15px;color:var(--muted);line-height:1.7;margin-bottom:24px;}
+  #modal-box button{background:var(--grad-hero);color:#fff;border:none;border-radius:99px;padding:12px 32px;font-size:15px;font-family:inherit;font-weight:800;cursor:pointer;width:100%;}
+  #modal-box button:hover{opacity:.9;}
+
+  .topbar{background:var(--grad-hero);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);}
+  .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;}
+  .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;}
+  .topbar-back:hover{background:rgba(255,255,255,.28);}
+
+  .hero-banner{background:var(--grad-hero);color:#fff;padding:36px 24px 48px;text-align:center;position:relative;overflow:hidden;}
+  .hero-banner::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(255,255,255,.12),transparent 70%);pointer-events:none;}
+  .hero-banner h1{font-size:clamp(22px,4vw,34px);text-shadow:0 4px 16px rgba(7,54,105,.35);margin-bottom:8px;}
+  .hero-banner p{font-size:15px;opacity:.88;font-weight:500;}
+  .hero-pill{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:4px 18px;font-size:13px;font-weight:700;margin-bottom:12px;}
+
+  .container{max-width:1200px;margin:0 auto;padding:32px 20px 60px;}
+  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+  .section-header h2{font-size:18px;color:var(--primary);}
+  .count-badge{background:var(--primary);color:#fff;border-radius:99px;padding:2px 12px;font-size:13px;font-weight:700;}
+
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+
+  a.card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px 14px;aspect-ratio:1/1;text-decoration:none;color:var(--text);background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;position:relative;}
+  a.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--primary);}
+  a.card.intro{background:linear-gradient(135deg,#eaf2f9 0%,#e8f4ee 100%);border-color:var(--primary);border-style:dashed;border-width:2px;}
+  a.card.soon,a.card.disabled{opacity:.45;pointer-events:none;box-shadow:none;}
+
+  .play-wrap{width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,#eaf2f9,#e8f4ee);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative;}
+  .card.intro .play-wrap{background:linear-gradient(135deg,#dbeafe,#d1fae5);}
+  .yt-btn{width:64px;height:44px;background:var(--primary);border-radius:12px/10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(63,124,184,.35);position:relative;}
+  .card.intro .yt-btn{background:var(--accent);}
+  .play-tri{width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:15px solid #fff;margin-right:3px;}
+
+  .badge{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:50%;background:var(--grad-hero);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;box-shadow:0 2px 8px rgba(63,124,184,.35);}
+  .card-label{font-family:'Cairo',sans-serif;font-weight:800;font-size:15px;color:var(--text);text-align:center;}
+  .card-hint{font-size:12px;color:var(--muted);text-align:center;line-height:1.4;}
+
+  .divider{height:1px;background:var(--border);margin:28px 0;}
+  footer{text-align:center;font-size:13px;color:var(--muted);padding:24px 0 40px;font-weight:600;}
+
+  @media(max-width:480px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
+    .play-wrap{width:66px;height:66px;}
+    .yt-btn{width:52px;height:36px;}
+    .hero-banner{padding:28px 16px 38px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div class="modal-icon">📌</div>
+    <h2>ابدأ من مقطع التأسيس</h2>
+    <p>قبل أي مقطع آخر، نوصيك بمشاهدة مقطع <strong>التأسيس</strong> أولاً — فهو الأساس الذي يبني عليه كل ما يليه.</p>
+    <button onclick="document.getElementById('modal-overlay').style.display='none'">فهمت، لنبدأ ✓</button>
+  </div>
+</div>
+
+<div class="topbar">
+  <span class="topbar-title">شروحات التناسب اللفظي</span>
+  <a class="topbar-back" href="../../index.html">← الرئيسية</a>
+</div>
+
+<div class="hero-banner">
+  <div class="hero-pill">التناسب اللفظي</div>
+  <h1>شروحات التناسب اللفظي المصوّرة</h1>
+  <p id="hero-sub">اختر المقطع وشاهد الشرح</p>
+</div>
+
+<div class="container">
+  <div class="section-header">
+    <h2>المقاطع المتاحة</h2>
+    <span class="count-badge" id="active-count">...</span>
+  </div>
+  <div class="grid" id="video-grid"></div>
+  <div class="divider"></div>
+  <footer>بوابة دعم التعلم — خلدية</footer>
+</div>
+
+<script>
+// ===== قسم المطور: أضف روابط الفيديوهات الجديدة هنا =====
+// { n: رقم_المقطع, id: 'معرف_Google_Drive' }
+const DEV_OVERRIDES = [
+  // { n: 1, id: 'DRIVE_FILE_ID' },
+];
+// ================================================================
+
+const INTRO_ID = '1avORZJPca0Nghpk1YkoLiMHtJci7OPvf';
+const VIDEOS = [
+  '1hgmcUZQytRJWCvN_QsuI6XaYUvTzi9X-','17FnHmQ8XtDCrbTvtYSJknE30bG63LLAH','1Nk1_GlclNltKVPzW9nu-OAOLmWUzX8JC','1VLsmPd-tNwW8qmSslsGahsv3-AuNWvRy','1At42Ld23VP3X0evyX2TJZ7EpbP_G9jEE',
+  '1zDfpm-jjuIJq7sEJ8zO1y7D4QofrH-Nr','1ny1TjaDg2wDLJD89ZlUBzEsJfHT_J7nl','1bmJ9D3bufj52k8smBySRTTvumOHH_aKB','1Z94__rw1sJHPdl6n7yyflGBs4czdPuCY','1Fp1D8DHSwl1WrSCC7bxITMnFkCFkL7zm',
+  '1g-NyjJUNQDbMBIzldPUqJbg1Y16f-3h4','1KC-fwGuXBBkBihfBqvodIOaGsV198uou','1xkhnOtqrYX6WrwufSDHOwBkpwpZ5lo7D','1aoZVHe21pbEF_5lVTnUZg_3Kvgia6AXU','1YX_TcdUhC9AscwKu_r7KrBuL9KHrL7ML',
+  '1hkJ8NcI18cOwznhgZYaLuZ7Igw9jixz9','1LzZxpnNDidan2_gyTIYNhepMnoMWyjjR','1kJAB8ba9H0XLe58myaw53jHd2tltbEA8','19ZZeXZ_vODQz1Za5DsAsvn-sli3Eg98O','1rxogVJyJu50ZSZ-_5p8B6ivu_nmLphli',
+  '1gA46n7Br1iJxyi9x3GgzfFtyg0ozkMEo','1RYn1QSdUdHQTxWNLwk08TOjGt6_-dpOK','1ayoY170bMi4upJP02uWYguLJBXaDC8af','19ekdOawtjZv2whw9t7L0qIeTvwufQSd_','1YZzJYr5sVaSjSmVu627_EiNpKO6Iv9TV',
+  '1GrgUUuMjv5I_DaXZuLoraoCSkIOrYv0x','1VKWxBIGFZxCj0xbDFKHQwNkow5YNsoQe','1PofrHI-_eWcgI2BhBq8BMbajOfbQIqqX','1x4tizngdsVHDNnOaYTCkjmw3s18DjeRl','16TiuFwj6mE3RV2S9NiP3Ji0Ft535HIxe',
+  '153I3TlmHbqyNAKB4Qbv1eejvWfnNBVHK','1EHW5kfONlDw3F3iUOJpwzYjq2_ko5061','1EPXgD1kuLUnBu0s0TNXpJrmbnvgeMuyT','1Nbx1ijUmynvLCzwDeYraTIxwL0CCCkT8','16znWh0GHo23vhXxair-P3TWQ7z6cBWs9',
+  '1bgOqANhzX1it72Hwjb_LctRhIc6aNf99','11Y433gFRF_oRjQ82v1EL204HE1WdrMFU','1MV1CgTAUs5ttHbvhw4eBBLlEVVaCwbv7','1Z8D5lGD0ayInKi-RHLhkIZ1pwd7dt0Fa','1WN3wSy4oIolO_tM6C4fVE2-4xqGfkHMN',
+  '1c8kH0yQJhZk0KV0ncMqWWgge-5BK3bRJ','1q95QtGMeeX0gX9xfA6eUgi_tuxs84m4F','11HA3_9vat9itTEgiWcaq_emDf_9UK-W8','11Md3VuU3id4t808YQh8AKAVq7GwSGdNa','1pDjWI5RbjTiK4ADjPNQ_bMyGSOtcGC3s',
+  '1iHgKWcQZBv7UyW5r3gq0FXM0-1ppqwNF','1_ojkyh1auBP2P9oXpVT7UOu3yRhAWx6m','1DDdeU8YqJZAzGyocKvKqUWHNkoiI0UC2','1orstTh9VrEskWaP9eCM8E5Kj3KCULPTa','1cLMbba5RUaVMrwTbS3Lja_k_0UJ1HKtV',
+  '16-rQBgCA-KS7BwAV6lftgQbafa9y-F5V','1CcPU4TFSFnzaQF7sPgQS12WrUbJQ8YHk','1rgLdgbT6iuH7X1bAO1Dn86R22K3Pkyzv','1DOJ7dNgYXRJYNTnJSxW2E2AKkn3U0kWz','1MtVZ50nU5j9UnZDwUHm8Gz3HDIVlEHhg',
+  '1BNPgohu7QEej1p5693_0Fb__bce1xbp6','1ClhWSlA6shRHXa0cPkoYtXD14_vPzXy9','1Yg1Se6whrHQ8zEBNJLqgssMI8g2MSy6t','1TW8dNJao803J-zRExCuIbMkOVk_2HUgm','1H35zBgho6O_-yUFbet8x9uReRr09xMwN',
+  '1g_Q0j-kyinOcY_5NsO4BUllBPgfVQaJI','1Xn9V0jPkGvTN4pfWK6CkwbDpvrWafPxL','12nSbAB8--AQWw4fVUMzgTAgK_zzopYI-','1BE0YP4Fu2YvXZ2f_0ZZkLR0K7EEp658T','1Brl0p8p-XGtTOK6eNBeW1zXlbsIGtMME',
+  '1dXj1H75Cpir1g_yx5OUg7Kg7YdbFvF24','1k7W5-lgx6aQ3OWc3L720zjJdeKmR1K9L','1n3nTluPB1r06aL_0AKQpc_yw_oFssYzt','1tUQrK7P7zP73laCXeNQ9iWvN-kTBqDhO','1By-xZeFXxWI57i4uIw_lYHFad-kJpbm5',
+  '1D-iajHyN6mZKmp8Krz7sdlRTUPNZkvU3','1Qnge5Hmr_4tZfo06qhoVlM4wX2TGjaVZ','1G6Vu6UsLuSZsOulDqlWxYVy45uzwNg7I','1XCaqZsxGgmMimFHQK7IO7QkJ7OTZmLHI','1X0stNnfzuhAXrZDGAd4zJSlhuiVi_A2d',
+  '1BvXR2cPRzwYRMP5FsyPQKvVmCjzCe_Gf','1meDF28x3uifzd7HVB-ImAqPO43z5uV9Z','1hcXmym_eqIDiWpxKkV8oSIsT_xFSsIxS','1JnocUcqEYZWPFlRRMbM3vUeYnGGF_nnW','1BVNHvR-nzkra5RnfRuHKrFKA2PLLMekC',
+  '1KlRM8yk1egoylFU67geh0fOtexAgfc7L','1U15w8h43heWYYU2j_swlkh-RTqwMndOH','1a-sD2vMT1lcOmN6VSr244Kz7pan61b08','1ZYuIdFnZsek_HaeXFap2nmt4o3pew7Gt','1Udgrh5PH3zzw9CRV6UpihBGLBKOwAj7Q',
+  '1lblg4KpywUvhb9GoPIGwkg5O-BL2M7kJ','1pY59N9bPXK1GNFDLXO_C6ctLadn_OWa7','1roZ_pxr__vEjuRDotDJcNXGHdATv4byj','1vf-nCoISQfmsW-GBlayLBfYNr9MKL9d1','16P9QQaaJNkKu8MUaE6b-pUQM4DXefwi4',
+  '14q-azbTF71Ibjz6rbehI4vORqCEvhIr1','1BjJZL7ysDZNopwOrEO3a_Yui9Nakdrjf','1yorSMErJrNM8-KI4BvWECwWLb4Gk6mZk','1cZ7kRPU6prnR6UyZo5nAd4lxkm73rVdq','1H7Rd-qXfUavku0xcaSqoyX9NJEe-Wxol',
+  '1RrElMJQGJZpq0e_xULhmV8_--wEwc8Um','1bOT3kwtSqXnBZtPKXX0sRNDGDJg8J0_r','1Mj36od3vwCVmCI5gIErBd6E4dFhWYCsZ','1GTofEbCDbOZ3XxGdHRKDVL0lGNMH6yRM','1UqGisMMVVQHhQJELhxVjhStEaIlplAdp',
+  '1N45MNRCCCO2K0j37HeYl2D1ZSiN1UAcz','1qLUym2ai8JDsPGh0wnrtA_qeGZUNzeHk','1FN4N_3rO52Kf3o8gRm8264QVZ5DsqYfa','1gAgp5rM92VQhEWdOyzJEGWH2dyZRtcZ4','1rvPZpJrjFck2rNgjzBf4dRWYsiiSZO8A',
+  '1zCdz_roTDAZud3wdCAEg3VbeM3ues-LP','12SRf3RzKgRLxMPkFh0kcS6-N3CwG-hqR','1ocQWSO-EUZaAKY9B1xbq1sHmO6eSlBRf','1owacXDgs_PxJYY7iua3W-0rajVoRIvEc','1sxje3Ar1WhwOtuG3gYw-mBzjVU1gFu4n',
+  '1LOg26s27oCBC05jwGsXcuBzfFG3nNHeU','1ISdMjun0pJWsT9325s_iYEfIJtO7Aun4',null,null,null,
+  null,null,null,null,null
+];
+
+DEV_OVERRIDES.forEach(({n,id})=>{
+  if(n>=1&&n<=VIDEOS.length){VIDEOS[n-1]=id;}
+  else if(n>VIDEOS.length){while(VIDEOS.length<n-1)VIDEOS.push(null);VIDEOS.push(id);}
+});
+
+const HINTS=["واصل تقدمك","فكرة جديدة","خطوة نحو الإتقان","تعلم أكثر","خطوة نجاح","استمر للتميز","دقائق تصنع الفرق","المعلومة قريبة","ركز فأنت قادر","تعلم بذكاء","كل مقطع خبرة","شغفك يقودك","الممارسة تفوق","خطوة بخطوة","اجعلها عادة","اليوم أفضل","العلم قوة","حلقة جديدة","لا تتوقف","استثمر وقتك"];
+const url=id=>`https://drive.google.com/file/d/${id}/view?usp=drive_link`;
+
+function render(){
+  const grid=document.getElementById('video-grid');
+  let h=`<a class="card intro" href="${url(INTRO_ID)}" target="_blank">
+    <div class="play-wrap"><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">تأسيس</div><div class="card-hint">ابدأ من هنا</div></a>`;
+  VIDEOS.forEach((v,i)=>{
+    const n=i+1,hint=HINTS[i%HINTS.length];
+    if(v&&typeof v==='string'){h+=`<a class="card" href="${url(v)}" target="_blank">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">${hint}</div></a>`;}
+    else if(v&&typeof v==='object'){h+=`<a class="card disabled" href="${url(v.id)}" target="_blank">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">قريباً</div></a>`;}
+    else{h+=`<a class="card soon" href="#" onclick="return false">
+    <div class="play-wrap"><div class="badge">${n}</div><div class="yt-btn"><div class="play-tri"></div></div></div>
+    <div class="card-label">المقطع ${n}</div><div class="card-hint">قريباً</div></a>`;}
+  });
+  grid.innerHTML=h;
+  const active=1+VIDEOS.filter(v=>v&&typeof v==='string').length;
+  document.getElementById('active-count').textContent=active+' مقطع';
+  document.getElementById('hero-sub').textContent=`اختر المقطع وشاهد الشرح — ${active} مقطع متاح`;
+}
+render();
+</script>
+</body>
+</html>

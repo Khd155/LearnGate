@@ -430,7 +430,14 @@ const App = {
   },
 
   // ── Level Analysis ───────────────────────────────────────────────────────
-  perfSummary(pct, sa) {
+  levelLabel(pct) {
+    if (pct <= 30) return 'مهارة ضعيفة — تحتاج تدريباً مكثفاً';
+    if (pct <= 49) return 'مهارة دون المتوسط — تحتاج تدريباً مكثفاً';
+    if (pct <= 70) return 'مستوى متوسط — يحتاج تدريباً مناسباً';
+    return 'مستوى فوق المتوسط — يُستحسن الاستمرار في التطوير';
+  },
+
+  matchLabel(pct, sa) {
     const n = pct <= 30 ? 1 : pct <= 49 ? 2 : pct <= 70 ? 3 : 4;
     if (n === 1) {
       if (sa === 'mastered') return 'تشخيصك لذاتك كان غير مطابق — أداؤك أضعف مما توقعت';
@@ -452,16 +459,22 @@ const App = {
     return 'فعلاً أتضح أن لديك إتقان جيد رغم توقعاتك الأولية';
   },
 
+  nSkills(n) {
+    if (n === 1) return 'مهارة واحدة';
+    if (n === 2) return 'مهارتان';
+    return `${n} مهارات`;
+  },
+
   renderLevelAnalysis(plan) {
     const verbal = plan.gaps.filter(g => g.category === 'verbal');
     const quant  = plan.gaps.filter(g => g.category === 'quantitative');
     const buildRow = g => {
       const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
-      const summary = App.perfSummary(g.pct, g.selfAssess);
       return `<tr>
         <td>${g.skillName}</td>
         <td style="text-align:center;"><span class="gap-score ${cls}">${g.pct}%</span></td>
-        <td>${summary}</td>
+        <td>${App.levelLabel(g.pct)}</td>
+        <td>${App.matchLabel(g.pct, g.selfAssess)}</td>
       </tr>`;
     };
     document.getElementById('la-verbal-body').innerHTML = verbal.map(buildRow).join('');
@@ -512,9 +525,9 @@ const App = {
           وتتكون الخطة من عدة عناصر يمكنك مدارستها مع الموجه الأكاديمي، وقد ضُمِّنت معها مواد علمية تدريبية يمكنك البدء بها وفق التعليمات وبمراجعة الموجه الطلابي.
         </p>
         <div class="sp-summary-chips">
-          ${weak ? `<span class="sp-chip sp-chip-red">🔴 ${weak} مهارة تحتاج تدريباً</span>` : ''}
-          ${mid  ? `<span class="sp-chip sp-chip-orange">🟡 ${mid} مهارة متوسطة</span>` : ''}
-          ${high ? `<span class="sp-chip sp-chip-green">🟢 ${high} مهارة جيدة</span>` : ''}
+          ${weak ? `<span class="sp-chip sp-chip-red">🔴 ${App.nSkills(weak)} تحتاج تدريباً مكثفاً</span>` : ''}
+          ${mid  ? `<span class="sp-chip sp-chip-orange">🟡 ${App.nSkills(mid)} متوسطة المستوى</span>` : ''}
+          ${high ? `<span class="sp-chip sp-chip-green">🟢 ${App.nSkills(high)} جيدة المستوى</span>` : ''}
         </div>
       </div>
       <p class="section-heading" style="margin-bottom:8px;">ثانياً / محتويات الدعم مرتبة حسب أولويات الخطة</p>

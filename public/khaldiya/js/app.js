@@ -487,26 +487,155 @@ const App = {
   },
 
   renderSupportPlan(plan) {
+    // Admin note
     const note = document.getElementById('sp-admin-note');
     note.style.display = plan.adminNote ? 'block' : 'none';
-    note.textContent = plan.adminNote ? `ملاحظة المشرف: ${plan.adminNote}` : '';
+    note.textContent   = plan.adminNote ? `ملاحظة المشرف: ${plan.adminNote}` : '';
+
+    // Print header name
     const nameEl = document.getElementById('sp-student-name-print');
     if (nameEl) nameEl.textContent = `الطالب: ${plan.studentName || (State.student && State.student.name) || ''}`;
-    document.getElementById('sp-table-body').innerHTML = plan.gaps.map((g, i) => {
-      const url = SKILL_LESSONS[g.skillId] || '#';
-      const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
+
+    // Intro section
+    const weak = plan.gaps.filter(g => g.level === 'low').length;
+    const mid  = plan.gaps.filter(g => g.level === 'mid').length;
+    const high = plan.gaps.filter(g => g.level === 'high').length;
+    document.getElementById('sp-intro').innerHTML = `
+      <div class="sp-intro-box">
+        <div class="sp-intro-title">أولاً / مقدمة الخطة (اقرأها بعناية لتستفيد من المكونات اللاحقة)</div>
+        <p class="sp-intro-text">
+          مرحباً بك في خطة الدعم — هذه الخطة المقترحة لك للتدريب والاستعداد تم تصميمها على ضوء المدخلين السابقين:<br>
+          <strong>الأول</strong> / تشخيصك الذاتي لمستوى تدريبك من خلال الاستطلاع السابق.<br>
+          <strong>الثاني</strong> / أداؤك في الاختبار التشخيصي القبلي الذي أنهيته في الصفحات السابقة.
+        </p>
+        <p class="sp-intro-text" style="margin-top:10px;">
+          وتتكون الخطة من عدة عناصر يمكنك مدارستها مع الموجه الأكاديمي، وقد ضُمِّنت معها مواد علمية تدريبية يمكنك البدء بها وفق التعليمات وبمراجعة الموجه الطلابي.
+        </p>
+        <div class="sp-summary-chips">
+          ${weak ? `<span class="sp-chip sp-chip-red">🔴 ${weak} مهارة تحتاج تدريباً</span>` : ''}
+          ${mid  ? `<span class="sp-chip sp-chip-orange">🟡 ${mid} مهارة متوسطة</span>` : ''}
+          ${high ? `<span class="sp-chip sp-chip-green">🟢 ${high} مهارة جيدة</span>` : ''}
+        </div>
+      </div>
+      <p class="section-heading" style="margin-bottom:8px;">ثانياً / محتويات الدعم مرتبة حسب أولويات الخطة</p>
+    `;
+
+    // Build accordion cards
+    const buildCard = (g, idx) => {
+      const cls  = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
       const icon = g.category === 'verbal' ? '📚' : '🔢';
+      return `
+        <div class="skill-card" id="sk-card-${g.skillId}">
+          <div class="skill-card-header" onclick="App.toggleSkillCard('${g.skillId}')">
+            <span class="skill-card-rank">${idx + 1}</span>
+            <span class="skill-card-icon">${icon}</span>
+            <span class="skill-card-name">${g.skillName}</span>
+            <span class="gap-score ${cls}" style="flex-shrink:0;">${g.pct}%</span>
+            <span class="skill-card-chevron">⌄</span>
+          </div>
+          <div class="skill-card-body">
+            <div class="skill-tabs">
+              <button class="skill-tab active" onclick="App.switchSkillTab('${g.skillId}','guide',this)">📖 دليل التدريب</button>
+              <button class="skill-tab" onclick="App.switchSkillTab('${g.skillId}','videos',this)">🎬 المواد العلمية</button>
+              <button class="skill-tab" onclick="App.switchSkillTab('${g.skillId}','quiz',this)">✏️ تدرّب الآن</button>
+            </div>
+            <div id="sk-guide-${g.skillId}"  class="skill-tab-content active">${App.buildGuideTab(g.skillId)}</div>
+            <div id="sk-videos-${g.skillId}" class="skill-tab-content">${App.buildVideosTab(g.skillId)}</div>
+            <div id="sk-quiz-${g.skillId}"   class="skill-tab-content">${App.buildQuizTab(g.skillId)}</div>
+          </div>
+        </div>`;
+    };
+
+    const verbal = plan.gaps.filter(g => g.category === 'verbal');
+    const quant  = plan.gaps.filter(g => g.category === 'quantitative');
+    document.getElementById('sp-verbal-cards').innerHTML = verbal.map((g, i) => buildCard(g, i)).join('');
+    document.getElementById('sp-quant-cards').innerHTML  = quant.map((g, i) => buildCard(g, i)).join('');
+
+    // Print table
+    document.getElementById('sp-print-body').innerHTML = plan.gaps.map((g, i) => {
+      const url = SKILL_LESSONS[g.skillId] || '';
+      const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
       return `<tr>
-        <td style="text-align:center;font-weight:700;font-size:15px;">${i + 1}</td>
-        <td><span style="font-size:13px;">${icon}</span> ${g.skillName}</td>
+        <td style="text-align:center;font-weight:700;">${i + 1}</td>
+        <td>${g.skillName}</td>
         <td style="text-align:center;"><span class="gap-score ${cls}">${g.pct}%</span></td>
-        <td style="font-size:13px;">${g.recommendation}</td>
-        <td class="no-print" style="text-align:center;">
-          <a href="${url}" target="_blank" class="sp-lesson-btn">📖 الدخول للمواد</a>
-        </td>
-        <td class="print-only" style="font-size:11px;color:#333;word-break:break-all;">${url}</td>
+        <td style="font-size:12px;">${g.recommendation}</td>
+        <td style="font-size:11px;word-break:break-all;">${url}</td>
       </tr>`;
     }).join('');
+  },
+
+  // ── Skill card interaction ───────────────────────────────────────────────
+  toggleSkillCard(skillId) {
+    const card = document.getElementById(`sk-card-${skillId}`);
+    if (card) card.classList.toggle('open');
+  },
+
+  switchSkillTab(skillId, tab, btn) {
+    const card = document.getElementById(`sk-card-${skillId}`);
+    if (!card) return;
+    card.querySelectorAll('.skill-tab').forEach(b => b.classList.remove('active'));
+    card.querySelectorAll('.skill-tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    const content = document.getElementById(`sk-${tab}-${skillId}`);
+    if (content) content.classList.add('active');
+  },
+
+  // ── Tab content builders ─────────────────────────────────────────────────
+  buildGuideTab(skillId) {
+    const g = (typeof SKILL_GUIDES !== 'undefined') ? SKILL_GUIDES[skillId] : null;
+    if (!g) return '<p class="tab-empty">المحتوى قريباً.</p>';
+    return `
+      <div class="guide-section">
+        <div class="guide-label">📌 ما هذه المهارة؟</div>
+        <p class="guide-text">${g.what}</p>
+      </div>
+      <div class="guide-section">
+        <div class="guide-label">✅ ما الذي تحتاجه لإتقانها؟</div>
+        <ul class="guide-list">${g.needs.map(n => `<li>${n}</li>`).join('')}</ul>
+      </div>
+      <div class="guide-section">
+        <div class="guide-label">⚠️ الأخطاء الشائعة</div>
+        <ul class="guide-list mistakes">${g.mistakes.map(m => `<li>${m}</li>`).join('')}</ul>
+      </div>
+      <div class="guide-tip"><span>💡</span><span>${g.tip}</span></div>`;
+  },
+
+  buildVideosTab(skillId) {
+    const url = SKILL_LESSONS[skillId];
+    if (!url) return '<p class="tab-empty">المواد العلمية لهذه المهارة قريباً.</p>';
+    return `
+      <p class="videos-note">
+        تجد هنا جميع المقاطع والشروحات المتعلقة بهذه المهارة — ابدأ بمقطع التأسيس ثم انتقل للمقاطع بالترتيب.
+      </p>
+      <div class="videos-btn-wrap">
+        <a href="${url}" target="_blank" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
+          🎬 عرض المقاطع التعليمية
+        </a>
+        <p style="color:var(--muted);font-size:12px;margin-top:10px;">يفتح في تبويب جديد</p>
+      </div>`;
+  },
+
+  buildQuizTab(skillId) {
+    const q = (typeof SKILL_QUIZZES !== 'undefined') ? SKILL_QUIZZES[skillId] : null;
+    if (q && q.url) {
+      return `
+        <div class="quiz-start-screen">
+          <div class="quiz-start-icon">✏️</div>
+          <div class="quiz-start-title">${q.title}</div>
+          <div class="quiz-start-sub">اختبار قصير — حوالي 10 أسئلة</div>
+          <a href="${q.url}" target="_blank" class="btn btn-primary"
+             style="width:auto;display:inline-flex;padding:12px 32px;margin-top:16px;text-decoration:none;">
+            ابدأ الاختبار ←
+          </a>
+        </div>`;
+    }
+    return `
+      <div class="quiz-soon">
+        <div class="quiz-soon-icon">🕐</div>
+        <div style="font-weight:700;margin-bottom:6px;">الاختبار التدريبي قريباً</div>
+        <div style="font-size:13px;">سيُضاف رابط الاختبار عند توفره من الموجه.</div>
+      </div>`;
   },
 
   // ── Admin Dashboard ───────────────────────────────────────────────────────

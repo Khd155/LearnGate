@@ -121,6 +121,95 @@
       white-space:nowrap;
     }
     .sp-lesson-btn:hover { opacity:.85; }
+    /* ── Support Plan intro ─────────────────────────── */
+    .sp-intro-box {
+      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
+      border:1px solid #bcd6ee; border-radius:var(--radius);
+      padding:20px 22px; margin-bottom:20px;
+    }
+    .sp-intro-title { font-size:17px; font-weight:800; color:var(--primary); margin-bottom:10px; }
+    .sp-intro-text  { font-size:13.5px; line-height:1.9; color:var(--text); }
+    .sp-summary-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+    .sp-chip { border-radius:99px; padding:4px 14px; font-size:13px; font-weight:700; }
+    .sp-chip-red    { background:#fee2e2; color:#b91c1c; }
+    .sp-chip-orange { background:#ffedd5; color:#c2410c; }
+    .sp-chip-green  { background:#dcfce7; color:#15803d; }
+
+    /* ── Accordion skill cards ───────────────────────── */
+    .skill-card {
+      background:var(--surface); border:1.5px solid var(--border);
+      border-radius:var(--radius); margin-bottom:12px;
+      overflow:hidden; transition:box-shadow .2s, border-color .2s;
+    }
+    .skill-card.open { border-color:#5A95C9; box-shadow:var(--shadow); }
+    .skill-card-header {
+      padding:15px 18px; display:flex; align-items:center; gap:12px;
+      cursor:pointer; user-select:none; transition:background .15s;
+    }
+    .skill-card-header:hover { background:#f7fafd; }
+    .skill-card.open .skill-card-header {
+      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
+      border-bottom:1px solid var(--border);
+    }
+    .skill-card-rank {
+      width:26px; height:26px; border-radius:50%;
+      background:var(--primary); color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:800; flex-shrink:0;
+    }
+    .skill-card-icon  { font-size:20px; flex-shrink:0; }
+    .skill-card-name  { flex:1; font-weight:700; font-size:14px; }
+    .skill-card-chevron {
+      color:var(--muted); font-size:20px; line-height:1;
+      transition:transform .22s; flex-shrink:0;
+    }
+    .skill-card.open .skill-card-chevron { transform:rotate(180deg); }
+    .skill-card-body { display:none; }
+    .skill-card.open .skill-card-body { display:block; }
+
+    /* Tabs inside card */
+    .skill-tabs {
+      display:flex; border-bottom:2px solid var(--border);
+      background:#f8fbfd; overflow-x:auto;
+    }
+    .skill-tab {
+      flex:1; min-width:90px; padding:11px 6px; text-align:center;
+      font-size:12.5px; font-weight:700; cursor:pointer;
+      border:none; background:none; font-family:inherit;
+      color:var(--muted); transition:color .15s;
+      border-bottom:3px solid transparent; margin-bottom:-2px;
+      white-space:nowrap;
+    }
+    .skill-tab.active { color:var(--primary); border-bottom-color:var(--primary); background:var(--surface); }
+    .skill-tab:hover:not(.active) { color:var(--text); }
+    .skill-tab-content { display:none; padding:18px; }
+    .skill-tab-content.active { display:block; }
+
+    /* Guide tab */
+    .guide-section { margin-bottom:16px; }
+    .guide-label { font-size:13px; font-weight:800; color:var(--primary); margin-bottom:6px; }
+    .guide-text  { font-size:13.5px; line-height:1.85; color:var(--text); }
+    .guide-list  { margin-right:16px; font-size:13.5px; line-height:2.1; color:var(--text); }
+    .guide-list.mistakes li::marker { color:var(--danger); }
+    .guide-tip {
+      background:#fffbeb; border:1.5px solid #fde68a;
+      border-radius:10px; padding:11px 14px;
+      font-size:13.5px; line-height:1.75; display:flex; gap:8px;
+    }
+
+    /* Videos tab */
+    .videos-btn-wrap { text-align:center; padding:10px 0 4px; }
+    .videos-note { color:var(--muted); font-size:13px; margin-bottom:16px; line-height:1.7; text-align:center; }
+
+    /* Quiz tab */
+    .quiz-start-screen { text-align:center; padding:10px 0 6px; }
+    .quiz-start-icon  { font-size:40px; margin-bottom:10px; }
+    .quiz-start-title { font-size:16px; font-weight:800; margin-bottom:6px; }
+    .quiz-start-sub   { font-size:13.5px; color:var(--muted); margin-bottom:4px; }
+    .quiz-soon { text-align:center; padding:20px 0; color:var(--muted); font-size:14px; }
+    .quiz-soon-icon { font-size:36px; margin-bottom:8px; }
+    .tab-empty { color:var(--muted); font-size:14px; padding:10px 0; }
+
     .print-only { display:none; }
     @media print {
       .no-print { display:none !important; }
@@ -741,31 +830,34 @@
       <p id="sp-student-name-print" style="font-size:14px;color:#444;margin-top:4px;"></p>
     </div>
 
-    <div class="status-banner active no-print" style="margin-bottom:20px;">
-      <div class="status-icon">📋</div>
-      <div>
-        <div class="status-title">خطة الدعم المخصصة لك</div>
-        <div class="status-desc">مرتبة من الأضعف للأقوى — ابدأ بالأولويات الأولى.</div>
-      </div>
-    </div>
+    <!-- Admin note -->
+    <div id="sp-admin-note"></div>
 
-    <div id="sp-admin-note" style="background:#fffbeb;border:1.5px solid #fde68a;
-         border-radius:10px;padding:12px 16px;margin-bottom:16px;
-         font-size:14px;line-height:1.7;display:none;"></div>
+    <!-- Intro (filled by JS) -->
+    <div id="sp-intro"></div>
 
-    <div class="table-scroll">
-      <table class="sp-table">
+    <!-- Verbal section -->
+    <h3 class="section-heading no-print">📚 القسم اللفظي</h3>
+    <div id="sp-verbal-cards" class="no-print"></div>
+
+    <!-- Quantitative section -->
+    <h3 class="section-heading no-print">🔢 القسم الكمي</h3>
+    <div id="sp-quant-cards" class="no-print"></div>
+
+    <!-- Print-only flat table -->
+    <div class="print-only">
+      <h3 style="font-size:15px;font-weight:800;margin-bottom:10px;">مهاراتك مرتبة بالأولوية</h3>
+      <table class="sp-table" id="sp-print-table">
         <thead>
           <tr>
-            <th style="width:46px;text-align:center;">أولوية</th>
+            <th style="width:44px;text-align:center;">أولوية</th>
             <th>المهارة</th>
-            <th style="width:72px;text-align:center;">الدرجة</th>
+            <th style="width:60px;text-align:center;">الدرجة</th>
             <th>التوصية</th>
-            <th class="no-print" style="width:130px;text-align:center;">المواد العلمية</th>
-            <th class="print-only">رابط المواد</th>
+            <th>رابط المواد</th>
           </tr>
         </thead>
-        <tbody id="sp-table-body"></tbody>
+        <tbody id="sp-print-body"></tbody>
       </table>
     </div>
 

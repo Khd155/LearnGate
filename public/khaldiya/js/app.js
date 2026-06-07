@@ -590,6 +590,7 @@ const App = {
         <div class="guide-label">📌 ما هذه المهارة؟</div>
         <p class="guide-text">${g.what}</p>
       </div>
+      ${g.warning ? `<div class="guide-warning"><span>⚠️</span><span>${g.warning}</span></div>` : ''}
       <div class="guide-section">
         <div class="guide-label">✅ ما الذي تحتاجه لإتقانها؟</div>
         <ul class="guide-list">${g.needs.map(n => `<li>${n}</li>`).join('')}</ul>

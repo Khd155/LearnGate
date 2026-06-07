@@ -118,6 +118,19 @@ const DB = {
   },
 };
 
+// ── Skill → lesson page mapping ───────────────────────────────────────────
+const SKILL_LESSONS = {
+  v1: 'lessons/comprehension/',
+  v2: 'lessons/contextual/',
+  v3: 'lessons/inference/',
+  v4: 'lessons/analogy/',
+  v5: 'lessons/completion/',
+  q1: 'lessons/arithmetic/',
+  q2: 'lessons/algebra/',
+  q3: 'lessons/geometry/',
+  q4: 'lessons/comparison/',
+};
+
 // ── App State ─────────────────────────────────────────────────────────────
 const State = {
   role: null,
@@ -127,6 +140,7 @@ const State = {
   testAnswers: {},
   currentQ: 0,
   tab: 'pending',
+  currentPlan: null,
 };
 
 // ── Screen router ─────────────────────────────────────────────────────────
@@ -245,7 +259,7 @@ const App = {
         planBanner.className = 'status-banner pending';
         planBanner.innerHTML = `<div class="status-icon">⏳</div><div>
           <div class="status-title">خطتك قيد المراجعة</div>
-          <div class="status-desc">تم إرسال خطتك للمشرف. ستظهر هنا فور اعتمادها.</div>
+          <div class="status-desc">تم إنشاء خطة دعمك. <a href="#" onclick="App.viewStudentPlan();return false;" style="color:var(--primary);font-weight:700;">عرض نتائجك وخطتك ←</a></div>
         </div>`;
       }
     } else {
@@ -257,8 +271,9 @@ const App = {
     try { await DB.loadAll(); } catch (e) {}
     const myPlan = DB.plans().find(p => p.studentId === State.student.id);
     if (myPlan) {
-      if (myPlan.status === 'active') App.viewStudentPlan();
-      else alert('لديك خطة قيد المراجعة. انتظر موافقة المشرف.');
+      State.currentPlan = myPlan;
+      App.renderLevelAnalysis(myPlan);
+      show('screen-level-analysis');
       return;
     }
     show('screen-intro');
@@ -409,43 +424,89 @@ const App = {
       alert('تعذّر حفظ الخطة. حاول مرة أخرى.');
       show('screen-student-home'); return;
     }
-    App.renderPendingPlan(plan);
-    show('screen-plan-pending');
+    State.currentPlan = plan;
+    App.renderLevelAnalysis(plan);
+    show('screen-level-analysis');
   },
 
-  renderPendingPlan(plan) {
-    document.getElementById('pending-gaps').innerHTML = plan.gaps.map(g => `
-      <div class="gap-item">
-        <div class="gap-item-head">
-          <span style="font-size:14px">${g.category === 'verbal' ? '📚' : '🔢'}</span>
-          <span class="gap-skill">${g.skillName}</span>
-          <span class="gap-score score-${g.level}">${g.pct}%</span>
-        </div>
-        <div class="gap-rec">${g.recommendation}</div>
-      </div>`).join('');
+  // ── Level Analysis ───────────────────────────────────────────────────────
+  perfSummary(pct, sa) {
+    const n = pct <= 30 ? 1 : pct <= 49 ? 2 : pct <= 70 ? 3 : 4;
+    if (n === 1) {
+      if (sa === 'mastered') return 'تشخيصك لذاتك كان غير مطابق — أداؤك أضعف مما توقعت';
+      if (sa === 'partial')  return 'مستوى الأداء أقل من تشخيصك لذاتك';
+      return 'فعلاً أتضح أنك غير متقن للمهارة';
+    }
+    if (n === 2) {
+      if (sa === 'mastered') return 'تشخيصك لذاتك كان غير مطابق — أداؤك دون المتوسط';
+      if (sa === 'partial')  return 'مستوى الأداء أقل من تشخيصك لذاتك';
+      return 'فعلاً أتضح أنك غير متقن للمهارة كما اخترت في التشخيص الذاتي';
+    }
+    if (n === 3) {
+      if (sa === 'mastered') return 'مستوى الأداء متوسط الإتقان — أقل مما توقعت';
+      if (sa === 'partial')  return 'فعلاً أتضح أن مستوى الأداء متوسط في المهارة';
+      return 'مستوى الأداء متوسط الإتقان — أفضل مما توقعت';
+    }
+    if (sa === 'mastered') return 'فعلاً أتضح أنك متقن للمهارة';
+    if (sa === 'partial')  return 'فعلاً أتضح أن لديك إتقان جيد — أفضل من توقعاتك';
+    return 'فعلاً أتضح أن لديك إتقان جيد رغم توقعاتك الأولية';
+  },
+
+  renderLevelAnalysis(plan) {
+    const verbal = plan.gaps.filter(g => g.category === 'verbal');
+    const quant  = plan.gaps.filter(g => g.category === 'quantitative');
+    const buildRow = g => {
+      const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
+      const summary = App.perfSummary(g.pct, g.selfAssess);
+      return `<tr>
+        <td>${g.skillName}</td>
+        <td style="text-align:center;"><span class="gap-score ${cls}">${g.pct}%</span></td>
+        <td>${summary}</td>
+      </tr>`;
+    };
+    document.getElementById('la-verbal-body').innerHTML = verbal.map(buildRow).join('');
+    document.getElementById('la-quant-body').innerHTML  = quant.map(buildRow).join('');
+    State.currentPlan = plan;
   },
 
   // ── Student Plan View ────────────────────────────────────────────────────
   viewStudentPlan() {
-    const plan = DB.plans().find(p => p.studentId === State.student.id && p.status === 'active');
+    const plan = DB.plans().find(p => p.studentId === State.student.id);
     if (!plan) return;
-    App.renderActivePlan(plan);
-    show('screen-active-plan');
+    State.currentPlan = plan;
+    App.renderLevelAnalysis(plan);
+    show('screen-level-analysis');
   },
 
-  renderActivePlan(plan) {
-    const note = document.getElementById('ap-admin-note');
+  // ── Support Plan ─────────────────────────────────────────────────────────
+  showSupportPlan() {
+    const plan = State.currentPlan || DB.plans().find(p => p.studentId === State.student.id);
+    if (!plan) return;
+    App.renderSupportPlan(plan);
+    show('screen-support-plan');
+  },
+
+  renderSupportPlan(plan) {
+    const note = document.getElementById('sp-admin-note');
     note.style.display = plan.adminNote ? 'block' : 'none';
-    note.textContent   = plan.adminNote ? `ملاحظة المشرف: ${plan.adminNote}` : '';
-    document.getElementById('ap-gaps').innerHTML = plan.gaps.map(g => `
-      <div class="gap-item">
-        <div class="gap-item-head">
-          <span>${g.category === 'verbal' ? '📚' : '🔢'}</span>
-          <span class="gap-skill">${g.skillName}</span>
-          <span class="gap-score score-${g.level}">${g.pct}%</span>
-        </div>
-        <div class="gap-rec">${g.recommendation}</div>
-      </div>`).join('');
+    note.textContent = plan.adminNote ? `ملاحظة المشرف: ${plan.adminNote}` : '';
+    const nameEl = document.getElementById('sp-student-name-print');
+    if (nameEl) nameEl.textContent = `الطالب: ${plan.studentName || (State.student && State.student.name) || ''}`;
+    document.getElementById('sp-table-body').innerHTML = plan.gaps.map((g, i) => {
+      const url = SKILL_LESSONS[g.skillId] || '#';
+      const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
+      const icon = g.category === 'verbal' ? '📚' : '🔢';
+      return `<tr>
+        <td style="text-align:center;font-weight:700;font-size:15px;">${i + 1}</td>
+        <td><span style="font-size:13px;">${icon}</span> ${g.skillName}</td>
+        <td style="text-align:center;"><span class="gap-score ${cls}">${g.pct}%</span></td>
+        <td style="font-size:13px;">${g.recommendation}</td>
+        <td class="no-print" style="text-align:center;">
+          <a href="${url}" target="_blank" class="sp-lesson-btn">📖 الدخول للمواد</a>
+        </td>
+        <td class="print-only" style="font-size:11px;color:#333;word-break:break-all;">${url}</td>
+      </tr>`;
+    }).join('');
   },
 
   // ── Admin Dashboard ───────────────────────────────────────────────────────
@@ -614,6 +675,7 @@ const App = {
     State.role        = null;
     State.selfDiag    = {};
     State.testAnswers = {};
+    State.currentPlan = null;
     document.getElementById('sl-code').value = '';
     const alCode = document.getElementById('al-code');
     if (alCode) alCode.value = '';

@@ -37,7 +37,7 @@
     }
     .welcome-banner h2 { font-size:20px; margin-bottom:6px; font-weight:800; }
     .welcome-banner p  { font-size:13.5px; opacity:.9; line-height:1.7; }
-    #ap-admin-note {
+    #sp-admin-note {
       background:#fffbeb; border:1.5px solid #fde68a;
       border-radius:10px; padding:12px 16px; margin-bottom:16px;
       font-size:14px; line-height:1.7; display:none;
@@ -65,6 +65,76 @@
     .import-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     .import-row input[type=file] { display:none; }
     .import-btn { flex:1; min-width:140px; }
+
+    /* ── Level Analysis & Support Plan ───────────────── */
+    .analysis-intro {
+      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
+      border:1px solid #bcd6ee; border-radius:var(--radius-sm);
+      padding:16px 18px; margin-bottom:24px;
+      font-size:14px; line-height:1.85; color:var(--text);
+    }
+    .section-heading {
+      font-size:15px; font-weight:800; color:var(--primary);
+      margin:20px 0 10px; padding-right:12px;
+      border-right:3px solid var(--accent);
+    }
+    .table-scroll { overflow-x:auto; margin-bottom:4px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); }
+    .analysis-table {
+      width:100%; border-collapse:collapse; font-size:13.5px;
+      background:var(--surface);
+    }
+    .analysis-table th {
+      background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 100%);
+      color:#fff; padding:10px 14px; text-align:right;
+      font-weight:700; font-size:13px; border:none;
+    }
+    .analysis-table td {
+      padding:10px 14px; border-bottom:1px solid var(--border);
+      line-height:1.65; vertical-align:top;
+    }
+    .analysis-table tr:last-child td { border-bottom:none; }
+    .analysis-table tbody tr:nth-child(even) { background:#f7fafd; }
+    .level-1-cell { background:#fef2f2 !important; color:#dc2626; font-weight:700; }
+    .level-2-cell { background:#fff7ed !important; color:#c2410c; font-weight:700; }
+    .level-3-cell { background:#fefce8 !important; color:#92400e; font-weight:700; }
+    .level-4-cell { background:#f0fdf4 !important; color:#15803d; font-weight:700; }
+    .sp-table {
+      width:100%; border-collapse:collapse; font-size:13.5px;
+      background:var(--surface);
+    }
+    .sp-table th {
+      background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 100%);
+      color:#fff; padding:10px 14px; text-align:right;
+      font-weight:700; font-size:13px;
+    }
+    .sp-table td {
+      padding:10px 14px; border-bottom:1px solid var(--border);
+      line-height:1.65; vertical-align:middle;
+    }
+    .sp-table tr:last-child td { border-bottom:none; }
+    .sp-table tbody tr:nth-child(even) { background:#f7fafd; }
+    .sp-lesson-btn {
+      display:inline-flex; align-items:center; gap:6px;
+      background:var(--primary); color:#fff; border-radius:10px;
+      padding:7px 14px; font-size:13px; font-weight:700;
+      text-decoration:none; font-family:inherit; transition:opacity .2s;
+      white-space:nowrap;
+    }
+    .sp-lesson-btn:hover { opacity:.85; }
+    .print-only { display:none; }
+    @media print {
+      .no-print { display:none !important; }
+      .print-only { display:table-cell !important; }
+      .topbar { display:none !important; }
+      .page-wrap { max-width:100%; padding:10px 20px; }
+      .sp-table, .sp-table th, .sp-table td { border:1px solid #ccc !important; }
+      .sp-table th {
+        background:#e8e8e8 !important; color:#000 !important;
+        -webkit-print-color-adjust:exact; print-color-adjust:exact;
+      }
+      .analysis-intro { background:#f5f5f5 !important; border:1px solid #ccc !important; }
+      .gap-score { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    }
   </style>
 </head>
 <body>
@@ -524,26 +594,120 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
-     SCREEN 7a: PLAN PENDING
+     SCREEN 7a: LEVEL ANALYSIS
 ═══════════════════════════════════════════════════════ -->
-<div id="screen-plan-pending" class="screen">
+<div id="screen-level-analysis" class="screen">
   <div class="topbar">
     <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">←</button>
-    <div>
-      <div class="topbar-title">نتائج التشخيص</div>
+    <div style="flex:1;">
+      <div class="topbar-title">تحليل المستوى</div>
+      <div class="topbar-sub">نتائج الاختبار التشخيصي</div>
     </div>
   </div>
   <div class="page-wrap">
-    <div class="status-banner pending">
-      <div class="status-icon">⏳</div>
-      <div>
-        <div class="status-title">خطتك قيد المراجعة</div>
-        <div class="status-desc">تم إنشاء خطة دعم وإرسالها للمشرف. ستُنشر تلقائياً فور الاعتماد.</div>
-      </div>
+
+    <div class="analysis-intro">
+      لقد أنهيت الاختبار التشخيصي بحمد الله، وهذه صفحة تحليل مستوى أدائك في الاختبار على ضوء المهارات المستهدفة.
     </div>
-    <h3 style="font-size:16px;font-weight:700;margin-bottom:14px;">نتائج التشخيص (ترتيب الأولوية)</h3>
-    <div class="gap-list" id="pending-gaps"></div>
-    <div style="margin-top:24px;">
+
+    <!-- Level reference table -->
+    <h3 class="section-heading">تحليل المستوى</h3>
+    <div class="table-scroll">
+      <table class="analysis-table">
+        <thead><tr><th>الدرجة</th><th>المستوى</th></tr></thead>
+        <tbody>
+          <tr><td class="level-1-cell">0% – 30%</td><td>مهارة ضعيفة تحتاج لتدريب مكثف</td></tr>
+          <tr><td class="level-2-cell">31% – 49%</td><td>مهارة دون المتوسط تحتاج لتدريب مكثف</td></tr>
+          <tr><td class="level-3-cell">50% – 70%</td><td>مستوى متوسط يحتاج لتدريب مناسب</td></tr>
+          <tr><td class="level-4-cell">71% – 100%</td><td>مستوى فوق المتوسط يفضل الاستمرار في التطوير والتدريب</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Self-assessment × level cross-reference -->
+    <h3 class="section-heading">المستويات</h3>
+    <div class="table-scroll">
+      <table class="analysis-table">
+        <thead>
+          <tr>
+            <th style="min-width:120px;">المستويات</th>
+            <th>متقن</th>
+            <th>متوسط</th>
+            <th>غير متقن</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="level-1-cell">المستوى الأول<br><span style="font-size:11px;font-weight:500;">0% – 30%</span></td>
+            <td>تشخيصك لذاتك كان غير مطابق</td>
+            <td>مستوى الأداء أقل من تشخيصك لذاتك</td>
+            <td>فعلاً أتضح أنك غير متقن للمهارة</td>
+          </tr>
+          <tr>
+            <td class="level-2-cell">المستوى الثاني<br><span style="font-size:11px;font-weight:500;">31% – 49%</span></td>
+            <td>تشخيصك لذاتك كان غير مطابق</td>
+            <td>مستوى الأداء أقل من تشخيصك لذاتك</td>
+            <td>فعلاً أتضح أنك غير متقن للمهارة كما اخترت في التشخيص الذاتي</td>
+          </tr>
+          <tr>
+            <td class="level-3-cell">المستوى الثالث<br><span style="font-size:11px;font-weight:500;">50% – 70%</span></td>
+            <td>مستوى الأداء متوسط الإتقان</td>
+            <td>فعلاً أتضح أن مستوى الأداء متوسط في المهارة</td>
+            <td>مستوى الأداء متوسط الإتقان</td>
+          </tr>
+          <tr>
+            <td class="level-4-cell">المستوى الرابع<br><span style="font-size:11px;font-weight:500;">71% – 100%</span></td>
+            <td>فعلاً أتضح أنك متقن للمهارة</td>
+            <td>فعلاً أتضح أن لديك إتقان جيد</td>
+            <td>فعلاً أتضح أن لديك إتقان جيد رغم توقعاتك</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Verbal skills results -->
+    <h3 class="section-heading">📚 أداؤك في القسم اللفظي</h3>
+    <div class="table-scroll">
+      <table class="analysis-table">
+        <thead>
+          <tr>
+            <th>المهارة</th>
+            <th style="width:76px;text-align:center;">الدرجة</th>
+            <th>خلاصة الأداء الحالي</th>
+          </tr>
+        </thead>
+        <tbody id="la-verbal-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Quantitative skills results -->
+    <h3 class="section-heading">🔢 أداؤك في القسم الكمي</h3>
+    <div class="table-scroll">
+      <table class="analysis-table">
+        <thead>
+          <tr>
+            <th>المهارة</th>
+            <th style="width:76px;text-align:center;">الدرجة</th>
+            <th>خلاصة الأداء الحالي</th>
+          </tr>
+        </thead>
+        <tbody id="la-quant-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Navigate to support plan -->
+    <div style="margin-top:32px;text-align:center;padding:24px 0;
+                border-top:1.5px dashed var(--border);">
+      <p style="color:var(--muted);font-size:13.5px;margin-bottom:14px;line-height:1.7;">
+        بناءً على نتائجك يمكنك الانتقال لخطة الدعم المخصصة لك والتي تشمل المواد العلمية لكل مهارة
+      </p>
+      <button class="btn btn-primary" onclick="App.showSupportPlan()"
+              style="font-size:16px;padding:16px 36px;display:inline-flex;gap:10px;width:auto;">
+        <span>📋</span> الانتقال لخطة الدعم
+      </button>
+    </div>
+
+    <div style="margin-top:12px;">
       <button class="btn btn-outline btn-full" onclick="show('screen-student-home');App.renderStudentHome()">
         العودة للرئيسية
       </button>
@@ -552,27 +716,68 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
-     SCREEN 7b: ACTIVE PLAN
+     SCREEN 7b: SUPPORT PLAN
 ═══════════════════════════════════════════════════════ -->
-<div id="screen-active-plan" class="screen">
-  <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">←</button>
-    <div>
-      <div class="topbar-title">خطة دعم التعلم</div>
-      <div class="topbar-sub">معتمدة من المشرف ✅</div>
+<div id="screen-support-plan" class="screen">
+  <div class="topbar no-print">
+    <button class="topbar-back" onclick="show('screen-level-analysis')">←</button>
+    <div style="flex:1;">
+      <div class="topbar-title">خطة الدعم</div>
+      <div class="topbar-sub">مخصصة وفق نتائج تشخيصك</div>
     </div>
+    <button onclick="window.print()"
+      style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.45);
+             color:#fff;border-radius:10px;padding:8px 16px;font-size:13px;
+             font-family:inherit;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+      🖨️ طباعة
+    </button>
   </div>
   <div class="page-wrap">
-    <div class="status-banner active" style="margin-bottom:20px;">
-      <div class="status-icon">🎯</div>
+
+    <!-- Print-only header -->
+    <div class="print-only" style="text-align:center;margin-bottom:20px;
+         border-bottom:2px solid #ccc;padding-bottom:14px;">
+      <h2 style="font-size:20px;font-weight:800;">خطة دعم التعلم</h2>
+      <p id="sp-student-name-print" style="font-size:14px;color:#444;margin-top:4px;"></p>
+    </div>
+
+    <div class="status-banner active no-print" style="margin-bottom:20px;">
+      <div class="status-icon">📋</div>
       <div>
-        <div class="status-title">خطتك جاهزة — ابدأ التدريب!</div>
-        <div class="status-desc">ركّز على المهارات المرتبة أدناه من الأضعف للأقوى.</div>
+        <div class="status-title">خطة الدعم المخصصة لك</div>
+        <div class="status-desc">مرتبة من الأضعف للأقوى — ابدأ بالأولويات الأولى.</div>
       </div>
     </div>
-    <div id="ap-admin-note"></div>
-    <h3 style="font-size:16px;font-weight:700;margin-bottom:14px;">مهاراتك مرتبة بالأولوية</h3>
-    <div class="gap-list" id="ap-gaps"></div>
+
+    <div id="sp-admin-note" style="background:#fffbeb;border:1.5px solid #fde68a;
+         border-radius:10px;padding:12px 16px;margin-bottom:16px;
+         font-size:14px;line-height:1.7;display:none;"></div>
+
+    <div class="table-scroll">
+      <table class="sp-table">
+        <thead>
+          <tr>
+            <th style="width:46px;text-align:center;">أولوية</th>
+            <th>المهارة</th>
+            <th style="width:72px;text-align:center;">الدرجة</th>
+            <th>التوصية</th>
+            <th class="no-print" style="width:130px;text-align:center;">المواد العلمية</th>
+            <th class="print-only">رابط المواد</th>
+          </tr>
+        </thead>
+        <tbody id="sp-table-body"></tbody>
+      </table>
+    </div>
+
+    <div class="no-print" style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+      <button class="btn btn-outline" style="flex:1;" onclick="show('screen-level-analysis')">
+        ← تحليل المستوى
+      </button>
+      <button class="btn btn-outline" style="flex:1;"
+              onclick="show('screen-student-home');App.renderStudentHome()">
+        الرئيسية
+      </button>
+    </div>
   </div>
 </div>
 

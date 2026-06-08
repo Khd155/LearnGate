@@ -294,21 +294,21 @@ const App = {
       <table class="diag-table">
         <thead><tr>
           <th style="text-align:right">المهارة</th>
-          <th style="width:130px;text-align:center">مُتقنتُها</th>
-          <th style="width:130px;text-align:center">نسبياً</th>
-          <th style="width:130px;text-align:center">أحتاج تدريب</th>
+          <th style="width:130px;text-align:center">متقن</th>
+          <th style="width:130px;text-align:center">متوسط</th>
+          <th style="width:130px;text-align:center">غير متقن</th>
         </tr></thead>
         <tbody>${skills.map(sk => `
           <tr>
             <td><strong>${sk.name}</strong><br><span style="font-size:12px;color:var(--muted)">${sk.desc}</span></td>
             <td style="text-align:center">
-              <label class="diag-radio"><input type="radio" name="diag_${sk.id}" value="mastered" onchange="App.setDiag('${sk.id}','mastered')"><span class="diag-dot mastered">✓</span></label>
+              <label class="diag-radio"><input type="radio" name="diag_${sk.id}" value="mastered" onchange="App.setDiag('${sk.id}','mastered')"><span class="diag-dot mastered">●</span></label>
             </td>
             <td style="text-align:center">
-              <label class="diag-radio"><input type="radio" name="diag_${sk.id}" value="partial" onchange="App.setDiag('${sk.id}','partial')"><span class="diag-dot partial">~</span></label>
+              <label class="diag-radio"><input type="radio" name="diag_${sk.id}" value="partial" onchange="App.setDiag('${sk.id}','partial')"><span class="diag-dot partial">●</span></label>
             </td>
             <td style="text-align:center">
-              <label class="diag-radio"><input type="radio" name="diag_${sk.id}" value="need" onchange="App.setDiag('${sk.id}','need')"><span class="diag-dot need">✗</span></label>
+              <label class="diag-radio"><input type="radio" name="diag_${sk.id}" value="need" onchange="App.setDiag('${sk.id}','need')"><span class="diag-dot need">●</span></label>
             </td>
           </tr>`).join('')}
         </tbody>

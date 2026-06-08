@@ -131,6 +131,33 @@ const SKILL_LESSONS = {
   q4: 'lessons/comparison/',
 };
 
+// ── Idle auto-logout (30 min) ─────────────────────────────────────────────
+const IDLE_MS = 30 * 60 * 1000;
+let _idleTimer = null;
+
+function _resetIdle() {
+  if (!State.role) return;
+  clearTimeout(_idleTimer);
+  _idleTimer = setTimeout(() => {
+    if (State.role) {
+      App.logout();
+      showToast('تم تسجيل خروجك تلقائياً بعد 30 دقيقة من عدم التفاعل');
+    }
+  }, IDLE_MS);
+}
+
+function startIdleWatch() {
+  ['click','keydown','touchstart','scroll','mousemove'].forEach(ev =>
+    document.addEventListener(ev, _resetIdle, { passive: true })
+  );
+  _resetIdle();
+}
+
+function stopIdleWatch() {
+  clearTimeout(_idleTimer);
+  _idleTimer = null;
+}
+
 // ── App State ─────────────────────────────────────────────────────────────
 const State = {
   role: null,
@@ -213,6 +240,8 @@ const App = {
       showAlert(errEl, 'السجل المدني غير مسجّل. راجع المشرف لإضافتك في النظام.'); return;
     }
     State.student = student;
+    State.role = 'student';
+    startIdleWatch();
     App.renderStudentHome();
     show('screen-student-home');
   },
@@ -238,6 +267,8 @@ const App = {
     if (!admin) { showAlert(errEl, 'السجل المدني غير مسجّل ضمن المشرفين.'); return; }
     try { await DB.loadAll(); }
     catch (e) { showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return; }
+    State.role = 'admin';
+    startIdleWatch();
     App.renderAdminDashboard('pending');
     show('screen-admin');
   },
@@ -814,6 +845,7 @@ const App = {
 
   // ── Logout ─────────────────────────────────────────────────────────────────
   logout() {
+    stopIdleWatch();
     State.student     = null;
     State.role        = null;
     State.selfDiag    = {};

@@ -981,24 +981,23 @@
         <div class="stat-num" id="stat-total">0</div>
         <div class="stat-lbl">إجمالي الطلاب</div>
       </div>
-      <div class="stat-box" style="border-top:3px solid var(--warn);">
-        <div class="stat-num" id="stat-pending" style="color:var(--warn)">0</div>
-        <div class="stat-lbl">خطط معلقة</div>
-      </div>
       <div class="stat-box" style="border-top:3px solid var(--success);">
-        <div class="stat-num" id="stat-active" style="color:var(--success)">0</div>
-        <div class="stat-lbl">خطط نشطة</div>
+        <div class="stat-num" id="stat-tested" style="color:var(--success)">0</div>
+        <div class="stat-lbl">أجروا الاختبار</div>
+      </div>
+      <div class="stat-box" style="border-top:3px solid var(--warn);">
+        <div class="stat-num" id="stat-cooldown" style="color:var(--warn)">0</div>
+        <div class="stat-lbl">في انتظار</div>
       </div>
     </div>
 
     <!-- Tabs -->
     <div class="tabs">
-      <button class="tab-btn active" data-tab="pending"  onclick="App.setTab('pending')">⏳ معلقة</button>
-      <button class="tab-btn" data-tab="active"   onclick="App.setTab('active')">✅ نشطة</button>
-      <button class="tab-btn" data-tab="manage"   onclick="App.setTab('manage')">👥 الطلاب</button>
+      <button class="tab-btn active" data-tab="students" onclick="App.setTab('students')">👥 الطلاب</button>
+      <button class="tab-btn" data-tab="settings"  onclick="App.setTab('settings')">⚙️ الإدارة</button>
     </div>
 
-    <!-- Student manage tab content -->
+    <!-- Settings tab content -->
     <div id="tab-manage" style="display:none;margin-bottom:20px;">
       <div class="card" style="margin-bottom:16px;">
         <div class="card-title-sm">إضافة طالب جديد</div>

@@ -177,7 +177,7 @@ const State = {
   selfDiag: {},
   testAnswers: {},
   currentQ: 0,
-  tab: 'pending',
+  tab: 'students',
   currentPlan: null,
 };
 
@@ -770,61 +770,55 @@ const App = {
     State.tab = tab || State.tab;
     const students = DB.students();
     const plans    = DB.plans();
-    document.getElementById('stat-total').textContent   = students.length;
-    document.getElementById('stat-pending').textContent = plans.filter(p => p.status === 'pending').length;
-    document.getElementById('stat-active').textContent  = plans.filter(p => p.status === 'active').length;
+
+    // Stats: total | tested | in-cooldown
+    const studentIds = new Set(plans.map(p => p.studentId));
+    const cooldownCount = students.filter(st => {
+      const plan = plans.find(p => p.studentId === st.id);
+      return plan && actualDaysRemaining(plan) > 0 && !plan.retakeOverride;
+    }).length;
+    document.getElementById('stat-total').textContent    = students.length;
+    document.getElementById('stat-tested').textContent   = studentIds.size;
+    document.getElementById('stat-cooldown').textContent = cooldownCount;
+
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === State.tab));
     const listEl = document.getElementById('admin-student-list');
 
-    if (State.tab === 'pending') {
-      const pp = plans.filter(p => p.status === 'pending');
-      if (!pp.length) { listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>لا توجد خطط معلقة حالياً</p></div>`; return; }
-      listEl.innerHTML = pp.map(p => `
-        <div class="student-row">
-          <div class="student-avatar">${p.studentName.charAt(0)}</div>
-          <div class="student-info"><div class="student-name">${p.studentName}</div><div class="student-code">تم الإنشاء: ${new Date(p.createdAt).toLocaleDateString('ar-SA')}</div></div>
-          <span class="student-badge sbadge-pending">معلقة ⏳</span>
-          <button class="btn btn-primary btn-sm" onclick="App.openReview('${p.id}')">مراجعة</button>
-        </div>`).join('');
-
-    } else if (State.tab === 'active') {
-      const ap = plans.filter(p => p.status === 'active');
-      if (!ap.length) { listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>لا توجد خطط نشطة بعد</p></div>`; return; }
-      listEl.innerHTML = ap.map(p => `
-        <div class="student-row">
-          <div class="student-avatar">${p.studentName.charAt(0)}</div>
-          <div class="student-info"><div class="student-name">${p.studentName}</div><div class="student-code">تم الاعتماد: ${p.approvedAt ? new Date(p.approvedAt).toLocaleDateString('ar-SA') : '-'}</div></div>
-          <span class="student-badge sbadge-active">نشطة ✅</span>
-          <button class="btn btn-outline btn-sm" onclick="App.openReview('${p.id}')">عرض</button>
-        </div>`).join('');
-
-    } else {
+    if (State.tab === 'students') {
       if (!students.length) { listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>لا يوجد طلاب مضافون بعد</p></div>`; return; }
       listEl.innerHTML = students.map(st => {
-        const plan  = plans.find(p => p.studentId === st.id);
+        const plan      = plans.find(p => p.studentId === st.id);
         const actualRem = plan ? actualDaysRemaining(plan) : 0;
         const inCooldown = plan && actualRem > 0 && !plan.retakeOverride;
-        const badge = !plan ? '<span class="student-badge sbadge-new">لم يبدأ</span>'
-          : plan.status === 'pending' ? '<span class="student-badge sbadge-pending">خطة معلقة</span>'
-          : inCooldown ? `<span class="student-badge sbadge-pending">انتظار ${actualRem}${actualRem === 1 ? ' يوم' : ' أيام'} ⏳</span>`
-          : plan.retakeOverride ? '<span class="student-badge" style="background:#fff7ed;color:#92400e;">مسموح بالإعادة 🔓</span>'
-          : '<span class="student-badge sbadge-active">خطة نشطة</span>';
+        const badge = !plan
+          ? '<span class="student-badge sbadge-new">لم يبدأ</span>'
+          : inCooldown
+            ? `<span class="student-badge sbadge-pending">انتظار ${actualRem}${actualRem === 1 ? ' يوم' : ' أيام'} ⏳</span>`
+          : plan.retakeOverride
+            ? '<span class="student-badge" style="background:#fff7ed;color:#92400e;">مسموح بالإعادة 🔓</span>'
+          : '<span class="student-badge sbadge-active">أجرى الاختبار ✅</span>';
         const unlockBtn = inCooldown
           ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;margin-left:6px;" onclick="App.grantRetake('${st.id}')">🔓 سماح</button>`
+          : '';
+        const viewBtn = plan
+          ? `<button class="btn btn-outline btn-sm" onclick="App.openReview('${plan.id}')">عرض</button>`
           : '';
         return `<div class="student-row">
           <div class="student-avatar">${st.name.charAt(0)}</div>
           <div class="student-info"><div class="student-name">${st.name}</div><div class="student-code">رمز: ${st.code}</div></div>
           ${badge}
           ${unlockBtn}
+          ${viewBtn}
           <button class="btn btn-danger btn-sm" onclick="App.deleteStudent('${st.id}')">حذف</button>
         </div>`;
       }).join('');
+    } else {
+      listEl.innerHTML = '';
     }
   },
 
   setTab(tab) {
-    document.getElementById('tab-manage').style.display = tab === 'manage' ? 'block' : 'none';
+    document.getElementById('tab-manage').style.display = tab === 'settings' ? 'block' : 'none';
     App.renderAdminDashboard(tab);
   },
 

@@ -982,7 +982,7 @@
   </div>
   <div class="page-wrap">
     <!-- Stats -->
-    <div class="stat-row">
+    <div class="stat-row" style="grid-template-columns:repeat(4,1fr);">
       <div class="stat-box">
         <div class="stat-num" id="stat-total">0</div>
         <div class="stat-lbl">إجمالي الطلاب</div>
@@ -994,6 +994,10 @@
       <div class="stat-box" style="border-top:3px solid var(--warn);">
         <div class="stat-num" id="stat-cooldown" style="color:var(--warn)">0</div>
         <div class="stat-lbl">في انتظار</div>
+      </div>
+      <div class="stat-box" style="border-top:3px solid var(--primary);">
+        <div class="stat-num" id="stat-avg" style="color:var(--primary)">—</div>
+        <div class="stat-lbl">متوسط الدرجات</div>
       </div>
     </div>
 
@@ -1072,6 +1076,53 @@
         ✅ اعتماد ونشر للطالب
       </button>
       <button class="btn btn-outline" onclick="App.closeModal()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     STUDENT DETAIL MODAL
+═══════════════════════════════════════════════════════ -->
+<div id="student-detail-modal" class="modal-overlay" onclick="if(event.target===this)App.closeStudentDetail()">
+  <div class="modal-box">
+    <div class="sdm-header">
+      <div class="sdm-avatar" id="sdm-avatar"></div>
+      <div>
+        <div class="sdm-name" id="sdm-name"></div>
+        <div class="sdm-code" id="sdm-code"></div>
+      </div>
+    </div>
+    <div class="sdm-body">
+      <div class="sdm-stats">
+        <div class="sdm-stat">
+          <div class="sdm-stat-val" id="sdm-attempts">0</div>
+          <div class="sdm-stat-lbl">عدد المحاولات</div>
+        </div>
+        <div class="sdm-stat">
+          <div class="sdm-stat-val" id="sdm-best">—</div>
+          <div class="sdm-stat-lbl">أفضل درجة</div>
+        </div>
+        <div class="sdm-stat">
+          <div class="sdm-stat-val" id="sdm-last-date">—</div>
+          <div class="sdm-stat-lbl">آخر اختبار</div>
+        </div>
+      </div>
+      <div id="sdm-status-banner" class="sdm-status-banner"></div>
+      <div class="sdm-section">📊 تفصيل المهارات — آخر اختبار</div>
+      <div class="table-scroll">
+        <table class="sdm-table">
+          <thead><tr><th>المهارة</th><th>القسم</th><th>الدرجة</th><th>المستوى</th></tr></thead>
+          <tbody id="sdm-skills-body"></tbody>
+        </table>
+      </div>
+      <div class="sdm-section">📋 سجل المحاولات</div>
+      <div class="table-scroll">
+        <table class="sdm-table">
+          <thead><tr><th>المحاولة</th><th>التاريخ</th><th>متوسط الدرجة</th></tr></thead>
+          <tbody id="sdm-history-body"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-outline sdm-close" onclick="App.closeStudentDetail()">إغلاق</button>
     </div>
   </div>
 </div>

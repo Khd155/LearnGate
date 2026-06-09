@@ -771,15 +771,20 @@ const App = {
     const students = DB.students();
     const plans    = DB.plans();
 
-    // Stats: total | tested | in-cooldown
+    // Stats: total | tested | in-cooldown | avg score
     const studentIds = new Set(plans.map(p => p.studentId));
     const cooldownCount = students.filter(st => {
       const plan = plans.find(p => p.studentId === st.id);
       return plan && actualDaysRemaining(plan) > 0 && !plan.retakeOverride;
     }).length;
+    // avg score across latest plan per student
+    const latestPerStudent = students.map(st => plans.find(p => p.studentId === st.id)).filter(Boolean);
+    const allAvgs = latestPerStudent.map(p => p.gaps.length ? Math.round(p.gaps.reduce((s,g) => s+g.pct, 0) / p.gaps.length) : null).filter(v => v !== null);
+    const avgScore = allAvgs.length ? Math.round(allAvgs.reduce((s,v) => s+v, 0) / allAvgs.length) : null;
     document.getElementById('stat-total').textContent    = students.length;
     document.getElementById('stat-tested').textContent   = studentIds.size;
     document.getElementById('stat-cooldown').textContent = cooldownCount;
+    document.getElementById('stat-avg').textContent      = avgScore !== null ? avgScore + '%' : '—';
 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === State.tab));
     const listEl = document.getElementById('admin-student-list');
@@ -797,18 +802,22 @@ const App = {
           : plan.retakeOverride
             ? '<span class="student-badge" style="background:#fff7ed;color:#92400e;">مسموح بالإعادة 🔓</span>'
           : '<span class="student-badge sbadge-active">أجرى الاختبار ✅</span>';
+        const avgScore = plan && plan.gaps.length
+          ? Math.round(plan.gaps.reduce((s,g) => s+g.pct, 0) / plan.gaps.length) : null;
+        const scoreChip = avgScore !== null
+          ? `<span class="gap-score ${avgScore >= 71 ? 'score-high' : avgScore >= 50 ? 'score-mid' : 'score-low'}">${avgScore}%</span>` : '';
         const unlockBtn = inCooldown
-          ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;margin-left:6px;" onclick="App.grantRetake('${st.id}')">🔓 سماح</button>`
-          : '';
-        const viewBtn = plan
-          ? `<button class="btn btn-outline btn-sm" onclick="App.openReview('${plan.id}')">عرض</button>`
+          ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="App.grantRetake('${st.id}')">🔓 سماح</button>`
           : '';
         return `<div class="student-row">
           <div class="student-avatar">${st.name.charAt(0)}</div>
-          <div class="student-info"><div class="student-name">${st.name}</div><div class="student-code">رمز: ${st.code}</div></div>
+          <div class="student-info" onclick="App.openStudentDetail('${st.id}')" style="cursor:pointer;">
+            <div class="student-name">${st.name}</div>
+            <div class="student-code">رمز: ${st.code}</div>
+          </div>
           ${badge}
+          ${scoreChip}
           ${unlockBtn}
-          ${viewBtn}
           <button class="btn btn-danger btn-sm" onclick="App.deleteStudent('${st.id}')">حذف</button>
         </div>`;
       }).join('');
@@ -938,6 +947,88 @@ const App = {
     } catch (e) { alert('فشلت العملية.'); return; }
     App.renderAdminDashboard('manage');
     showToast('تم السماح للطالب بإعادة الاختبار ✅');
+  },
+
+  // ── Student Detail Modal ─────────────────────────────────────────────────
+  openStudentDetail(studentId) {
+    const st      = DB.students().find(s => s.id === studentId);
+    if (!st) return;
+    const allPlans = DB.plans()
+      .filter(p => p.studentId === studentId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const latest  = allPlans[0];
+
+    document.getElementById('sdm-avatar').textContent = st.name.charAt(0);
+    document.getElementById('sdm-name').textContent   = st.name;
+    document.getElementById('sdm-code').textContent   = `رمز الدخول: ${st.code}`;
+    document.getElementById('sdm-attempts').textContent = allPlans.length || '—';
+
+    const bestAvg = allPlans.length
+      ? Math.max(...allPlans.map(p => p.gaps.length ? Math.round(p.gaps.reduce((s,g)=>s+g.pct,0)/p.gaps.length) : 0))
+      : null;
+    document.getElementById('sdm-best').textContent = bestAvg !== null ? bestAvg + '%' : '—';
+    document.getElementById('sdm-last-date').textContent = latest
+      ? new Date(latest.createdAt).toLocaleDateString('ar-SA', { day:'numeric', month:'short' }) : '—';
+
+    // Status banner
+    const banner = document.getElementById('sdm-status-banner');
+    if (!latest) {
+      banner.style.cssText = 'background:#f1f5f9;color:#64748b;';
+      banner.textContent   = 'لم يبدأ الطالب الاختبار بعد';
+    } else {
+      const rem = actualDaysRemaining(latest);
+      if (rem > 0 && !latest.retakeOverride) {
+        banner.style.cssText = 'background:#fef9c3;color:#854d0e;';
+        banner.textContent   = `⏳ في فترة الانتظار — يفتح الاختبار بعد ${rem} ${rem===1?'يوم':'أيام'}`;
+      } else if (latest.retakeOverride) {
+        banner.style.cssText = 'background:#fff7ed;color:#92400e;';
+        banner.textContent   = '🔓 مسموح له بإعادة الاختبار من قِبَل المشرف';
+      } else {
+        banner.style.cssText = 'background:#dcfce7;color:#166534;';
+        banner.textContent   = '✅ يمكنه إعادة الاختبار الآن';
+      }
+    }
+
+    // Skills table
+    const skillsBody = document.getElementById('sdm-skills-body');
+    if (latest && latest.gaps.length) {
+      skillsBody.innerHTML = latest.gaps.map(g => {
+        const lvl = g.pct <= 30 ? 'ضعيف' : g.pct <= 49 ? 'دون المتوسط' : g.pct <= 70 ? 'متوسط' : 'فوق المتوسط';
+        const cls = g.pct <= 49 ? 'score-low' : g.pct <= 70 ? 'score-mid' : 'score-high';
+        const cat = g.category === 'verbal' ? '📚 لفظي' : '🔢 كمي';
+        return `<tr>
+          <td style="font-weight:700;">${g.skillName}</td>
+          <td>${cat}</td>
+          <td><span class="gap-score ${cls}">${g.pct}%</span></td>
+          <td style="font-size:12px;color:var(--muted);">${lvl}</td>
+        </tr>`;
+      }).join('');
+    } else {
+      skillsBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px;">لا توجد بيانات</td></tr>';
+    }
+
+    // History table
+    const histBody = document.getElementById('sdm-history-body');
+    if (allPlans.length) {
+      histBody.innerHTML = allPlans.map((p, i) => {
+        const avg = p.gaps.length ? Math.round(p.gaps.reduce((s,g)=>s+g.pct,0)/p.gaps.length) : 0;
+        const cls = avg >= 71 ? 'score-high' : avg >= 50 ? 'score-mid' : 'score-low';
+        const date = new Date(p.createdAt).toLocaleDateString('ar-SA', { year:'numeric', month:'short', day:'numeric' });
+        return `<tr>
+          <td style="text-align:center;font-weight:700;">${allPlans.length - i}</td>
+          <td>${date}</td>
+          <td style="text-align:center;"><span class="gap-score ${cls}">${avg}%</span></td>
+        </tr>`;
+      }).join('');
+    } else {
+      histBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">لا توجد محاولات</td></tr>';
+    }
+
+    document.getElementById('student-detail-modal').classList.add('open');
+  },
+
+  closeStudentDetail() {
+    document.getElementById('student-detail-modal').classList.remove('open');
   },
 
   // ── Cooldown / Retake ────────────────────────────────────────────────────

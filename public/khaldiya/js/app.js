@@ -751,15 +751,16 @@ const App = {
   buildQuizTab(skillId) {
     const q = (typeof SKILL_QUIZZES !== 'undefined') ? SKILL_QUIZZES[skillId] : null;
     if (q && q.urls && q.urls.length) {
-      const btns = q.urls.map((url, i) => `
-        <a href="${url}" target="_blank" rel="noopener" class="quiz-num-btn">${i + 1}</a>
-      `).join('');
+      const pageUrl = `quizzes/?skill=${skillId}`;
       return `
-        <div style="padding:8px 0 4px;">
-          <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">
-            ✏️ ${q.urls.length} اختبار تدريبي — اختر رقم الاختبار
-          </div>
-          <div class="quiz-num-grid">${btns}</div>
+        <p class="videos-note">
+          تجد هنا جميع الاختبارات التدريبية المتعلقة بهذه المهارة — تدرّب بشكل منتظم لتحسين أدائك.
+        </p>
+        <div class="videos-btn-wrap">
+          <a href="${pageUrl}" target="_blank" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
+            ✏️ عرض الاختبارات التدريبية
+          </a>
+          <p style="color:var(--muted);font-size:12px;margin-top:10px;">${q.urls.length} اختبار متاح · يفتح في تبويب جديد</p>
         </div>`;
     }
     return `

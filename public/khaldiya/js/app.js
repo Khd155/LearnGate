@@ -495,7 +495,8 @@ const App = {
     const QBANK = window.QUESTION_BANK;
     const q = QBANK[State.currentQ];
     if (State.testAnswers[q.id] === undefined) {
-      if (!confirm('لم تختر إجابة لهذا السؤال. هل تريد المتابعة؟')) return;
+      showToast('يرجى اختيار إجابة أو "لا أعرف الإجابة" قبل المتابعة');
+      return;
     }
     if (State.currentQ < QBANK.length - 1) { State.currentQ++; App.renderQuestion(); }
     else App.finishTest();

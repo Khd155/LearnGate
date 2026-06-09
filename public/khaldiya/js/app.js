@@ -362,6 +362,10 @@ const App = {
     }
     State.currentQ   = 0;
     State.testAnswers = {};
+    show('screen-pretest-intro');
+  },
+
+  startPretest() {
     App.renderQuestion();
     App.startTestTimer();
     show('screen-pretest');

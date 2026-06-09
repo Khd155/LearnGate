@@ -655,6 +655,81 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
+     SCREEN 5b: PRE-TEST INSTRUCTIONS
+═══════════════════════════════════════════════════════ -->
+<div id="screen-pretest-intro" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="show('screen-selfdiag')">→</button>
+    <div style="flex:1;">
+      <div class="topbar-title">تعليمات الاختبار</div>
+      <div class="topbar-sub">اقرأها بعناية قبل البدء</div>
+    </div>
+  </div>
+  <div class="page-wrap">
+    <div class="analysis-intro" style="margin-bottom:24px;">
+      أخي الطالب، أنت على وشك البدء بالاختبار التشخيصي القبلي لاختبار القدرات العامة. يرجى قراءة التعليمات التالية بعناية قبل الشروع في الإجابة.
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:32px;">
+
+      <div style="display:flex;gap:14px;align-items:flex-start;
+                  background:#f7fafd;border-radius:12px;padding:14px 16px;
+                  border-right:4px solid var(--primary);">
+        <span style="font-size:22px;flex-shrink:0;">📋</span>
+        <div>
+          <div style="font-weight:800;font-size:14px;margin-bottom:3px;">محتوى الاختبار</div>
+          <div style="font-size:13.5px;color:var(--text);line-height:1.7;">
+            يتكون الاختبار من <strong>50 سؤالاً</strong>: 25 في القسم اللفظي و25 في القسم الكمي، موزّعة على جميع المهارات المستهدفة.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:14px;align-items:flex-start;
+                  background:#f7fafd;border-radius:12px;padding:14px 16px;
+                  border-right:4px solid var(--primary);">
+        <span style="font-size:22px;flex-shrink:0;">🎯</span>
+        <div>
+          <div style="font-weight:800;font-size:14px;margin-bottom:3px;">طريقة الإجابة</div>
+          <div style="font-size:13.5px;color:var(--text);line-height:1.7;">
+            لكل سؤال أربعة خيارات، اختر الإجابة الأنسب. يمكنك التنقل بين الأسئلة باستخدام أزرار <strong>التالي</strong> و<strong>السابق</strong>.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:14px;align-items:flex-start;
+                  background:#f7fafd;border-radius:12px;padding:14px 16px;
+                  border-right:4px solid var(--primary);">
+        <span style="font-size:22px;flex-shrink:0;">💡</span>
+        <div>
+          <div style="font-weight:800;font-size:14px;margin-bottom:3px;">نصيحة</div>
+          <div style="font-size:13.5px;color:var(--text);line-height:1.7;">
+            أجب على جميع الأسئلة ولا تترك أيًا منها دون إجابة، فنتائج التحليل تعتمد على أدائك في كل مهارة على حدة.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:14px;align-items:flex-start;
+                  background:#fff7ed;border-radius:12px;padding:14px 16px;
+                  border-right:4px solid #f97316;">
+        <span style="font-size:22px;flex-shrink:0;">⏱</span>
+        <div>
+          <div style="font-weight:800;font-size:14px;margin-bottom:3px;color:#c2410c;">مدة الاختبار: 50 دقيقة</div>
+          <div style="font-size:13.5px;color:var(--text);line-height:1.7;">
+            يبدأ العدّ التنازلي فور الضغط على زر البدء. عند انتهاء الوقت <strong>يُسلَّم الاختبار تلقائياً</strong> بما أجبته حتى تلك اللحظة.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <button class="btn btn-primary" onclick="App.startPretest()"
+            style="font-size:16px;padding:16px;display:flex;gap:10px;justify-content:center;">
+      <span>🚀</span> ابدأ الاختبار الآن
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
      SCREEN 6: PRE-TEST
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-pretest" class="screen">

@@ -192,19 +192,20 @@ const App = {
 
   showOtherSchools() {
     const list = document.getElementById('other-schools-list');
+    const s = 'flex-shrink:0;width:120px;padding:16px 10px;';
     const comingSoon = Array(4).fill(null).map(() => `
-      <div class="identity-card" style="opacity:.5;cursor:default;position:relative;">
-        <span style="position:absolute;top:10px;left:10px;background:rgba(255,255,255,.25);
-              color:#fff;font-size:11px;font-weight:800;padding:2px 10px;border-radius:20px;">قريباً</span>
-        <div class="card-icon">🏫</div>
-        <div class="card-title" style="opacity:.4;">—</div>
-        <div class="card-desc" style="opacity:.6;">قريباً</div>
+      <div class="identity-card" style="${s}opacity:.5;cursor:default;position:relative;">
+        <span style="position:absolute;top:8px;left:8px;background:rgba(255,255,255,.25);
+              color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;">قريباً</span>
+        <div class="card-icon" style="font-size:24px;">🏫</div>
+        <div class="card-title" style="opacity:.4;font-size:13px;">—</div>
+        <div class="card-desc" style="opacity:.6;font-size:11px;">قريباً</div>
       </div>`).join('');
     list.innerHTML = `
-      <button class="identity-card" onclick="App.selectSchool('ثانوية ذات الصواري')">
-        <div class="card-icon">🏫</div>
-        <div class="card-title">ثانوية ذات الصواري</div>
-        <div class="card-desc">اضغط للمتابعة</div>
+      <button class="identity-card" style="${s}" onclick="App.selectSchool('ثانوية ذات الصواري')">
+        <div class="card-icon" style="font-size:24px;">🏫</div>
+        <div class="card-title" style="font-size:13px;">ثانوية ذات الصواري</div>
+        <div class="card-desc" style="font-size:11px;">اضغط للمتابعة</div>
       </button>
       ${comingSoon}`;
     document.getElementById('school-cards').style.display = 'none';

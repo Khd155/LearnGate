@@ -306,8 +306,9 @@ const App = {
     catch (e) { showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return; }
     State.role = 'admin';
     startIdleWatch();
-    App.renderAdminDashboard('pending');
+    App.renderAdminDashboard('students');
     show('screen-admin');
+    App.startAdminBadgeRefresh();
   },
 
   // ── Student Home ─────────────────────────────────────────────────────────
@@ -828,6 +829,8 @@ const App = {
 
   setTab(tab) {
     document.getElementById('tab-manage').style.display = tab === 'settings' ? 'block' : 'none';
+    if (tab === 'messages') { App.renderAdminDashboard(tab); App.renderAdminMessages(); return; }
+    if (tab === 'support')  { App.renderAdminDashboard(tab); App.renderAdminSupport();  return; }
     App.renderAdminDashboard(tab);
   },
 
@@ -1132,8 +1135,355 @@ const App = {
   },
 
   // ── Logout ─────────────────────────────────────────────────────────────────
+  // ── Chat (Student) ───────────────────────────────────────────────────────
+  _chatTimer: null,
+  _chatMsgCount: 0,
+
+  goToChat() {
+    show('screen-chat');
+    App._chatMsgCount = 0;
+    App.loadChatMessages();
+    App.startChatPoll();
+  },
+
+  leaveChatScreen() {
+    clearInterval(App._chatTimer);
+    App._chatTimer = null;
+    show('screen-student-home');
+  },
+
+  async loadChatMessages() {
+    const school = State.school ? '?school=' + encodeURIComponent(State.school) : '';
+    let msgs;
+    try {
+      const data = await apiFetch(`/messages?studentId=${State.student.id}${school ? '&school=' + encodeURIComponent(State.school) : ''}`);
+      msgs = data.messages || [];
+    } catch { return; }
+    // mark admin messages as read
+    if (msgs.some(m => m.sender_type === 'admin' && !m.is_read)) {
+      apiFetch('/messages/read', { method:'PATCH', body: JSON.stringify({ studentId: State.student.id, readerType:'student' }) }).catch(() => {});
+    }
+    const el = document.getElementById('chat-messages');
+    if (!el) return;
+    if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>'; return; }
+    el.innerHTML = msgs.map(m => {
+      const sent = m.sender_type === 'student';
+      const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
+      return `<div style="display:flex;flex-direction:column;align-items:${sent ? 'flex-end' : 'flex-start'};">
+        <div class="chat-bubble ${sent ? 'sent' : 'received'}">${m.body}</div>
+        <div class="chat-time">${sent ? 'أنت' : 'المشرف'} · ${time}</div>
+      </div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+    App._chatMsgCount = msgs.length;
+    document.getElementById('chat-unread-badge').style.display = 'none';
+  },
+
+  startChatPoll() {
+    clearInterval(App._chatTimer);
+    App._chatTimer = setInterval(async () => {
+      if (!document.getElementById('screen-chat').classList.contains('active')) {
+        clearInterval(App._chatTimer); return;
+      }
+      try {
+        const data = await apiFetch(`/messages?studentId=${State.student.id}`);
+        const msgs = data.messages || [];
+        if (msgs.length !== App._chatMsgCount) App.loadChatMessages();
+      } catch {}
+    }, 6000);
+  },
+
+  async sendChatMsg() {
+    const input = document.getElementById('chat-input');
+    const body  = input.value.trim();
+    if (!body) return;
+    input.value = '';
+    try {
+      await apiFetch('/messages', {
+        method:'POST',
+        body: JSON.stringify({ studentId: State.student.id, studentName: State.student.name, senderType:'student', body, school: State.school || '' }),
+      });
+      App.loadChatMessages();
+    } catch { showToast('تعذّر الإرسال'); input.value = body; }
+  },
+
+  // ── Tickets (Student) ────────────────────────────────────────────────────
+  goToTickets() {
+    show('screen-tickets');
+    App.loadStudentTickets();
+  },
+
+  async loadStudentTickets() {
+    const el = document.getElementById('st-ticket-list');
+    el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جاري التحميل...</div>';
+    try {
+      const { tickets } = await apiFetch(`/tickets?studentId=${State.student.id}`);
+      if (!tickets.length) { el.innerHTML = '<div class="chat-empty" style="padding:30px 0;">لا توجد طلبات دعم بعد</div>'; return; }
+      el.innerHTML = tickets.map(t => {
+        const badgeCls = t.status === 'open' ? 'tbadge-open' : t.status === 'in_progress' ? 'tbadge-progress' : 'tbadge-resolved';
+        const badgeTxt = t.status === 'open' ? 'مفتوح' : t.status === 'in_progress' ? 'قيد المعالجة' : 'تم الحل';
+        const date = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short' });
+        return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}', 'student')">
+          <div class="ticket-card-top">
+            <div class="ticket-subject">${t.subject}</div>
+            <span class="${badgeCls}">${badgeTxt}</span>
+          </div>
+          <div class="ticket-meta">${date}</div>
+        </div>`;
+      }).join('');
+    } catch { el.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;">تعذّر التحميل</div>'; }
+  },
+
+  openNewTicketModal() {
+    document.getElementById('nt-subject').value = '';
+    document.getElementById('nt-body').value    = '';
+    document.getElementById('nt-err').textContent = '';
+    document.getElementById('new-ticket-modal').classList.add('open');
+  },
+
+  closeNewTicketModal() { document.getElementById('new-ticket-modal').classList.remove('open'); },
+
+  async submitTicket() {
+    const subject = document.getElementById('nt-subject').value.trim();
+    const body    = document.getElementById('nt-body').value.trim();
+    const errEl   = document.getElementById('nt-err');
+    if (!subject) { showAlert(errEl, 'أدخل موضوع الطلب'); return; }
+    if (!body)    { showAlert(errEl, 'أدخل تفاصيل المشكلة'); return; }
+    try {
+      await apiFetch('/tickets', {
+        method:'POST',
+        body: JSON.stringify({ studentId: State.student.id, studentName: State.student.name, subject, body, school: State.school || '' }),
+      });
+      App.closeNewTicketModal();
+      showToast('تم إرسال طلب الدعم ✅');
+      App.loadStudentTickets();
+    } catch (e) { showAlert(errEl, e.message || 'فشل الإرسال'); }
+  },
+
+  // ── Ticket Detail (shared student & admin) ────────────────────────────────
+  _currentTicketId: null,
+  _ticketSenderType: 'student',
+
+  async openTicketDetail(ticketId, senderType) {
+    App._currentTicketId  = ticketId;
+    App._ticketSenderType = senderType;
+    try {
+      const { ticket, replies } = await apiFetch(`/tickets/${ticketId}`);
+      document.getElementById('td-subject').textContent = ticket.subject;
+      const date = new Date(ticket.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short', year:'numeric' });
+      document.getElementById('td-meta').textContent = `${ticket.student_name} · ${date}`;
+      const badgeCls = ticket.status === 'open' ? 'tbadge-open' : ticket.status === 'in_progress' ? 'tbadge-progress' : 'tbadge-resolved';
+      const badgeTxt = ticket.status === 'open' ? 'مفتوح' : ticket.status === 'in_progress' ? 'قيد المعالجة' : 'تم الحل';
+      document.getElementById('td-status-badge').innerHTML = `<span class="${badgeCls}">${badgeTxt}</span>`;
+      const thread = document.getElementById('td-thread');
+      thread.innerHTML = replies.map(r => {
+        const time = new Date(r.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+        const who  = r.sender_type === 'student' ? (ticket.student_name || 'الطالب') : 'المشرف';
+        return `<div class="thread-msg ${r.sender_type}">
+          <div class="thread-msg-who">${who}</div>
+          ${r.body}
+          <div class="thread-msg-time">${time}</div>
+        </div>`;
+      }).join('');
+      thread.scrollTop = thread.scrollHeight;
+      // Show resolve button for admin only if not resolved
+      const resolveBtn = document.getElementById('td-resolve-btn');
+      resolveBtn.style.display = (senderType === 'admin' && ticket.status !== 'resolved') ? 'flex' : 'none';
+      // Hide reply area if resolved
+      document.getElementById('td-reply-area').style.display = ticket.status === 'resolved' ? 'none' : 'block';
+      document.getElementById('td-reply-input').value = '';
+      document.getElementById('ticket-detail-modal').classList.add('open');
+    } catch { showToast('تعذّر تحميل التذكرة'); }
+  },
+
+  closeTicketDetail() { document.getElementById('ticket-detail-modal').classList.remove('open'); App._currentTicketId = null; },
+
+  async sendTicketReply() {
+    const body = document.getElementById('td-reply-input').value.trim();
+    if (!body || !App._currentTicketId) return;
+    try {
+      await apiFetch(`/tickets/${App._currentTicketId}/reply`, {
+        method:'POST',
+        body: JSON.stringify({ senderType: App._ticketSenderType, body }),
+      });
+      document.getElementById('td-reply-input').value = '';
+      await App.openTicketDetail(App._currentTicketId, App._ticketSenderType);
+      if (App._ticketSenderType === 'student') App.loadStudentTickets();
+      else App.renderAdminDashboard('support');
+    } catch { showToast('تعذّر الإرسال'); }
+  },
+
+  async resolveTicket() {
+    if (!App._currentTicketId) return;
+    try {
+      await apiFetch(`/tickets/${App._currentTicketId}`, { method:'PATCH', body: JSON.stringify({ status:'resolved' }) });
+      App.closeTicketDetail();
+      showToast('تم تعيين التذكرة كمحلولة ✅');
+      App.renderAdminDashboard('support');
+    } catch { showToast('تعذّر التحديث'); }
+  },
+
+  // ── Admin Chat ───────────────────────────────────────────────────────────
+  _adminChatStudentId:   null,
+  _adminChatStudentName: null,
+  _adminChatTimer:       null,
+  _adminChatMsgCount:    0,
+
+  async openAdminChat(studentId, studentName) {
+    App._adminChatStudentId   = studentId;
+    App._adminChatStudentName = studentName;
+    App._adminChatMsgCount    = 0;
+    document.getElementById('acm-student-name').textContent = studentName;
+    document.getElementById('acm-input').value = '';
+    document.getElementById('admin-chat-modal').classList.add('open');
+    await App.loadAdminChatMessages();
+    clearInterval(App._adminChatTimer);
+    App._adminChatTimer = setInterval(async () => {
+      if (!document.getElementById('admin-chat-modal').classList.contains('open')) {
+        clearInterval(App._adminChatTimer); return;
+      }
+      try {
+        const data = await apiFetch(`/messages?studentId=${App._adminChatStudentId}`);
+        if ((data.messages || []).length !== App._adminChatMsgCount) App.loadAdminChatMessages();
+      } catch {}
+    }, 5000);
+  },
+
+  async loadAdminChatMessages() {
+    const el = document.getElementById('acm-messages');
+    if (!el) return;
+    try {
+      const data = await apiFetch(`/messages?studentId=${App._adminChatStudentId}`);
+      const msgs = data.messages || [];
+      // mark student messages as read
+      if (msgs.some(m => m.sender_type === 'student' && !m.is_read)) {
+        apiFetch('/messages/read', { method:'PATCH', body: JSON.stringify({ studentId: App._adminChatStudentId, readerType:'admin' }) }).catch(() => {});
+      }
+      App._adminChatMsgCount = msgs.length;
+      if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد</div>'; return; }
+      el.innerHTML = msgs.map(m => {
+        const sent = m.sender_type === 'admin';
+        const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
+        return `<div style="display:flex;flex-direction:column;align-items:${sent ? 'flex-end' : 'flex-start'};">
+          <div class="chat-bubble ${sent ? 'sent' : 'received'}">${m.body}</div>
+          <div class="chat-time">${sent ? 'أنت' : m.student_name} · ${time}</div>
+        </div>`;
+      }).join('');
+      el.scrollTop = el.scrollHeight;
+    } catch {}
+  },
+
+  closeAdminChat() {
+    clearInterval(App._adminChatTimer);
+    document.getElementById('admin-chat-modal').classList.remove('open');
+    App._adminChatStudentId = null;
+    App.refreshAdminBadges();
+  },
+
+  async sendAdminMsg() {
+    const input = document.getElementById('acm-input');
+    const body  = input.value.trim();
+    if (!body || !App._adminChatStudentId) return;
+    input.value = '';
+    try {
+      await apiFetch('/messages', {
+        method:'POST',
+        body: JSON.stringify({ studentId: App._adminChatStudentId, studentName: App._adminChatStudentName, senderType:'admin', body, school: State.school || '' }),
+      });
+      App.loadAdminChatMessages();
+    } catch { showToast('تعذّر الإرسال'); input.value = body; }
+  },
+
+  // ── Admin Badges & Tab Rendering ─────────────────────────────────────────
+  _adminBadgeTimer: null,
+
+  async refreshAdminBadges() {
+    if (State.role !== 'admin') return;
+    const school = State.school || '';
+    try {
+      const { counts } = await apiFetch(`/messages/unread?school=${encodeURIComponent(school)}`);
+      const total = (counts || []).reduce((s, c) => s + c.cnt, 0);
+      const badge = document.getElementById('admin-msg-badge');
+      badge.textContent     = total || '';
+      badge.style.display   = total ? 'inline' : 'none';
+    } catch {}
+    try {
+      const { tickets } = await apiFetch(`/tickets?school=${encodeURIComponent(school)}`);
+      const open = (tickets || []).filter(t => t.status === 'open').length;
+      const badge = document.getElementById('admin-ticket-badge');
+      badge.textContent   = open || '';
+      badge.style.display = open ? 'inline' : 'none';
+    } catch {}
+  },
+
+  startAdminBadgeRefresh() {
+    clearInterval(App._adminBadgeTimer);
+    App.refreshAdminBadges();
+    App._adminBadgeTimer = setInterval(() => { if (State.role === 'admin') App.refreshAdminBadges(); }, 15000);
+  },
+
+  async renderAdminMessages() {
+    const listEl = document.getElementById('admin-student-list');
+    const school = State.school || '';
+    try {
+      // Get all students who have sent messages
+      const { counts } = await apiFetch(`/messages/unread?school=${encodeURIComponent(school)}`);
+      // Get last message per student from all messages
+      const { students } = await apiFetch(`/students?school=${encodeURIComponent(school)}`);
+      const studentMap = {};
+      (students || []).forEach(s => { studentMap[s.id] = s.name; });
+      const unreadMap = {};
+      (counts || []).forEach(c => { unreadMap[c.student_id] = { cnt: c.cnt, name: c.student_name }; });
+      // Get all conversations — fetch once per student that has messages
+      // For simplicity: show students who have unread OR recent messages
+      // Just show students with unread messages + a "load all" button
+      if (!Object.keys(unreadMap).length) {
+        listEl.innerHTML = '<div class="chat-empty" style="padding:40px 0;">لا توجد رسائل جديدة</div>';
+        return;
+      }
+      listEl.innerHTML = Object.entries(unreadMap).map(([sid, info]) => `
+        <div class="msg-preview-row" onclick="App.openAdminChat('${sid}', '${info.name.replace(/'/g, "\\'")}')">
+          <div class="student-avatar">${info.name.charAt(0)}</div>
+          <div class="msg-preview-info">
+            <div class="msg-preview-name">${info.name}</div>
+            <div class="msg-preview-last">رسائل غير مقروءة</div>
+          </div>
+          <span class="msg-unread-count">${info.cnt}</span>
+        </div>`).join('');
+    } catch {
+      listEl.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;">تعذّر التحميل</div>';
+    }
+  },
+
+  async renderAdminSupport() {
+    const listEl = document.getElementById('admin-student-list');
+    const school = State.school || '';
+    listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جاري التحميل...</div>';
+    try {
+      const { tickets } = await apiFetch(`/tickets?school=${encodeURIComponent(school)}`);
+      if (!tickets.length) { listEl.innerHTML = '<div class="chat-empty" style="padding:40px 0;">لا توجد تذاكر دعم</div>'; return; }
+      listEl.innerHTML = tickets.map(t => {
+        const badgeCls = t.status === 'open' ? 'tbadge-open' : t.status === 'in_progress' ? 'tbadge-progress' : 'tbadge-resolved';
+        const badgeTxt = t.status === 'open' ? 'مفتوح' : t.status === 'in_progress' ? 'قيد المعالجة' : 'تم الحل';
+        const date = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short' });
+        return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}', 'admin')">
+          <div class="ticket-card-top">
+            <div class="ticket-subject">${t.subject}</div>
+            <span class="${badgeCls}">${badgeTxt}</span>
+          </div>
+          <div class="ticket-meta">${t.student_name} · ${date}</div>
+        </div>`;
+      }).join('');
+    } catch {
+      listEl.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;">تعذّر التحميل</div>';
+    }
+  },
+
   logout() {
     App.stopCooldownTimer();
+    clearInterval(App._chatTimer);
+    clearInterval(App._adminBadgeTimer);
+    clearInterval(App._adminChatTimer);
     stopIdleWatch();
     State.student     = null;
     State.role        = null;

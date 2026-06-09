@@ -311,6 +311,157 @@ export async function onRequest({ request, env }) {
         await DB.prepare('DELETE FROM questions').run();
         return ok({ ok: true });
       }
+
+      // POST /api/dev/migrate — create chat & ticket tables
+      if (sub === 'migrate' && method === 'POST') {
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS messages (
+          id TEXT PRIMARY KEY,
+          student_id TEXT NOT NULL,
+          student_name TEXT NOT NULL,
+          school TEXT NOT NULL DEFAULT '',
+          sender_type TEXT NOT NULL,
+          body TEXT NOT NULL,
+          is_read INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL
+        )`).run();
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS tickets (
+          id TEXT PRIMARY KEY,
+          student_id TEXT NOT NULL,
+          student_name TEXT NOT NULL,
+          school TEXT NOT NULL DEFAULT '',
+          subject TEXT NOT NULL,
+          status TEXT DEFAULT 'open',
+          created_at TEXT NOT NULL
+        )`).run();
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS ticket_replies (
+          id TEXT PRIMARY KEY,
+          ticket_id TEXT NOT NULL,
+          sender_type TEXT NOT NULL,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )`).run();
+        return ok({ ok: true, tables: ['messages', 'tickets', 'ticket_replies'] });
+      }
+    }
+
+    // ── MESSAGES ─────────────────────────────────────────────────────────────
+    if (resource === 'messages') {
+
+      // GET /api/messages/unread?school=X — unread per student (for admin)
+      if (sub === 'unread' && method === 'GET') {
+        const { results } = await DB.prepare(
+          `SELECT student_id, student_name, COUNT(*) as cnt FROM messages
+           WHERE sender_type='student' AND is_read=0 AND school=?
+           GROUP BY student_id`
+        ).bind(school).all();
+        return ok({ counts: results });
+      }
+
+      // GET /api/messages?studentId=X — full conversation
+      if (method === 'GET') {
+        const studentId = url.searchParams.get('studentId');
+        if (!studentId) return err('studentId required');
+        const { results } = await DB.prepare(
+          'SELECT * FROM messages WHERE student_id=? ORDER BY created_at ASC'
+        ).bind(studentId).all();
+        return ok({ messages: results });
+      }
+
+      // POST /api/messages — send message
+      if (method === 'POST') {
+        const { studentId, studentName, senderType, body } = await request.json();
+        if (!studentId || !senderType || !body) return err('missing fields');
+        const id  = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await DB.prepare(
+          'INSERT INTO messages (id, student_id, student_name, school, sender_type, body, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)'
+        ).bind(id, studentId, studentName || '', school, senderType, body, now).run();
+        return ok({ message: { id, student_id: studentId, student_name: studentName, school, sender_type: senderType, body, is_read: 0, created_at: now } }, 201);
+      }
+
+      // PATCH /api/messages/read — mark messages as read
+      if (sub === 'read' && method === 'PATCH') {
+        const { studentId, readerType } = await request.json();
+        const senderType = readerType === 'admin' ? 'student' : 'admin';
+        await DB.prepare(
+          'UPDATE messages SET is_read=1 WHERE student_id=? AND sender_type=? AND is_read=0'
+        ).bind(studentId, senderType).run();
+        return ok({ ok: true });
+      }
+    }
+
+    // ── TICKETS ──────────────────────────────────────────────────────────────
+    if (resource === 'tickets') {
+
+      // GET /api/tickets?studentId=X — student's tickets
+      // GET /api/tickets?school=X    — all school tickets (admin)
+      if (method === 'GET' && !sub) {
+        const studentId = url.searchParams.get('studentId');
+        let q, params;
+        if (studentId) {
+          q = 'SELECT * FROM tickets WHERE student_id=? ORDER BY created_at DESC';
+          params = [studentId];
+        } else {
+          q = school
+            ? 'SELECT * FROM tickets WHERE school=? ORDER BY created_at DESC'
+            : 'SELECT * FROM tickets ORDER BY created_at DESC';
+          params = school ? [school] : [];
+        }
+        const { results } = await DB.prepare(q).bind(...params).all();
+        return ok({ tickets: results });
+      }
+
+      // GET /api/tickets/:id — ticket + replies
+      if (method === 'GET' && sub && !subsub) {
+        const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
+        if (!ticket) return err('not found', 404);
+        const { results: replies } = await DB.prepare(
+          'SELECT * FROM ticket_replies WHERE ticket_id=? ORDER BY created_at ASC'
+        ).bind(sub).all();
+        return ok({ ticket, replies });
+      }
+
+      // POST /api/tickets — create ticket
+      if (method === 'POST' && !sub) {
+        const { studentId, studentName, subject, body } = await request.json();
+        if (!studentId || !subject || !body) return err('missing fields');
+        const tid = crypto.randomUUID();
+        const rid = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await DB.prepare(
+          'INSERT INTO tickets (id, student_id, student_name, school, subject, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).bind(tid, studentId, studentName || '', school, subject, 'open', now).run();
+        await DB.prepare(
+          'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, created_at) VALUES (?, ?, ?, ?, ?)'
+        ).bind(rid, tid, 'student', body, now).run();
+        return ok({ ticket: { id: tid, student_id: studentId, student_name: studentName, school, subject, status: 'open', created_at: now } }, 201);
+      }
+
+      // POST /api/tickets/:id/reply — add reply
+      if (method === 'POST' && sub && subsub === 'reply') {
+        const { senderType, body } = await request.json();
+        if (!senderType || !body) return err('missing fields');
+        const id  = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await DB.prepare(
+          'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, created_at) VALUES (?, ?, ?, ?, ?)'
+        ).bind(id, sub, senderType, body, now).run();
+        if (senderType === 'admin') {
+          await DB.prepare(
+            "UPDATE tickets SET status='in_progress' WHERE id=? AND status='open'"
+          ).bind(sub).run();
+        }
+        return ok({ reply: { id, ticket_id: sub, sender_type: senderType, body, created_at: now } }, 201);
+      }
+
+      // PATCH /api/tickets/:id — update status
+      if (method === 'PATCH' && sub && !subsub) {
+        const { status } = await request.json();
+        if (!['open','in_progress','resolved'].includes(status)) return err('invalid status');
+        await DB.prepare('UPDATE tickets SET status=? WHERE id=?').bind(status, sub).run();
+        const t = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
+        return ok({ ticket: t });
+      }
     }
 
     return err('Not found', 404);

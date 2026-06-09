@@ -190,12 +190,11 @@ function show(id) {
 
 // ── Cooldown helpers ─────────────────────────────────────────────────────
 function cooldownDays(gaps) {
-  let max = 0;
+  let total = 0;
   for (const g of gaps) {
-    const d = g.pct <= 30 ? 3 : g.pct <= 49 ? 2 : g.pct <= 70 ? 1 : 0;
-    if (d > max) max = d;
+    total += g.pct <= 30 ? 3 : g.pct <= 49 ? 2 : g.pct <= 70 ? 1 : 0;
   }
-  return max;
+  return total;
 }
 
 function cooldownUntil(plan) {
@@ -942,14 +941,43 @@ const App = {
   },
 
   // ── Cooldown / Retake ────────────────────────────────────────────────────
+  _cooldownTimer: null,
+
+  startCooldownTimer(until) {
+    clearInterval(App._cooldownTimer);
+    const update = () => {
+      const el = document.getElementById('cd-countdown');
+      if (!el || !document.getElementById('screen-cooldown').classList.contains('active')) {
+        clearInterval(App._cooldownTimer); return;
+      }
+      const diff = until - Date.now();
+      if (diff <= 0) { clearInterval(App._cooldownTimer); App.startCapabilities(); return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      el.innerHTML =
+        `<span class="cd-unit"><span class="cd-val">${d}</span><span class="cd-lbl">يوم</span></span>` +
+        `<span class="cd-sep">:</span>` +
+        `<span class="cd-unit"><span class="cd-val">${String(h).padStart(2,'0')}</span><span class="cd-lbl">ساعة</span></span>` +
+        `<span class="cd-sep">:</span>` +
+        `<span class="cd-unit"><span class="cd-val">${String(m).padStart(2,'0')}</span><span class="cd-lbl">دقيقة</span></span>` +
+        `<span class="cd-sep">:</span>` +
+        `<span class="cd-unit"><span class="cd-val">${String(s).padStart(2,'0')}</span><span class="cd-lbl">ثانية</span></span>`;
+    };
+    update();
+    App._cooldownTimer = setInterval(update, 1000);
+  },
+
+  stopCooldownTimer() { clearInterval(App._cooldownTimer); App._cooldownTimer = null; },
+
   renderCooldown(latest, rem, allPlans) {
-    const until = cooldownUntil(latest);
+    const until   = cooldownUntil(latest);
     const dateStr = until.toLocaleDateString('ar-SA', { day:'numeric', month:'long' });
     document.getElementById('cd-content').innerHTML = `
       <div class="analysis-intro" style="text-align:center;margin-bottom:24px;">
-        <div style="font-size:40px;margin-bottom:8px;">⏳</div>
-        <div style="font-size:42px;font-weight:900;color:var(--primary);line-height:1;">${rem}</div>
-        <div style="font-size:18px;font-weight:700;margin:4px 0 8px;">${rem === 1 ? 'يوم' : 'أيام'}</div>
+        <div style="font-size:36px;margin-bottom:12px;">⏳</div>
+        <div id="cd-countdown" style="display:flex;justify-content:center;align-items:flex-end;gap:6px;margin-bottom:10px;direction:ltr;"></div>
         <div style="font-size:13px;color:var(--muted);">يفتح الاختبار في ${dateStr}</div>
       </div>
       <button class="btn btn-outline btn-full" onclick="App.viewStudentPlan()" style="margin-bottom:12px;">
@@ -958,6 +986,7 @@ const App = {
       <button class="btn btn-outline btn-full" onclick="App.showHistory()">
         📋 سجل الاختبارات السابقة
       </button>`;
+    App.startCooldownTimer(until);
   },
 
   renderRetakeOrView(latest, allPlans) {
@@ -1013,6 +1042,7 @@ const App = {
 
   // ── Logout ─────────────────────────────────────────────────────────────────
   logout() {
+    App.stopCooldownTimer();
     stopIdleWatch();
     State.student     = null;
     State.role        = null;

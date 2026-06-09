@@ -16,11 +16,17 @@ async function apiFetch(path, opts = {}) {
 }
 
 const _mapStudent = r => ({ id: r.id, code: r.code, name: r.name, createdAt: r.created_at });
-const _mapPlan    = r => ({
-  id: r.id, studentId: r.student_id, studentName: r.student_name,
-  status: r.status, gaps: r.gaps || [], adminNote: r.admin_note || '',
-  createdAt: r.created_at, approvedAt: r.approved_at,
-});
+const _mapPlan    = r => {
+  let note = r.admin_note || '';
+  let retakeOverride = false;
+  if (note.startsWith('OVERRIDE:')) { retakeOverride = true; note = note.slice(9); }
+  return {
+    id: r.id, studentId: r.student_id, studentName: r.student_name,
+    status: r.status, gaps: r.gaps || [], adminNote: note,
+    retakeOverride,
+    createdAt: r.created_at, approvedAt: r.approved_at,
+  };
+};
 
 const DB = {
   students: () => Cache.students,
@@ -199,6 +205,13 @@ function cooldownUntil(plan) {
 }
 
 function daysRemaining(plan) {
+  if (plan.retakeOverride) return 0;
+  const diff = cooldownUntil(plan) - Date.now();
+  return Math.max(0, Math.ceil(diff / 86400000));
+}
+
+// Actual remaining without override — used by admin panel display
+function actualDaysRemaining(plan) {
   const diff = cooldownUntil(plan) - Date.now();
   return Math.max(0, Math.ceil(diff / 86400000));
 }
@@ -789,13 +802,21 @@ const App = {
       if (!students.length) { listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>لا يوجد طلاب مضافون بعد</p></div>`; return; }
       listEl.innerHTML = students.map(st => {
         const plan  = plans.find(p => p.studentId === st.id);
+        const actualRem = plan ? actualDaysRemaining(plan) : 0;
+        const inCooldown = plan && actualRem > 0 && !plan.retakeOverride;
         const badge = !plan ? '<span class="student-badge sbadge-new">لم يبدأ</span>'
           : plan.status === 'pending' ? '<span class="student-badge sbadge-pending">خطة معلقة</span>'
+          : inCooldown ? `<span class="student-badge sbadge-pending">انتظار ${actualRem}${actualRem === 1 ? ' يوم' : ' أيام'} ⏳</span>`
+          : plan.retakeOverride ? '<span class="student-badge" style="background:#fff7ed;color:#92400e;">مسموح بالإعادة 🔓</span>'
           : '<span class="student-badge sbadge-active">خطة نشطة</span>';
+        const unlockBtn = inCooldown
+          ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;margin-left:6px;" onclick="App.grantRetake('${st.id}')">🔓 سماح</button>`
+          : '';
         return `<div class="student-row">
           <div class="student-avatar">${st.name.charAt(0)}</div>
           <div class="student-info"><div class="student-name">${st.name}</div><div class="student-code">رمز: ${st.code}</div></div>
           ${badge}
+          ${unlockBtn}
           <button class="btn btn-danger btn-sm" onclick="App.deleteStudent('${st.id}')">حذف</button>
         </div>`;
       }).join('');
@@ -912,6 +933,19 @@ const App = {
     showToast('تم اعتماد الخطة ونشرها للطالب ✅');
   },
 
+  async grantRetake(studentId) {
+    const plans = DB.plans().filter(p => p.studentId === studentId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const latest = plans[0];
+    if (!latest) return;
+    if (!confirm('هل تريد السماح لهذا الطالب بإعادة الاختبار الآن؟')) return;
+    try {
+      await DB.approvePlan(latest.id, 'OVERRIDE:' + latest.adminNote);
+    } catch (e) { alert('فشلت العملية.'); return; }
+    App.renderAdminDashboard('manage');
+    showToast('تم السماح للطالب بإعادة الاختبار ✅');
+  },
+
   // ── Cooldown / Retake ────────────────────────────────────────────────────
   renderCooldown(latest, rem, allPlans) {
     const until = cooldownUntil(latest);
@@ -932,12 +966,24 @@ const App = {
   },
 
   renderRetakeOrView(latest, allPlans) {
+    const origDays = cooldownDays(latest.gaps);
+    const overrideBanner = latest.retakeOverride
+      ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;
+                     padding:12px 16px;margin-bottom:18px;font-size:13px;color:#92400e;text-align:center;line-height:1.6;">
+           🔓 أذن لك المشرف بإعادة الاختبار مبكراً<br>
+           <span style="color:#b45309;">كانت فترة الانتظار المقررة ${origDays} ${origDays === 1 ? 'يوم' : 'أيام'}</span>
+         </div>`
+      : '';
+    const subtitle = latest.retakeOverride
+      ? 'يمكنك البدء بمحاولة جديدة'
+      : 'انتهت فترة الانتظار — يمكنك البدء بمحاولة جديدة';
     document.getElementById('cd-content').innerHTML = `
       <div class="analysis-intro" style="text-align:center;margin-bottom:24px;">
-        <div style="font-size:40px;margin-bottom:8px;">✅</div>
+        <div style="font-size:40px;margin-bottom:8px;">${latest.retakeOverride ? '🔓' : '✅'}</div>
         <div style="font-size:17px;font-weight:800;margin-bottom:6px;">يمكنك إعادة الاختبار الآن</div>
-        <div style="font-size:13.5px;color:var(--muted);">انتهت فترة الانتظار — يمكنك البدء بمحاولة جديدة</div>
+        <div style="font-size:13.5px;color:var(--muted);">${subtitle}</div>
       </div>
+      ${overrideBanner}
       <button class="btn btn-primary btn-full" onclick="show('screen-intro')" style="margin-bottom:12px;">
         🚀 ابدأ محاولة جديدة
       </button>

@@ -831,7 +831,147 @@ const App = {
     document.getElementById('tab-manage').style.display = tab === 'settings' ? 'block' : 'none';
     if (tab === 'messages') { App.renderAdminDashboard(tab); App.renderAdminMessages(); return; }
     if (tab === 'support')  { App.renderAdminDashboard(tab); App.renderAdminSupport();  return; }
+    if (tab === 'stats')    { App.renderAdminDashboard(tab); App.renderAdminStats();    return; }
     App.renderAdminDashboard(tab);
+  },
+
+  // ── Statistics Tab ────────────────────────────────────────────────────────
+  async renderAdminStats() {
+    const listEl   = document.getElementById('admin-student-list');
+    const students = DB.students();
+    const allPlans = DB.plans();
+
+    // Latest plan per student
+    const latestPlans = students.map(s => allPlans.find(p => p.studentId === s.id)).filter(Boolean);
+    const tested    = latestPlans.length;
+    const total     = students.length;
+    const partRate  = total ? Math.round(tested / total * 100) : 0;
+    const allGaps   = latestPlans.flatMap(p => p.gaps);
+
+    // Global avg
+    const globalAvg = allGaps.length
+      ? Math.round(allGaps.reduce((s, g) => s + g.pct, 0) / allGaps.length) : null;
+
+    // Per-skill averages
+    const skillMap = {};
+    for (const g of allGaps) {
+      if (!skillMap[g.skillId]) skillMap[g.skillId] = { name: g.skillName, category: g.category, sum: 0, cnt: 0 };
+      skillMap[g.skillId].sum += g.pct;
+      skillMap[g.skillId].cnt++;
+    }
+    const skillRows = Object.entries(skillMap)
+      .map(([id, v]) => ({ id, name: v.name, category: v.category, avg: Math.round(v.sum / v.cnt) }))
+      .sort((a, b) => a.avg - b.avg);
+
+    // Level distribution across all gaps
+    let lvlWeak = 0, lvlBelow = 0, lvlMid = 0, lvlHigh = 0;
+    for (const g of allGaps) {
+      if (g.pct <= 30) lvlWeak++;
+      else if (g.pct <= 49) lvlBelow++;
+      else if (g.pct <= 70) lvlMid++;
+      else lvlHigh++;
+    }
+
+    // Support stats
+    let ticketsOpen = 0, ticketsProgress = 0, ticketsResolved = 0, messagesTotal = 0;
+    try {
+      const school = State.school || '';
+      const [tData, mData] = await Promise.all([
+        apiFetch(`/tickets?school=${encodeURIComponent(school)}`),
+        apiFetch(`/messages/unread?school=${encodeURIComponent(school)}`),
+      ]);
+      ticketsOpen     = (tData.tickets || []).filter(t => t.status === 'open').length;
+      ticketsProgress = (tData.tickets || []).filter(t => t.status === 'in_progress').length;
+      ticketsResolved = (tData.tickets || []).filter(t => t.status === 'resolved').length;
+      messagesTotal   = (mData.counts || []).reduce((s, c) => s + c.cnt, 0);
+    } catch {}
+
+    const barColor = avg => avg <= 30 ? '#ef4444' : avg <= 49 ? '#f59e0b' : avg <= 70 ? '#3b82f6' : '#22c55e';
+
+    listEl.innerHTML = `
+      <!-- KPIs -->
+      <div class="stats-section">
+        <div class="stats-section-title">📌 ملخص عام</div>
+        <div class="stats-summary-grid">
+          <div class="stats-kpi">
+            <div class="stats-kpi-val">${partRate}%</div>
+            <div class="stats-kpi-lbl">نسبة المشاركة في الاختبار</div>
+          </div>
+          <div class="stats-kpi">
+            <div class="stats-kpi-val" style="color:${globalAvg ? barColor(globalAvg) : 'var(--primary)'};">${globalAvg !== null ? globalAvg + '%' : '—'}</div>
+            <div class="stats-kpi-lbl">المتوسط العام للدرجات</div>
+          </div>
+          <div class="stats-kpi">
+            <div class="stats-kpi-val">${tested}</div>
+            <div class="stats-kpi-lbl">طالب أجرى الاختبار</div>
+          </div>
+          <div class="stats-kpi">
+            <div class="stats-kpi-val">${total - tested}</div>
+            <div class="stats-kpi-lbl">لم يبدأ بعد</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skill bars -->
+      <div class="stats-section">
+        <div class="stats-section-title">📊 متوسط الأداء لكل مهارة</div>
+        ${skillRows.length ? skillRows.map(sk => `
+          <div class="skill-bar-row">
+            <div class="skill-bar-label">
+              <span class="skill-bar-name">${sk.category === 'verbal' ? '📚' : '🔢'} ${sk.name}</span>
+              <span class="skill-bar-pct" style="color:${barColor(sk.avg)};">${sk.avg}%</span>
+            </div>
+            <div class="skill-bar-track">
+              <div class="skill-bar-fill" style="width:${sk.avg}%;background:${barColor(sk.avg)};"></div>
+            </div>
+          </div>`).join('')
+          : '<div style="color:var(--muted);font-size:13px;text-align:center;padding:16px 0;">لا توجد بيانات بعد</div>'}
+      </div>
+
+      <!-- Level distribution -->
+      <div class="stats-section">
+        <div class="stats-section-title">📈 توزيع المستويات (عدد المهارات)</div>
+        <div class="level-dist">
+          <div class="level-chip">
+            <div class="level-chip-val" style="color:#ef4444;">${lvlWeak}</div>
+            <div class="level-chip-lbl">ضعيف (≤30%)</div>
+          </div>
+          <div class="level-chip">
+            <div class="level-chip-val" style="color:#f59e0b;">${lvlBelow}</div>
+            <div class="level-chip-lbl">دون المتوسط (31-49%)</div>
+          </div>
+          <div class="level-chip">
+            <div class="level-chip-val" style="color:#3b82f6;">${lvlMid}</div>
+            <div class="level-chip-lbl">متوسط (50-70%)</div>
+          </div>
+          <div class="level-chip">
+            <div class="level-chip-val" style="color:#22c55e;">${lvlHigh}</div>
+            <div class="level-chip-lbl">فوق المتوسط (>70%)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Support stats -->
+      <div class="stats-section">
+        <div class="stats-section-title">🎫 إحصائيات الدعم والتواصل</div>
+        <div class="support-stats-grid">
+          <div class="support-stat">
+            <div class="support-stat-val" style="color:#1e40af;">${ticketsOpen}</div>
+            <div class="support-stat-lbl">تذاكر مفتوحة</div>
+          </div>
+          <div class="support-stat">
+            <div class="support-stat-val" style="color:#854d0e;">${ticketsProgress}</div>
+            <div class="support-stat-lbl">قيد المعالجة</div>
+          </div>
+          <div class="support-stat">
+            <div class="support-stat-val" style="color:#166534;">${ticketsResolved}</div>
+            <div class="support-stat-lbl">تم الحل</div>
+          </div>
+        </div>
+        ${messagesTotal ? `<div style="margin-top:10px;font-size:13px;color:var(--muted);text-align:center;">
+          <span style="font-weight:700;color:var(--primary);">${messagesTotal}</span> رسالة غير مقروءة في الشات
+        </div>` : ''}
+      </div>`;
   },
 
   // ── Add Student ────────────────────────────────────────────────────────────

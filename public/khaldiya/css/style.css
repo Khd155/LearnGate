@@ -600,6 +600,49 @@ p, span, div, button, input, label, td, th {
   .diag-dot { width: 28px; height: 28px; font-size: 11px; }
 }
 
+/* ── Statistics Tab ──────────────────────────────────── */
+.stats-section { margin-bottom: 28px; }
+.stats-section-title {
+  font-size: 14px; font-weight: 800; color: var(--primary);
+  border-right: 3px solid var(--accent); padding-right: 10px;
+  margin-bottom: 14px;
+}
+.stats-summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+.stats-kpi {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 16px; text-align: center;
+}
+.stats-kpi-val { font-size: 30px; font-weight: 900; color: var(--primary); line-height: 1; }
+.stats-kpi-lbl { font-size: 12px; color: var(--muted); margin-top: 5px; }
+.skill-bar-row { margin-bottom: 10px; }
+.skill-bar-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; margin-bottom: 4px;
+}
+.skill-bar-name { font-weight: 700; }
+.skill-bar-pct  { font-weight: 700; font-size: 12px; }
+.skill-bar-track {
+  height: 10px; background: #e2e8f0; border-radius: 99px; overflow: hidden;
+}
+.skill-bar-fill {
+  height: 100%; border-radius: 99px; transition: width .4s ease;
+}
+.level-dist { display: flex; gap: 8px; flex-wrap: wrap; }
+.level-chip {
+  flex: 1; min-width: 110px; background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 12px; text-align: center;
+}
+.level-chip-val { font-size: 24px; font-weight: 900; }
+.level-chip-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.support-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.support-stat {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 12px; text-align: center;
+}
+.support-stat-val { font-size: 22px; font-weight: 800; }
+.support-stat-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
 /* ── Quick Action Buttons (student home) ─────────────── */
 .quick-actions { display: flex; gap: 12px; margin-bottom: 20px; }
 .quick-btn {

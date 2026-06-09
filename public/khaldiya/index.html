@@ -526,20 +526,6 @@
     <!-- Plan status banner -->
     <div id="sh-plan-banner" style="display:none;margin-bottom:20px;"></div>
 
-    <!-- Quick actions -->
-    <div class="quick-actions">
-      <button class="quick-btn" onclick="App.goToChat()">
-        <span class="quick-btn-icon">💬</span>
-        <span>تواصل مع المشرف</span>
-        <span class="notif-badge" id="chat-unread-badge" style="display:none;"></span>
-      </button>
-      <button class="quick-btn" onclick="App.goToTickets()">
-        <span class="quick-btn-icon">🎫</span>
-        <span>الدعم الفني</span>
-        <span class="notif-badge" id="ticket-notif-badge" style="display:none;"></span>
-      </button>
-    </div>
-
     <div class="service-section-title">مسارات الدعم التعليمي</div>
     <div class="service-cards">
       <div class="service-card disabled">
@@ -590,6 +576,20 @@
         </div>
         <span class="service-badge badge-soon">قريباً</span>
       </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="quick-actions" style="margin-top:20px;">
+      <button class="quick-btn" onclick="App.goToChat()">
+        <span class="quick-btn-icon">💬</span>
+        <span>تواصل مع المشرف</span>
+        <span class="notif-badge" id="chat-unread-badge" style="display:none;"></span>
+      </button>
+      <button class="quick-btn" onclick="App.goToTickets()">
+        <span class="quick-btn-icon">🎫</span>
+        <span>الدعم الفني</span>
+        <span class="notif-badge" id="ticket-notif-badge" style="display:none;"></span>
+      </button>
     </div>
   </div>
 </div>

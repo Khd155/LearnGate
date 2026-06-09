@@ -1672,10 +1672,6 @@ function showToast(msg) {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  if (new URLSearchParams(window.location.search).get('_dev') === '1') {
-    show('screen-support-login');
-    return;
-  }
   show('screen-landing');
   const btn = document.getElementById('selfdiag-submit');
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }

@@ -192,20 +192,21 @@ const App = {
 
   showOtherSchools() {
     const list = document.getElementById('other-schools-list');
-    const COMING_SOON = [
-      'ثانوية ذات الصواري',
-      'ثانوية 2',
-      'ثانوية 3',
-      'ثانوية 4',
-    ];
-    list.innerHTML = COMING_SOON.map(name => `
-      <div class="identity-card" style="opacity:.55;cursor:default;position:relative;">
+    const comingSoon = Array(4).fill(null).map(() => `
+      <div class="identity-card" style="opacity:.5;cursor:default;position:relative;">
         <span style="position:absolute;top:10px;left:10px;background:rgba(255,255,255,.25);
               color:#fff;font-size:11px;font-weight:800;padding:2px 10px;border-radius:20px;">قريباً</span>
         <div class="card-icon">🏫</div>
-        <div class="card-title">${name}</div>
-        <div class="card-desc" style="opacity:.7;">قريباً</div>
+        <div class="card-title" style="opacity:.4;">—</div>
+        <div class="card-desc" style="opacity:.6;">قريباً</div>
       </div>`).join('');
+    list.innerHTML = `
+      <button class="identity-card" onclick="App.selectSchool('ثانوية ذات الصواري')">
+        <div class="card-icon">🏫</div>
+        <div class="card-title">ثانوية ذات الصواري</div>
+        <div class="card-desc">اضغط للمتابعة</div>
+      </button>
+      ${comingSoon}`;
     document.getElementById('school-cards').style.display = 'none';
     document.getElementById('other-schools-panel').style.display = 'block';
   },

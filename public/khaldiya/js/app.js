@@ -1006,7 +1006,7 @@ const App = {
       })).filter(r => /^\d{10}$/.test(r.code) && r.name);
       if (!parsed.length) { alert('لم يتم العثور على صفوف صالحة.'); return; }
       const res = await DB.bulkAddStudents(parsed);
-      showToast(`تمت إضافة ${res.added} طالب${res.skipped ? ' (تجاهل ' + res.skipped + ')' : ''} ✅`);
+      showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'طلاب' : 'طالب'}${res.skipped ? ' (تجاهل ' + res.skipped + ' ' + (res.skipped >= 3 && res.skipped <= 10 ? 'مكررين' : 'مكرر') + ')' : ''} ✅`);
       App.renderAdminDashboard('manage');
     } catch (e) { alert('فشل قراءة الملف: ' + (e.message || e)); }
   },
@@ -1034,7 +1034,7 @@ const App = {
       })).filter(q => q.qnum && q.text && ['verbal','quantitative'].includes(q.type) && q.opts.every(o => o) && q.ans >= 0 && q.ans <= 3);
       if (!parsed.length) { alert('لا توجد أسئلة صالحة في الملف.'); return; }
       const res = await DB.appendQuestions(parsed);
-      showToast(`تمت إضافة ${res.added} سؤالاً${res.skipped ? ' (تجاهل ' + res.skipped + ' مكرر)' : ''} ✅`);
+      showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'أسئلة' : 'سؤال'}${res.skipped ? ' (تجاهل ' + res.skipped + ' ' + (res.skipped >= 3 && res.skipped <= 10 ? 'مكررات' : 'مكرر') + ')' : ''} ✅`);
     } catch (e) { alert('فشل الاستيراد: ' + (e.message || e)); }
   },
 

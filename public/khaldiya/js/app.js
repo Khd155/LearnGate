@@ -750,16 +750,16 @@ const App = {
 
   buildQuizTab(skillId) {
     const q = (typeof SKILL_QUIZZES !== 'undefined') ? SKILL_QUIZZES[skillId] : null;
-    if (q && q.url) {
+    if (q && q.urls && q.urls.length) {
+      const btns = q.urls.map((url, i) => `
+        <a href="${url}" target="_blank" rel="noopener" class="quiz-num-btn">${i + 1}</a>
+      `).join('');
       return `
-        <div class="quiz-start-screen">
-          <div class="quiz-start-icon">✏️</div>
-          <div class="quiz-start-title">${q.title}</div>
-          <div class="quiz-start-sub">اختبار قصير — حوالي 10 أسئلة</div>
-          <a href="${q.url}" target="_blank" class="btn btn-primary"
-             style="width:auto;display:inline-flex;padding:12px 32px;margin-top:16px;text-decoration:none;">
-            ابدأ الاختبار ←
-          </a>
+        <div style="padding:8px 0 4px;">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+            ✏️ ${q.urls.length} اختبار تدريبي — اختر رقم الاختبار
+          </div>
+          <div class="quiz-num-grid">${btns}</div>
         </div>`;
     }
     return `

@@ -919,8 +919,9 @@ const App = {
     document.getElementById('cd-content').innerHTML = `
       <div class="analysis-intro" style="text-align:center;margin-bottom:24px;">
         <div style="font-size:40px;margin-bottom:8px;">⏳</div>
-        <div style="font-size:17px;font-weight:800;margin-bottom:6px;">الاختبار متاح بعد ${rem} ${rem === 1 ? 'يوم' : 'أيام'}</div>
-        <div style="font-size:13.5px;color:var(--muted);">يفتح الاختبار في ${dateStr} بناءً على نتائج آخر محاولة</div>
+        <div style="font-size:42px;font-weight:900;color:var(--primary);line-height:1;">${rem}</div>
+        <div style="font-size:18px;font-weight:700;margin:4px 0 8px;">${rem === 1 ? 'يوم' : 'أيام'}</div>
+        <div style="font-size:13px;color:var(--muted);">يفتح الاختبار في ${dateStr}</div>
       </div>
       <button class="btn btn-outline btn-full" onclick="App.viewStudentPlan()" style="margin-bottom:12px;">
         📊 عرض آخر خطة دعم

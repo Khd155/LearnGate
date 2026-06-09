@@ -529,6 +529,49 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
+     SCREEN: COOLDOWN / RETAKE
+═══════════════════════════════════════════════════════ -->
+<div id="screen-cooldown" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">→</button>
+    <div style="flex:1;">
+      <div class="topbar-title">اختبار القدرات</div>
+    </div>
+  </div>
+  <div class="page-wrap">
+    <div id="cd-content"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: TEST HISTORY
+═══════════════════════════════════════════════════════ -->
+<div id="screen-history" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="show('screen-cooldown')">→</button>
+    <div style="flex:1;">
+      <div class="topbar-title">سجل الاختبارات</div>
+      <div class="topbar-sub">جميع محاولاتك السابقة</div>
+    </div>
+  </div>
+  <div class="page-wrap">
+    <div class="table-scroll">
+      <table class="analysis-table">
+        <thead>
+          <tr>
+            <th style="width:60px;text-align:center;">المحاولة</th>
+            <th>التاريخ</th>
+            <th style="width:80px;text-align:center;">المتوسط</th>
+            <th style="width:70px;text-align:center;">عرض</th>
+          </tr>
+        </thead>
+        <tbody id="hist-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
      SCREEN 4: CAPABILITIES INTRO
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-intro" class="screen">

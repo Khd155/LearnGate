@@ -92,6 +92,17 @@ export async function onRequest({ request, env }) {
     // ── PLANS ────────────────────────────────────────────────────────────────
     if (resource === 'plans') {
 
+      if (method === 'GET' && sub === 'history') {
+        const studentId = url.searchParams.get('studentId');
+        if (!studentId) return err('studentId param required');
+        let q = 'SELECT * FROM plans WHERE student_id = ?';
+        const params = [studentId];
+        if (school) { q += ' AND school = ?'; params.push(school); }
+        q += ' ORDER BY created_at DESC';
+        const { results } = await DB.prepare(q).bind(...params).all();
+        return ok({ plans: results.map(r => ({ ...r, gaps: JSON.parse(r.gaps || '[]') })) });
+      }
+
       if (method === 'GET') {
         let q = 'SELECT * FROM plans';
         const params = [];
@@ -103,7 +114,6 @@ export async function onRequest({ request, env }) {
 
       if (method === 'POST') {
         const { studentId, studentName, status, gaps, adminNote, school: bodySchool } = await request.json();
-        await DB.prepare('DELETE FROM plans WHERE student_id = ?').bind(studentId).run();
         const pid = crypto.randomUUID();
         const now = new Date().toISOString();
         const planSchool = bodySchool || school;

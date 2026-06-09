@@ -78,15 +78,20 @@ const DB = {
     Cache.plans    = Cache.plans.filter(p => p.studentId !== id);
   },
 
-  async upsertPlan(plan) {
+  async addAttempt(plan) {
     const { plan: p } = await apiFetch('/plans', {
       method: 'POST',
       body: JSON.stringify({ ...plan, school: State.school || '' }),
     });
     const mapped = _mapPlan(p);
-    Cache.plans = Cache.plans.filter(pl => pl.studentId !== plan.studentId);
-    Cache.plans.unshift(mapped);
+    Cache.plans.unshift(mapped); // just add, don't remove old
     return mapped;
+  },
+
+  studentPlans(studentId) {
+    return Cache.plans
+      .filter(p => p.studentId === studentId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
 
   async approvePlan(planId, adminNote) {
@@ -175,6 +180,27 @@ function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
   if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
+}
+
+// ── Cooldown helpers ─────────────────────────────────────────────────────
+function cooldownDays(gaps) {
+  let max = 0;
+  for (const g of gaps) {
+    const d = g.pct <= 30 ? 3 : g.pct <= 49 ? 2 : g.pct <= 70 ? 1 : 0;
+    if (d > max) max = d;
+  }
+  return max;
+}
+
+function cooldownUntil(plan) {
+  const d = new Date(plan.createdAt);
+  d.setDate(d.getDate() + cooldownDays(plan.gaps));
+  return d;
+}
+
+function daysRemaining(plan) {
+  const diff = cooldownUntil(plan) - Date.now();
+  return Math.max(0, Math.ceil(diff / 86400000));
 }
 
 // ── App object ────────────────────────────────────────────────────────────
@@ -299,11 +325,20 @@ const App = {
 
   async startCapabilities() {
     try { await DB.loadAll(); } catch (e) {}
-    const myPlan = DB.plans().find(p => p.studentId === State.student.id);
-    if (myPlan) {
-      State.currentPlan = myPlan;
-      App.renderLevelAnalysis(myPlan);
-      show('screen-level-analysis');
+    const plans = DB.studentPlans(State.student.id);
+    const latest = plans[0];
+    if (latest) {
+      State.currentPlan = latest;
+      const rem = daysRemaining(latest);
+      if (rem > 0) {
+        // Show cooldown screen
+        App.renderCooldown(latest, rem, plans);
+        show('screen-cooldown');
+        return;
+      }
+      // Cooldown expired but plan exists — let them retake OR view plan
+      App.renderRetakeOrView(latest, plans);
+      show('screen-cooldown');
       return;
     }
     show('screen-intro');
@@ -484,7 +519,7 @@ const App = {
 
     let plan;
     try {
-      plan = await DB.upsertPlan({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, adminNote: '' });
+      plan = await DB.addAttempt({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, adminNote: '' });
     } catch (e) {
       alert('تعذّر حفظ الخطة. حاول مرة أخرى.');
       show('screen-student-home'); return;
@@ -875,6 +910,75 @@ const App = {
     App.closeModal();
     App.renderAdminDashboard();
     showToast('تم اعتماد الخطة ونشرها للطالب ✅');
+  },
+
+  // ── Cooldown / Retake ────────────────────────────────────────────────────
+  renderCooldown(latest, rem, allPlans) {
+    const until = cooldownUntil(latest);
+    const dateStr = until.toLocaleDateString('ar-SA', { day:'numeric', month:'long' });
+    document.getElementById('cd-content').innerHTML = `
+      <div class="analysis-intro" style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:40px;margin-bottom:8px;">⏳</div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:6px;">الاختبار متاح بعد ${rem} ${rem === 1 ? 'يوم' : 'أيام'}</div>
+        <div style="font-size:13.5px;color:var(--muted);">يفتح الاختبار في ${dateStr} بناءً على نتائج آخر محاولة</div>
+      </div>
+      <button class="btn btn-outline btn-full" onclick="App.viewStudentPlan()" style="margin-bottom:12px;">
+        📊 عرض آخر خطة دعم
+      </button>
+      <button class="btn btn-outline btn-full" onclick="App.showHistory()">
+        📋 سجل الاختبارات السابقة
+      </button>`;
+  },
+
+  renderRetakeOrView(latest, allPlans) {
+    document.getElementById('cd-content').innerHTML = `
+      <div class="analysis-intro" style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:40px;margin-bottom:8px;">✅</div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:6px;">يمكنك إعادة الاختبار الآن</div>
+        <div style="font-size:13.5px;color:var(--muted);">انتهت فترة الانتظار — يمكنك البدء بمحاولة جديدة</div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="show('screen-intro')" style="margin-bottom:12px;">
+        🚀 ابدأ محاولة جديدة
+      </button>
+      <button class="btn btn-outline btn-full" onclick="App.viewStudentPlan()" style="margin-bottom:12px;">
+        📊 عرض آخر خطة دعم
+      </button>
+      <button class="btn btn-outline btn-full" onclick="App.showHistory()">
+        📋 سجل الاختبارات السابقة
+      </button>`;
+  },
+
+  showHistory() {
+    const plans = DB.studentPlans(State.student.id);
+    const rows = plans.map((p, i) => {
+      const date = new Date(p.createdAt).toLocaleDateString('ar-SA', { year:'numeric', month:'short', day:'numeric' });
+      const avg = p.gaps.length ? Math.round(p.gaps.reduce((s,g) => s+g.pct, 0) / p.gaps.length) : 0;
+      const cls = avg >= 71 ? 'score-high' : avg >= 50 ? 'score-mid' : 'score-low';
+      const attempt = plans.length - i;
+      return `<tr>
+        <td style="text-align:center;font-weight:700;">${attempt}</td>
+        <td>${date}</td>
+        <td style="text-align:center;"><span class="gap-score ${cls}">${avg}%</span></td>
+        <td style="text-align:center;">
+          <button onclick="App.viewAttempt(${i})"
+                  style="background:var(--primary);color:#fff;border:none;border-radius:8px;
+                         padding:6px 14px;font-size:12px;font-family:inherit;cursor:pointer;">
+            عرض
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+    document.getElementById('hist-body').innerHTML = rows || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">لا توجد محاولات سابقة</td></tr>';
+    show('screen-history');
+  },
+
+  viewAttempt(idx) {
+    const plans = DB.studentPlans(State.student.id);
+    const plan = plans[idx];
+    if (!plan) return;
+    State.currentPlan = plan;
+    App.renderLevelAnalysis(plan);
+    show('screen-level-analysis');
   },
 
   // ── Logout ─────────────────────────────────────────────────────────────────

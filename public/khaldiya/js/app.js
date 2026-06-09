@@ -363,7 +363,37 @@ const App = {
     State.currentQ   = 0;
     State.testAnswers = {};
     App.renderQuestion();
+    App.startTestTimer();
     show('screen-pretest');
+  },
+
+  // ── Test Timer (50 min) ───────────────────────────────────────────────────
+  _testTimer: null,
+  startTestTimer() {
+    clearInterval(App._testTimer);
+    const SECS = 50 * 60;
+    let remaining = SECS;
+    const el = document.getElementById('test-timer');
+    const update = () => {
+      const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+      const s = String(remaining % 60).padStart(2, '0');
+      if (el) {
+        el.textContent = `⏱ ${m}:${s}`;
+        el.style.color = remaining <= 300 ? '#ef4444' : '#fff';
+      }
+      if (remaining <= 0) {
+        clearInterval(App._testTimer);
+        App.finishTest();
+      }
+      remaining--;
+    };
+    update();
+    App._testTimer = setInterval(update, 1000);
+  },
+
+  stopTestTimer() {
+    clearInterval(App._testTimer);
+    App._testTimer = null;
   },
 
   // ── Pre-Test ──────────────────────────────────────────────────────────────
@@ -420,6 +450,7 @@ const App = {
   },
 
   finishTest() {
+    App.stopTestTimer();
     show('screen-processing');
     setTimeout(() => App.processResults(), 2800);
   },
@@ -449,7 +480,7 @@ const App = {
 
     let plan;
     try {
-      plan = await DB.upsertPlan({ studentId: State.student.id, studentName: State.student.name, status: 'pending', gaps, adminNote: '' });
+      plan = await DB.upsertPlan({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, adminNote: '' });
     } catch (e) {
       alert('تعذّر حفظ الخطة. حاول مرة أخرى.');
       show('screen-student-home'); return;

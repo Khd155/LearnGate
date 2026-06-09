@@ -66,7 +66,7 @@
 <div class="hero-banner">
   <div class="hero-pill" id="hero-pill">تدريب</div>
   <h1 id="hero-title">الاختبارات التدريبية</h1>
-  <p id="hero-sub">اختر اختبار وابدأ التدريب</p>
+  <p id="hero-sub">اختر اختباراً وابدأ التدريب</p>
 </div>
 
 <div class="container">
@@ -204,7 +204,7 @@ const TOTAL_CARDS = 20;
   document.getElementById('topbar-title').textContent = `اختبارات ${meta.title}`;
   document.getElementById('hero-pill').textContent    = meta.pill;
   document.getElementById('hero-title').textContent   = `اختبارات ${meta.title}`;
-  document.getElementById('hero-sub').textContent     = `${urls.length} اختبار تدريبي — اختر رقم الاختبار`;
+  document.getElementById('hero-sub').textContent     = `${urls.length >= 3 && urls.length <= 10 ? urls.length + ' اختبارات تدريبية' : urls.length + ' اختبار تدريبي'} — اختر رقم الاختبار`;
   document.getElementById('active-count').textContent = urls.length;
 
   const total = Math.max(urls.length, TOTAL_CARDS);

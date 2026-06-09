@@ -760,7 +760,7 @@ const App = {
           <a href="${pageUrl}" target="_blank" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
             ✏️ عرض الاختبارات التدريبية
           </a>
-          <p style="color:var(--muted);font-size:12px;margin-top:10px;">${q.urls.length} اختبار متاح · يفتح في تبويب جديد</p>
+          <p style="color:var(--muted);font-size:12px;margin-top:10px;">${q.urls.length >= 3 && q.urls.length <= 10 ? q.urls.length + ' اختبارات متاحة' : q.urls.length + ' اختبار متاح'} · يفتح في تبويب جديد</p>
         </div>`;
     }
     return `

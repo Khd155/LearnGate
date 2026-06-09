@@ -960,24 +960,12 @@ const App = {
   },
 
   renderRetakeOrView(latest, allPlans) {
-    const origDays = cooldownDays(latest.gaps);
-    const overrideBanner = latest.retakeOverride
-      ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;
-                     padding:12px 16px;margin-bottom:18px;font-size:13px;color:#92400e;text-align:center;line-height:1.6;">
-           🔓 أذن لك المشرف بإعادة الاختبار مبكراً<br>
-           <span style="color:#b45309;">كانت فترة الانتظار المقررة ${origDays} ${origDays === 1 ? 'يوم' : 'أيام'}</span>
-         </div>`
-      : '';
-    const subtitle = latest.retakeOverride
-      ? 'يمكنك البدء بمحاولة جديدة'
-      : 'انتهت فترة الانتظار — يمكنك البدء بمحاولة جديدة';
     document.getElementById('cd-content').innerHTML = `
       <div class="analysis-intro" style="text-align:center;margin-bottom:24px;">
-        <div style="font-size:40px;margin-bottom:8px;">${latest.retakeOverride ? '🔓' : '✅'}</div>
+        <div style="font-size:40px;margin-bottom:8px;">✅</div>
         <div style="font-size:17px;font-weight:800;margin-bottom:6px;">يمكنك إعادة الاختبار الآن</div>
-        <div style="font-size:13.5px;color:var(--muted);">${subtitle}</div>
+        <div style="font-size:13.5px;color:var(--muted);">يمكنك البدء بمحاولة جديدة</div>
       </div>
-      ${overrideBanner}
       <button class="btn btn-primary btn-full" onclick="show('screen-intro')" style="margin-bottom:12px;">
         🚀 ابدأ محاولة جديدة
       </button>

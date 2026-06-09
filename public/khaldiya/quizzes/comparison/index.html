@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الاختبارات التدريبية — بوابة دعم التعلم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --primary:#3F7CB8;--primary-dk:#2B5F94;--accent:#4FA877;
+    --bg:#f4f8fb;--surface:#fff;--border:#e2e8f0;
+    --text:#0f172a;--muted:#64748b;--radius:16px;--radius-lg:22px;
+    --shadow:0 8px 24px -8px rgba(63,124,184,.20),0 2px 6px rgba(15,23,42,.04);
+    --shadow-lg:0 24px 60px -20px rgba(63,124,184,.30);
+    --grad:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  }
+  html,body{min-height:100vh;font-family:'Tajawal','Cairo',Arial,sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
+  h1,h2{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
+
+  .topbar{background:var(--grad);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);}
+  .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;}
+  .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;}
+  .topbar-back:hover{background:rgba(255,255,255,.28);}
+
+  .hero-banner{background:var(--grad);color:#fff;padding:36px 24px 48px;text-align:center;position:relative;overflow:hidden;}
+  .hero-banner::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(255,255,255,.12),transparent 70%);pointer-events:none;}
+  .hero-banner h1{font-size:clamp(22px,4vw,34px);text-shadow:0 4px 16px rgba(7,54,105,.35);margin-bottom:8px;}
+  .hero-banner p{font-size:15px;opacity:.88;font-weight:500;}
+  .hero-pill{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:4px 18px;font-size:13px;font-weight:700;margin-bottom:12px;}
+
+  .container{max-width:1100px;margin:0 auto;padding:32px 20px 60px;}
+  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+  .section-header h2{font-size:18px;color:var(--primary);}
+  .count-badge{background:var(--primary);color:#fff;border-radius:99px;padding:2px 12px;font-size:13px;font-weight:700;}
+
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+
+  a.card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px 12px;aspect-ratio:1/1;text-decoration:none;color:var(--text);background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);transition:transform .18s,box-shadow .18s,border-color .18s;position:relative;}
+  a.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--primary);}
+  a.card.soon{opacity:.42;pointer-events:none;box-shadow:none;}
+
+  .card-num{width:52px;height:52px;border-radius:14px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Cairo',sans-serif;font-size:22px;font-weight:800;color:#fff;box-shadow:0 4px 12px rgba(63,124,184,.35);}
+  .card-label{font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;text-align:center;}
+  .card-hint{font-size:11px;color:var(--muted);text-align:center;}
+  a.card.soon .card-num{background:var(--border);box-shadow:none;}
+
+  .divider{height:1px;background:var(--border);margin:28px 0;}
+  footer{text-align:center;font-size:13px;color:var(--muted);padding:24px 0 40px;font-weight:600;}
+
+  @media(max-width:480px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;}
+    .hero-banner{padding:28px 16px 38px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-title" id="topbar-title">الاختبارات التدريبية</span>
+  <a class="topbar-back" href="../../index.html">← الرئيسية</a>
+</div>
+
+<div class="hero-banner">
+  <div class="hero-pill" id="hero-pill">تدريب</div>
+  <h1 id="hero-title">الاختبارات التدريبية</h1>
+  <p id="hero-sub">اختر اختباراً وابدأ التدريب</p>
+</div>
+
+<div class="container">
+  <div class="section-header">
+    <h2>الاختبارات المتاحة</h2>
+    <span class="count-badge" id="active-count">0</span>
+  </div>
+  <div class="grid" id="quiz-grid"></div>
+  <div class="divider"></div>
+  <footer>بوابة دعم التعلم — ثانوية الخالدية</footer>
+</div>
+
+<script>
+const SKILLS_META = {
+  v1: { title: 'الاستيعاب القرائي',         pill: 'لفظي — v1' },
+  v2: { title: 'التحليل اللغوي',             pill: 'لفظي — v2' },
+  v3: { title: 'المفردة الشاذة',              pill: 'لفظي — v3' },
+  v4: { title: 'التناسب والتناظر اللفظي',    pill: 'لفظي — v4' },
+  v5: { title: 'إكمال الجمل',                pill: 'لفظي — v5' },
+  q1: { title: 'الحساب والمسائل الكلامية',   pill: 'كمي — q1' },
+  q2: { title: 'الجبر والمسائل الكلامية',    pill: 'كمي — q2' },
+  q3: { title: 'الهندسة والقياس',            pill: 'كمي — q3' },
+  q4: { title: 'المقارنات الكمية',           pill: 'كمي — q4' },
+};
+
+const QUIZZES = {
+  v1: [
+    'https://docs.google.com/forms/d/e/1FAIpQLSfk8u8mk-7rs0xwCAd1SfNruitF2LRwC7loqSjeGUFtHb_kDg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdqsRFw3PpsML1kmJaS4fYPhI9OnvXni242snV4gXfzLRXz_w/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSd7gnSrjS1Fh9FEfFKb3AiVdXnFiX6Z4x0-SU2bjhdIECN2FQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSewxt69eXUgaXVTl9DDXo7HL-EoJ9DKIMchxgllsaToc2ygfw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdvSVJfHiBDh6XSQsRFq1MscPj_uBz54FgD87SKzKbeIA7l0A/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSfqeFzTghaMX4NKqbCBifVGK0sZ4RUuRhOJWzXW-osMjmvEIw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSf48e9fr7-aM0TZ6ugtMaoNDDxSZVt0ZM7pDsAnlKxyglBSyA/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdBhAUngC3xOI1LNZGTUi4ncxZ7te-ukam_BSfwOHUEVr6a_g/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSfba3g1csoKTDTKo-_Ckj0OHO8qUiGMXJ137LAxtMylsz92Dg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSes4QVJoXi45wNIatFAWQt-rl0G1XnRu-6SWsCExQRlbiILYw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeyZm1xZPfywWVu7Jnm2U8uohGc2GmK_arsY8WoRrYwoF_6wg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSe4Y_zhTiciCIGkU3SfAOTLAPtQ8rMKOcZz-HxMzH2L6sCEYg/viewform?usp=header',
+  ],
+  v2: [
+    'https://docs.google.com/forms/d/e/1FAIpQLScp3Sc5tlztaYkfuC1tyBhZMOT5HR2H_nmhFdlnylM5ua6tXw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScjI8ZkdUUnFWdzqHOK9CEdF_0qCXt5zUtYAHMXKFz7hJSBxA/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScCfpQi5_wbt8XW7p6GE2Gi1m36DHcFHUr1cpAg3f19yDWquQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSfRvKgv5DVw-KcbqOXn7CJyl1c2JDL_VEWRk5--wt60GSALhg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSf847L-nmHOfzovdxQQE7SP96iLb8R6raFzPE8IpoKIiTdQpw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScUA-GXywCzdCjQxe3T1zsk1rAvMhMZofltjYqny74QZVbOTQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSfECEFDKEu8B0B9qE_XN_FEnjeRlRixKgw2OTTadYdJ17Kkzg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScIkNx75XwH-8b8w14JcFqT_qLpCjb7yGe5x5pe1A9kLV7G-w/viewform?usp=header',
+  ],
+  v3: [
+    'https://docs.google.com/forms/d/e/1FAIpQLSeXovLY7hTo6ncpZpdIE51q2-BFKIXrSoWs4Ywkf9W3tun1Tg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSd7j51uTba5LHNEwmKVPCbyApknDLzccnLHdebZi59Q9nKFhw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdY-fB5MFfyeqwSLq9BnRUVrqeBdGqi1JhZiljoIHXrqNgGyw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScv2yX7b3tQ6nhxVM-SVhJ0Qxo_V44Mc9gmO9a5rWFGGJYeCA/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeBITWb8XGJ3gcYESfv14p6Ufn-hFf3252dmr4NE6P94_9f5A/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdwgwF0rUtInI6oh-tvvbDR6rh1_LzyadFQdQiSzCvAnjYo5w/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSfLDPmnR0IRxPOJAgFzoG0uABfXb6qXIY8DcK0swpz5YuE50w/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSd4_jblEgBhyJXzhJv2MX3s3gePjw46aHWpwgGZTcTk94m6BQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeSW6GwpWz3TUNTyHy9MApwK-aYBTIy0u6vl73gO1swhWOE-Q/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScn9a97ullienGvb0Pup5VjTW-oSAY22aqk6-GUPMEqU2JFrA/viewform?usp=header',
+  ],
+  v4: [
+    'https://docs.google.com/forms/d/e/1FAIpQLSdDonGQf2urxqnKWYdXQnrvkmDcjXE7hKCwuzNp0KjMPWIRjw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSepPGHijLajPbYbUhUCDI2nyzog_ZAcWPN5LRkqXqXiXwymVg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSe0_F39EJdssUhjXxiOk_aTpun0YWExt1gz6gqSj1NndZaMVg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeSdDet-aarAzIq-zhbDLO9Rm7f2oepjXft-b6xvKw6a_0jaw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdW97_NUpIhy0fYxeRA9AQm3QL7CfhkhBJmImwBF40y0iONDg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeKNHB-RaimXXOarQrvTc_Z0Y7VpJqpn5pNLaLeSJRmeuCTdA/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeU-Bdlx6k1OZqw1R6gfB9JSRGl2B4HwMCH1Zg8IzrOu4zbuQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSe6-snYgqAF5GrCJ6ZmPz5nRjq6ba7U9k0XgvElICCMdj9FOg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSf-FnairIg8mKdpMtheDelf0f7ZGemuUXgIJa5uJVQQXlQzKg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeMMz0Ifq3JmlShlUW9H-qjzoBDMGmb-rw2-98hyT5iiYu6aw/viewform?usp=header',
+  ],
+  v5: [
+    'https://docs.google.com/forms/d/e/1FAIpQLSdWO2Ti5lhMcrn__PNGBWjf-iIVoN0uRg7vT68G7i-Xym68gA/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScE7QfCwRKFxQKolCkhHht_wdwXQa43M_UJ9t4cCIIjLg-6vg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSesCL9yFQDgSa79np6kuIAf7UCzG38MRdPRTevurAhaaQBf7g/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScb-hixB_1kXg_ea3u5m3PkNOqdXvAYchT17xqnOQFiW3ca7w/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSd_zYmnDx_1otzGUs0n8FNCqh-dNReLdzZADkrbqTQy3ErtsQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdT3717Oi4yG8BW0kCppwG5WazbsNyog_IJas5V-Q7NoAqG9g/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSc-2OdrMqqD6F6rYtH6EVvBFrxdQbnj7dulJExr7oQF420fww/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeEulBkuiZPazFODw5I7O2sBWLEIC0a8hLbV2eprCialHMfZQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSflt57MkME9HGE2qzRN8G182xG2v9NvyHvHWcwznN6AOqMa8A/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdJ6fuDi_RCb9XZLfzJgzcpZfOnBEG6x6FHWdPdwT5BhooSPA/viewform?usp=header',
+  ],
+  q1: [
+    'https://forms.gle/prW38TgVi1TNEpNy7','https://forms.gle/otorh1JfZyV14RCbA',
+    'https://forms.gle/CLudkRr8h7SBJARD9','https://forms.gle/fMUYhfnLy7mbLMYw8',
+    'https://forms.gle/kNxeAfgk2jMHv4N57','https://forms.gle/rQ4Po72wYQGzBgga6',
+    'https://forms.gle/Hqe2m8X8bwWASkd3A','https://forms.gle/6Y1devuwwnMxCxzFA',
+    'https://forms.gle/D3XvQRDbAFEhidts5','https://forms.gle/Gx3rbQLDELA1LyNe6',
+    'https://forms.gle/KGCjdYxmx64t1CLp6','https://forms.gle/u6Lm92txaqaJGJNi6',
+    'https://forms.gle/w9BYYhSfKbF1CPzi6','https://forms.gle/PzywrVPKEWV6Egzk6',
+    'https://forms.gle/DPcj3KczQjGBwsdG9','https://forms.gle/KoHVDjc72KPCfACY6',
+    'https://forms.gle/EmPSCboDp3ZQGvF48','https://forms.gle/9snvWWziT66hvtTN9',
+    'https://forms.gle/Xhc6kzVPhPoMfDJA9','https://forms.gle/VextM849gTQo3dXu7',
+  ],
+  q2: [
+    'https://forms.gle/B6tHq7vcMA3hBET78','https://forms.gle/ZnCe5YMRFW3XpeML7',
+    'https://forms.gle/njAUNmqcEAa9Rb6i8','https://forms.gle/ZqJ5WgThBJrgmFjFA',
+    'https://forms.gle/portkUBF9P4vy2Zd6','https://forms.gle/3ExwvsVf1yX1hVEB7',
+    'https://forms.gle/FWQGrtyQz1Dv92Z7A','https://forms.gle/2RsPQ1jLo4Rcj41P7',
+  ],
+  q3: [
+    'https://forms.gle/Dj5GCwkqRGXbJutL7','https://forms.gle/YFaCvKM1shFbcoAX9',
+    'https://forms.gle/1ibQxShaYwNGofHd8','https://forms.gle/1feCc1jWUEC3PiFM6',
+    'https://forms.gle/KhqBXFY9AKp1auzm8','https://forms.gle/jYaWhBFQnajPPCVA7',
+    'https://forms.gle/sAU6EpTB8Yb4bo1v8','https://forms.gle/ZeM7wVbNk9FsAaJp9',
+    'https://forms.gle/YwbrEviLGkUULUAC7','https://forms.gle/k4nM38d6wUHuFJK2A',
+    'https://forms.gle/YMKiBMTsAzc6jt2s7','https://forms.gle/ES6C7Ex8VQBtQChT9',
+    'https://forms.gle/NkwTHnJ9B4J7eL1d9','https://forms.gle/KiPGJykuenfrTJBd8',
+    'https://forms.gle/tRqdSDgD7biQExPB7','https://forms.gle/i4RJTLVXSQzHiok69',
+  ],
+  q4: [
+    'https://forms.gle/neBUDdtTST4gDVYv8','https://forms.gle/bMqXsZtUfDgyMuQZ8',
+    'https://forms.gle/nQag6VDZSMqRJ8bM6','https://forms.gle/P6Vr7UUHL1sZcXco8',
+    'https://forms.gle/hueDWk8jscj63EoK6','https://forms.gle/qBYbHpgZ5tAujCBV8',
+    'https://forms.gle/z6erTrQLb2PfMcmw7','https://forms.gle/b47uyxuK3DWoqV2C6',
+    'https://forms.gle/F2SC8iEcUpJ1BcuJ6','https://forms.gle/94BEQGZvMGzkgdWz6',
+    'https://forms.gle/gVTjCK6hDxzySRTo9','https://forms.gle/3QSHAQnTfaXMjBMu7',
+  ],
+};
+
+const HINTS = ['ابدأ التحدي','خطوة نحو التفوق','ثِق بقدراتك','ذكاءٌ يصنع الفارق','تركيزك يقودك','حلّها بإبداع','أنت لها!','تقدّم صغير','جرّب واكتشف','انطلق بثبات','مع كل سؤال','تكرار يصنع إتقان','المثابرة','ركّز لتصل','استمر','اليوم أفضل','العلم قوة','لا تتوقف','استثمر وقتك','أبدع'];
+
+const TOTAL_CARDS = 20;
+
+(function init() {
+  const skill = 'q4';
+  const meta  = SKILLS_META[skill] || SKILLS_META.v1;
+  const urls  = QUIZZES[skill] || [];
+
+  document.title = `اختبارات ${meta.title} — بوابة دعم التعلم`;
+  document.getElementById('topbar-title').textContent = `اختبارات ${meta.title}`;
+  document.getElementById('hero-pill').textContent    = meta.pill;
+  document.getElementById('hero-title').textContent   = `اختبارات ${meta.title}`;
+  document.getElementById('hero-sub').textContent     = `${urls.length >= 3 && urls.length <= 10 ? urls.length + ' اختبارات تدريبية' : urls.length + ' اختبار تدريبي'} — اختر رقم الاختبار`;
+  document.getElementById('active-count').textContent = urls.length;
+
+  const total = Math.max(urls.length, TOTAL_CARDS);
+  const grid  = document.getElementById('quiz-grid');
+  grid.innerHTML = Array.from({ length: total }, (_, i) => {
+    const url  = urls[i];
+    const num  = i + 1;
+    const hint = HINTS[i % HINTS.length];
+    if (url) {
+      return `<a class="card" href="${url}" target="_blank" rel="noopener">
+        <div class="card-num">${num}</div>
+        <div class="card-label">اختبار ${num}</div>
+        <div class="card-hint">${hint}</div>
+      </a>`;
+    }
+    return `<a class="card soon" href="#" tabindex="-1">
+      <div class="card-num">${num}</div>
+      <div class="card-label">اختبار ${num}</div>
+      <div class="card-hint">قريباً</div>
+    </a>`;
+  }).join('');
+})();
+</script>
+</body>
+</html>

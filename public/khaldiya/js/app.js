@@ -751,7 +751,8 @@ const App = {
   buildQuizTab(skillId) {
     const q = (typeof SKILL_QUIZZES !== 'undefined') ? SKILL_QUIZZES[skillId] : null;
     if (q && q.urls && q.urls.length) {
-      const pageUrl = `quizzes/?skill=${skillId}`;
+      const QUIZ_FOLDERS = {v1:'comprehension',v2:'inference',v3:'contextual',v4:'analogy',v5:'completion',q1:'arithmetic',q2:'algebra',q3:'geometry',q4:'comparison'};
+      const pageUrl = `quizzes/${QUIZ_FOLDERS[skillId] || '?skill=' + skillId}/`;
       return `
         <p class="videos-note">
           تجد هنا جميع الاختبارات التدريبية المتعلقة بهذه المهارة — تدرّب بشكل منتظم لتحسين أدائك.

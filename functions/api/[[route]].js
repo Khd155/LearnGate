@@ -162,6 +162,15 @@ export async function onRequest({ request, env }) {
     }
 
     // ── ADMINS ───────────────────────────────────────────────────────────────
+
+    // GET /api/admins?school=X — public list (name+id only, no codes)
+    if (resource === 'admins' && !sub && method === 'GET' && school) {
+      const { results } = await DB.prepare(
+        "SELECT id, name FROM admins WHERE school = ? AND school != '' ORDER BY name ASC"
+      ).bind(school).all();
+      return ok({ admins: results });
+    }
+
     if (resource === 'admins' && sub && method === 'GET') {
       // sub = admin code, school = selected school
       const admin = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(sub).first();
@@ -340,6 +349,8 @@ export async function onRequest({ request, env }) {
           body TEXT NOT NULL,
           created_at TEXT NOT NULL
         )`).run();
+        // Add recipient_admin_id column if not exists (idempotent)
+        try { await DB.prepare('ALTER TABLE messages ADD COLUMN recipient_admin_id TEXT DEFAULT ""').run(); } catch {}
         return ok({ ok: true, tables: ['messages', 'tickets', 'ticket_replies'] });
       }
     }
@@ -347,36 +358,60 @@ export async function onRequest({ request, env }) {
     // ── MESSAGES ─────────────────────────────────────────────────────────────
     if (resource === 'messages') {
 
-      // GET /api/messages/unread?school=X — unread per student (for admin)
+      // GET /api/messages/unread?school=X&adminId=Y — unread per student
+      // Omit school to get all schools (support admin view)
       if (sub === 'unread' && method === 'GET') {
-        const { results } = await DB.prepare(
-          `SELECT student_id, student_name, COUNT(*) as cnt FROM messages
-           WHERE sender_type='student' AND is_read=0 AND school=?
-           GROUP BY student_id`
-        ).bind(school).all();
+        const adminId = url.searchParams.get('adminId') || '';
+        let q, params;
+        if (adminId) {
+          q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
+               WHERE sender_type='student' AND is_read=0 AND school=? AND recipient_admin_id=?
+               GROUP BY student_id`;
+          params = [school, adminId];
+        } else if (school) {
+          q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
+               WHERE sender_type='student' AND is_read=0 AND school=?
+               GROUP BY student_id`;
+          params = [school];
+        } else {
+          q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
+               WHERE sender_type='student' AND is_read=0
+               GROUP BY student_id`;
+          params = [];
+        }
+        const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ counts: results });
       }
 
-      // GET /api/messages?studentId=X — full conversation
+      // GET /api/messages?studentId=X&adminId=Y — conversation between student and specific admin
       if (method === 'GET') {
         const studentId = url.searchParams.get('studentId');
+        const adminId   = url.searchParams.get('adminId') || '';
         if (!studentId) return err('studentId required');
-        const { results } = await DB.prepare(
-          'SELECT * FROM messages WHERE student_id=? ORDER BY created_at ASC'
-        ).bind(studentId).all();
+        let q, params;
+        if (adminId) {
+          q = 'SELECT * FROM messages WHERE student_id=? AND recipient_admin_id=? ORDER BY created_at ASC';
+          params = [studentId, adminId];
+        } else {
+          q = 'SELECT * FROM messages WHERE student_id=? ORDER BY created_at ASC';
+          params = [studentId];
+        }
+        const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ messages: results });
       }
 
       // POST /api/messages — send message
       if (method === 'POST') {
-        const { studentId, studentName, senderType, body } = await request.json();
+        const { studentId, studentName, senderType, body,
+                school: bodySchool, recipientAdminId } = await request.json();
         if (!studentId || !senderType || !body) return err('missing fields');
+        const effectiveSchool = school || bodySchool || '';
         const id  = crypto.randomUUID();
         const now = new Date().toISOString();
         await DB.prepare(
-          'INSERT INTO messages (id, student_id, student_name, school, sender_type, body, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)'
-        ).bind(id, studentId, studentName || '', school, senderType, body, now).run();
-        return ok({ message: { id, student_id: studentId, student_name: studentName, school, sender_type: senderType, body, is_read: 0, created_at: now } }, 201);
+          'INSERT INTO messages (id, student_id, student_name, school, sender_type, body, is_read, recipient_admin_id, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)'
+        ).bind(id, studentId, studentName || '', effectiveSchool, senderType, body, recipientAdminId || '', now).run();
+        return ok({ message: { id, student_id: studentId, student_name: studentName, school: effectiveSchool, sender_type: senderType, body, is_read: 0, recipient_admin_id: recipientAdminId || '', created_at: now } }, 201);
       }
 
       // PATCH /api/messages/read — mark messages as read
@@ -423,18 +458,19 @@ export async function onRequest({ request, env }) {
 
       // POST /api/tickets — create ticket
       if (method === 'POST' && !sub) {
-        const { studentId, studentName, subject, body } = await request.json();
+        const { studentId, studentName, subject, body, school: bodySchool } = await request.json();
         if (!studentId || !subject || !body) return err('missing fields');
+        const effectiveSchool = school || bodySchool || '';
         const tid = crypto.randomUUID();
         const rid = crypto.randomUUID();
         const now = new Date().toISOString();
         await DB.prepare(
           'INSERT INTO tickets (id, student_id, student_name, school, subject, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-        ).bind(tid, studentId, studentName || '', school, subject, 'open', now).run();
+        ).bind(tid, studentId, studentName || '', effectiveSchool, subject, 'open', now).run();
         await DB.prepare(
           'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, created_at) VALUES (?, ?, ?, ?, ?)'
         ).bind(rid, tid, 'student', body, now).run();
-        return ok({ ticket: { id: tid, student_id: studentId, student_name: studentName, school, subject, status: 'open', created_at: now } }, 201);
+        return ok({ ticket: { id: tid, student_id: studentId, student_name: studentName, school: effectiveSchool, subject, status: 'open', created_at: now } }, 201);
       }
 
       // POST /api/tickets/:id/reply — add reply

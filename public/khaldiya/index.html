@@ -453,6 +453,52 @@
         يتم الدخول بالسجل المدني المسجَّل لدى الإدارة.
       </p>
     </div>
+    <div style="text-align:center;margin-top:20px;">
+      <button onclick="show('screen-support-login')"
+              style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;">
+        🔧 دخول فريق الدعم الفني
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: SUPPORT ADMIN LOGIN
+═══════════════════════════════════════════════════════ -->
+<div id="screen-support-login" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="show('screen-admin-login')">←</button>
+    <div style="flex:1;"><div class="topbar-title">دخول فريق الدعم</div></div>
+  </div>
+  <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
+    <div class="card">
+      <div style="text-align:center;font-size:36px;margin-bottom:12px;">🔧</div>
+      <div id="sp-login-err" class="alert alert-error"></div>
+      <div class="form-group">
+        <label class="form-label">مفتاح الدخول</label>
+        <input type="password" id="sp-login-key" class="form-input" placeholder="أدخل مفتاح الدخول"
+               onkeydown="if(event.key==='Enter') App.supportAdminLogin()">
+      </div>
+      <button class="btn btn-primary" onclick="App.supportAdminLogin()">دخول ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: SUPPORT ADMIN DASHBOARD
+═══════════════════════════════════════════════════════ -->
+<div id="screen-support-admin" class="screen">
+  <div class="topbar">
+    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
+    <div style="flex:1;"><div class="topbar-title">لوحة الدعم الفني</div></div>
+    <button class="topbar-back" onclick="App.logout()" style="font-size:14px;">خروج</button>
+  </div>
+  <div class="page-wrap">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="sa-tickets" onclick="App.setSupportTab('sa-tickets')">🎫 التذاكر</button>
+      <button class="tab-btn" data-tab="sa-messages" onclick="App.setSupportTab('sa-messages')">💬 الرسائل</button>
+    </div>
+    <div id="support-admin-list"></div>
   </div>
 </div>
 
@@ -1019,8 +1065,6 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="students" onclick="App.setTab('students')">👥 الطلاب</button>
       <button class="tab-btn" data-tab="stats"    onclick="App.setTab('stats')">📊 الإحصائيات</button>
-      <button class="tab-btn" data-tab="messages" onclick="App.setTab('messages')">💬 الرسائل<span class="notif-badge" id="admin-msg-badge" style="display:none;"></span></button>
-      <button class="tab-btn" data-tab="support"  onclick="App.setTab('support')">🎫 الدعم<span class="notif-badge" id="admin-ticket-badge" style="display:none;"></span></button>
       <button class="tab-btn" data-tab="settings" onclick="App.setTab('settings')">⚙️ الإدارة</button>
     </div>
 
@@ -1094,6 +1138,18 @@
       </button>
       <button class="btn btn-outline" onclick="App.closeModal()">إغلاق</button>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: SUPERVISOR SELECTION
+═══════════════════════════════════════════════════════ -->
+<div id="supervisor-select-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <div class="modal-title">اختر المشرف 👨‍🏫</div>
+    <div class="modal-sub">اختر المشرف الذي تريد التواصل معه</div>
+    <div id="supervisor-list" style="display:flex;flex-direction:column;gap:10px;margin:16px 0;"></div>
+    <button class="btn btn-outline btn-full" onclick="document.getElementById('supervisor-select-modal').classList.remove('open')">إلغاء</button>
   </div>
 </div>
 
@@ -1183,21 +1239,6 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════
-     MODAL: ADMIN CHAT CONVERSATION
-═══════════════════════════════════════════════════════ -->
-<div id="admin-chat-modal" class="modal-overlay" onclick="if(event.target===this)App.closeAdminChat()">
-  <div class="modal-box">
-    <div class="modal-title" id="acm-student-name"></div>
-    <div class="chat-modal-messages" id="acm-messages"></div>
-    <div style="display:flex;gap:10px;">
-      <input type="text" id="acm-input" class="chat-input" placeholder="رد على الطالب..."
-             onkeydown="if(event.key==='Enter')App.sendAdminMsg()">
-      <button class="chat-send-btn" onclick="App.sendAdminMsg()">إرسال ←</button>
-    </div>
-    <button class="btn btn-outline sdm-close" onclick="App.closeAdminChat()">إغلاق</button>
-  </div>
-</div>
 
 <!-- ═══════════════════════════════════════════════════════
      STUDENT DETAIL MODAL
@@ -1240,6 +1281,15 @@
           <thead><tr><th>المحاولة</th><th>التاريخ</th><th>متوسط الدرجة</th></tr></thead>
           <tbody id="sdm-history-body"></tbody>
         </table>
+      </div>
+      <div class="sdm-section">💬 المحادثة</div>
+      <div class="chat-modal-messages" id="sdm-chat-messages">
+        <div class="chat-empty">لا توجد رسائل</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <input type="text" id="sdm-chat-input" class="chat-input" placeholder="رد على الطالب..."
+               onkeydown="if(event.key==='Enter')App.sendAdminMsgFromDetail()">
+        <button class="chat-send-btn" onclick="App.sendAdminMsgFromDetail()">إرسال ←</button>
       </div>
       <button class="btn btn-outline sdm-close" onclick="App.closeStudentDetail()">إغلاق</button>
     </div>

@@ -174,11 +174,15 @@ const State = {
   role: null,
   school: null,
   student: null,
+  admin: null,          // logged-in admin object
+  chatAdminId: null,    // selected supervisor for chat
+  chatAdminName: null,
   selfDiag: {},
   testAnswers: {},
   currentQ: 0,
   tab: 'students',
   currentPlan: null,
+  detailStudentId: null, // student currently open in detail modal
 };
 
 // ── Screen router ─────────────────────────────────────────────────────────
@@ -304,11 +308,11 @@ const App = {
     if (!admin) { showAlert(errEl, 'السجل المدني غير مسجّل ضمن المشرفين.'); return; }
     try { await DB.loadAll(); }
     catch (e) { showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return; }
-    State.role = 'admin';
+    State.role  = 'admin';
+    State.admin = admin;
     startIdleWatch();
     App.renderAdminDashboard('students');
     show('screen-admin');
-    App.startAdminBadgeRefresh();
   },
 
   // ── Student Home ─────────────────────────────────────────────────────────
@@ -829,9 +833,7 @@ const App = {
 
   setTab(tab) {
     document.getElementById('tab-manage').style.display = tab === 'settings' ? 'block' : 'none';
-    if (tab === 'messages') { App.renderAdminDashboard(tab); App.renderAdminMessages(); return; }
-    if (tab === 'support')  { App.renderAdminDashboard(tab); App.renderAdminSupport();  return; }
-    if (tab === 'stats')    { App.renderAdminDashboard(tab); App.renderAdminStats();    return; }
+    if (tab === 'stats') { App.renderAdminDashboard(tab); App.renderAdminStats(); return; }
     App.renderAdminDashboard(tab);
   },
 
@@ -1168,10 +1170,59 @@ const App = {
     }
 
     document.getElementById('student-detail-modal').classList.add('open');
+    State.detailStudentId = studentId;
+    // Load chat messages for this student ↔ this admin
+    App.loadDetailChatMessages(studentId);
   },
 
   closeStudentDetail() {
     document.getElementById('student-detail-modal').classList.remove('open');
+    State.detailStudentId = null;
+  },
+
+  async loadDetailChatMessages(studentId) {
+    const el = document.getElementById('sdm-chat-messages');
+    if (!el || !State.admin) return;
+    try {
+      const data = await apiFetch(`/messages?studentId=${studentId}&adminId=${State.admin.id}`);
+      const msgs = data.messages || [];
+      // mark student messages as read
+      if (msgs.some(m => m.sender_type === 'student' && !m.is_read)) {
+        apiFetch('/messages/read', { method:'PATCH', body: JSON.stringify({ studentId, readerType:'admin' }) }).catch(() => {});
+      }
+      if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد</div>'; return; }
+      el.innerHTML = msgs.map(m => {
+        const sent = m.sender_type === 'admin';
+        const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
+        return `<div style="display:flex;flex-direction:column;align-items:${sent ? 'flex-end' : 'flex-start'};">
+          <div class="chat-bubble ${sent ? 'sent' : 'received'}">${m.body}</div>
+          <div class="chat-time">${sent ? 'أنت' : m.student_name} · ${time}</div>
+        </div>`;
+      }).join('');
+      el.scrollTop = el.scrollHeight;
+    } catch {}
+  },
+
+  async sendAdminMsgFromDetail() {
+    const input = document.getElementById('sdm-chat-input');
+    const body  = input.value.trim();
+    if (!body || !State.detailStudentId || !State.admin) return;
+    const st = DB.students().find(s => s.id === State.detailStudentId);
+    input.value = '';
+    try {
+      await apiFetch('/messages', {
+        method:'POST',
+        body: JSON.stringify({
+          studentId: State.detailStudentId,
+          studentName: st ? st.name : '',
+          senderType: 'admin',
+          body,
+          school: State.school || '',
+          recipientAdminId: State.admin.id,
+        }),
+      });
+      App.loadDetailChatMessages(State.detailStudentId);
+    } catch { showToast('تعذّر الإرسال'); input.value = body; }
   },
 
   // ── Cooldown / Retake ────────────────────────────────────────────────────
@@ -1279,7 +1330,42 @@ const App = {
   _chatTimer: null,
   _chatMsgCount: 0,
 
-  goToChat() {
+  async goToChat() {
+    // Fetch supervisors for this school
+    const school = State.school || '';
+    let admins = [];
+    try {
+      const data = await apiFetch(`/admins?school=${encodeURIComponent(school)}`);
+      admins = data.admins || [];
+    } catch {}
+
+    if (!admins.length) {
+      showToast('لا يوجد مشرفون مسجّلون في هذه المدرسة حالياً');
+      return;
+    }
+
+    if (admins.length === 1) {
+      // Only one supervisor — go directly
+      App.openChatWithAdmin(admins[0].id, admins[0].name);
+      return;
+    }
+
+    // Show selection modal
+    const list = document.getElementById('supervisor-list');
+    list.innerHTML = admins.map(a => `
+      <button class="supervisor-btn" onclick="App.openChatWithAdmin('${a.id}','${a.name.replace(/'/g,"\\'")}');document.getElementById('supervisor-select-modal').classList.remove('open');">
+        <div class="supervisor-avatar">${a.name.charAt(0)}</div>
+        <span>${a.name}</span>
+      </button>`).join('');
+    document.getElementById('supervisor-select-modal').classList.add('open');
+  },
+
+  openChatWithAdmin(adminId, adminName) {
+    State.chatAdminId   = adminId;
+    State.chatAdminName = adminName;
+    // Update chat screen title
+    const sub = document.querySelector('#screen-chat .topbar-title');
+    if (sub) sub.textContent = `محادثة مع ${adminName}`;
     show('screen-chat');
     App._chatMsgCount = 0;
     App.loadChatMessages();
@@ -1293,10 +1379,10 @@ const App = {
   },
 
   async loadChatMessages() {
-    const school = State.school ? '?school=' + encodeURIComponent(State.school) : '';
+    if (!State.chatAdminId) return;
     let msgs;
     try {
-      const data = await apiFetch(`/messages?studentId=${State.student.id}${school ? '&school=' + encodeURIComponent(State.school) : ''}`);
+      const data = await apiFetch(`/messages?studentId=${State.student.id}&adminId=${State.chatAdminId}`);
       msgs = data.messages || [];
     } catch { return; }
     // mark admin messages as read
@@ -1311,7 +1397,7 @@ const App = {
       const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
       return `<div style="display:flex;flex-direction:column;align-items:${sent ? 'flex-end' : 'flex-start'};">
         <div class="chat-bubble ${sent ? 'sent' : 'received'}">${m.body}</div>
-        <div class="chat-time">${sent ? 'أنت' : 'المشرف'} · ${time}</div>
+        <div class="chat-time">${sent ? 'أنت' : State.chatAdminName || 'المشرف'} · ${time}</div>
       </div>`;
     }).join('');
     el.scrollTop = el.scrollHeight;
@@ -1325,15 +1411,16 @@ const App = {
       if (!document.getElementById('screen-chat').classList.contains('active')) {
         clearInterval(App._chatTimer); return;
       }
+      if (!State.chatAdminId) return;
       try {
-        const data = await apiFetch(`/messages?studentId=${State.student.id}`);
-        const msgs = data.messages || [];
-        if (msgs.length !== App._chatMsgCount) App.loadChatMessages();
+        const data = await apiFetch(`/messages?studentId=${State.student.id}&adminId=${State.chatAdminId}`);
+        if ((data.messages || []).length !== App._chatMsgCount) App.loadChatMessages();
       } catch {}
     }, 6000);
   },
 
   async sendChatMsg() {
+    if (!State.chatAdminId) return;
     const input = document.getElementById('chat-input');
     const body  = input.value.trim();
     if (!body) return;
@@ -1341,7 +1428,12 @@ const App = {
     try {
       await apiFetch('/messages', {
         method:'POST',
-        body: JSON.stringify({ studentId: State.student.id, studentName: State.student.name, senderType:'student', body, school: State.school || '' }),
+        body: JSON.stringify({
+          studentId: State.student.id, studentName: State.student.name,
+          senderType:'student', body,
+          school: State.school || '',
+          recipientAdminId: State.chatAdminId,
+        }),
       });
       App.loadChatMessages();
     } catch { showToast('تعذّر الإرسال'); input.value = body; }
@@ -1449,7 +1541,7 @@ const App = {
       document.getElementById('td-reply-input').value = '';
       await App.openTicketDetail(App._currentTicketId, App._ticketSenderType);
       if (App._ticketSenderType === 'student') App.loadStudentTickets();
-      else App.renderAdminDashboard('support');
+      else App.renderSupportTickets();
     } catch { showToast('تعذّر الإرسال'); }
   },
 
@@ -1459,148 +1551,33 @@ const App = {
       await apiFetch(`/tickets/${App._currentTicketId}`, { method:'PATCH', body: JSON.stringify({ status:'resolved' }) });
       App.closeTicketDetail();
       showToast('تم تعيين التذكرة كمحلولة ✅');
-      App.renderAdminDashboard('support');
+      App.renderSupportTickets();
     } catch { showToast('تعذّر التحديث'); }
   },
 
-  // ── Admin Chat ───────────────────────────────────────────────────────────
-  _adminChatStudentId:   null,
-  _adminChatStudentName: null,
-  _adminChatTimer:       null,
-  _adminChatMsgCount:    0,
-
-  async openAdminChat(studentId, studentName) {
-    App._adminChatStudentId   = studentId;
-    App._adminChatStudentName = studentName;
-    App._adminChatMsgCount    = 0;
-    document.getElementById('acm-student-name').textContent = studentName;
-    document.getElementById('acm-input').value = '';
-    document.getElementById('admin-chat-modal').classList.add('open');
-    await App.loadAdminChatMessages();
-    clearInterval(App._adminChatTimer);
-    App._adminChatTimer = setInterval(async () => {
-      if (!document.getElementById('admin-chat-modal').classList.contains('open')) {
-        clearInterval(App._adminChatTimer); return;
-      }
-      try {
-        const data = await apiFetch(`/messages?studentId=${App._adminChatStudentId}`);
-        if ((data.messages || []).length !== App._adminChatMsgCount) App.loadAdminChatMessages();
-      } catch {}
-    }, 5000);
+  // ── Support Admin (Developer Page) ──────────────────────────────────────
+  async supportAdminLogin() {
+    const key    = document.getElementById('sp-login-key').value.trim();
+    const errEl  = document.getElementById('sp-login-err');
+    if (key !== 'learngate-dev-2026') { showAlert(errEl, 'مفتاح الدخول غير صحيح'); return; }
+    State.role = 'support';
+    startIdleWatch();
+    show('screen-support-admin');
+    App.setSupportTab('sa-tickets');
   },
 
-  async loadAdminChatMessages() {
-    const el = document.getElementById('acm-messages');
-    if (!el) return;
-    try {
-      const data = await apiFetch(`/messages?studentId=${App._adminChatStudentId}`);
-      const msgs = data.messages || [];
-      // mark student messages as read
-      if (msgs.some(m => m.sender_type === 'student' && !m.is_read)) {
-        apiFetch('/messages/read', { method:'PATCH', body: JSON.stringify({ studentId: App._adminChatStudentId, readerType:'admin' }) }).catch(() => {});
-      }
-      App._adminChatMsgCount = msgs.length;
-      if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد</div>'; return; }
-      el.innerHTML = msgs.map(m => {
-        const sent = m.sender_type === 'admin';
-        const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
-        return `<div style="display:flex;flex-direction:column;align-items:${sent ? 'flex-end' : 'flex-start'};">
-          <div class="chat-bubble ${sent ? 'sent' : 'received'}">${m.body}</div>
-          <div class="chat-time">${sent ? 'أنت' : m.student_name} · ${time}</div>
-        </div>`;
-      }).join('');
-      el.scrollTop = el.scrollHeight;
-    } catch {}
+  setSupportTab(tab) {
+    document.querySelectorAll('#screen-support-admin .tab-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.tab === tab));
+    if (tab === 'sa-tickets') App.renderSupportTickets();
+    else App.renderSupportMessages();
   },
 
-  closeAdminChat() {
-    clearInterval(App._adminChatTimer);
-    document.getElementById('admin-chat-modal').classList.remove('open');
-    App._adminChatStudentId = null;
-    App.refreshAdminBadges();
-  },
-
-  async sendAdminMsg() {
-    const input = document.getElementById('acm-input');
-    const body  = input.value.trim();
-    if (!body || !App._adminChatStudentId) return;
-    input.value = '';
-    try {
-      await apiFetch('/messages', {
-        method:'POST',
-        body: JSON.stringify({ studentId: App._adminChatStudentId, studentName: App._adminChatStudentName, senderType:'admin', body, school: State.school || '' }),
-      });
-      App.loadAdminChatMessages();
-    } catch { showToast('تعذّر الإرسال'); input.value = body; }
-  },
-
-  // ── Admin Badges & Tab Rendering ─────────────────────────────────────────
-  _adminBadgeTimer: null,
-
-  async refreshAdminBadges() {
-    if (State.role !== 'admin') return;
-    const school = State.school || '';
-    try {
-      const { counts } = await apiFetch(`/messages/unread?school=${encodeURIComponent(school)}`);
-      const total = (counts || []).reduce((s, c) => s + c.cnt, 0);
-      const badge = document.getElementById('admin-msg-badge');
-      badge.textContent     = total || '';
-      badge.style.display   = total ? 'inline' : 'none';
-    } catch {}
-    try {
-      const { tickets } = await apiFetch(`/tickets?school=${encodeURIComponent(school)}`);
-      const open = (tickets || []).filter(t => t.status === 'open').length;
-      const badge = document.getElementById('admin-ticket-badge');
-      badge.textContent   = open || '';
-      badge.style.display = open ? 'inline' : 'none';
-    } catch {}
-  },
-
-  startAdminBadgeRefresh() {
-    clearInterval(App._adminBadgeTimer);
-    App.refreshAdminBadges();
-    App._adminBadgeTimer = setInterval(() => { if (State.role === 'admin') App.refreshAdminBadges(); }, 15000);
-  },
-
-  async renderAdminMessages() {
-    const listEl = document.getElementById('admin-student-list');
-    const school = State.school || '';
-    try {
-      // Get all students who have sent messages
-      const { counts } = await apiFetch(`/messages/unread?school=${encodeURIComponent(school)}`);
-      // Get last message per student from all messages
-      const { students } = await apiFetch(`/students?school=${encodeURIComponent(school)}`);
-      const studentMap = {};
-      (students || []).forEach(s => { studentMap[s.id] = s.name; });
-      const unreadMap = {};
-      (counts || []).forEach(c => { unreadMap[c.student_id] = { cnt: c.cnt, name: c.student_name }; });
-      // Get all conversations — fetch once per student that has messages
-      // For simplicity: show students who have unread OR recent messages
-      // Just show students with unread messages + a "load all" button
-      if (!Object.keys(unreadMap).length) {
-        listEl.innerHTML = '<div class="chat-empty" style="padding:40px 0;">لا توجد رسائل جديدة</div>';
-        return;
-      }
-      listEl.innerHTML = Object.entries(unreadMap).map(([sid, info]) => `
-        <div class="msg-preview-row" onclick="App.openAdminChat('${sid}', '${info.name.replace(/'/g, "\\'")}')">
-          <div class="student-avatar">${info.name.charAt(0)}</div>
-          <div class="msg-preview-info">
-            <div class="msg-preview-name">${info.name}</div>
-            <div class="msg-preview-last">رسائل غير مقروءة</div>
-          </div>
-          <span class="msg-unread-count">${info.cnt}</span>
-        </div>`).join('');
-    } catch {
-      listEl.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;">تعذّر التحميل</div>';
-    }
-  },
-
-  async renderAdminSupport() {
-    const listEl = document.getElementById('admin-student-list');
-    const school = State.school || '';
+  async renderSupportTickets() {
+    const listEl = document.getElementById('support-admin-list');
     listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جاري التحميل...</div>';
     try {
-      const { tickets } = await apiFetch(`/tickets?school=${encodeURIComponent(school)}`);
+      const { tickets } = await apiFetch('/tickets');
       if (!tickets.length) { listEl.innerHTML = '<div class="chat-empty" style="padding:40px 0;">لا توجد تذاكر دعم</div>'; return; }
       listEl.innerHTML = tickets.map(t => {
         const badgeCls = t.status === 'open' ? 'tbadge-open' : t.status === 'in_progress' ? 'tbadge-progress' : 'tbadge-resolved';
@@ -1611,9 +1588,32 @@ const App = {
             <div class="ticket-subject">${t.subject}</div>
             <span class="${badgeCls}">${badgeTxt}</span>
           </div>
-          <div class="ticket-meta">${t.student_name} · ${date}</div>
+          <div class="ticket-meta">${t.student_name} · ${t.school} · ${date}</div>
         </div>`;
       }).join('');
+    } catch {
+      listEl.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;">تعذّر التحميل</div>';
+    }
+  },
+
+  async renderSupportMessages() {
+    const listEl = document.getElementById('support-admin-list');
+    listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جاري التحميل...</div>';
+    try {
+      const { counts } = await apiFetch('/messages/unread');
+      if (!counts || !counts.length) {
+        listEl.innerHTML = '<div class="chat-empty" style="padding:40px 0;">لا توجد رسائل غير مقروءة</div>';
+        return;
+      }
+      listEl.innerHTML = counts.map(c => `
+        <div class="msg-preview-row">
+          <div class="student-avatar">${(c.student_name || '؟').charAt(0)}</div>
+          <div class="msg-preview-info">
+            <div class="msg-preview-name">${c.student_name}</div>
+            <div class="msg-preview-last" style="font-size:12px;color:var(--muted);">رسائل غير مقروءة</div>
+          </div>
+          <span class="msg-unread-count">${c.cnt}</span>
+        </div>`).join('');
     } catch {
       listEl.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;">تعذّر التحميل</div>';
     }
@@ -1622,11 +1622,10 @@ const App = {
   logout() {
     App.stopCooldownTimer();
     clearInterval(App._chatTimer);
-    clearInterval(App._adminBadgeTimer);
-    clearInterval(App._adminChatTimer);
     stopIdleWatch();
     State.student     = null;
     State.role        = null;
+    State.admin       = null;
     State.selfDiag    = {};
     State.testAnswers = {};
     State.currentPlan = null;

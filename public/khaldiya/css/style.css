@@ -643,6 +643,21 @@ p, span, div, button, input, label, td, th {
 .support-stat-val { font-size: 22px; font-weight: 800; }
 .support-stat-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
 
+/* ── Supervisor selector ─────────────────────────────── */
+.supervisor-btn {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  color: var(--text); text-align: right; transition: all .15s;
+}
+.supervisor-btn:hover { border-color: var(--primary); background: #eef5fb; color: var(--primary); }
+.supervisor-avatar {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--primary);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; flex-shrink: 0;
+}
+
 /* ── Quick Action Buttons (student home) ─────────────── */
 .quick-actions { display: flex; gap: 12px; margin-bottom: 20px; }
 .quick-btn {

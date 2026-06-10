@@ -85,17 +85,22 @@ p, span, div, button, input, label, td, th {
   border: none;
   color: #fff;
   border-radius: 10px;
-  width: 42px; height: 42px;
+  height: 42px;
+  min-width: 42px;
+  padding: 0 14px;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
   display: flex; align-items: center; justify-content: center;
   transition: background .2s;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 .topbar-back:hover { background: rgba(255,255,255,.3); }
 .topbar-title { font-size: 18px; font-weight: 800; flex: 1; letter-spacing: -0.01em; }
 .topbar-sub { font-size: 13px; opacity: .85; margin-top: 2px; font-weight: 500; }
-.topbar-ghost { width: 42px; flex-shrink: 0; }
+.topbar-ghost { min-width: 42px; flex-shrink: 0; }
 
 /* ── Identity Screen ─────────────────────────────────── */
 #screen-identity {
@@ -542,8 +547,8 @@ p, span, div, button, input, label, td, th {
   .topbar { padding: 12px 14px; gap: 10px; }
   .topbar-title { font-size: 14.5px; font-weight: 700; }
   .topbar-sub   { font-size: 11px; opacity: .85; }
-  .topbar-back  { width: 34px; height: 34px; font-size: 16px; }
-  .topbar-ghost { width: 34px; }
+  .topbar-back  { height: 34px; min-width: 34px; padding: 0 11px; font-size: 13px; }
+  .topbar-ghost { min-width: 34px; }
   .card { padding: 18px 16px; border-radius: 14px; }
   .welcome-banner { padding: 18px 16px; border-radius: 16px; }
   .welcome-banner h2 { font-size: 16px; }

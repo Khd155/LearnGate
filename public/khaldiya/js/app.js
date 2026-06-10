@@ -320,6 +320,8 @@ const App = {
     } else {
       planBanner.style.display = 'none';
     }
+    // Check for unread support replies
+    App.loadTicketNotifications();
   },
 
   async startCapabilities() {
@@ -1636,41 +1638,83 @@ const App = {
     el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جاري التحميل...</div>';
     try {
       const { tickets } = await apiFetch(`/tickets?studentId=${State.student.id}`);
-      if (!tickets.length) { el.innerHTML = '<div class="chat-empty" style="padding:30px 0;">لا توجد طلبات دعم بعد</div>'; return; }
+      if (!tickets.length) {
+        el.innerHTML = `<div class="chat-empty" style="padding:36px 0;text-align:center;">
+          <div style="font-size:36px;margin-bottom:8px;">🎫</div>
+          <div style="font-weight:700;">لا توجد طلبات دعم بعد</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px;">اضغط "طلب دعم جديد" لإرسال طلبك</div>
+        </div>`;
+        // Update notification badge
+        const badge = document.getElementById('ticket-notif-badge');
+        if (badge) { badge.style.display = 'none'; }
+        return;
+      }
+      const totalUnread = tickets.reduce((s, t) => s + (t.unread_count || 0), 0);
+      const badge = document.getElementById('ticket-notif-badge');
+      if (badge) { badge.style.display = totalUnread ? 'inline' : 'none'; badge.textContent = totalUnread || ''; }
       el.innerHTML = tickets.map(t => {
-        const badgeCls = t.status === 'open' ? 'tbadge-open' : t.status === 'in_progress' ? 'tbadge-progress' : 'tbadge-resolved';
-        const badgeTxt = t.status === 'open' ? 'مفتوح' : t.status === 'in_progress' ? 'قيد المعالجة' : 'تم الحل';
+        const statusMap = { open: ['tbadge-open','مفتوح'], in_progress: ['tbadge-progress','قيد المعالجة'], resolved: ['tbadge-resolved','تم الحل'], rejected: ['tbadge-rejected','مرفوض'] };
+        const [badgeCls, badgeTxt] = statusMap[t.status] || ['tbadge-open','مفتوح'];
         const date = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short' });
-        return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}', 'student')">
+        const prioClass = t.priority === 'عالية' ? 'prio-chip-high' : t.priority === 'منخفضة' ? 'prio-chip-low' : 'prio-chip-med';
+        const prioIcon = t.priority === 'عالية' ? '🚨 ' : t.priority === 'منخفضة' ? '🟢 ' : '🟡 ';
+        const unreadHtml = t.unread_count > 0 ? `<span class="unread-dot">● رد جديد</span>` : '';
+        return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}','student')" style="${t.unread_count > 0 ? 'border-color:var(--primary);' : ''}">
           <div class="ticket-card-top">
-            <div class="ticket-subject">${t.subject}</div>
-            <span class="${badgeCls}">${badgeTxt}</span>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <span class="ticket-num-badge">${t.ticket_num || '—'}</span>
+              <div class="ticket-subject">${t.subject}</div>
+            </div>
+            <span class="${badgeCls}" style="flex-shrink:0;">${badgeTxt}</span>
           </div>
-          <div class="ticket-meta">${date}</div>
+          <div class="ticket-card-footer">
+            ${t.category ? `<span class="cat-chip">${t.category}</span>` : ''}
+            ${t.priority ? `<span class="${prioClass}">${prioIcon}${t.priority}</span>` : ''}
+            ${unreadHtml}
+            <span style="font-size:11px;color:var(--muted);margin-right:auto;">${date}</span>
+          </div>
         </div>`;
       }).join('');
     } catch { el.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;">تعذّر التحميل</div>'; }
   },
 
+  async loadTicketNotifications() {
+    if (!State.student?.id) return;
+    try {
+      const { count } = await apiFetch(`/tickets/unread?studentId=${State.student.id}`);
+      const badge = document.getElementById('ticket-notif-badge');
+      if (badge) { badge.style.display = count > 0 ? 'inline' : 'none'; badge.textContent = count > 0 ? count : ''; }
+    } catch {}
+  },
+
   openNewTicketModal() {
-    document.getElementById('nt-subject').value = '';
-    document.getElementById('nt-body').value    = '';
+    document.getElementById('nt-subject').value  = '';
+    document.getElementById('nt-body').value     = '';
     document.getElementById('nt-err').textContent = '';
+    // Preview ticket number
+    const num = 'T-' + String(Math.floor(10000 + Math.random() * 90000));
+    document.getElementById('nt-ticket-num').textContent = num;
+    // Reset priority
+    const medRadio = document.querySelector('input[name="nt-priority"][value="متوسطة"]');
+    if (medRadio) medRadio.checked = true;
+    document.getElementById('nt-category').selectedIndex = 4;
     document.getElementById('new-ticket-modal').classList.add('open');
   },
 
   closeNewTicketModal() { document.getElementById('new-ticket-modal').classList.remove('open'); },
 
   async submitTicket() {
-    const subject = document.getElementById('nt-subject').value.trim();
-    const body    = document.getElementById('nt-body').value.trim();
-    const errEl   = document.getElementById('nt-err');
+    const subject  = document.getElementById('nt-subject').value.trim();
+    const body     = document.getElementById('nt-body').value.trim();
+    const category = document.getElementById('nt-category').value;
+    const priority = document.querySelector('input[name="nt-priority"]:checked')?.value || 'متوسطة';
+    const errEl    = document.getElementById('nt-err');
     if (!subject) { showAlert(errEl, 'أدخل موضوع الطلب'); return; }
     if (!body)    { showAlert(errEl, 'أدخل تفاصيل المشكلة'); return; }
     try {
       await apiFetch('/tickets', {
-        method:'POST',
-        body: JSON.stringify({ studentId: State.student.id, studentName: State.student.name, subject, body, school: State.school || '' }),
+        method: 'POST',
+        body: JSON.stringify({ studentId: State.student.id, studentName: State.student.name, subject, body, category, priority, school: State.school || '' }),
       });
       App.closeNewTicketModal();
       showToast('تم إرسال طلب الدعم ✅');
@@ -1681,54 +1725,103 @@ const App = {
   // ── Ticket Detail (shared student & admin) ────────────────────────────────
   _currentTicketId: null,
   _ticketSenderType: 'student',
+  _ticketStatus: null,
 
   async openTicketDetail(ticketId, senderType) {
     App._currentTicketId  = ticketId;
     App._ticketSenderType = senderType;
     try {
       const { ticket, replies } = await apiFetch(`/tickets/${ticketId}`);
+      App._ticketStatus = ticket.status;
+
+      // Header
       document.getElementById('td-subject').textContent = ticket.subject;
       const date = new Date(ticket.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short', year:'numeric' });
-      document.getElementById('td-meta').textContent = `${ticket.student_name} · ${date}`;
-      const badgeCls = ticket.status === 'open' ? 'tbadge-open' : ticket.status === 'in_progress' ? 'tbadge-progress' : 'tbadge-resolved';
-      const badgeTxt = ticket.status === 'open' ? 'مفتوح' : ticket.status === 'in_progress' ? 'قيد المعالجة' : 'تم الحل';
+      const statusMap = { open: ['tbadge-open','مفتوح'], in_progress: ['tbadge-progress','قيد المعالجة'], resolved: ['tbadge-resolved','تم الحل'], rejected: ['tbadge-rejected','مرفوض'] };
+      const [badgeCls, badgeTxt] = statusMap[ticket.status] || ['tbadge-open','مفتوح'];
       document.getElementById('td-status-badge').innerHTML = `<span class="${badgeCls}">${badgeTxt}</span>`;
+
+      // Meta chips
+      const prioIcon = ticket.priority === 'عالية' ? '🚨' : ticket.priority === 'منخفضة' ? '🟢' : '🟡';
+      document.getElementById('td-meta-chips').innerHTML = `
+        ${ticket.ticket_num ? `<span class="ticket-num-badge">${ticket.ticket_num}</span>` : ''}
+        ${ticket.category   ? `<span class="cat-chip">${ticket.category}</span>` : ''}
+        ${ticket.priority   ? `<span style="font-size:11px;">${prioIcon} ${ticket.priority}</span>` : ''}
+        <span style="font-size:11px;color:var(--muted);">${ticket.student_name} · ${date}</span>`;
+
+      // Chat bubbles
       const thread = document.getElementById('td-thread');
-      thread.innerHTML = replies.map(r => {
+      thread.innerHTML = replies.length ? replies.map(r => {
         const time = new Date(r.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-        const who  = r.sender_type === 'student' ? (ticket.student_name || 'الطالب') : 'المشرف';
-        return `<div class="thread-msg ${r.sender_type}">
-          <div class="thread-msg-who">${who}</div>
-          ${r.body}
-          <div class="thread-msg-time">${time}</div>
+        const who  = r.sender_type === 'student' ? (ticket.student_name || 'الطالب') : '🛠 الدعم الفني';
+        return `<div class="chat-bubble-wrap ${r.sender_type}">
+          <div class="chat-bubble">
+            <div class="chat-label">${who}</div>
+            <div>${r.body}</div>
+            <div class="chat-time">${time}</div>
+          </div>
         </div>`;
-      }).join('');
+      }).join('') : '<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">لا توجد رسائل بعد</div>';
       thread.scrollTop = thread.scrollHeight;
-      // Show resolve button for admin only if not resolved
-      const resolveBtn = document.getElementById('td-resolve-btn');
-      resolveBtn.style.display = (senderType === 'admin' && ticket.status !== 'resolved') ? 'flex' : 'none';
-      // Hide reply area if resolved
-      document.getElementById('td-reply-area').style.display = ticket.status === 'resolved' ? 'none' : 'block';
+
+      // Mark replies as read
+      apiFetch(`/tickets/${ticketId}/read`, { method:'POST', body: JSON.stringify({ readerType: senderType }) }).catch(() => {});
+
+      // Buttons
+      const isResolved = ticket.status === 'resolved' || ticket.status === 'rejected';
+      document.getElementById('td-resolve-btn').style.display = (senderType === 'admin' && !isResolved) ? 'inline-flex' : 'none';
+      document.getElementById('td-student-close-btn').style.display = (senderType === 'student' && ticket.status === 'in_progress') ? 'inline-flex' : 'none';
+      document.getElementById('td-reply-area').style.display = isResolved ? 'none' : 'block';
+
+      // Rating (student, resolved, not yet rated)
+      const showRating = senderType === 'student' && isResolved && !(ticket.rating > 0);
+      document.getElementById('td-rating-area').style.display = showRating ? 'block' : 'none';
+      if (ticket.rating > 0) App._renderStars(ticket.rating);
+
       document.getElementById('td-reply-input').value = '';
       document.getElementById('ticket-detail-modal').classList.add('open');
+
+      // Refresh notifications
+      if (senderType === 'student') App.loadStudentTickets();
     } catch { showToast('تعذّر تحميل التذكرة'); }
   },
 
-  closeTicketDetail() { document.getElementById('ticket-detail-modal').classList.remove('open'); App._currentTicketId = null; },
+  _renderStars(val) {
+    document.querySelectorAll('#td-stars span').forEach((s, i) => {
+      s.textContent = i < val ? '⭐' : '☆';
+      s.classList.toggle('lit', i < val);
+    });
+  },
+
+  async rateTicket(val) {
+    if (!App._currentTicketId) return;
+    App._renderStars(val);
+    try {
+      await apiFetch(`/tickets/${App._currentTicketId}`, { method:'PATCH', body: JSON.stringify({ rating: val }) });
+      document.getElementById('td-rating-area').style.display = 'none';
+      showToast('شكراً على تقييمك ⭐');
+    } catch {}
+  },
+
+  closeTicketDetail() {
+    document.getElementById('ticket-detail-modal').classList.remove('open');
+    App._currentTicketId = null;
+  },
 
   async sendTicketReply() {
     const body = document.getElementById('td-reply-input').value.trim();
     if (!body || !App._currentTicketId) return;
+    const btn = document.getElementById('td-send-btn');
+    btn.disabled = true;
     try {
       await apiFetch(`/tickets/${App._currentTicketId}/reply`, {
-        method:'POST',
+        method: 'POST',
         body: JSON.stringify({ senderType: App._ticketSenderType, body }),
       });
       document.getElementById('td-reply-input').value = '';
       await App.openTicketDetail(App._currentTicketId, App._ticketSenderType);
-      if (App._ticketSenderType === 'student') App.loadStudentTickets();
-      else App.renderSupportTickets();
     } catch { showToast('تعذّر الإرسال'); }
+    finally { btn.disabled = false; }
   },
 
   async resolveTicket() {
@@ -1736,15 +1829,31 @@ const App = {
     try {
       await apiFetch(`/tickets/${App._currentTicketId}`, { method:'PATCH', body: JSON.stringify({ status:'resolved' }) });
       App.closeTicketDetail();
-      showToast('تم تعيين التذكرة كمحلولة ✅');
+      showToast('تم إغلاق التذكرة ✅');
       App.renderSupportTickets();
     } catch { showToast('تعذّر التحديث'); }
   },
 
-  // ── Support Admin (Developer Page) ──────────────────────────────────────
+  async studentCloseTicket() {
+    if (!App._currentTicketId) return;
+    try {
+      await apiFetch(`/tickets/${App._currentTicketId}`, { method:'PATCH', body: JSON.stringify({ status:'resolved' }) });
+      App._ticketStatus = 'resolved';
+      document.getElementById('td-student-close-btn').style.display = 'none';
+      document.getElementById('td-reply-area').style.display = 'none';
+      document.getElementById('td-rating-area').style.display = 'block';
+      document.getElementById('td-status-badge').innerHTML = '<span class="tbadge-resolved">تم الحل</span>';
+      showToast('تم إغلاق الطلب ✔');
+      App.loadStudentTickets();
+    } catch { showToast('تعذّر التحديث'); }
+  },
+
+  // ── Support Admin ────────────────────────────────────────────────────────
+  _supportAllTickets: [],
+
   async supportAdminLogin() {
-    const key    = document.getElementById('sp-login-key').value.trim();
-    const errEl  = document.getElementById('sp-login-err');
+    const key   = document.getElementById('sp-login-key').value.trim();
+    const errEl = document.getElementById('sp-login-err');
     if (key !== 'learngate-dev-2026') { showAlert(errEl, 'مفتاح الدخول غير صحيح'); return; }
     State.role = 'support';
     startIdleWatch();
@@ -1755,6 +1864,7 @@ const App = {
   setSupportTab(tab) {
     document.querySelectorAll('#screen-support-admin .tab-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.tab === tab));
+    document.getElementById('support-filter-bar').style.display = tab === 'sa-tickets' ? 'flex' : 'none';
     if (tab === 'sa-tickets') App.renderSupportTickets();
     else App.renderSupportMessages();
   },
@@ -1763,26 +1873,65 @@ const App = {
     const listEl = document.getElementById('support-admin-list');
     listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جاري التحميل...</div>';
     try {
-      const { tickets } = await apiFetch('/tickets');
-      if (!tickets.length) { listEl.innerHTML = '<div class="chat-empty" style="padding:40px 0;">لا توجد تذاكر دعم</div>'; return; }
-      listEl.innerHTML = tickets.map(t => {
-        const badgeCls = t.status === 'open' ? 'tbadge-open' : t.status === 'in_progress' ? 'tbadge-progress' : 'tbadge-resolved';
-        const badgeTxt = t.status === 'open' ? 'مفتوح' : t.status === 'in_progress' ? 'قيد المعالجة' : 'تم الحل';
-        const date = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short' });
-        return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}', 'admin')">
-          <div class="ticket-card-top">
-            <div class="ticket-subject">${t.subject}</div>
-            <span class="${badgeCls}">${badgeTxt}</span>
-          </div>
-          <div class="ticket-meta">${t.student_name} · ${t.school} · ${date}</div>
-        </div>`;
-      }).join('');
+      const [{ tickets }, stats] = await Promise.all([
+        apiFetch('/tickets'),
+        apiFetch('/tickets/stats').catch(() => ({})),
+      ]);
+      App._supportAllTickets = tickets;
+
+      // Stats bar
+      const sb = document.getElementById('support-stats-bar');
+      if (sb && stats.total !== undefined) {
+        sb.innerHTML = `
+          <div class="stat-card"><div class="stat-num">${stats.total}</div><div class="stat-label">إجمالي</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:#1e40af;">${stats.open || 0}</div><div class="stat-label">جديد</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:#92400e;">${stats.inProgress || 0}</div><div class="stat-label">معالجة</div></div>
+          <div class="stat-card urgent"><div class="stat-num">${stats.urgent || 0}</div><div class="stat-label">🚨 عاجل</div></div>`;
+      }
+
+      App._renderSupportList(tickets);
     } catch {
       listEl.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;">تعذّر التحميل</div>';
     }
   },
 
+  filterSupportTickets(filter) {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.toggle('active', c.dataset.filter === filter));
+    let list = App._supportAllTickets;
+    if (filter === 'open')        list = list.filter(t => t.status === 'open');
+    else if (filter === 'in_progress') list = list.filter(t => t.status === 'in_progress');
+    else if (filter === 'resolved')    list = list.filter(t => t.status === 'resolved');
+    else if (filter === 'urgent')      list = list.filter(t => t.priority === 'عالية' && t.status !== 'resolved');
+    App._renderSupportList(list);
+  },
+
+  _renderSupportList(tickets) {
+    const listEl = document.getElementById('support-admin-list');
+    if (!tickets.length) { listEl.innerHTML = '<div class="chat-empty" style="padding:40px 0;text-align:center;">لا توجد تذاكر في هذا التصنيف</div>'; return; }
+    const statusMap = { open: ['tbadge-open','مفتوح'], in_progress: ['tbadge-progress','قيد المعالجة'], resolved: ['tbadge-resolved','تم الحل'], rejected: ['tbadge-rejected','مرفوض'] };
+    listEl.innerHTML = tickets.map(t => {
+      const [badgeCls, badgeTxt] = statusMap[t.status] || ['tbadge-open','مفتوح'];
+      const date = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short' });
+      const prioIcon = t.priority === 'عالية' ? '🚨 ' : t.priority === 'منخفضة' ? '🟢 ' : '🟡 ';
+      return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}','admin')">
+        <div class="ticket-card-top">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <span class="ticket-num-badge">${t.ticket_num || '—'}</span>
+            <div class="ticket-subject">${t.subject}</div>
+          </div>
+          <span class="${badgeCls}" style="flex-shrink:0;">${badgeTxt}</span>
+        </div>
+        <div class="ticket-card-footer">
+          ${t.category ? `<span class="cat-chip">${t.category}</span>` : ''}
+          ${t.priority ? `<span style="font-size:11px;">${prioIcon}${t.priority}</span>` : ''}
+          <span style="font-size:11px;color:var(--muted);margin-right:auto;">${t.student_name} · ${t.school || ''} · ${date}</span>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
   async renderSupportMessages() {
+    document.getElementById('support-filter-bar').style.display = 'none';
     const listEl = document.getElementById('support-admin-list');
     listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جاري التحميل...</div>';
     try {

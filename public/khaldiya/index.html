@@ -482,9 +482,17 @@
     <button class="topbar-back" onclick="App.logout()" style="font-size:14px;">خروج</button>
   </div>
   <div class="page-wrap">
+    <div id="support-stats-bar" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;"></div>
     <div class="tabs">
       <button class="tab-btn active" data-tab="sa-tickets" onclick="App.setSupportTab('sa-tickets')">🎫 التذاكر</button>
       <button class="tab-btn" data-tab="sa-messages" onclick="App.setSupportTab('sa-messages')">💬 الرسائل</button>
+    </div>
+    <div id="support-filter-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="filter-chip active" data-filter="all" onclick="App.filterSupportTickets('all')">الكل</button>
+      <button class="filter-chip" data-filter="open" onclick="App.filterSupportTickets('open')">🔵 جديد</button>
+      <button class="filter-chip" data-filter="in_progress" onclick="App.filterSupportTickets('in_progress')">🟡 معالجة</button>
+      <button class="filter-chip" data-filter="resolved" onclick="App.filterSupportTickets('resolved')">🟢 محلول</button>
+      <button class="filter-chip" data-filter="urgent" onclick="App.filterSupportTickets('urgent')">🚨 عاجل</button>
     </div>
     <div id="support-admin-list"></div>
   </div>
@@ -1292,14 +1300,35 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="new-ticket-modal" class="modal-overlay" onclick="if(event.target===this)App.closeNewTicketModal()">
   <div class="modal-box">
-    <div class="modal-title">طلب دعم جديد 🎫</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="modal-title" style="margin:0;">طلب دعم جديد 🎫</div>
+      <span id="nt-ticket-num" style="font-family:monospace;font-size:12px;font-weight:800;background:#f0f4ff;color:var(--primary);padding:3px 12px;border-radius:20px;"></span>
+    </div>
     <div class="form-group">
-      <label class="form-label">الموضوع</label>
+      <label class="form-label">تصنيف المشكلة <span style="color:var(--danger)">*</span></label>
+      <select id="nt-category" class="form-input">
+        <option value="تسجيل دخول">🔐 تسجيل دخول</option>
+        <option value="مشكلة تقنية">⚙️ مشكلة تقنية</option>
+        <option value="حساب وصلاحيات">👤 حساب وصلاحيات</option>
+        <option value="طلب ميزة">✨ طلب ميزة</option>
+        <option value="أخرى" selected>📋 أخرى</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">أولوية الطلب</label>
+      <div class="priority-chips">
+        <label class="priority-chip prio-low"><input type="radio" name="nt-priority" value="منخفضة"> منخفضة</label>
+        <label class="priority-chip"><input type="radio" name="nt-priority" value="متوسطة" checked> متوسطة</label>
+        <label class="priority-chip prio-high"><input type="radio" name="nt-priority" value="عالية"> 🚨 عالية</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">الموضوع <span style="color:var(--danger)">*</span></label>
       <input type="text" id="nt-subject" class="form-input" placeholder="مثال: مشكلة في تسجيل الدخول">
     </div>
     <div class="form-group">
       <label class="form-label">تفاصيل المشكلة</label>
-      <textarea id="nt-body" class="form-input" rows="4" placeholder="اشرح المشكلة بالتفصيل..." style="resize:vertical;"></textarea>
+      <textarea id="nt-body" class="form-input" rows="3" placeholder="اشرح المشكلة بالتفصيل..." style="resize:vertical;"></textarea>
     </div>
     <div id="nt-err" class="alert alert-error"></div>
     <div class="modal-actions">
@@ -1310,23 +1339,41 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
-     MODAL: TICKET DETAIL
+     MODAL: TICKET DETAIL (CHAT)
 ═══════════════════════════════════════════════════════ -->
 <div id="ticket-detail-modal" class="modal-overlay" onclick="if(event.target===this)App.closeTicketDetail()">
-  <div class="modal-box">
-    <div class="modal-title" id="td-subject"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div class="modal-sub" id="td-meta"></div>
-      <span id="td-status-badge"></span>
+  <div class="modal-box modal-box-chat">
+    <!-- Header -->
+    <div class="ticket-detail-header">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:800;" id="td-subject"></div>
+          <div class="ticket-meta-chips" id="td-meta-chips"></div>
+        </div>
+        <span id="td-status-badge" style="flex-shrink:0;margin-top:2px;"></span>
+      </div>
     </div>
-    <div class="ticket-thread" id="td-thread"></div>
-    <div id="td-reply-area">
-      <textarea id="td-reply-input" class="form-input" rows="3"
-                placeholder="اكتب ردك هنا..." style="resize:vertical;margin-bottom:10px;"></textarea>
-      <div class="modal-actions">
-        <button class="btn btn-primary" id="td-send-btn" onclick="App.sendTicketReply()">إرسال الرد</button>
-        <button class="btn btn-outline" id="td-resolve-btn" style="display:none;" onclick="App.resolveTicket()">✅ تم الحل</button>
-        <button class="btn btn-outline" onclick="App.closeTicketDetail()">إغلاق</button>
+    <!-- Chat -->
+    <div class="ticket-chat" id="td-thread"></div>
+    <!-- Rating (shown after resolve for student) -->
+    <div id="td-rating-area" style="display:none;background:#fffbeb;border-top:1px solid #fde68a;padding:12px 16px;text-align:center;flex-shrink:0;">
+      <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px;">قيّم جودة الخدمة</div>
+      <div class="star-rating" id="td-stars" style="font-size:26px;">
+        <span onclick="App.rateTicket(1)">☆</span>
+        <span onclick="App.rateTicket(2)">☆</span>
+        <span onclick="App.rateTicket(3)">☆</span>
+        <span onclick="App.rateTicket(4)">☆</span>
+        <span onclick="App.rateTicket(5)">☆</span>
+      </div>
+    </div>
+    <!-- Reply footer -->
+    <div id="td-reply-area" class="ticket-reply-footer">
+      <textarea id="td-reply-input" class="form-input" rows="2" placeholder="اكتب ردك هنا..." style="resize:none;margin-bottom:8px;"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+        <button class="btn btn-outline" style="font-size:13px;" onclick="App.closeTicketDetail()">إغلاق</button>
+        <button class="btn btn-outline" id="td-student-close-btn" style="display:none;font-size:13px;" onclick="App.studentCloseTicket()">✔ تم الحل</button>
+        <button class="btn btn-outline" id="td-resolve-btn" style="display:none;font-size:13px;" onclick="App.resolveTicket()">✅ حل التذكرة</button>
+        <button class="btn btn-primary" id="td-send-btn" style="font-size:13px;" onclick="App.sendTicketReply()">إرسال</button>
       </div>
     </div>
   </div>

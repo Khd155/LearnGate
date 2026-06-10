@@ -612,14 +612,46 @@ export async function onRequest({ request, env }) {
 
     // ── TICKETS ──────────────────────────────────────────────────────────────
     if (resource === 'tickets') {
+      // Idempotent schema migrations
+      try { await DB.prepare('ALTER TABLE tickets ADD COLUMN category TEXT NOT NULL DEFAULT "أخرى"').run(); } catch {}
+      try { await DB.prepare('ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT "متوسطة"').run(); } catch {}
+      try { await DB.prepare('ALTER TABLE tickets ADD COLUMN ticket_num TEXT NOT NULL DEFAULT ""').run(); } catch {}
+      try { await DB.prepare('ALTER TABLE tickets ADD COLUMN rating INTEGER DEFAULT 0').run(); } catch {}
+      try { await DB.prepare('ALTER TABLE ticket_replies ADD COLUMN is_read INTEGER DEFAULT 0').run(); } catch {}
 
-      // GET /api/tickets?studentId=X — student's tickets
-      // GET /api/tickets?school=X    — all school tickets (admin)
+      // GET /api/tickets/stats
+      if (method === 'GET' && sub === 'stats') {
+        const [total, openC, progC, resolvedC, urgentC] = await Promise.all([
+          DB.prepare('SELECT COUNT(*) as c FROM tickets').first(),
+          DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE status='open'").first(),
+          DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE status='in_progress'").first(),
+          DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE status='resolved'").first(),
+          DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE priority='عالية' AND status!='resolved'").first(),
+        ]);
+        const today = new Date().toISOString().split('T')[0];
+        const todayC = await DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE created_at LIKE ?").bind(today + '%').first();
+        const { results: topCats } = await DB.prepare("SELECT category, COUNT(*) as cnt FROM tickets GROUP BY category ORDER BY cnt DESC LIMIT 3").all();
+        return ok({ total: total?.c||0, open: openC?.c||0, inProgress: progC?.c||0, resolved: resolvedC?.c||0, urgent: urgentC?.c||0, today: todayC?.c||0, topCategories: topCats });
+      }
+
+      // GET /api/tickets/unread?studentId=X
+      if (method === 'GET' && sub === 'unread') {
+        const studentId = url.searchParams.get('studentId');
+        if (!studentId) return err('missing studentId');
+        const row = await DB.prepare(
+          "SELECT COUNT(*) as count FROM ticket_replies tr JOIN tickets t ON tr.ticket_id=t.id WHERE t.student_id=? AND tr.sender_type='admin' AND tr.is_read=0"
+        ).bind(studentId).first();
+        return ok({ count: row?.count || 0 });
+      }
+
+      // GET /api/tickets?studentId=X or ?school=X
       if (method === 'GET' && !sub) {
         const studentId = url.searchParams.get('studentId');
         let q, params;
         if (studentId) {
-          q = 'SELECT * FROM tickets WHERE student_id=? ORDER BY created_at DESC';
+          q = `SELECT t.*,
+            (SELECT COUNT(*) FROM ticket_replies tr WHERE tr.ticket_id=t.id AND tr.sender_type='admin' AND tr.is_read=0) as unread_count
+            FROM tickets t WHERE t.student_id=? ORDER BY t.created_at DESC`;
           params = [studentId];
         } else {
           q = school
@@ -643,19 +675,29 @@ export async function onRequest({ request, env }) {
 
       // POST /api/tickets — create ticket
       if (method === 'POST' && !sub) {
-        const { studentId, studentName, subject, body, school: bodySchool } = await request.json();
+        const { studentId, studentName, subject, body, school: bodySchool, category, priority } = await request.json();
         if (!studentId || !subject || !body) return err('missing fields');
         const effectiveSchool = school || bodySchool || '';
+        const countRow = await DB.prepare('SELECT COUNT(*) as c FROM tickets').first();
+        const ticketNum = 'T-' + String(((countRow?.c) || 0) + 1).padStart(5, '0');
         const tid = crypto.randomUUID();
         const rid = crypto.randomUUID();
         const now = new Date().toISOString();
         await DB.prepare(
-          'INSERT INTO tickets (id, student_id, student_name, school, subject, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-        ).bind(tid, studentId, studentName || '', effectiveSchool, subject, 'open', now).run();
+          'INSERT INTO tickets (id, student_id, student_name, school, subject, status, category, priority, ticket_num, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(tid, studentId, studentName||'', effectiveSchool, subject, 'open', category||'أخرى', priority||'متوسطة', ticketNum, now).run();
         await DB.prepare(
-          'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, created_at) VALUES (?, ?, ?, ?, ?)'
-        ).bind(rid, tid, 'student', body, now).run();
-        return ok({ ticket: { id: tid, student_id: studentId, student_name: studentName, school: effectiveSchool, subject, status: 'open', created_at: now } }, 201);
+          'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(rid, tid, 'student', body, 1, now).run();
+        return ok({ ticket: { id: tid, subject, status: 'open', category: category||'أخرى', priority: priority||'متوسطة', ticket_num: ticketNum, created_at: now } }, 201);
+      }
+
+      // POST /api/tickets/:id/read — mark replies as read
+      if (method === 'POST' && sub && subsub === 'read') {
+        const { readerType } = await request.json();
+        const markSender = readerType === 'student' ? 'admin' : 'student';
+        await DB.prepare("UPDATE ticket_replies SET is_read=1 WHERE ticket_id=? AND sender_type=?").bind(sub, markSender).run();
+        return ok({ ok: true });
       }
 
       // POST /api/tickets/:id/reply — add reply
@@ -665,20 +707,24 @@ export async function onRequest({ request, env }) {
         const id  = crypto.randomUUID();
         const now = new Date().toISOString();
         await DB.prepare(
-          'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, created_at) VALUES (?, ?, ?, ?, ?)'
-        ).bind(id, sub, senderType, body, now).run();
+          'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(id, sub, senderType, body, senderType === 'admin' ? 0 : 1, now).run();
         if (senderType === 'admin') {
-          await DB.prepare(
-            "UPDATE tickets SET status='in_progress' WHERE id=? AND status='open'"
-          ).bind(sub).run();
+          await DB.prepare("UPDATE tickets SET status='in_progress' WHERE id=? AND status='open'").bind(sub).run();
         }
         return ok({ reply: { id, ticket_id: sub, sender_type: senderType, body, created_at: now } }, 201);
       }
 
-      // PATCH /api/tickets/:id — update status
+      // PATCH /api/tickets/:id — update status or rating
       if (method === 'PATCH' && sub && !subsub) {
-        const { status } = await request.json();
-        if (!['open','in_progress','resolved'].includes(status)) return err('invalid status');
+        const body = await request.json();
+        if (body.rating !== undefined) {
+          await DB.prepare('UPDATE tickets SET rating=? WHERE id=?').bind(body.rating, sub).run();
+          const t = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
+          return ok({ ticket: t });
+        }
+        const { status } = body;
+        if (!['open','in_progress','resolved','rejected'].includes(status)) return err('invalid status');
         await DB.prepare('UPDATE tickets SET status=? WHERE id=?').bind(status, sub).run();
         const t = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
         return ok({ ticket: t });

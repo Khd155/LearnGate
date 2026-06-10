@@ -727,6 +727,54 @@ p, span, div, button, input, label, td, th {
 .thread-msg.admin .thread-msg-who { color: var(--accent); }
 .thread-msg-time { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
+/* ── Enhanced Ticket System ───────────────────────────── */
+.tbadge-rejected { background: #fee2e2; color: #991b1b; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+.ticket-num-badge { font-family: monospace; font-size: 11px; font-weight: 700; color: var(--muted); background: #f1f5f9; padding: 2px 8px; border-radius: 4px; }
+.cat-chip { font-size: 10px; font-weight: 700; background: #f0f4ff; color: #4f46e5; padding: 2px 8px; border-radius: 10px; }
+.prio-chip-low  { font-size: 10px; font-weight: 700; color: #166534; }
+.prio-chip-med  { font-size: 10px; font-weight: 700; color: #92400e; }
+.prio-chip-high { font-size: 10px; font-weight: 700; color: #991b1b; }
+.unread-dot { font-size: 10px; font-weight: 800; color: #dc2626; }
+.ticket-card-footer { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 7px; }
+
+/* Priority radio chips */
+.priority-chips { display: flex; gap: 8px; }
+.priority-chip { flex: 1; text-align: center; padding: 8px 6px; border-radius: 8px; border: 2px solid var(--border); cursor: pointer; font-weight: 700; font-size: 13px; transition: all .2s; font-family: inherit; background: white; }
+.priority-chip input { display: none; }
+.priority-chip:has(input:checked) { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
+.priority-chip.prio-high:has(input:checked) { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+.priority-chip.prio-low:has(input:checked) { border-color: #16a34a; background: #f0fdf4; color: #16a34a; }
+
+/* Chat-style ticket detail modal */
+.modal-box-chat { max-height: 90vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.ticket-detail-header { padding: 16px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface); }
+.ticket-chat { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-height: 180px; }
+.chat-bubble-wrap { display: flex; }
+.chat-bubble-wrap.student { justify-content: flex-start; }
+.chat-bubble-wrap.admin   { justify-content: flex-end; }
+.chat-bubble { max-width: 82%; border-radius: 14px; padding: 10px 14px; font-size: 13.5px; line-height: 1.65; }
+.chat-bubble-wrap.student .chat-bubble { background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 4px 14px 14px 14px; }
+.chat-bubble-wrap.admin .chat-bubble   { background: var(--primary); color: #fff; border-radius: 14px 4px 14px 14px; }
+.chat-label { font-size: 11px; font-weight: 800; margin-bottom: 3px; color: var(--primary); }
+.chat-bubble-wrap.admin .chat-label { color: rgba(255,255,255,.7); }
+.chat-time { font-size: 10px; color: rgba(0,0,0,.35); margin-top: 4px; text-align: left; }
+.chat-bubble-wrap.admin .chat-time { color: rgba(255,255,255,.55); text-align: right; }
+.ticket-reply-footer { border-top: 1px solid var(--border); padding: 12px 16px; flex-shrink: 0; background: var(--surface); }
+.ticket-meta-chips { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.star-rating span { cursor: pointer; transition: transform .1s; display: inline-block; }
+.star-rating span:hover, .star-rating span.lit { transform: scale(1.2); }
+
+/* Support admin stats */
+.stat-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 10px 8px; text-align: center; }
+.stat-num { font-size: 22px; font-weight: 900; color: var(--primary); line-height: 1.1; }
+.stat-label { font-size: 10px; color: var(--muted); margin-top: 3px; }
+.stat-card.urgent .stat-num { color: #dc2626; }
+.stat-card.success .stat-num { color: #16a34a; }
+
+/* Filter chips */
+.filter-chip { padding: 5px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: white; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; color: var(--text); transition: all .2s; }
+.filter-chip.active { background: var(--primary); border-color: var(--primary); color: white; }
+
 /* ── Student Detail Modal ────────────────────────────── */
 #student-detail-modal .modal-box { max-width: 680px; padding: 0; overflow: hidden; }
 .sdm-header {

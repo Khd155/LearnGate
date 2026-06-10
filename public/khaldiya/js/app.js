@@ -259,6 +259,12 @@ const App = {
     State.student = student;
     State.role = 'student';
     if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
+    const remember = document.getElementById('sl-remember');
+    if (remember && remember.checked) {
+      localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code }));
+    } else {
+      localStorage.removeItem('lg_remember');
+    }
     startIdleWatch();
     App.renderStudentHome();
     show('screen-student-home');
@@ -288,6 +294,12 @@ const App = {
     State.role  = admin.role === 'director' ? 'director' : 'admin';
     State.admin = admin;
     if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
+    const alRemember = document.getElementById('al-remember');
+    if (alRemember && alRemember.checked) {
+      localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code }));
+    } else {
+      localStorage.removeItem('lg_remember');
+    }
     startIdleWatch();
     // Show director-only tabs
     document.querySelectorAll('.director-tab').forEach(el => {
@@ -1971,6 +1983,7 @@ const App = {
     App.stopCooldownTimer();
     clearInterval(App._chatTimer);
     stopIdleWatch();
+    localStorage.removeItem('lg_remember');
     State.student     = null;
     State.role        = null;
     State.admin       = null;
@@ -2024,4 +2037,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('selfdiag-submit');
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
   DB.loadQuestions().catch(() => {});
+
+  // Auto-login if remember me was checked
+  try {
+    const saved = localStorage.getItem('lg_remember');
+    if (saved) {
+      const { role, code } = JSON.parse(saved);
+      if (role === 'student') {
+        const input = document.getElementById('sl-code');
+        const cb    = document.getElementById('sl-remember');
+        if (input) input.value = code;
+        if (cb)    cb.checked  = true;
+        App.studentLogin();
+      } else if (role === 'admin') {
+        const input = document.getElementById('al-code');
+        const cb    = document.getElementById('al-remember');
+        if (input) input.value = code;
+        if (cb)    cb.checked  = true;
+        App.adminLogin();
+      }
+    }
+  } catch (e) {
+    localStorage.removeItem('lg_remember');
+  }
 });

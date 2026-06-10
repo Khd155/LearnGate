@@ -364,6 +364,11 @@
           </div>
         </div>
 
+        <div style="background:#e8f4ee;border:1.5px solid #86efac;border-radius:10px;padding:14px 16px;margin-top:16px;">
+          <p style="margin-bottom:10px;">📥 <strong>تحميل الأسئلة الأصلية (50 سؤال)</strong> — الأسئلة المدمجة في الموقع</p>
+          <button class="btn btn-primary" onclick="Dev.seedQuestions()">📥 تحميل الأسئلة الأصلية</button>
+          <span id="seed-result" style="margin-right:12px;font-size:13px;color:#15803d;"></span>
+        </div>
         <div class="danger-box" style="margin-top:16px">
           <p>🗑️ <strong>مسح بنك الأسئلة كاملاً</strong> — سيتم استخدام الأسئلة الافتراضية</p>
           <button class="btn btn-danger" onclick="Dev.clearQuestions()">🗑️ مسح كل الأسئلة</button>
@@ -737,6 +742,20 @@ const Dev = {
     await apiDev('/dev/students?school=' + encodeURIComponent(school), { method: 'DELETE' });
     showToast('تم الحذف ✅');
     Dev.loadStats();
+  },
+
+  async seedQuestions() {
+    const btn = document.querySelector('[onclick="Dev.seedQuestions()"]');
+    btn.disabled = true; btn.textContent = '⏳ جارٍ التحميل…';
+    try {
+      const { added, skipped } = await apiDev('/dev/seed-questions', { method: 'POST' });
+      document.getElementById('seed-result').textContent = `✅ تمت إضافة ${added} سؤال${skipped ? ' (تجاهل ' + skipped + ' موجود)' : ''}`;
+      Dev.loadQuestions();
+    } catch (e) {
+      document.getElementById('seed-result').textContent = '❌ ' + e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = '📥 تحميل الأسئلة الأصلية';
+    }
   },
 
   async clearQuestions() {

@@ -1129,7 +1129,7 @@
     <!-- Director: Questions tab -->
     <div id="tab-questions" style="display:none;margin-bottom:20px;">
       <div class="card" style="margin-bottom:16px;">
-        <div class="card-title-sm">📝 استيراد أسئلة الاختبار من Excel</div>
+        <div class="card-title-sm">📝 استيراد أسئلة من Excel</div>
         <p style="font-size:13px;color:var(--muted);margin:6px 0 12px;line-height:1.7;">
           حمّل القالب وعبّئ الأسئلة. عند الرفع تُستبدل أسئلة الاختبار الحالية.
         </p>
@@ -1140,6 +1140,35 @@
           <input type="file" id="imp-questions" accept=".xlsx,.xls"
                  onchange="App.importQuestions(this)">
         </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
+          <div style="font-weight:800;font-size:15px;">📋 الأسئلة الحالية</div>
+          <span id="q-count-badge" class="student-badge sbadge-active" style="font-size:12px;"></span>
+        </div>
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="q-search" class="form-input" placeholder="🔍 ابحث في الأسئلة…"
+                 style="flex:1;min-width:180px;padding:7px 12px;font-size:13px;"
+                 oninput="App.filterQuestions()">
+          <select id="q-filter-type" class="form-input" style="width:130px;padding:7px 10px;font-size:13px;" onchange="App.filterQuestions()">
+            <option value="">كل الأنواع</option>
+            <option value="verbal">لفظي</option>
+            <option value="quantitative">كمي</option>
+          </select>
+          <select id="q-filter-skill" class="form-input" style="width:160px;padding:7px 10px;font-size:13px;" onchange="App.filterQuestions()">
+            <option value="">كل المهارات</option>
+            <option value="v1">v1 — الاستيعاب القرائي</option>
+            <option value="v2">v2 — التحليل اللغوي</option>
+            <option value="v3">v3 — المفردة الشاذة</option>
+            <option value="v4">v4 — التناسب اللفظي</option>
+            <option value="v5">v5 — إكمال الجمل</option>
+            <option value="q1">q1 — الحساب</option>
+            <option value="q2">q2 — الجبر</option>
+            <option value="q3">q3 — الهندسة</option>
+            <option value="q4">q4 — المقارنات الكمية</option>
+          </select>
+        </div>
+        <div id="questions-list" style="max-height:520px;overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -1175,6 +1204,57 @@
     <div class="modal-sub">اختر المشرف الذي تريد التواصل معه</div>
     <div id="supervisor-list" style="display:flex;flex-direction:column;gap:10px;margin:16px 0;"></div>
     <button class="btn btn-outline btn-full" onclick="document.getElementById('supervisor-select-modal').classList.remove('open')">إلغاء</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: EDIT QUESTION
+═══════════════════════════════════════════════════════ -->
+<div id="edit-q-modal" class="modal-overlay" onclick="if(event.target===this)App.closeEditQuestion()">
+  <div class="modal-box" style="max-width:560px;width:calc(100% - 32px);">
+    <div class="modal-title">✏️ تعديل السؤال</div>
+    <input type="hidden" id="eq-id">
+    <div class="form-group" style="margin-top:14px;">
+      <label class="form-label">رقم السؤال</label>
+      <input type="number" id="eq-qnum" class="form-input" min="1">
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">النوع</label>
+        <select id="eq-type" class="form-input">
+          <option value="verbal">لفظي</option>
+          <option value="quantitative">كمي</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">رمز المهارة</label>
+        <select id="eq-skill" class="form-input">
+          <option value="v1">v1</option><option value="v2">v2</option>
+          <option value="v3">v3</option><option value="v4">v4</option>
+          <option value="v5">v5</option><option value="q1">q1</option>
+          <option value="q2">q2</option><option value="q3">q3</option>
+          <option value="q4">q4</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">نص السؤال</label>
+      <textarea id="eq-text" class="admin-note" rows="3" placeholder="اكتب السؤال هنا…"></textarea>
+    </div>
+    <div id="eq-options" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+    <div class="form-group">
+      <label class="form-label">الإجابة الصحيحة</label>
+      <select id="eq-ans" class="form-input">
+        <option value="0">الخيار 1</option>
+        <option value="1">الخيار 2</option>
+        <option value="2">الخيار 3</option>
+        <option value="3">الخيار 4</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-success" onclick="App.saveQuestion()">💾 حفظ التعديلات</button>
+      <button class="btn btn-outline" onclick="App.closeEditQuestion()">إلغاء</button>
+    </div>
   </div>
 </div>
 

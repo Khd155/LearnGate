@@ -843,6 +843,7 @@ const App = {
     document.getElementById('tab-questions').style.display   = tab === 'questions'   ? 'block' : 'none';
     if (tab === 'stats')       { App.renderAdminDashboard(tab); App.renderAdminStats(); return; }
     if (tab === 'supervisors') { App.renderAdminDashboard(tab); App.loadSupervisors(); return; }
+    if (tab === 'questions')   { App.renderAdminDashboard(tab); App.loadQuestions(); return; }
     App.renderAdminDashboard(tab);
   },
 
@@ -905,6 +906,132 @@ const App = {
       await apiFetch(`/director/admins/${adminId}?school=${school}&director_code=${code}`, { method: 'DELETE' });
       showToast('تم حذف المشرف');
       App.loadSupervisors();
+    } catch (e) {
+      showToast('تعذّر الحذف: ' + (e.message || ''));
+    }
+  },
+
+  // ── Director: Questions Management ───────────────────────────────────────
+  _allQuestions: [],
+
+  async loadQuestions() {
+    const listEl  = document.getElementById('questions-list');
+    const badgeEl = document.getElementById('q-count-badge');
+    if (!listEl) return;
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">جاري التحميل…</div>';
+    try {
+      const data = await apiFetch('/questions');
+      App._allQuestions = data.questions || [];
+      if (badgeEl) badgeEl.textContent = App._allQuestions.length + ' سؤال';
+      App.renderQuestionsList(App._allQuestions);
+    } catch (e) {
+      listEl.innerHTML = '<div style="padding:16px;color:var(--danger);">تعذّر التحميل</div>';
+    }
+  },
+
+  renderQuestionsList(questions) {
+    const listEl = document.getElementById('questions-list');
+    if (!listEl) return;
+    if (!questions.length) {
+      listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);">لا توجد أسئلة</div>';
+      return;
+    }
+    const typeLabel = { verbal: 'لفظي', quantitative: 'كمي' };
+    listEl.innerHTML = questions.map(q => `
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);">
+        <div style="min-width:36px;height:36px;border-radius:8px;background:var(--primary);color:#fff;
+                    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">
+          ${q.qnum}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13.5px;font-weight:600;margin-bottom:5px;line-height:1.6;">${q.text}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);">
+            <span style="background:#eaf2f9;color:var(--primary);border-radius:99px;padding:2px 10px;font-weight:700;">${q.skill_id}</span>
+            <span style="background:#f1f5f9;border-radius:99px;padding:2px 10px;">${typeLabel[q.type] || q.type}</span>
+            <span style="background:#dcfce7;color:#15803d;border-radius:99px;padding:2px 10px;">✓ ${['1','2','3','4'][q.ans]}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="App.openEditQuestion('${q.id}')">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="App.deleteQuestion('${q.id}', ${q.qnum})">🗑</button>
+        </div>
+      </div>`).join('');
+  },
+
+  filterQuestions() {
+    const search = (document.getElementById('q-search')?.value || '').toLowerCase();
+    const type   = document.getElementById('q-filter-type')?.value || '';
+    const skill  = document.getElementById('q-filter-skill')?.value || '';
+    const filtered = App._allQuestions.filter(q =>
+      (!search || q.text.toLowerCase().includes(search) || String(q.qnum).includes(search)) &&
+      (!type  || q.type === type) &&
+      (!skill || q.skill_id === skill)
+    );
+    App.renderQuestionsList(filtered);
+  },
+
+  openEditQuestion(id) {
+    const q = App._allQuestions.find(x => x.id === id);
+    if (!q) return;
+    document.getElementById('eq-id').value    = q.id;
+    document.getElementById('eq-qnum').value  = q.qnum;
+    document.getElementById('eq-type').value  = q.type;
+    document.getElementById('eq-skill').value = q.skill_id;
+    document.getElementById('eq-text').value  = q.text;
+    document.getElementById('eq-ans').value   = q.ans;
+    const opts = document.getElementById('eq-options');
+    opts.innerHTML = ['opt1','opt2','opt3','opt4'].map((k, i) => `
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="min-width:22px;font-weight:700;color:var(--primary);">${i+1}.</span>
+        <input type="text" id="eq-${k}" class="form-input" value="${q[k] || ''}" placeholder="الخيار ${i+1}" style="flex:1;font-size:13px;">
+      </div>`).join('');
+    document.getElementById('edit-q-modal').classList.add('open');
+  },
+
+  closeEditQuestion() {
+    document.getElementById('edit-q-modal').classList.remove('open');
+  },
+
+  async saveQuestion() {
+    const id     = document.getElementById('eq-id').value;
+    const qnum   = parseInt(document.getElementById('eq-qnum').value);
+    const type   = document.getElementById('eq-type').value;
+    const skill_id = document.getElementById('eq-skill').value;
+    const text   = document.getElementById('eq-text').value.trim();
+    const opt1   = document.getElementById('eq-opt1').value.trim();
+    const opt2   = document.getElementById('eq-opt2').value.trim();
+    const opt3   = document.getElementById('eq-opt3').value.trim();
+    const opt4   = document.getElementById('eq-opt4').value.trim();
+    const ans    = parseInt(document.getElementById('eq-ans').value);
+    if (!text || !opt1 || !opt2 || !opt3 || !opt4) { showToast('أكمل جميع الحقول'); return; }
+    try {
+      const school = encodeURIComponent(State.school || '');
+      const code   = encodeURIComponent(State.admin.code);
+      await apiFetch(`/director/questions/${id}?school=${school}&director_code=${code}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans })
+      });
+      // Update local cache
+      const idx = App._allQuestions.findIndex(x => x.id === id);
+      if (idx >= 0) App._allQuestions[idx] = { ...App._allQuestions[idx], qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans };
+      App.closeEditQuestion();
+      App.filterQuestions();
+      showToast('تم حفظ التعديلات ✅');
+    } catch (e) {
+      showToast('تعذّر الحفظ: ' + (e.message || ''));
+    }
+  },
+
+  async deleteQuestion(id, qnum) {
+    if (!confirm(`هل تريد حذف السؤال رقم ${qnum}؟`)) return;
+    try {
+      const school = encodeURIComponent(State.school || '');
+      const code   = encodeURIComponent(State.admin.code);
+      await apiFetch(`/director/questions/${id}?school=${school}&director_code=${code}`, { method: 'DELETE' });
+      App._allQuestions = App._allQuestions.filter(x => x.id !== id);
+      document.getElementById('q-count-badge').textContent = App._allQuestions.length + ' سؤال';
+      App.filterQuestions();
+      showToast('تم حذف السؤال');
     } catch (e) {
       showToast('تعذّر الحذف: ' + (e.message || ''));
     }

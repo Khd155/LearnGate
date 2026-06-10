@@ -415,6 +415,25 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true });
       }
 
+      // PATCH /api/director/questions/:id?director_code=Y&school=X — edit one question
+      if (sub === 'questions' && subsub && method === 'PATCH') {
+        const dir = await authDirector(url.searchParams.get('director_code'), school);
+        if (!dir) return err('Unauthorized', 401);
+        const { qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans } = await request.json();
+        await DB.prepare(
+          'UPDATE questions SET qnum=?,type=?,skill_id=?,text=?,opt1=?,opt2=?,opt3=?,opt4=?,ans=? WHERE id=?'
+        ).bind(qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans, subsub).run();
+        return ok({ ok: true });
+      }
+
+      // DELETE /api/director/questions/:id?director_code=Y&school=X — delete one question
+      if (sub === 'questions' && subsub && method === 'DELETE') {
+        const dir = await authDirector(url.searchParams.get('director_code'), school);
+        if (!dir) return err('Unauthorized', 401);
+        await DB.prepare('DELETE FROM questions WHERE id = ?').bind(subsub).run();
+        return ok({ ok: true });
+      }
+
       // POST /api/director/questions — import questions (director auth)
       if (sub === 'questions' && method === 'POST') {
         const body = await request.json();

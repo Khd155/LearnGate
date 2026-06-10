@@ -225,33 +225,15 @@ const App = {
   // ── School Selection ────────────────────────────────────────────────────
   selectSchool(name) {
     State.school = name;
+    App._updateSchoolDisplay(name);
+    show('screen-identity');
+  },
+
+  _updateSchoolDisplay(name) {
     ['id-school-name', 'sh-school-sub', 'ad-school-sub'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = name;
     });
-    show('screen-identity');
-  },
-
-  showOtherSchools() {
-    document.getElementById('school-cards').style.display = 'none';
-    const panel = document.getElementById('other-schools-panel');
-    panel.style.display = 'block';
-    const input = document.getElementById('other-school-input');
-    input.value = '';
-    document.getElementById('other-school-continue').disabled = true;
-    document.getElementById('other-school-continue').style.opacity = '.5';
-    setTimeout(() => input.focus(), 100);
-  },
-
-  hideOtherSchools() {
-    document.getElementById('other-schools-panel').style.display = 'none';
-    document.getElementById('school-cards').style.display = 'flex';
-  },
-
-  submitOtherSchool() {
-    const name = document.getElementById('other-school-input').value.trim();
-    if (!name) return;
-    App.selectSchool(name);
   },
 
   // ── Identity ─────────────────────────────────────────────────────────────
@@ -276,6 +258,7 @@ const App = {
     }
     State.student = student;
     State.role = 'student';
+    if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
     startIdleWatch();
     App.renderStudentHome();
     show('screen-student-home');
@@ -304,6 +287,7 @@ const App = {
     catch (e) { showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return; }
     State.role  = admin.role === 'director' ? 'director' : 'admin';
     State.admin = admin;
+    if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
     startIdleWatch();
     // Show director-only tabs
     document.querySelectorAll('.director-tab').forEach(el => {

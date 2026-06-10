@@ -261,7 +261,7 @@ const App = {
     if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
     const remember = document.getElementById('sl-remember');
     if (remember && remember.checked) {
-      localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code }));
+      localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
     } else {
       localStorage.removeItem('lg_remember');
     }
@@ -296,7 +296,7 @@ const App = {
     if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
     const alRemember = document.getElementById('al-remember');
     if (alRemember && alRemember.checked) {
-      localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code }));
+      localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
     } else {
       localStorage.removeItem('lg_remember');
     }
@@ -1983,7 +1983,6 @@ const App = {
     App.stopCooldownTimer();
     clearInterval(App._chatTimer);
     stopIdleWatch();
-    localStorage.removeItem('lg_remember');
     State.student     = null;
     State.role        = null;
     State.admin       = null;
@@ -2042,7 +2041,8 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const saved = localStorage.getItem('lg_remember');
     if (saved) {
-      const { role, code } = JSON.parse(saved);
+      const { role, code, expiry } = JSON.parse(saved);
+      if (expiry && Date.now() > expiry) { localStorage.removeItem('lg_remember'); return; }
       if (role === 'student') {
         const input = document.getElementById('sl-code');
         const cb    = document.getElementById('sl-remember');

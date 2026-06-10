@@ -219,17 +219,87 @@
 
     .print-only { display:none; }
     @media print {
-      .no-print { display:none !important; }
-      .print-only { display:table-cell !important; }
-      .topbar { display:none !important; }
-      .page-wrap { max-width:100%; padding:10px 20px; }
-      .sp-table, .sp-table th, .sp-table td { border:1px solid #ccc !important; }
-      .sp-table th {
-        background:#e8e8e8 !important; color:#000 !important;
-        -webkit-print-color-adjust:exact; print-color-adjust:exact;
+      @page { margin:1.5cm 1.8cm; size:A4; }
+      * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+      body { font-family:'Cairo','Tajawal',Arial,sans-serif; font-size:11pt; }
+      .no-print  { display:none !important; }
+      .topbar    { display:none !important; }
+      .print-only { display:block !important; }
+      .print-flex { display:flex !important; }
+      .page-wrap  { max-width:100%; padding:0; margin:0; }
+
+      /* ── Print Header ── */
+      .print-header-wrap {
+        display:flex !important; align-items:center; gap:14pt;
+        border-bottom:3px solid #3F7CB8; padding-bottom:12pt; margin-bottom:14pt;
       }
-      .analysis-intro { background:#f5f5f5 !important; border:1px solid #ccc !important; }
-      .gap-score { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .print-logo-area { text-align:center; flex-shrink:0; width:70pt; }
+      .print-logo-area img { width:54pt; height:auto; filter:brightness(0); }
+      .print-logo-area div { font-size:7.5pt; color:#444; margin-top:3pt; }
+      .print-header-center { flex:1; text-align:center; }
+      .print-main-title { font-size:19pt; font-weight:900; color:#1a1a1a; line-height:1.2; }
+      .print-main-sub { font-size:10pt; color:#555; margin-top:3pt; }
+      .print-header-meta { text-align:left; font-size:8.5pt; color:#555; line-height:1.7; }
+
+      /* ── Student Band ── */
+      .print-student-band {
+        background:#f0f7ff !important; border:1px solid #bfdbfe;
+        border-right:4px solid #3F7CB8; border-radius:6pt;
+        padding:8pt 12pt; margin-bottom:12pt;
+        display:flex !important; justify-content:space-between; align-items:center;
+        flex-wrap:wrap; gap:8pt;
+      }
+      .print-student-band span { font-size:10pt; }
+      .print-student-band strong { color:#1e40af; }
+
+      /* ── Intro Box ── */
+      .sp-intro-box {
+        border:1px solid #bfdbfe; border-right:4px solid #3F7CB8;
+        background:#f8faff !important; padding:10pt 14pt;
+        border-radius:6pt; margin-bottom:12pt;
+        page-break-inside:avoid;
+      }
+      .sp-intro-title { font-weight:800; font-size:12pt; color:#1e40af; margin-bottom:7pt; }
+      .sp-intro-text { font-size:10pt; line-height:1.75; color:#222; }
+
+      /* ── Chips ── */
+      .sp-summary-chips { margin-top:10pt; }
+      .sp-chip { display:inline-block !important; padding:3pt 10pt; border-radius:20pt; font-size:9.5pt; font-weight:700; margin:2pt; }
+      .sp-chip-red    { background:#fee2e2 !important; color:#991b1b !important; border:1px solid #fca5a5; }
+      .sp-chip-orange { background:#fef9c3 !important; color:#854d0e !important; border:1px solid #fde68a; }
+      .sp-chip-green  { background:#dcfce7 !important; color:#166534 !important; border:1px solid #86efac; }
+
+      /* ── Section Title ── */
+      .section-heading {
+        font-size:13pt; font-weight:800; color:#1e40af;
+        border-bottom:2px solid #3F7CB8; padding-bottom:5pt; margin-bottom:10pt;
+      }
+
+      /* ── Skills Table ── */
+      .sp-table { width:100%; border-collapse:collapse; margin-top:8pt; font-size:10pt; }
+      .sp-table th {
+        background:#3F7CB8 !important; color:#fff !important;
+        padding:7pt 8pt; text-align:right; border:1px solid #2d5a8a;
+        font-size:10pt; font-weight:800;
+      }
+      .sp-table td { padding:6pt 8pt; border:1px solid #e0e7ef; vertical-align:top; line-height:1.55; }
+      .sp-table tr:nth-child(even) td { background:#f5f9ff !important; }
+      .sp-table td:nth-child(2) { font-weight:700; }
+      .sp-table td:last-child { font-size:9pt; color:#1d4ed8; word-break:break-word; overflow-wrap:anywhere; direction:ltr; text-align:left; }
+
+      /* ── Score badges ── */
+      .gap-score { display:inline-block !important; padding:2pt 8pt; border-radius:10pt; font-size:10pt; font-weight:800; }
+      .score-high { background:#dcfce7 !important; color:#166534 !important; }
+      .score-mid  { background:#fef9c3 !important; color:#854d0e !important; }
+      .score-low  { background:#fee2e2 !important; color:#991b1b !important; }
+
+      /* ── Print Footer ── */
+      .print-footer {
+        position:fixed; bottom:0; left:0; right:0; width:100%;
+        border-top:1px solid #ccc; padding-top:5pt; margin-top:14pt;
+        display:flex !important; justify-content:space-between; align-items:center;
+        font-size:8pt; color:#888; background:#fff !important;
+      }
     }
   </style>
 </head>
@@ -456,7 +526,8 @@
 <div id="screen-support-login" class="screen">
   <div class="topbar">
     <button class="topbar-back" onclick="show('screen-admin-login')">رجوع</button>
-    <div style="flex:1;"><div class="topbar-title">دخول فريق الدعم</div></div>
+    <div style="flex:1;text-align:center;"><div class="topbar-title">دخول فريق الدعم</div></div>
+    <div class="topbar-ghost"></div>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div class="card">
@@ -596,9 +667,10 @@
 <div id="screen-cooldown" class="screen">
   <div class="topbar">
     <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
-    <div style="flex:1;">
+    <div style="flex:1;text-align:center;">
       <div class="topbar-title">اختبار القدرات</div>
     </div>
+    <div class="topbar-ghost"></div>
   </div>
   <div class="page-wrap">
     <div id="cd-content"></div>
@@ -975,10 +1047,21 @@
   <div class="page-wrap">
 
     <!-- Print-only header -->
-    <div class="print-only" style="text-align:center;margin-bottom:20px;
-         border-bottom:2px solid #ccc;padding-bottom:14px;">
-      <h2 style="font-size:20px;font-weight:800;">خطة دعم التعلم</h2>
-      <p id="sp-student-name-print" style="font-size:14px;color:#444;margin-top:4px;"></p>
+    <div class="print-only print-header-wrap">
+      <div class="print-logo-area">
+        <img src="logo-white.png" alt="وزارة التعليم">
+        <div>وزارة التعليم</div>
+      </div>
+      <div class="print-header-center">
+        <div class="print-main-title">خطة دعم التعلم</div>
+        <div class="print-main-sub">برنامج دعم التعلم والتشخيص الذاتي — الاستعداد لاختبار القدرات</div>
+      </div>
+      <div class="print-header-meta" id="sp-print-meta"></div>
+    </div>
+    <div class="print-only print-student-band">
+      <span><strong>الطالب:</strong> <span id="sp-student-name-print"></span></span>
+      <span id="sp-print-school"></span>
+      <span id="sp-print-date"></span>
     </div>
 
     <!-- Admin note -->
@@ -997,19 +1080,24 @@
 
     <!-- Print-only flat table -->
     <div class="print-only">
-      <h3 style="font-size:15px;font-weight:800;margin-bottom:10px;">مهاراتك مرتبة بالأولوية</h3>
+      <p class="section-heading">ثانياً / محتويات الدعم مرتبة حسب أولويات الخطة</p>
       <table class="sp-table" id="sp-print-table">
         <thead>
           <tr>
-            <th style="width:44px;text-align:center;">أولوية</th>
-            <th>المهارة</th>
-            <th style="width:60px;text-align:center;">الدرجة</th>
+            <th style="width:40px;text-align:center;">أولوية</th>
+            <th style="width:120px;">المهارة</th>
+            <th style="width:56px;text-align:center;">الدرجة</th>
             <th>التوصية</th>
-            <th>رابط المواد</th>
+            <th style="width:110px;">رابط المواد</th>
           </tr>
         </thead>
         <tbody id="sp-print-body"></tbody>
       </table>
+    </div>
+    <!-- Print footer -->
+    <div class="print-only print-footer">
+      <span>بوابة دعم التعلم — ثانوية الخالدية بالوسقة</span>
+      <span id="sp-print-footer-date"></span>
     </div>
 
     <div class="no-print" style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">

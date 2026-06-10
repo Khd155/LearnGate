@@ -607,9 +607,21 @@ const App = {
     note.style.display = plan.adminNote ? 'block' : 'none';
     note.textContent   = plan.adminNote ? `ملاحظة المشرف: ${plan.adminNote}` : '';
 
-    // Print header name
+    // Print header
     const nameEl = document.getElementById('sp-student-name-print');
-    if (nameEl) nameEl.textContent = `الطالب: ${plan.studentName || (State.student && State.student.name) || ''}`;
+    if (nameEl) nameEl.textContent = plan.studentName || (State.student && State.student.name) || '';
+    const school = State.school || (State.student && State.student.school) || '';
+    const schoolEl = document.getElementById('sp-print-school');
+    if (schoolEl) schoolEl.innerHTML = school ? `<strong>المدرسة:</strong> ${school}` : '';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('ar-SA', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+    const timeStr = now.toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
+    const dateEl = document.getElementById('sp-print-date');
+    if (dateEl) dateEl.innerHTML = `<strong>التاريخ:</strong> ${dateStr}`;
+    const metaEl = document.getElementById('sp-print-meta');
+    if (metaEl) metaEl.innerHTML = `<div>${dateStr}</div><div>${timeStr}</div>${school ? `<div>${school}</div>` : ''}`;
+    const footerDate = document.getElementById('sp-print-footer-date');
+    if (footerDate) footerDate.textContent = dateStr;
 
     // Intro section
     const weak = plan.gaps.filter(g => g.level === 'low').length;
@@ -668,14 +680,15 @@ const App = {
 
     // Print table
     document.getElementById('sp-print-body').innerHTML = plan.gaps.map((g, i) => {
-      const url = SKILL_LESSONS[g.skillId] || '';
+      const fullUrl = SKILL_LESSONS[g.skillId] || '';
+      const shortUrl = fullUrl ? fullUrl.replace(/^https?:\/\/[^/]+/, '').replace(/\/$/, '') : '—';
       const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
       return `<tr>
-        <td style="text-align:center;font-weight:700;">${i + 1}</td>
+        <td style="text-align:center;font-weight:800;">${i + 1}</td>
         <td>${g.skillName}</td>
         <td style="text-align:center;"><span class="gap-score ${cls}">${g.pct}%</span></td>
-        <td style="font-size:12px;">${g.recommendation}</td>
-        <td style="font-size:11px;word-break:break-all;">${url}</td>
+        <td>${g.recommendation}</td>
+        <td>${shortUrl}</td>
       </tr>`;
     }).join('');
   },

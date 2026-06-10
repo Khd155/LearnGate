@@ -211,19 +211,20 @@ export async function onRequest({ request, env }) {
 
       // POST /api/dev/admins — add admin
       if (sub === 'admins' && method === 'POST') {
-        const { name, code, school: adminSchool } = await request.json();
+        const { name, code, school: adminSchool, role: adminRole } = await request.json();
         if (!name || !code) return err('name and code required');
         const aid = crypto.randomUUID();
         const now = new Date().toISOString();
+        const role = adminRole === 'director' ? 'director' : 'admin';
         try {
           await DB.prepare(
-            'INSERT INTO admins (id, name, code, school, created_at) VALUES (?, ?, ?, ?, ?)'
-          ).bind(aid, name, code, adminSchool || '', now).run();
+            'INSERT INTO admins (id, name, code, school, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+          ).bind(aid, name, code, adminSchool || '', role, now).run();
         } catch (e) {
           if (e.message && e.message.includes('UNIQUE')) return err('السجل المدني مسجّل مسبقاً', 409);
           throw e;
         }
-        return ok({ admin: { id: aid, name, code, school: adminSchool || '', created_at: now } }, 201);
+        return ok({ admin: { id: aid, name, code, school: adminSchool || '', role, created_at: now } }, 201);
       }
 
       // DELETE /api/dev/admins/:id
@@ -351,7 +352,85 @@ export async function onRequest({ request, env }) {
         )`).run();
         // Add recipient_admin_id column if not exists (idempotent)
         try { await DB.prepare('ALTER TABLE messages ADD COLUMN recipient_admin_id TEXT DEFAULT ""').run(); } catch {}
+        // Add role column to admins if not exists
+        try { await DB.prepare('ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT "admin"').run(); } catch {}
         return ok({ ok: true, tables: ['messages', 'tickets', 'ticket_replies'] });
+      }
+    }
+
+    // ── DIRECTOR ENDPOINTS ───────────────────────────────────────────────────
+    if (resource === 'director') {
+
+      // Helper: verify director auth
+      async function authDirector(code, targetSchool) {
+        if (!code) return null;
+        const a = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(code).first();
+        if (!a || a.role !== 'director') return null;
+        if (a.school !== '*' && targetSchool && a.school !== targetSchool) return null;
+        return a;
+      }
+
+      // GET /api/director/admins?school=X&director_code=Y
+      if (sub === 'admins' && method === 'GET') {
+        const dir = await authDirector(url.searchParams.get('director_code'), school);
+        if (!dir) return err('Unauthorized', 401);
+        const { results } = await DB.prepare(
+          "SELECT id, name, code, role FROM admins WHERE school = ? ORDER BY name ASC"
+        ).bind(school).all();
+        return ok({ admins: results });
+      }
+
+      // POST /api/director/admins — add supervisor
+      if (sub === 'admins' && method === 'POST') {
+        const { name, code: newCode, director_code } = await request.json();
+        const dir = await authDirector(director_code, school);
+        if (!dir) return err('Unauthorized', 401);
+        if (!name || !newCode) return err('name and code required');
+        if (!/^\d{10}$/.test(newCode)) return err('الرمز يجب أن يكون 10 أرقام');
+        const adminSchool = dir.school === '*' ? school : dir.school;
+        const aid = crypto.randomUUID();
+        const now = new Date().toISOString();
+        try {
+          await DB.prepare(
+            'INSERT INTO admins (id, name, code, school, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+          ).bind(aid, name, newCode, adminSchool, 'admin', now).run();
+        } catch (e) {
+          if (e.message && e.message.includes('UNIQUE')) return err('الرمز مسجّل مسبقاً', 409);
+          throw e;
+        }
+        return ok({ admin: { id: aid, name, code: newCode, school: adminSchool, role: 'admin', created_at: now } }, 201);
+      }
+
+      // DELETE /api/director/admins/:id?school=X&director_code=Y
+      if (sub === 'admins' && subsub && method === 'DELETE') {
+        const dir = await authDirector(url.searchParams.get('director_code'), school);
+        if (!dir) return err('Unauthorized', 401);
+        const target = await DB.prepare('SELECT * FROM admins WHERE id = ?').bind(subsub).first();
+        if (!target) return err('Admin not found', 404);
+        if (target.role === 'director') return err('لا يمكن حذف مدير', 403);
+        await DB.prepare('DELETE FROM admins WHERE id = ?').bind(subsub).run();
+        return ok({ ok: true });
+      }
+
+      // POST /api/director/questions — import questions (director auth)
+      if (sub === 'questions' && method === 'POST') {
+        const body = await request.json();
+        const dir = await authDirector(body.director_code, school);
+        if (!dir) return err('Unauthorized', 401);
+        const { action = 'append', questions: rows } = body;
+        if (!Array.isArray(rows) || !rows.length) return err('no questions');
+        if (action === 'replace') await DB.prepare('DELETE FROM questions').run();
+        const { results: existing } = await DB.prepare('SELECT qnum FROM questions').all();
+        const existingNums = new Set(existing.map(r => r.qnum));
+        const fresh = rows.filter(r => !existingNums.has(r.qnum));
+        for (const q of fresh) {
+          const qid = crypto.randomUUID();
+          const now = new Date().toISOString();
+          await DB.prepare(
+            'INSERT INTO questions (id,qnum,type,skill_id,text,opt1,opt2,opt3,opt4,ans,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+          ).bind(qid, q.qnum, q.type, q.skillId, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, now).run();
+        }
+        return ok({ added: fresh.length, skipped: rows.length - fresh.length });
       }
     }
 

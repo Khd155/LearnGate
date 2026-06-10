@@ -308,9 +308,13 @@ const App = {
     if (!admin) { showAlert(errEl, 'السجل المدني غير مسجّل ضمن المشرفين.'); return; }
     try { await DB.loadAll(); }
     catch (e) { showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return; }
-    State.role  = 'admin';
+    State.role  = admin.role === 'director' ? 'director' : 'admin';
     State.admin = admin;
     startIdleWatch();
+    // Show director-only tabs
+    document.querySelectorAll('.director-tab').forEach(el => {
+      el.style.display = State.role === 'director' ? '' : 'none';
+    });
     App.renderAdminDashboard('students');
     show('screen-admin');
   },
@@ -834,9 +838,76 @@ const App = {
   },
 
   setTab(tab) {
-    document.getElementById('tab-manage').style.display = tab === 'settings' ? 'block' : 'none';
-    if (tab === 'stats') { App.renderAdminDashboard(tab); App.renderAdminStats(); return; }
+    document.getElementById('tab-manage').style.display      = tab === 'settings'   ? 'block' : 'none';
+    document.getElementById('tab-supervisors').style.display = tab === 'supervisors' ? 'block' : 'none';
+    document.getElementById('tab-questions').style.display   = tab === 'questions'   ? 'block' : 'none';
+    if (tab === 'stats')       { App.renderAdminDashboard(tab); App.renderAdminStats(); return; }
+    if (tab === 'supervisors') { App.renderAdminDashboard(tab); App.loadSupervisors(); return; }
     App.renderAdminDashboard(tab);
+  },
+
+  // ── Director: Supervisors Management ─────────────────────────────────────
+  async loadSupervisors() {
+    const listEl = document.getElementById('supervisors-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">جاري التحميل…</div>';
+    try {
+      const school = encodeURIComponent(State.school || '');
+      const code   = encodeURIComponent(State.admin.code);
+      const data   = await apiFetch(`/director/admins?school=${school}&director_code=${code}`);
+      const admins = data.admins || [];
+      if (!admins.length) {
+        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div><p>لا يوجد مشرفون مضافون بعد</p></div>';
+        return;
+      }
+      listEl.innerHTML = admins.map(a => `
+        <div class="student-row">
+          <div class="student-avatar">${a.name.charAt(0)}</div>
+          <div class="student-info" style="flex:1;">
+            <div class="student-name">${a.name}</div>
+            <div class="student-code">رمز: ${a.code} · ${a.role === 'director' ? '👑 مدير' : '👤 مشرف'}</div>
+          </div>
+          ${a.role !== 'director' ? `<button class="btn btn-danger btn-sm" onclick="App.deleteSupervisor('${a.id}')">حذف</button>` : ''}
+        </div>`).join('');
+    } catch (e) {
+      listEl.innerHTML = '<div style="color:var(--danger);padding:12px;">تعذّر التحميل</div>';
+    }
+  },
+
+  async addSupervisor() {
+    const name   = document.getElementById('add-sup-name').value.trim();
+    const code   = document.getElementById('add-sup-code').value.trim();
+    const errEl  = document.getElementById('add-sup-err');
+    errEl.style.display = 'none';
+    if (!name) { showAlert(errEl, 'أدخل اسم المشرف'); errEl.style.display=''; return; }
+    if (!/^\d{10}$/.test(code)) { showAlert(errEl, 'الرمز يجب أن يكون ١٠ أرقام'); errEl.style.display=''; return; }
+    try {
+      const school = State.school || '';
+      await apiFetch('/director/admins?school=' + encodeURIComponent(school), {
+        method: 'POST',
+        body: JSON.stringify({ name, code, director_code: State.admin.code })
+      });
+      document.getElementById('add-sup-name').value = '';
+      document.getElementById('add-sup-code').value = '';
+      showToast('تمت إضافة المشرف ✅');
+      App.loadSupervisors();
+    } catch (e) {
+      showAlert(errEl, e.message || 'حدث خطأ');
+      errEl.style.display = '';
+    }
+  },
+
+  async deleteSupervisor(adminId) {
+    if (!confirm('هل تريد حذف هذا المشرف؟')) return;
+    try {
+      const school = encodeURIComponent(State.school || '');
+      const code   = encodeURIComponent(State.admin.code);
+      await apiFetch(`/director/admins/${adminId}?school=${school}&director_code=${code}`, { method: 'DELETE' });
+      showToast('تم حذف المشرف');
+      App.loadSupervisors();
+    } catch (e) {
+      showToast('تعذّر الحذف: ' + (e.message || ''));
+    }
   },
 
   // ── Statistics Tab ────────────────────────────────────────────────────────

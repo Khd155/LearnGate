@@ -304,6 +304,13 @@
               <option value="*">⭐ سوبر مشرف (كل المدارس)</option>
             </select>
           </div>
+          <div class="form-group">
+            <div class="form-label">الدور</div>
+            <select id="new-admin-role" class="form-select">
+              <option value="admin">👤 مشرف</option>
+              <option value="director">👑 مدير</option>
+            </select>
+          </div>
           <button class="btn btn-primary" onclick="Dev.addAdmin()">+ إضافة</button>
         </div>
       </div>
@@ -478,11 +485,14 @@ const Dev = {
     const el = document.getElementById('admins-list');
     if (!admins.length) { el.innerHTML = '<div class="empty">لا يوجد مشرفون</div>'; return; }
     el.innerHTML = `<table class="data-table">
-      <thead><tr><th>الاسم</th><th>رقم السجل</th><th>المدرسة</th><th></th></tr></thead>
+      <thead><tr><th>الاسم</th><th>رقم السجل</th><th>الدور</th><th>المدرسة</th><th></th></tr></thead>
       <tbody>${admins.map(a => `
         <tr>
           <td>${a.name}</td>
           <td style="direction:ltr;text-align:right">${a.code}</td>
+          <td>${a.role === 'director'
+            ? '<span class="badge badge-super">👑 مدير</span>'
+            : '<span class="badge badge-school">👤 مشرف</span>'}</td>
           <td>${a.school === '*'
             ? '<span class="badge badge-super">⭐ كل المدارس</span>'
             : a.school
@@ -660,13 +670,14 @@ const Dev = {
     const name   = document.getElementById('new-admin-name').value.trim();
     const code   = document.getElementById('new-admin-code').value.trim();
     const school = document.getElementById('new-admin-school').value;
+    const role   = document.getElementById('new-admin-role').value;
     if (!name) { showAlert('add-admin-err', 'أدخل الاسم'); return; }
     if (!/^\d{10}$/.test(code)) { showAlert('add-admin-err', 'رقم السجل يجب أن يكون ١٠ أرقام'); return; }
     try {
-      await apiDev('/dev/admins', { method: 'POST', body: JSON.stringify({ name, code, school }) });
+      await apiDev('/dev/admins', { method: 'POST', body: JSON.stringify({ name, code, school, role }) });
       document.getElementById('new-admin-name').value = '';
       document.getElementById('new-admin-code').value = '';
-      showToast('تمت إضافة المشرف ✅');
+      showToast(`تمت إضافة ${role === 'director' ? 'المدير' : 'المشرف'} ✅`);
       Dev.loadAdmins();
     } catch (e) { showAlert('add-admin-err', e.message); }
   },

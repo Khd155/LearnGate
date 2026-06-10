@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الصفحة غير موجودة — بوابة دعم التعلم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --primary:#3F7CB8;--accent:#4FA877;
+    --grad:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+    --bg:#f4f8fb;--surface:#fff;--border:#e2e8f0;
+    --text:#0f172a;--muted:#64748b;
+    --radius:16px;--shadow:0 8px 24px -8px rgba(63,124,184,.20);
+  }
+  html,body{
+    min-height:100vh;font-family:'Tajawal','Cairo',Arial,sans-serif;
+    background:var(--bg);color:var(--text);direction:rtl;
+    font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  .card{
+    background:var(--surface);border:1.5px solid var(--border);
+    border-radius:24px;box-shadow:var(--shadow);
+    padding:48px 40px;text-align:center;max-width:480px;width:calc(100% - 40px);
+  }
+
+  .error-code{
+    font-family:'Cairo',sans-serif;font-size:96px;font-weight:900;line-height:1;
+    background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    background-clip:text;margin-bottom:8px;
+  }
+  .error-icon{font-size:48px;margin-bottom:16px;display:block;}
+  h1{font-family:'Cairo',sans-serif;font-size:22px;font-weight:800;margin-bottom:10px;color:var(--text);}
+  p{font-size:14px;color:var(--muted);line-height:1.8;margin-bottom:28px;}
+
+  .countdown-ring{
+    position:relative;width:64px;height:64px;margin:0 auto 24px;
+  }
+  .countdown-ring svg{transform:rotate(-90deg);}
+  .countdown-ring circle{
+    fill:none;stroke:var(--border);stroke-width:5;
+  }
+  .countdown-ring circle.progress{
+    stroke:url(#cgrad);stroke-width:5;stroke-linecap:round;
+    stroke-dasharray:176;stroke-dashoffset:0;
+    transition:stroke-dashoffset 1s linear;
+  }
+  .countdown-num{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:'Cairo',sans-serif;font-size:22px;font-weight:800;color:var(--primary);
+  }
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--grad);color:#fff;border:none;border-radius:99px;
+    padding:12px 28px;font-size:15px;font-weight:700;font-family:inherit;
+    cursor:pointer;text-decoration:none;transition:opacity .2s;
+  }
+  .btn:hover{opacity:.85;}
+
+  .path-hint{
+    display:inline-block;margin-top:18px;background:#fee2e2;color:#b91c1c;
+    border-radius:8px;padding:4px 14px;font-size:12px;font-weight:700;
+    font-family:monospace;word-break:break-all;max-width:100%;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="error-icon">🔍</span>
+  <div class="error-code">404</div>
+  <h1>الصفحة غير موجودة</h1>
+  <p>يبدو أن الرابط الذي فتحته غير صحيح أو تم حذفه.<br>سيتم تحويلك للصفحة الرئيسية تلقائياً.</p>
+
+  <span class="path-hint" id="path-display"></span>
+
+  <div class="countdown-ring" style="margin-top:24px;">
+    <svg width="64" height="64" viewBox="0 0 64 64">
+      <defs>
+        <linearGradient id="cgrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#3F7CB8"/>
+          <stop offset="100%" stop-color="#4FA877"/>
+        </linearGradient>
+      </defs>
+      <circle cx="32" cy="32" r="28"/>
+      <circle class="progress" id="ring" cx="32" cy="32" r="28"/>
+    </svg>
+    <div class="countdown-num" id="num">3</div>
+  </div>
+
+  <a class="btn" href="/khaldiya/">← الصفحة الرئيسية</a>
+</div>
+
+<script>
+  // Show current path
+  const p = location.pathname;
+  document.getElementById('path-display').textContent = p;
+
+  // Countdown 3 → 0 then redirect
+  const TOTAL = 3;
+  const circumference = 2 * Math.PI * 28; // ≈ 175.9
+  const ring = document.getElementById('ring');
+  const numEl = document.getElementById('num');
+  ring.style.strokeDasharray = circumference;
+  ring.style.strokeDashoffset = 0;
+
+  let remaining = TOTAL;
+  function tick() {
+    remaining--;
+    numEl.textContent = remaining;
+    const offset = circumference * (1 - remaining / TOTAL);
+    ring.style.strokeDashoffset = offset;
+    if (remaining <= 0) {
+      window.location.href = '/khaldiya/';
+    } else {
+      setTimeout(tick, 1000);
+    }
+  }
+  // Start first tick after 1 second
+  setTimeout(tick, 1000);
+</script>
+</body>
+</html>

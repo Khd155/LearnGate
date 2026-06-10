@@ -920,7 +920,15 @@ const App = {
     if (!listEl) return;
     listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">جاري التحميل…</div>';
     try {
-      const data = await apiFetch('/questions');
+      let data = await apiFetch('/questions');
+      // Auto-seed from hardcoded questions if DB is empty
+      if (!(data.questions || []).length) {
+        await apiFetch('/director/seed-questions?school=' + encodeURIComponent(State.school || ''), {
+          method: 'POST',
+          body: JSON.stringify({ director_code: State.admin.code })
+        }).catch(() => {});
+        data = await apiFetch('/questions');
+      }
       App._allQuestions = data.questions || [];
       if (badgeEl) badgeEl.textContent = App._allQuestions.length + ' سؤال';
       App.renderQuestionsList(App._allQuestions);

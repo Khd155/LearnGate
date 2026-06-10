@@ -205,6 +205,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/dev/admins — all admins
       if (sub === 'admins' && method === 'GET') {
+        try { await DB.prepare('ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT "admin"').run(); } catch {}
         const { results } = await DB.prepare('SELECT * FROM admins ORDER BY school, name').all();
         return ok({ admins: results });
       }
@@ -213,6 +214,8 @@ export async function onRequest({ request, env }) {
       if (sub === 'admins' && method === 'POST') {
         const { name, code, school: adminSchool, role: adminRole } = await request.json();
         if (!name || !code) return err('name and code required');
+        // Ensure role column exists (idempotent migration)
+        try { await DB.prepare('ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT "admin"').run(); } catch {}
         const aid = crypto.randomUUID();
         const now = new Date().toISOString();
         const role = adminRole === 'director' ? 'director' : 'admin';

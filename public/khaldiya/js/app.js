@@ -233,31 +233,25 @@ const App = {
   },
 
   showOtherSchools() {
-    const list = document.getElementById('other-schools-list');
-    const s = 'width:112px;padding:16px 10px;flex-shrink:0;';
-    const soon = () => `
-      <div class="identity-card" style="${s}opacity:.5;cursor:default;position:relative;">
-        <span style="position:absolute;top:8px;left:8px;background:rgba(255,255,255,.25);
-              color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;">قريباً</span>
-        <div class="card-icon" style="font-size:24px;">🏫</div>
-        <div class="card-title" style="opacity:.35;font-size:13px;">—</div>
-        <div class="card-desc" style="opacity:.6;font-size:11px;">قريباً</div>
-      </div>`;
-    const active = `
-      <button class="identity-card" style="${s}" onclick="App.selectSchool('ثانوية ذات الصواري')">
-        <div class="card-icon" style="font-size:24px;">🏫</div>
-        <div class="card-title" style="font-size:13px;">ثانوية ذات الصواري</div>
-        <div class="card-desc" style="font-size:11px;">اضغط للمتابعة</div>
-      </button>`;
-    // ذات الصواري في المنتصف (موقع 3 من 5)
-    list.innerHTML = soon() + soon() + active + soon() + soon();
     document.getElementById('school-cards').style.display = 'none';
-    document.getElementById('other-schools-panel').style.display = 'block';
+    const panel = document.getElementById('other-schools-panel');
+    panel.style.display = 'block';
+    const input = document.getElementById('other-school-input');
+    input.value = '';
+    document.getElementById('other-school-continue').disabled = true;
+    document.getElementById('other-school-continue').style.opacity = '.5';
+    setTimeout(() => input.focus(), 100);
   },
 
   hideOtherSchools() {
     document.getElementById('other-schools-panel').style.display = 'none';
     document.getElementById('school-cards').style.display = 'flex';
+  },
+
+  submitOtherSchool() {
+    const name = document.getElementById('other-school-input').value.trim();
+    if (!name) return;
+    App.selectSchool(name);
   },
 
   // ── Identity ─────────────────────────────────────────────────────────────

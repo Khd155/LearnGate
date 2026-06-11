@@ -954,7 +954,14 @@ const App = {
     const skillNames = {};
     if (typeof SKILLS !== 'undefined') SKILLS.forEach(s => skillNames[s.id] = s.name);
     listEl.innerHTML = questions.map(q => `
-      <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);">
+      <div draggable="true" data-id="${q.id}" data-qnum="${q.qnum}"
+           style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);transition:background .15s,opacity .15s;"
+           ondragstart="App._dragStart(event)"
+           ondragover="App._dragOver(event)"
+           ondrop="App._dragDrop(event)"
+           ondragleave="App._dragLeave(event)"
+           ondragend="App._dragEnd(event)">
+        <div style="color:#cbd5e1;font-size:20px;cursor:grab;flex-shrink:0;padding:0 2px;line-height:1;" title="اسحب لإعادة الترتيب">⠿</div>
         <div style="min-width:36px;height:36px;border-radius:8px;background:var(--primary);color:#fff;
                     display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">
           ${q.qnum}
@@ -972,6 +979,78 @@ const App = {
           <button class="btn btn-danger btn-sm" onclick="App.deleteQuestion('${q.id}', ${q.qnum})">🗑</button>
         </div>
       </div>`).join('');
+  },
+
+  _dragId: null,
+
+  _dragStart(e) {
+    App._dragId = e.currentTarget.dataset.id;
+    e.currentTarget.style.opacity = '0.4';
+    e.dataTransfer.effectAllowed = 'move';
+  },
+
+  _dragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const row = e.currentTarget;
+    if (row.dataset.id !== App._dragId) {
+      row.style.background = '#eaf2f9';
+      row.style.boxShadow = 'inset 0 2px 0 var(--primary)';
+    }
+  },
+
+  _dragLeave(e) {
+    e.currentTarget.style.background = '';
+    e.currentTarget.style.boxShadow = '';
+  },
+
+  _dragEnd(e) {
+    e.currentTarget.style.opacity = '';
+    e.currentTarget.style.background = '';
+    e.currentTarget.style.boxShadow = '';
+    App._dragId = null;
+  },
+
+  async _dragDrop(e) {
+    e.preventDefault();
+    const targetRow = e.currentTarget;
+    targetRow.style.background = '';
+    targetRow.style.boxShadow = '';
+
+    const dragId = App._dragId;
+    const dropId = targetRow.dataset.id;
+    if (!dragId || dragId === dropId) return;
+
+    const dragQ = App._allQuestions.find(x => x.id === dragId);
+    const dropQ = App._allQuestions.find(x => x.id === dropId);
+    if (!dragQ || !dropQ) return;
+
+    const dragQnum = dragQ.qnum;
+    const dropQnum = dropQ.qnum;
+
+    try {
+      const school = encodeURIComponent(State.school || '');
+      const code   = encodeURIComponent(State.admin.code);
+      await Promise.all([
+        apiFetch(`/director/questions/${dragId}?school=${school}&director_code=${code}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ qnum: dropQnum, type: dragQ.type, skill_id: dragQ.skill_id, text: dragQ.text,
+            opt1: dragQ.opt1, opt2: dragQ.opt2, opt3: dragQ.opt3, opt4: dragQ.opt4, ans: dragQ.ans })
+        }),
+        apiFetch(`/director/questions/${dropId}?school=${school}&director_code=${code}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ qnum: dragQnum, type: dropQ.type, skill_id: dropQ.skill_id, text: dropQ.text,
+            opt1: dropQ.opt1, opt2: dropQ.opt2, opt3: dropQ.opt3, opt4: dropQ.opt4, ans: dropQ.ans })
+        })
+      ]);
+      dragQ.qnum = dropQnum;
+      dropQ.qnum = dragQnum;
+      App._allQuestions.sort((a, b) => a.qnum - b.qnum);
+      App.filterQuestions();
+      showToast('تم تحديث الترتيب ✅');
+    } catch (err) {
+      showToast('تعذّر تحديث الترتيب');
+    }
   },
 
   filterQuestions() {

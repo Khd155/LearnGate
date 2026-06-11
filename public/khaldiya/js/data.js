@@ -1,14 +1,17 @@
 // Skills for self-diagnostic
 const SKILLS = [
-  { id: 'v1', category: 'verbal',       name: 'الاستيعاب القرائي (استيعاب المقروء)',       desc: 'فهم النصوص واستيعاب مضامينها' },
-  { id: 'v2', category: 'verbal',       name: 'التحليل اللغوي (الخطأ السياقي)',             desc: 'تحليل التراكيب وإدراك العلاقات اللغوية' },
-  { id: 'v3', category: 'verbal',       name: 'المفردة الشاذة',                              desc: 'تحديد الكلمة التي لا تنتمي للمجموعة' },
-  { id: 'v4', category: 'verbal',       name: 'التناسب والتناظر اللفظي',                   desc: 'إدراك العلاقة بين الكلمات والمفاهيم' },
-  { id: 'v5', category: 'verbal',       name: 'إكمال الجمل',                               desc: 'اختيار الكلمة المناسبة لإكمال السياق' },
-  { id: 'q1', category: 'quantitative', name: 'الحساب والمسائل الكلامية',                  desc: 'العمليات الحسابية والنسب والمسائل التطبيقية' },
-  { id: 'q2', category: 'quantitative', name: 'الجبر والمسائل الكلامية',                   desc: 'حل المعادلات والمتتابعات والمسائل الجبرية' },
-  { id: 'q3', category: 'quantitative', name: 'الهندسة والقياس',                           desc: 'المساحات والمحيطات والأحجام والزوايا' },
-  { id: 'q4', category: 'quantitative', name: 'المقارنات الكمية الاستنتاجية',              desc: 'المقارنة بين القيم وتحليل الكميات' },
+  // ── القسم اللفظي ──────────────────────────────────────────────────────────
+  { id: 'v4', category: 'verbal',       name: 'التناظر اللفظي',        desc: 'إدراك العلاقة بين الكلمات والمفاهيم' },
+  { id: 'v5', category: 'verbal',       name: 'إكمال الجمل',           desc: 'اختيار الكلمة المناسبة لإكمال السياق' },
+  { id: 'v1', category: 'verbal',       name: 'الاستيعاب القرائي',     desc: 'فهم النصوص واستيعاب مضامينها' },
+  { id: 'v2', category: 'verbal',       name: 'الخطأ السياقي',         desc: 'تحديد الكلمة التي تُخل بسياق الجملة' },
+  { id: 'v3', category: 'verbal',       name: 'المفردة الشاذة',        desc: 'تحديد الكلمة التي لا تنتمي للمجموعة' },
+  // ── القسم الكمي ───────────────────────────────────────────────────────────
+  { id: 'q1', category: 'quantitative', name: 'الحساب',                desc: 'العمليات الحسابية والنسب والمسائل التطبيقية' },
+  { id: 'q2', category: 'quantitative', name: 'الجبر',                 desc: 'حل المعادلات والمتتابعات والمسائل الجبرية' },
+  { id: 'q3', category: 'quantitative', name: 'الهندسة والقياس',       desc: 'المساحات والمحيطات والأحجام والزوايا' },
+  { id: 'q4', category: 'quantitative', name: 'المقارنات الكمية',      desc: 'المقارنة بين القيم وتحليل الكميات' },
+  { id: 'q5', category: 'quantitative', name: 'الإحصاء والاحتمالات',   desc: 'تحليل البيانات وحساب الاحتمالات' },
 ];
 
 // 50 questions: 1-25 verbal, 26-50 quantitative
@@ -344,11 +347,29 @@ const SKILL_GUIDES = {
     ],
     tip: 'قبل اختيار "غير كافية": بسّط جبرياً أولاً — كثير من الأسئلة تُحل فور التبسيط.',
   },
+  q5: {
+    what: 'تحليل البيانات الإحصائية كالمتوسط والوسيط والمنوال والمدى، وحساب احتمالات الأحداث البسيطة والمركبة.',
+    warning: '',
+    needs: [
+      'المقاييس الإحصائية: المتوسط، الوسيط، المنوال، المدى',
+      'قراءة الجداول والرسوم البيانية',
+      'الاحتمال البسيط: عدد الحالات المطلوبة ÷ مجموع الحالات',
+      'قاعدة الاحتمال التكميلي: P(A) = 1 − P(Ā)',
+      'ترتيب البيانات وإيجاد الربيعيات والانحراف',
+    ],
+    mistakes: [
+      'الخلط بين المتوسط الحسابي والوسيط',
+      'نسيان ترتيب البيانات قبل إيجاد الوسيط',
+      'الخطأ في حساب الاحتمال عند وجود شروط',
+      'إهمال عدد أفراد العينة عند حساب التكرار النسبي',
+    ],
+    tip: 'في الاحتمال: ارسم جدول العينة الكاملة أولاً — يجعل العد أسهل وأدق.',
+  },
 };
 
 // ── Quiz links per skill ───────────────────────────────────────────────────
 const SKILL_QUIZZES = {
-  v1: { title: 'الاستيعاب القرائي', urls: [
+  v1: { title: 'الاستيعاب القرائي',   urls: [
     'https://docs.google.com/forms/d/e/1FAIpQLSfk8u8mk-7rs0xwCAd1SfNruitF2LRwC7loqSjeGUFtHb_kDg/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLSdqsRFw3PpsML1kmJaS4fYPhI9OnvXni242snV4gXfzLRXz_w/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLSd7gnSrjS1Fh9FEfFKb3AiVdXnFiX6Z4x0-SU2bjhdIECN2FQ/viewform?usp=header',
@@ -362,7 +383,7 @@ const SKILL_QUIZZES = {
     'https://docs.google.com/forms/d/e/1FAIpQLSeyZm1xZPfywWVu7Jnm2U8uohGc2GmK_arsY8WoRrYwoF_6wg/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLSe4Y_zhTiciCIGkU3SfAOTLAPtQ8rMKOcZz-HxMzH2L6sCEYg/viewform?usp=header',
   ]},
-  v2: { title: 'التحليل اللغوي', urls: [
+  v2: { title: 'الخطأ السياقي',        urls: [
     'https://docs.google.com/forms/d/e/1FAIpQLScp3Sc5tlztaYkfuC1tyBhZMOT5HR2H_nmhFdlnylM5ua6tXw/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLScjI8ZkdUUnFWdzqHOK9CEdF_0qCXt5zUtYAHMXKFz7hJSBxA/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLScCfpQi5_wbt8XW7p6GE2Gi1m36DHcFHUr1cpAg3f19yDWquQ/viewform?usp=header',
@@ -372,7 +393,7 @@ const SKILL_QUIZZES = {
     'https://docs.google.com/forms/d/e/1FAIpQLSfECEFDKEu8B0B9qE_XN_FEnjeRlRixKgw2OTTadYdJ17Kkzg/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLScIkNx75XwH-8b8w14JcFqT_qLpCjb7yGe5x5pe1A9kLV7G-w/viewform?usp=header',
   ]},
-  v3: { title: 'المفردة الشاذة', urls: [
+  v3: { title: 'المفردة الشاذة',        urls: [
     'https://docs.google.com/forms/d/e/1FAIpQLSeXovLY7hTo6ncpZpdIE51q2-BFKIXrSoWs4Ywkf9W3tun1Tg/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLSd7j51uTba5LHNEwmKVPCbyApknDLzccnLHdebZi59Q9nKFhw/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLSdY-fB5MFfyeqwSLq9BnRUVrqeBdGqi1JhZiljoIHXrqNgGyw/viewform?usp=header',
@@ -384,7 +405,7 @@ const SKILL_QUIZZES = {
     'https://docs.google.com/forms/d/e/1FAIpQLSeSW6GwpWz3TUNTyHy9MApwK-aYBTIy0u6vl73gO1swhWOE-Q/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLScn9a97ullienGvb0Pup5VjTW-oSAY22aqk6-GUPMEqU2JFrA/viewform?usp=header',
   ]},
-  v4: { title: 'التناسب والتناظر اللفظي', urls: [
+  v4: { title: 'التناظر اللفظي',       urls: [
     'https://docs.google.com/forms/d/e/1FAIpQLSdDonGQf2urxqnKWYdXQnrvkmDcjXE7hKCwuzNp0KjMPWIRjw/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLSepPGHijLajPbYbUhUCDI2nyzog_ZAcWPN5LRkqXqXiXwymVg/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLSe0_F39EJdssUhjXxiOk_aTpun0YWExt1gz6gqSj1NndZaMVg/viewform?usp=header',
@@ -396,7 +417,7 @@ const SKILL_QUIZZES = {
     'https://docs.google.com/forms/d/e/1FAIpQLSf-FnairIg8mKdpMtheDelf0f7ZGemuUXgIJa5uJVQQXlQzKg/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLSeMMz0Ifq3JmlShlUW9H-qjzoBDMGmb-rw2-98hyT5iiYu6aw/viewform?usp=header',
   ]},
-  v5: { title: 'إكمال الجمل', urls: [
+  v5: { title: 'إكمال الجمل',           urls: [
     'https://docs.google.com/forms/d/e/1FAIpQLSdWO2Ti5lhMcrn__PNGBWjf-iIVoN0uRg7vT68G7i-Xym68gA/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLScE7QfCwRKFxQKolCkhHht_wdwXQa43M_UJ9t4cCIIjLg-6vg/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLSesCL9yFQDgSa79np6kuIAf7UCzG38MRdPRTevurAhaaQBf7g/viewform?usp=header',
@@ -408,7 +429,7 @@ const SKILL_QUIZZES = {
     'https://docs.google.com/forms/d/e/1FAIpQLSflt57MkME9HGE2qzRN8G182xG2v9NvyHvHWcwznN6AOqMa8A/viewform?usp=header',
     'https://docs.google.com/forms/d/e/1FAIpQLSdJ6fuDi_RCb9XZLfzJgzcpZfOnBEG6x6FHWdPdwT5BhooSPA/viewform?usp=header',
   ]},
-  q1: { title: 'الحساب والمسائل الكلامية', urls: [
+  q1: { title: 'الحساب',                urls: [
     'https://forms.gle/prW38TgVi1TNEpNy7',
     'https://forms.gle/otorh1JfZyV14RCbA',
     'https://forms.gle/CLudkRr8h7SBJARD9',
@@ -430,7 +451,7 @@ const SKILL_QUIZZES = {
     'https://forms.gle/Xhc6kzVPhPoMfDJA9',
     'https://forms.gle/VextM849gTQo3dXu7',
   ]},
-  q2: { title: 'الجبر والمسائل الكلامية', urls: [
+  q2: { title: 'الجبر',                 urls: [
     'https://forms.gle/B6tHq7vcMA3hBET78',
     'https://forms.gle/ZnCe5YMRFW3XpeML7',
     'https://forms.gle/njAUNmqcEAa9Rb6i8',
@@ -440,7 +461,7 @@ const SKILL_QUIZZES = {
     'https://forms.gle/FWQGrtyQz1Dv92Z7A',
     'https://forms.gle/2RsPQ1jLo4Rcj41P7',
   ]},
-  q3: { title: 'الهندسة والقياس', urls: [
+  q3: { title: 'الهندسة والقياس',       urls: [
     'https://forms.gle/Dj5GCwkqRGXbJutL7',
     'https://forms.gle/YFaCvKM1shFbcoAX9',
     'https://forms.gle/1ibQxShaYwNGofHd8',
@@ -458,7 +479,7 @@ const SKILL_QUIZZES = {
     'https://forms.gle/tRqdSDgD7biQExPB7',
     'https://forms.gle/i4RJTLVXSQzHiok69',
   ]},
-  q4: { title: 'المقارنات الكمية', urls: [
+  q4: { title: 'المقارنات الكمية',      urls: [
     'https://forms.gle/neBUDdtTST4gDVYv8',
     'https://forms.gle/bMqXsZtUfDgyMuQZ8',
     'https://forms.gle/nQag6VDZSMqRJ8bM6',
@@ -472,4 +493,5 @@ const SKILL_QUIZZES = {
     'https://forms.gle/gVTjCK6hDxzySRTo9',
     'https://forms.gle/3QSHAQnTfaXMjBMu7',
   ]},
+  q5: { title: 'الإحصاء والاحتمالات', urls: [] },
 };

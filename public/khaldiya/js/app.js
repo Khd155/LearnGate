@@ -136,6 +136,7 @@ const SKILL_LESSONS = {
   v3: 'lessons/inference/',
   v4: 'lessons/analogy/',
   v5: 'lessons/completion/',
+  q5: 'lessons/statistics/',
   q1: 'lessons/arithmetic/',
   q2: 'lessons/algebra/',
   q3: 'lessons/geometry/',
@@ -392,8 +393,8 @@ const App = {
         </tbody>
       </table>`;
     document.getElementById('selfdiag-content').innerHTML =
-      buildSection(verbal, '📚 المهارات اللفظية') +
-      buildSection(quant,  '🔢 المهارات الكمية');
+      buildSection(verbal, '📚 القسم اللفظي') +
+      buildSection(quant,  '🔢 القسم الكمي');
   },
 
   setDiag(skillId, val) {
@@ -760,7 +761,7 @@ const App = {
   buildQuizTab(skillId) {
     const q = (typeof SKILL_QUIZZES !== 'undefined') ? SKILL_QUIZZES[skillId] : null;
     if (q && q.urls && q.urls.length) {
-      const QUIZ_FOLDERS = {v1:'comprehension',v2:'inference',v3:'contextual',v4:'analogy',v5:'completion',q1:'arithmetic',q2:'algebra',q3:'geometry',q4:'comparison'};
+      const QUIZ_FOLDERS = {v1:'comprehension',v2:'inference',v3:'contextual',v4:'analogy',v5:'completion',q1:'arithmetic',q2:'algebra',q3:'geometry',q4:'comparison',q5:'statistics'};
       const pageUrl = `quizzes/${QUIZ_FOLDERS[skillId] || '?skill=' + skillId}/`;
       return `
         <p class="videos-note">

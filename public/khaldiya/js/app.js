@@ -951,6 +951,8 @@ const App = {
       return;
     }
     const typeLabel = { verbal: 'لفظي', quantitative: 'كمي' };
+    const skillNames = {};
+    if (typeof SKILLS !== 'undefined') SKILLS.forEach(s => skillNames[s.id] = s.name);
     listEl.innerHTML = questions.map(q => `
       <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);">
         <div style="min-width:36px;height:36px;border-radius:8px;background:var(--primary);color:#fff;
@@ -960,7 +962,7 @@ const App = {
         <div style="flex:1;min-width:0;">
           <div style="font-size:13.5px;font-weight:600;margin-bottom:5px;line-height:1.6;">${q.text}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);">
-            <span style="background:#eaf2f9;color:var(--primary);border-radius:99px;padding:2px 10px;font-weight:700;">${q.skill_id}</span>
+            <span style="background:#eaf2f9;color:var(--primary);border-radius:99px;padding:2px 10px;font-weight:700;">${skillNames[q.skill_id] || q.skill_id}</span>
             <span style="background:#f1f5f9;border-radius:99px;padding:2px 10px;">${typeLabel[q.type] || q.type}</span>
             <span style="background:#dcfce7;color:#15803d;border-radius:99px;padding:2px 10px;">✓ ${['1','2','3','4'][q.ans]}</span>
           </div>

@@ -800,7 +800,7 @@ p, span, div, button, input, label, td, th {
 .filter-chip.active { background: var(--primary); border-color: var(--primary); color: white; }
 
 /* ── Student Detail Modal ────────────────────────────── */
-#student-detail-modal .modal-box { max-width: 680px; padding: 0; overflow: hidden; }
+#student-detail-modal .modal-box { max-width: 680px; padding: 0; overflow: hidden; max-height: 88vh; display: flex; flex-direction: column; }
 .sdm-header {
   background: linear-gradient(135deg, var(--primary), #4A96A0);
   padding: 24px 28px; color: #fff; display: flex; align-items: center; gap: 16px;
@@ -812,7 +812,7 @@ p, span, div, button, input, label, td, th {
 }
 .sdm-name  { font-size: 19px; font-weight: 800; }
 .sdm-code  { font-size: 13px; opacity: .85; margin-top: 2px; }
-.sdm-body  { padding: 24px 28px; }
+.sdm-body  { padding: 24px 28px; overflow-y: auto; flex: 1; min-height: 0; }
 .sdm-stats {
   display: grid; grid-template-columns: repeat(3, 1fr);
   gap: 10px; margin-bottom: 22px;

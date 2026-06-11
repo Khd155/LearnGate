@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>شروحات الخطأ السياقي — بوابة دعم التعلم</title>
+<title>شروحات الإحصاء والاحتمالات — بوابة دعم التعلم</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
@@ -30,6 +30,8 @@
   #modal-box button:hover{opacity:.9;}
 
   .topbar{background:var(--grad-hero);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);}
+  .topbar-logo-wrap{display:flex;align-items:center;gap:10px;}
+  .topbar-logo-wrap img{height:32px;opacity:.92;flex-shrink:0;}
   .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;}
   .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;}
   .topbar-back:hover{background:rgba(255,255,255,.28);}
@@ -71,8 +73,6 @@
     .yt-btn{width:52px;height:36px;}
     .hero-banner{padding:28px 16px 38px;}
   }
-  .topbar-logo-wrap{display:flex;align-items:center;gap:10px;}
-  .topbar-logo-wrap img{height:32px;opacity:.92;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -87,13 +87,16 @@
 </div>
 
 <div class="topbar">
-  <div class="topbar-logo-wrap"><img src="../../logo-white.png" alt="وزارة التعليم"><span class="topbar-title">شروحات الخطأ السياقي</span></div>
+  <div class="topbar-logo-wrap">
+    <img src="../../logo-white.png" alt="وزارة التعليم">
+    <span class="topbar-title">شروحات الإحصاء والاحتمالات</span>
+  </div>
   <a class="topbar-back" href="../../index.html">الرئيسية →</a>
 </div>
 
 <div class="hero-banner">
-  <div class="hero-pill">الخطأ السياقي</div>
-  <h1>شروحات الخطأ السياقي</h1>
+  <div class="hero-pill">الإحصاء والاحتمالات</div>
+  <h1>شروحات الإحصاء والاحتمالات</h1>
   <p id="hero-sub">اختر المقطع وشاهد الشرح</p>
 </div>
 
@@ -108,35 +111,32 @@
 </div>
 
 <script>
-// ===== قسم المطور: أضف روابط الفيديوهات الجديدة هنا =====
-// { n: رقم_المقطع, id: 'معرف_Google_Drive' }
 const DEV_OVERRIDES = [
   // { n: 1, id: 'DRIVE_FILE_ID' },
 ];
-// ================================================================
 
-const INTRO_ID = '1UKb8rkoFM1RoQaqlyGHz6ngt_EdHtfA2';
+const INTRO_ID = '1Yw5_z0fSDvPo4jT7DRjG_c5T4_zJ4Ilb';
 const VIDEOS = [
-  '18XUPYYUpRNL2fm8Iy71H4MKgI89N7-Rr','1NIg_p2tK9lbsprrolHSKJ7FZnjmjciNX','1TIGqW_poGmfCf95IeWKxjRienCD0GrBA','1Tnyh8YUG0WpPe7ss1LshbuNRSo0vpCeM','1dHHd3rfySXSvlTcKrvgPvedntn1p9ZVN',
-  '1fu0vHARXMpN2b8jjVmoiEdfX8Nm-Pbsg','1PkzCxTIyCVSUlPrBssHh0_h7eoLmEdMK','18iARqtBE5NVZwDWFRTFcCXKhrjYA1AYf','17KHV7y3sjEZwhHa4_nfLkfbKaZjcdREO','1cm1Mq8RpEcZ2PZeQNSyPbhcGTyShJvSZ',
-  '1GfjkAIUvFAqPDyNg7JCiLxBhDNGLi_OC','1BcnAODrU-F9zY-0tBfAhCAAtG69bng4g','15MpwF2ucSACliSUDiO3KhOpqj36v1YLN','1plD97SPq59ehyy5vK4CmhDgG_AMJnzAW','19YJ6346_fxMs0Xke_4hP35QTkT1hIjE8',
-  '12giSPRjQbuzpUZ6cytkjCuo4TFqwgPCz','1G09XMydO7uQxe2ReBgFmEINCGEC0t3e5','1p4aIRDH3ST27CTiUpOIYTc221flU10i5','1v7_-VjU8GgJhCfo9eQp4mxpQr3xmAPfo','1cUq5dyzpNXYewjS4GORJjmX1d_rT7X4p',
-  '1HY0ukjkaJWzb1ZzMgzhm_wCXzRvNFIWT','1aB0ehh2LndabsZ0fS1XgMlVR927MHeHZ','1BQdFzqId3dEmtq8Nk839wyfQzVvmV0AK','1bE8SJIfHWVhSk_TGET-9R6Uh7fAqKUxp','1jcCPG0lXTEb3VKjbRjkA32NWdN7Ei08w',
-  '1bgioGig3PFfAIatzaJy07xRZCFCLJIM6','1oZLbFb-7iYJnZPXP9NHt0YiYJlUNk1Nw','1-PQozNbYuE5VDe9jXr-umkHtBOH_ltI-','12rVqH6f0W11K7rDMgYF9Nm7oOoJtUFdm','13F3cuDyjB1qyVez7Dt8SCNm1t6JT78bz',
-  '1975cMBVIn0u1Z-c7llBqfVxBHUGqoDXH','19py8eP3OkgnzI0-WXEOOxsctrflTveTH','1ccIVtSI28TM0_OTGs4lp4MBCOa_3UOw2','1kDd-RT8in8ja8irl5RqCauSUn3Z9f4tJ','1FMjZ4PBukDOacVdPLylsbqpRyEQp84zt',
-  '1NXXTIRI3DIdE1oSYCHbsGikEgPSvTQKe','1l_AMe-6iW3WDIcvxvn58pEfo6HTpp6wa','1CrXxsIKb2z95NmFSoFpbBnd-epPRIfGX','1XGavVox4T69wbD_I8dz7oZv474Dl-FLS','1K7L8M0f1oR1Irb817eSxfhVycAoJnwm9',
-  '19pCMCoK6O59vm2I0-6kgkMC5Xayq2UH3','10NxwR1PCieYX8FeT87YGR6CUuWJUxtz5','1KvwJbh9ndfjt-TOzCPapp-N_XRFfnuNL','1g7Jds44cmzrUbHo16jRt2e922NpkCib8','1jYxx2HDRKxB98rWjx2KplRRnixh8UMeS',
-  '1aITCIXJ_kBya2BzZLwIJZiXGlqYYjbHf','1XNXNvLkxXy0d8EBQmm88nHkj0i2c26J_','1WdMDa_e8S_upnSY_i4L7GRkCkA6qgX25','10dSQKXWsGbAmyBF1D2fpwjZpr1agrikn','1TW5LxK5w9JS7ZGt-rlwo4uchh-j3uGMo',
-  '1YT0m5044vYWpvX4nEp8G_ZXRGlNx11W9','1qhePz_hAkIJdjMJaT5bRY5IhfJ3J_JLK','1PptfqIeBA6ka1r8OLtxJa0aJzKBJsOvP','1v_neo0r8SJ-GnxQv4-h2rZtuwM0nlWiP','1BzUE35UMhicgxepritaHOMdjRcYCOVHN',
-  '1OnHFmj7Lst3rEwVMkGeeNQQOEIDhtAiX','1V77mA_KVQjXPTEnzEVApgFiNYEvZGPAH','15X0K8GOIL1CZkWpYcsbh25XZS5jHZ55b','1fQeICgou4JMM2eK3gpRqecOfmnygmJgs','1WDTwLdpNijUqXJ4xfWskO3KePnPRG90R',
-  '1RXMQuT6S0lcBJvY-KBGpkoierO_Exn8k','1ea7Qs2j9ssDRMiyACozf8QWF_gCGr43q','19pHyFn1fppTEvL5ehY5jYKkfosbtJMel','1JLejMVQ1AruU2Kh0Ad8A3NPb21Jzwqs5','17eNtT3rP7h3YoHRowzdZLNYnflLFwn_F',
-  '1XNJ-L-e6YRFPwgu4SJox6giakBUE_Krq','10qIbPqR6jNo4FtPO5cYvjdWsvh6kDbl7','1UZ5Tg5vDGKThIX2uLw0O7zoFBOgDASCV','1Y4YMPtrA8U2j4GL7brgU7OY6FT8DXsTL','1cqe4XdWoZf24Rwm6T9g8-Ze3eXkfoWhp',
-  '1hVZZtPzyV_dyf_kEO6Ct2O-3G86plVcW','11mUYqzvgmTE9K2U4ECQL2GqGn3H_YS06','1tf61a6_XUgtUsggvop4EczoaeqzKio6-','1ClW9-Eet4J6RyzQGCb7aDUWM9lhg38zA','1FX2sxi6IfdgJmxfLGXfSHi9NYTykdS7u',
-  '1NvwWzH-HH1Bj5ztigqOQooZhRLL6ZcLh','1FQB4Xfzi0-Vuoyu9ENz2CLh2e9oJ9SGA','1Lo87qGATXsrOSWnQfzkxbDYp9zHmU1iT','1vU01ypWYNM5ZhGuHTwDK4RI1swus7HR5','1BQvabavQBc_mUiNNhHyUyii0Ghmx8GTw',
-  '1v_neo0r8SJ-GnxQv4-h2rZtuwM0nlWiP','1K5rSVu9lCnud8QcaP5Jfplr4ti7iAIxT','1U2OoaeOn7Hru-DERBAnjXCS2rzlk6OIA','1_NjMUaiQwLmmP66DpdtMISD9-bO1uq08','1zAVoiI-30vyKohDCH6yQ-Jy6QWiyDtK9',
-  '1Uohv5uGYM9vMiLQZgkfV2jgzmEVXSD8M','1awwmjjg8_TF7RL9harXTswZ7S6YFjUlE','11wn-0tRD0Bsr7uU3ec1BanPfVYfQwkNS','1OxKz0vnyf7ZhQCBHLjSt1aOgNlFV4b4J','1PZ6PACbqVXdg2sEa1LobIhk80GlMsfrH',
-  '1_OcPreUw4hGwThW51nIM2X1oNfzjCK85','1ysYjeejl0nDmePGqQo62KJgqSpGFtdv3','1zgBMlfCtV0UrFcVjBZFqJmFS4d2RE5ax','17aQoWzR3VA-8xhRtYpjBGXqjkgbaurk8','1RJagdNBUEs7pFnf0pPikUqKrQsdufzEa',
-  null,null,null,null,null
+  '1HnfwPNrXPvvX6kMPB-JVyJoNHWXEGBat','1839QvcS8XbVswc2nw1AeuGaAXCvXnPYr','1dRrqRlXu5v1FEB_hVYlLImfIm_10y_t7','1fsNTLewCg9Y2RnBr1oJukhMwi5ZvmnUq','1EEvnOSVXUCUAJAWlqFvuiWJUszn8OgTm',
+  '1EK5puZlmsod3HGfN0WMyuOWUoGEIc9Fo','1cU3wCMMxGRtsJ2rUup_GDu3MZtK12wFM','1InTdGyPAVppGvFsZ6iDFPvX-1loUr_74','18ccy-Zu8mtkV3JNb6p-B8c-Z_9m_7Ufj','1lrROmTJDhQPXH92mkK2YxDWko-YjNEnq',
+  '1q8AKPkmPG2JLMULGBfydVi4nhNNCNZ4W','16V6owbQTNcRPQcWyC1HTeu1muaF0H4oG','1-ej7plJMI4Xvji_A33VnHFrg8RH0WN9Y','12-0468yBA8vH7GrfizoToy7vi6Ro7eD1','1Gji6lBV_1-cMdPS7o0hfcOO8rwUgB4ki',
+  '1NimFXDUZPLhtaLFC34zCfX7j8OidgXGp','1k8iOl-J5z4G2K2Engl1EotCW65lL2NtJ','1PsYJ-bLG1D95UzDZsSrlb-IieFsyFTWd','1INMWawdcmGra1fCcq9VOd2R1IimHmQ-Y','1NqnOUelmwf5uJbPm2Q7pi3u2qeP3RqnR',
+  '1Ydj7fE0oRZslX-oDgPuMR4Y1Gx6j4S_x','1XfyagNDC0iovkInFJRfEznXIfyy8WyOw','1m3ygqQ3UQlGzxdGqzOs3606FxR8oW7vG','1j57QNqtd9XOUT2CYrPzALgpaNLnI5noD','1IOkK22GWjt62sFhjh3LVGujnHUq_BQ6z',
+  '1DrnbngXslvI82CxV1jVS5vfkEMAIO6dK','1FvvyZ7JGnazfTKUpMIIeIzA9da-zaVfh','1t_en0joRsGGmcS22rSkkClqLJMfJaeTL','10c6QiO4G-_XkgM_l_j9mpm5ykBYCg2zI','1YthfxSAyBwka3rR5Hi8-c7M7Fw2e1zBR',
+  '1qXw2XJ2XtJ7tWlL_8WpPMu89Xet5nwPX','1HX7tATOvjg7dzStuWNHG_qIS6FBu4ijS','1U_7omRgttFLQp9nJwi11m7QoArT-Q5LG','1VdIwPKMkyUCTvNdtx8Tyzq_8Et-o_Fjb','1thXQpcDpQD4oMsTe_GA6kCkl-iHcwrU9',
+  '1B1H7I7xfpfVhBN31OwG7pmydAADMfGIn','1a6xa8s0UbxCHvEJGqR-21rlpnr3jE4OC','15oVS3NcXTPOxUJTPiUiLQW0DqTuMPxuu','1ZvtbSFQujofp83T8WALk5wGJTR6JJjIr','1x9JY1UlXn4eY3pj_9eve2dv4DDDD70wf',
+  '1nmXSPztkc4rnyzmjxIz_ws_i2-z0Kz4M','1ckhAqAP7ovJA0SQvqxH6wLp6YteNcnrl','1XtHlNaKmkDq3_QVEzMRUYj0Vf0HgOoay','15Y6Yzk2GMTuvWjL62jcUzs7ZZbWSSUi8','10Zu7TXJ2K1-LMbz4Q9KMcoNX4wVpmW00',
+  '1vqe-f5ESiteMEYfcEbRFFG6r2UToxVnT','1Fbwqt3Z-Z26nztPM5CHEa__0FEKJ4yNH','1xCOstYRfpRhN19QX2DOeId04V_XHBDE4','11XpJsTOS6azNwTWsz-vl6fD0KC-jpBJL','1NMfRbY6W6jiuFmUpjHiPtjTMrNg0TnXQ',
+  '1Yat9ajXPvoGHwUAQj5btH2-1UxsJH8Oc','1G7bhz5Go7KY1fYJ0xcle_KVXVgmuFdfk','1t0_dseiYeSwCQvKcPBQlEoONEQ4gXc0s','1tauRh09fv2l10kad6wML42imW-P2XvC-','18vrhwJU-aVbNzuEZIac5V_x5EqBdAaDk',
+  '1ClbWlxZuyRjE9pEx8bPF-axmiM0tS5lv','16Uqcc_ZQFjwL-A6-2T2wBV2V8MwxTyb-','17G1bqED9atetUnmxtA4UsuQVNMV18SPh','1IKlv1UGvGo2XLaUAcJe6I77QGK1FLUsz','1o0mwrhRqPGrAPdfSRb-lqcnJRT_a0aOw',
+  '1xzFSJB2Lk9YRTBHsPdGILAlXUK3nB6fo','1YCeTA4PLVPSq2qfFI3BsXXMxhEx_6ohi','1vA4eV39ReYV1qFWLp6VBRORYcqX4zmad','1eUaqTyK9k7lN3SSiB5m8oC5gALcbaw84','1h2BYDDTtohyOqHC4VzBLYWRfLp8ic4Vk',
+  '1LJV6pNkj4AFMJv2SoHXK7jBjGhE6_gJn','1RAdZmdSho8gpxduGEmtngvSf3w5dGl-3','1gYsoNgI73RZaUo1lZjjYCJl31mqxpl8N','16HvInUSoSZlaqYh9HET6joUEbPjmIFBl','1KjH6HUz6kVcjdPwH4jQOC_zaoC_Nf-GQ',
+  '12J8QW9AQCvasU4jMKao86-YkISZ9EXAX','1pgY3AkU2ADinY4hkNB86955mLbPXaknW','1wmXx2r4aGGdnDQ6YwYfArafAlzM1YqWP','1UpUzfzc1mm_bIR7mcdLINze3YW9a41L6','1_60dF_ICiTzMQdsZoHXRETBWFiPiVPMI',
+  '18OBnEm3kmyMzDbVr5NrL7ZwR4Z7JrbQ3','1tUz0V2eowYuN7j8kfy92pc3wFtqckQpK','1-uLwE83fklkssT4g6MAvnkwDbHwZCxXb','1Y9-pVMQSv-WgYsIvpbGTF08ATmd3KLcO','1unzm8qEzJ27eTOVjD4jNMNk1EcED8aJC',
+  '17uYvgDooWZFo1LHTkjJMPN05lCpHR5QM','1CUClqrt2rDnxMACganLAckJqGcbxvGjO','1F2e1moEc3z5HH7fIyY8CjkKHIwz4tVfi','1wrsqH3Z61tQD2PoZFNsaejc1wlu3W8NA','112UczQp3Y1fB5v11JJCmSHVoJb9m2paj',
+  '15X84Lroqj5h2HvGDwiTGTWDp8VRo3K7U','1PhAk68n5z8TiihzSf5CioDI40CAzaTNq','1CA7Qyptp8ahsvY7Q9qdefRUBwnHV84w4','1uLoNGHCHJ-vENiL8pvn1wFjlwFHeNSL0','1UyUtT1lRl3Wv4oJu9AOI6v_sVcqEZeGR',
+  '1dhgdcKI9-TmkRRjnAtWoDxXhVVhSZXNM','1Cj810SJkogpRgWyvjVXh4FAUY81d9YLu','1uHhGDd8yKo9Bpm4Qy1-dAnaz_gVr8dj-',
+  null,null,null,null,null,null,null
 ];
 
 DEV_OVERRIDES.forEach(({n,id})=>{
@@ -144,7 +144,7 @@ DEV_OVERRIDES.forEach(({n,id})=>{
   else if(n>VIDEOS.length){while(VIDEOS.length<n-1)VIDEOS.push(null);VIDEOS.push(id);}
 });
 
-const HINTS=["واصل تقدمك","فكرة جديدة","خطوة نحو الإتقان","تعلم أكثر","خطوة نجاح","استمر للتميز","دقائق تصنع الفرق","المعلومة قريبة","ركز فأنت قادر","تعلم بذكاء","كل مقطع خبرة","شغفك يقودك","الممارسة تفوق","خطوة بخطوة","اجعلها عادة","اليوم أفضل","العلم قوة","حلقة جديدة","لا تتوقف","استثمر وقتك"];
+const HINTS=["واصل تقدمك","فكرة جديدة","خطوة نحو الإتقان","تعلم أكثر","خطوة نجاح","استمر للتميز","دقائق تصنع الفارق","المعلومة قريبة","ركز فأنت قادر","تعلم بذكاء","كل مقطع خبرة","شغفك يقودك","الممارسة تفوق","خطوة بخطوة","اجعلها عادة","اليوم أفضل","العلم قوة","حلقة جديدة","لا تتوقف","استثمر وقتك"];
 const url=id=>`https://drive.google.com/file/d/${id}/view?usp=drive_link`;
 
 function render(){

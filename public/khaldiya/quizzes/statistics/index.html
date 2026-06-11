@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>اختبارات الإحصاء والاحتمالات — بوابة دعم التعلم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --primary:#3F7CB8;--primary-dk:#2B5F94;--accent:#4FA877;
+    --bg:#f4f8fb;--surface:#fff;--border:#e2e8f0;
+    --text:#0f172a;--muted:#64748b;--radius:16px;--radius-lg:22px;
+    --shadow:0 8px 24px -8px rgba(63,124,184,.20),0 2px 6px rgba(15,23,42,.04);
+    --shadow-lg:0 24px 60px -20px rgba(63,124,184,.30);
+    --grad:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  }
+  html,body{min-height:100vh;font-family:'Tajawal','Cairo',Arial,sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
+  h1,h2{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
+
+  .topbar{background:var(--grad);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);}
+  .topbar-logo-wrap{display:flex;align-items:center;gap:10px;}
+  .topbar-logo-wrap img{height:32px;opacity:.92;flex-shrink:0;}
+  .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;}
+  .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;}
+  .topbar-back:hover{background:rgba(255,255,255,.28);}
+
+  .hero-banner{background:var(--grad);color:#fff;padding:36px 24px 48px;text-align:center;position:relative;overflow:hidden;}
+  .hero-banner::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(255,255,255,.12),transparent 70%);pointer-events:none;}
+  .hero-banner h1{font-size:clamp(22px,4vw,34px);text-shadow:0 4px 16px rgba(7,54,105,.35);margin-bottom:8px;}
+  .hero-banner p{font-size:15px;opacity:.88;font-weight:500;}
+  .hero-pill{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:4px 18px;font-size:13px;font-weight:700;margin-bottom:12px;}
+
+  .container{max-width:1100px;margin:0 auto;padding:32px 20px 60px;}
+  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+  .section-header h2{font-size:18px;color:var(--primary);}
+  .count-badge{background:var(--primary);color:#fff;border-radius:99px;padding:2px 12px;font-size:13px;font-weight:700;}
+
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+
+  a.card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px 12px;aspect-ratio:1/1;text-decoration:none;color:var(--text);background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);transition:transform .18s,box-shadow .18s,border-color .18s;position:relative;}
+  a.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--primary);}
+  a.card.soon{opacity:.42;pointer-events:none;box-shadow:none;}
+
+  .card-num{width:52px;height:52px;border-radius:14px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Cairo',sans-serif;font-size:22px;font-weight:800;color:#fff;box-shadow:0 4px 12px rgba(63,124,184,.35);}
+  .card-label{font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;text-align:center;}
+  .card-hint{font-size:11px;color:var(--muted);text-align:center;}
+  a.card.soon .card-num{background:var(--border);box-shadow:none;}
+
+  .divider{height:1px;background:var(--border);margin:28px 0;}
+  footer{text-align:center;font-size:13px;color:var(--muted);padding:24px 0 40px;font-weight:600;}
+
+  @media(max-width:480px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;}
+    .hero-banner{padding:28px 16px 38px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo-wrap">
+    <img src="../../logo-white.png" alt="وزارة التعليم">
+    <span class="topbar-title" id="topbar-title">اختبارات الإحصاء والاحتمالات</span>
+  </div>
+  <a class="topbar-back" href="../../index.html">الرئيسية →</a>
+</div>
+
+<div class="hero-banner">
+  <div class="hero-pill" id="hero-pill">كمي — q5</div>
+  <h1 id="hero-title">اختبارات الإحصاء والاحتمالات</h1>
+  <p id="hero-sub">اختر اختباراً وابدأ التدريب</p>
+</div>
+
+<div class="container">
+  <div class="section-header">
+    <h2>الاختبارات المتاحة</h2>
+    <span class="count-badge" id="active-count">0</span>
+  </div>
+  <div class="grid" id="quiz-grid"></div>
+  <div class="divider"></div>
+  <footer>بوابة دعم التعلم — ثانوية الخالدية</footer>
+</div>
+
+<script>
+const URLS = [
+  'https://forms.gle/L9aZpWwmbGKMt6JE7',
+  'https://forms.gle/RC4XUZMafAfVVCar6',
+  'https://forms.gle/LJGnTD9mkcVmm5yu6',
+  'https://forms.gle/ZZde9rA3YUf7cH5WA',
+  'https://forms.gle/ZbspsEkBmCNT11x27',
+  'https://forms.gle/BPp2EFj615mNq9jp9',
+  'https://forms.gle/8p3b923JmziBgB8j6',
+  'https://forms.gle/jfJFGuu5H9Zpc8BX9',
+  'https://forms.gle/7RNYdaj8UkKeA5sP9',
+];
+
+const HINTS = ['ابدأ التحدي','خطوة نحو التفوق','ثِق بقدراتك','ذكاءٌ يصنع الفارق','تركيزك يقودك','حلّها بإبداع','أنت لها!','تقدّم صغير','جرّب واكتشف','انطلق بثبات','مع كل سؤال','تكرار يصنع إتقان','المثابرة','ركّز لتصل','استمر','اليوم أفضل','العلم قوة','لا تتوقف','استثمر وقتك','أبدع'];
+const TOTAL_CARDS = 20;
+
+document.getElementById('active-count').textContent = URLS.length;
+document.getElementById('hero-sub').textContent = `${URLS.length} اختبارات تدريبية — اختر رقم الاختبار`;
+
+const total = Math.max(URLS.length, TOTAL_CARDS);
+const grid = document.getElementById('quiz-grid');
+grid.innerHTML = Array.from({ length: total }, (_, i) => {
+  const url  = URLS[i];
+  const num  = i + 1;
+  const hint = HINTS[i % HINTS.length];
+  if (url) {
+    return `<a class="card" href="${url}" target="_blank" rel="noopener">
+      <div class="card-num">${num}</div>
+      <div class="card-label">اختبار ${num}</div>
+      <div class="card-hint">${hint}</div>
+    </a>`;
+  }
+  return `<a class="card soon" href="#" tabindex="-1">
+    <div class="card-num">${num}</div>
+    <div class="card-label">اختبار ${num}</div>
+    <div class="card-hint">قريباً</div>
+  </a>`;
+}).join('');
+</script>
+</body>
+</html>

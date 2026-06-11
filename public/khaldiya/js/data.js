@@ -493,5 +493,11 @@ const SKILL_QUIZZES = {
     'https://forms.gle/gVTjCK6hDxzySRTo9',
     'https://forms.gle/3QSHAQnTfaXMjBMu7',
   ]},
-  q5: { title: 'الإحصاء والاحتمالات', urls: [] },
+  q5: { title: 'الإحصاء والاحتمالات', urls: [
+    'https://forms.gle/L9aZpWwmbGKMt6JE7','https://forms.gle/RC4XUZMafAfVVCar6',
+    'https://forms.gle/LJGnTD9mkcVmm5yu6','https://forms.gle/ZZde9rA3YUf7cH5WA',
+    'https://forms.gle/ZbspsEkBmCNT11x27','https://forms.gle/BPp2EFj615mNq9jp9',
+    'https://forms.gle/8p3b923JmziBgB8j6','https://forms.gle/jfJFGuu5H9Zpc8BX9',
+    'https://forms.gle/7RNYdaj8UkKeA5sP9',
+  ] },
 };

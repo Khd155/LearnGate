@@ -39,12 +39,12 @@ const SEED_QUESTIONS = [
   {qnum:27,type:'quantitative',skill_id:'q1',text:'نسبة الرجال إلى النساء في قاعة 3:5، وعدد النساء 40. ما إجمالي عدد الحاضرين؟',opt1:'54 حاضراً',opt2:'60 حاضراً',opt3:'64 حاضراً',opt4:'70 حاضراً',ans:2},
   {qnum:28,type:'quantitative',skill_id:'q1',text:'ثلث راتب خالد للإيجار وربعه للمصاريف، وتبقى معه 2500 ريال. كم راتبه الإجمالي؟',opt1:'6000 ريال',opt2:'5500 ريال',opt3:'5000 ريال',opt4:'4500 ريال',ans:0},
   {qnum:29,type:'quantitative',skill_id:'q1',text:'ما قيمة: √(2⁶ × 5²) ؟',opt1:'30',opt2:'40',opt3:'80',opt4:'160',ans:1},
-  {qnum:30,type:'quantitative',skill_id:'q1',text:'متوسط درجات 5 طلاب 85، بعد انضمام طالب سادس أصبح المتوسط 86. ما درجة الطالب السادس؟',opt1:'86 درجة',opt2:'89 درجة',opt3:'90 درجة',opt4:'91 درجة',ans:3},
-  {qnum:31,type:'quantitative',skill_id:'q1',text:'انطلقت سيارتان في نفس الوقت؛ الأولى بـ100 كم/س والثانية بـ120 كم/س. كم المسافة بينهما بعد 3 ساعات؟',opt1:'40 كم',opt2:'50 كم',opt3:'60 كم',opt4:'80 كم',ans:2},
+  {qnum:30,type:'quantitative',skill_id:'q5',text:'متوسط درجات 5 طلاب 85، بعد انضمام طالب سادس أصبح المتوسط 86. ما درجة الطالب السادس؟',opt1:'86 درجة',opt2:'89 درجة',opt3:'90 درجة',opt4:'91 درجة',ans:3},
+  {qnum:31,type:'quantitative',skill_id:'q5',text:'مدرسة بها 40 طالباً، 25 منهم يفضلون كرة القدم، و20 يفضلون كرة السلة، و10 يفضلون اللعبتين معاً. إذا اختير طالب عشوائياً، فما احتمال أن يكون ممن لا يفضلون أي من اللعبتين؟',opt1:'١/٤',opt2:'١/٥',opt3:'١/٨',opt4:'٣/٨',ans:2},
   {qnum:32,type:'quantitative',skill_id:'q1',text:'6 عمال ينجزون جداراً في 8 أيام. كم يحتاج 4 عمال بنفس الكفاءة لإنجاز نفس الجدار؟',opt1:'10 أيام',opt2:'11 يوماً',opt3:'12 يوماً',opt4:'14 يوماً',ans:2},
   {qnum:33,type:'quantitative',skill_id:'q1',text:'اشترى تاجر بضاعة بـ4000 ريال، تلف 10% منها، وباع الباقي بربح صافٍ 20% من التكلفة الأصلية. كم قبض ثمناً للبضاعة السليمة؟',opt1:'4400 ريال',opt2:'4600 ريال',opt3:'4700 ريال',opt4:'4800 ريال',ans:3},
   {qnum:34,type:'quantitative',skill_id:'q1',text:'عدد إذا قُسم على 5 الباقي 4، وإذا قُسم على 4 الباقي 3. ما هذا العدد؟',opt1:'14',opt2:'19',opt3:'24',opt4:'29',ans:1},
-  {qnum:35,type:'quantitative',skill_id:'q1',text:'صافح 5 أشخاص بعضهم البعض مرة واحدة فقط. كم عدد المصافحات الكلية؟',opt1:'10 مصافحات',opt2:'15 مصافحة',opt3:'20 مصافحة',opt4:'25 مصافحة',ans:0},
+  {qnum:35,type:'quantitative',skill_id:'q5',text:'صافح 5 أشخاص بعضهم البعض مرة واحدة فقط. كم عدد المصافحات الكلية؟',opt1:'10 مصافحات',opt2:'15 مصافحة',opt3:'20 مصافحة',opt4:'25 مصافحة',ans:0},
   {qnum:36,type:'quantitative',skill_id:'q3',text:'سلك طوله 40 سم شُكّل منه مستطيل عرضه 8 سم. كم طوله؟',opt1:'10 سم',opt2:'12 سم',opt3:'14 سم',opt4:'16 سم',ans:1},
   {qnum:37,type:'quantitative',skill_id:'q3',text:'مثلث قائم الزاوية وتره 10 سم وأحد ضلعيه 6 سم. ما مساحته؟',opt1:'24 سم²',opt2:'30 سم²',opt3:'48 سم²',opt4:'60 سم²',ans:0},
   {qnum:38,type:'quantitative',skill_id:'q3',text:'في مثلث زاويتان قياسهما 55° و65°. ما قياس الزاوية الثالثة؟',opt1:'50°',opt2:'55°',opt3:'60°',opt4:'70°',ans:2},
@@ -374,18 +374,26 @@ export async function onRequest({ request, env }) {
       }
 
 
-      // POST /api/dev/seed-questions — insert hardcoded 50 questions
+      // POST /api/dev/seed-questions — upsert hardcoded 50 questions
       if (sub === 'seed-questions' && method === 'POST') {
         const SEED = SEED_QUESTIONS;
         const { results: existing } = await DB.prepare('SELECT qnum FROM questions').all();
         const existingNums = new Set(existing.map(r => r.qnum));
-        const fresh = SEED.filter(q => !existingNums.has(q.qnum));
-        for (const q of fresh) {
-          await DB.prepare(
-            'INSERT INTO questions (id,qnum,type,skill_id,text,opt1,opt2,opt3,opt4,ans,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
-          ).bind(crypto.randomUUID(), q.qnum, q.type, q.skill_id, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, new Date().toISOString()).run();
+        let added = 0, updated = 0;
+        for (const q of SEED) {
+          if (existingNums.has(q.qnum)) {
+            await DB.prepare(
+              'UPDATE questions SET type=?,skill_id=?,text=?,opt1=?,opt2=?,opt3=?,opt4=?,ans=? WHERE qnum=?'
+            ).bind(q.type, q.skill_id, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, q.qnum).run();
+            updated++;
+          } else {
+            await DB.prepare(
+              'INSERT INTO questions (id,qnum,type,skill_id,text,opt1,opt2,opt3,opt4,ans,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+            ).bind(crypto.randomUUID(), q.qnum, q.type, q.skill_id, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, new Date().toISOString()).run();
+            added++;
+          }
         }
-        return ok({ added: fresh.length, skipped: SEED.length - fresh.length });
+        return ok({ added, updated });
       }
       // DELETE /api/dev/questions — clear all questions
       if (sub === 'questions' && method === 'DELETE') {
@@ -483,20 +491,28 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true });
       }
 
-      // POST /api/director/seed-questions — auto-seed hardcoded questions (director auth)
+      // POST /api/director/seed-questions — upsert hardcoded questions (director auth)
       if (sub === 'seed-questions' && method === 'POST') {
         const body = await request.json();
         const dir = await authDirector(body.director_code, school);
         if (!dir) return err('Unauthorized', 401);
         const { results: existing } = await DB.prepare('SELECT qnum FROM questions').all();
         const existingNums = new Set(existing.map(r => r.qnum));
-        const fresh = SEED_QUESTIONS.filter(q => !existingNums.has(q.qnum));
-        for (const q of fresh) {
-          await DB.prepare(
-            'INSERT INTO questions (id,qnum,type,skill_id,text,opt1,opt2,opt3,opt4,ans,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
-          ).bind(crypto.randomUUID(), q.qnum, q.type, q.skill_id, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, new Date().toISOString()).run();
+        let added = 0, updated = 0;
+        for (const q of SEED_QUESTIONS) {
+          if (existingNums.has(q.qnum)) {
+            await DB.prepare(
+              'UPDATE questions SET type=?,skill_id=?,text=?,opt1=?,opt2=?,opt3=?,opt4=?,ans=? WHERE qnum=?'
+            ).bind(q.type, q.skill_id, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, q.qnum).run();
+            updated++;
+          } else {
+            await DB.prepare(
+              'INSERT INTO questions (id,qnum,type,skill_id,text,opt1,opt2,opt3,opt4,ans,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+            ).bind(crypto.randomUUID(), q.qnum, q.type, q.skill_id, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, new Date().toISOString()).run();
+            added++;
+          }
         }
-        return ok({ added: fresh.length, skipped: SEED_QUESTIONS.length - fresh.length });
+        return ok({ added, updated });
       }
 
       // PATCH /api/director/questions/:id?director_code=Y&school=X — edit one question

@@ -4,6 +4,10 @@
 const Cache = { students: [], plans: [], loaded: false };
 window.QUESTION_BANK = (typeof QUESTIONS !== 'undefined' ? QUESTIONS.slice() : []);
 
+function escapeHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // Base API call helper
 async function apiFetch(path, opts = {}) {
   const res = await fetch('/api' + path, {
@@ -323,7 +327,7 @@ const App = {
   _fillTopbarGhosts() {
     const name = State.student?.name || State.admin?.admin_name || '';
     const chip = name
-      ? `<span class="tb-chip"><span class="tb-dot"></span>${name}</span>`
+      ? `<span class="tb-chip"><span class="tb-dot"></span>${escapeHtml(name)}</span>`
       : '';
     const logo = `<a href="https://moe.gov.sa" target="_blank" class="topbar-logo" style="margin:0;flex-shrink:0;" aria-label="وزارة التعليم"></a>`;
     document.querySelectorAll('.topbar-ghost').forEach(el => {
@@ -655,14 +659,14 @@ const App = {
     if (nameEl) nameEl.textContent = plan.studentName || (State.student && State.student.name) || '';
     const school = State.school || (State.student && State.student.school) || '';
     const schoolEl = document.getElementById('sp-print-school');
-    if (schoolEl) schoolEl.innerHTML = school ? `<strong>المدرسة:</strong> ${school}` : '';
+    if (schoolEl) schoolEl.innerHTML = school ? `<strong>المدرسة:</strong> ${escapeHtml(school)}` : '';
     const now = new Date();
     const dateStr = now.toLocaleDateString('ar-SA', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
     const timeStr = now.toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
     const dateEl = document.getElementById('sp-print-date');
     if (dateEl) dateEl.innerHTML = `<strong>التاريخ:</strong> ${dateStr}`;
     const metaEl = document.getElementById('sp-print-meta');
-    if (metaEl) metaEl.innerHTML = `<div>${dateStr}</div><div>${timeStr}</div>${school ? `<div>${school}</div>` : ''}`;
+    if (metaEl) metaEl.innerHTML = `<div>${dateStr}</div><div>${timeStr}</div>${school ? `<div>${escapeHtml(school)}</div>` : ''}`;
     const footerDate = document.getElementById('sp-print-footer-date');
     if (footerDate) footerDate.textContent = dateStr;
 
@@ -857,10 +861,10 @@ const App = {
           ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="App.grantRetake('${st.id}')">🔓 سماح</button>`
           : '';
         return `<div class="student-row">
-          <div class="student-avatar">${st.name.charAt(0)}</div>
+          <div class="student-avatar">${escapeHtml(st.name.charAt(0))}</div>
           <div class="student-info" onclick="App.openStudentDetail('${st.id}')" style="cursor:pointer;">
-            <div class="student-name">${st.name}</div>
-            <div class="student-code">رمز: ${st.code}</div>
+            <div class="student-name">${escapeHtml(st.name)}</div>
+            <div class="student-code">رمز: ${escapeHtml(st.code)}</div>
           </div>
           ${badge}
           ${scoreChip}
@@ -899,10 +903,10 @@ const App = {
       }
       listEl.innerHTML = admins.map(a => `
         <div class="student-row">
-          <div class="student-avatar">${a.name.charAt(0)}</div>
+          <div class="student-avatar">${escapeHtml(a.name.charAt(0))}</div>
           <div class="student-info" style="flex:1;">
-            <div class="student-name">${a.name}</div>
-            <div class="student-code">رمز: ${a.code} · ${a.role === 'director' ? '👑 مدير' : '👤 مشرف'}</div>
+            <div class="student-name">${escapeHtml(a.name)}</div>
+            <div class="student-code">رمز: ${escapeHtml(a.code)} · ${a.role === 'director' ? '👑 مدير' : '👤 مشرف'}</div>
           </div>
           ${a.role !== 'director' ? `<button class="btn btn-danger btn-sm" onclick="App.deleteSupervisor('${a.id}')">حذف</button>` : ''}
         </div>`).join('');
@@ -1520,8 +1524,8 @@ const App = {
         const sent = m.sender_type === 'admin';
         const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
         return `<div style="display:flex;flex-direction:column;align-items:${sent ? 'flex-end' : 'flex-start'};">
-          <div class="chat-bubble ${sent ? 'sent' : 'received'}">${m.body}</div>
-          <div class="chat-time">${sent ? 'أنت' : m.student_name} · ${time}</div>
+          <div class="chat-bubble ${sent ? 'sent' : 'received'}">${escapeHtml(m.body)}</div>
+          <div class="chat-time">${sent ? 'أنت' : escapeHtml(m.student_name)} · ${time}</div>
         </div>`;
       }).join('');
       el.scrollTop = el.scrollHeight;
@@ -1678,9 +1682,9 @@ const App = {
     // Show selection modal
     const list = document.getElementById('supervisor-list');
     list.innerHTML = admins.map(a => `
-      <button class="supervisor-btn" onclick="App.openChatWithAdmin('${a.id}','${a.name.replace(/'/g,"\\'")}');document.getElementById('supervisor-select-modal').classList.remove('open');">
-        <div class="supervisor-avatar">${a.name.charAt(0)}</div>
-        <span>${a.name}</span>
+      <button class="supervisor-btn" onclick="App.openChatWithAdmin('${a.id}','${escapeHtml(a.name).replace(/'/g,"&#39;")}');document.getElementById('supervisor-select-modal').classList.remove('open');">
+        <div class="supervisor-avatar">${escapeHtml(a.name.charAt(0))}</div>
+        <span>${escapeHtml(a.name)}</span>
       </button>`).join('');
     document.getElementById('supervisor-select-modal').classList.add('open');
   },
@@ -1721,8 +1725,8 @@ const App = {
       const sent = m.sender_type === 'student';
       const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
       return `<div style="display:flex;flex-direction:column;align-items:${sent ? 'flex-end' : 'flex-start'};">
-        <div class="chat-bubble ${sent ? 'sent' : 'received'}">${m.body}</div>
-        <div class="chat-time">${sent ? 'أنت' : State.chatAdminName || 'المشرف'} · ${time}</div>
+        <div class="chat-bubble ${sent ? 'sent' : 'received'}">${escapeHtml(m.body)}</div>
+        <div class="chat-time">${sent ? 'أنت' : escapeHtml(State.chatAdminName || 'المشرف')} · ${time}</div>
       </div>`;
     }).join('');
     el.scrollTop = el.scrollHeight;
@@ -1799,14 +1803,14 @@ const App = {
         return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}','student')" style="${t.unread_count > 0 ? 'border-color:var(--primary);' : ''}">
           <div class="ticket-card-top">
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-              <span class="ticket-num-badge">${t.ticket_num || '—'}</span>
-              <div class="ticket-subject">${t.subject}</div>
+              <span class="ticket-num-badge">${escapeHtml(t.ticket_num || '—')}</span>
+              <div class="ticket-subject">${escapeHtml(t.subject)}</div>
             </div>
             <span class="${badgeCls}" style="flex-shrink:0;">${badgeTxt}</span>
           </div>
           <div class="ticket-card-footer">
-            ${t.category ? `<span class="cat-chip">${t.category}</span>` : ''}
-            ${t.priority ? `<span class="${prioClass}">${prioIcon}${t.priority}</span>` : ''}
+            ${t.category ? `<span class="cat-chip">${escapeHtml(t.category)}</span>` : ''}
+            ${t.priority ? `<span class="${prioClass}">${prioIcon}${escapeHtml(t.priority)}</span>` : ''}
             ${unreadHtml}
             <span style="font-size:11px;color:var(--muted);margin-right:auto;">${date}</span>
           </div>
@@ -1881,20 +1885,20 @@ const App = {
       // Meta chips
       const prioIcon = ticket.priority === 'عالية' ? '🚨' : ticket.priority === 'منخفضة' ? '🟢' : '🟡';
       document.getElementById('td-meta-chips').innerHTML = `
-        ${ticket.ticket_num ? `<span class="ticket-num-badge">${ticket.ticket_num}</span>` : ''}
-        ${ticket.category   ? `<span class="cat-chip">${ticket.category}</span>` : ''}
-        ${ticket.priority   ? `<span style="font-size:11px;">${prioIcon} ${ticket.priority}</span>` : ''}
-        <span style="font-size:11px;color:var(--muted);">${ticket.student_name} · ${date}</span>`;
+        ${ticket.ticket_num ? `<span class="ticket-num-badge">${escapeHtml(ticket.ticket_num)}</span>` : ''}
+        ${ticket.category   ? `<span class="cat-chip">${escapeHtml(ticket.category)}</span>` : ''}
+        ${ticket.priority   ? `<span style="font-size:11px;">${prioIcon} ${escapeHtml(ticket.priority)}</span>` : ''}
+        <span style="font-size:11px;color:var(--muted);">${escapeHtml(ticket.student_name)} · ${date}</span>`;
 
       // Chat bubbles
       const thread = document.getElementById('td-thread');
       thread.innerHTML = replies.length ? replies.map(r => {
         const time = new Date(r.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-        const who  = r.sender_type === 'student' ? (ticket.student_name || 'الطالب') : '🛠 الدعم الفني';
+        const who  = r.sender_type === 'student' ? escapeHtml(ticket.student_name || 'الطالب') : '🛠 الدعم الفني';
         return `<div class="chat-bubble-wrap ${r.sender_type}">
           <div class="chat-bubble">
             <div class="chat-label">${who}</div>
-            <div>${r.body}</div>
+            <div>${escapeHtml(r.body)}</div>
             <div class="chat-time">${time}</div>
           </div>
         </div>`;
@@ -2053,15 +2057,15 @@ const App = {
       return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}','admin')">
         <div class="ticket-card-top">
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-            <span class="ticket-num-badge">${t.ticket_num || '—'}</span>
-            <div class="ticket-subject">${t.subject}</div>
+            <span class="ticket-num-badge">${escapeHtml(t.ticket_num || '—')}</span>
+            <div class="ticket-subject">${escapeHtml(t.subject)}</div>
           </div>
           <span class="${badgeCls}" style="flex-shrink:0;">${badgeTxt}</span>
         </div>
         <div class="ticket-card-footer">
-          ${t.category ? `<span class="cat-chip">${t.category}</span>` : ''}
-          ${t.priority ? `<span style="font-size:11px;">${prioIcon}${t.priority}</span>` : ''}
-          <span style="font-size:11px;color:var(--muted);margin-right:auto;">${t.student_name} · ${t.school || ''} · ${date}</span>
+          ${t.category ? `<span class="cat-chip">${escapeHtml(t.category)}</span>` : ''}
+          ${t.priority ? `<span style="font-size:11px;">${prioIcon}${escapeHtml(t.priority)}</span>` : ''}
+          <span style="font-size:11px;color:var(--muted);margin-right:auto;">${escapeHtml(t.student_name)} · ${escapeHtml(t.school || '')} · ${date}</span>
         </div>
       </div>`;
     }).join('');
@@ -2079,9 +2083,9 @@ const App = {
       }
       listEl.innerHTML = counts.map(c => `
         <div class="msg-preview-row">
-          <div class="student-avatar">${(c.student_name || '؟').charAt(0)}</div>
+          <div class="student-avatar">${escapeHtml((c.student_name || '؟').charAt(0))}</div>
           <div class="msg-preview-info">
-            <div class="msg-preview-name">${c.student_name}</div>
+            <div class="msg-preview-name">${escapeHtml(c.student_name)}</div>
             <div class="msg-preview-last" style="font-size:12px;color:var(--muted);">رسائل غير مقروءة</div>
           </div>
           <span class="msg-unread-count">${c.cnt}</span>

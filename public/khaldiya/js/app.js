@@ -262,7 +262,7 @@ const App = {
     if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
     const remember = document.getElementById('sl-remember');
     if (remember && remember.checked) {
-      localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
+      localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code, name: student.name, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
     } else {
       localStorage.removeItem('lg_remember');
     }
@@ -297,7 +297,7 @@ const App = {
     if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
     const alRemember = document.getElementById('al-remember');
     if (alRemember && alRemember.checked) {
-      localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
+      localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, name: admin.admin_name || admin.name || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
     } else {
       localStorage.removeItem('lg_remember');
     }

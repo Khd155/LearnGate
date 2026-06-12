@@ -73,6 +73,8 @@
   }
   .topbar-logo-wrap{display:flex;align-items:center;gap:10px;}
   .topbar-logo-wrap img{height:32px;opacity:.92;flex-shrink:0;}
+  .tb-user-chip{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;padding:4px 12px;font-size:12px;font-family:inherit;font-weight:700;display:inline-flex;align-items:center;gap:5px;margin-right:8px;}
+  .tb-user-chip::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#a3e635;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -87,7 +89,7 @@
 </div>
 
 <div class="topbar">
-  <div class="topbar-logo-wrap"><img src="../../logo-white.png" alt="وزارة التعليم"><span class="topbar-title">شروحات المقارنات الكمية</span></div>
+  <div class="topbar-logo-wrap"><img src="../../logo-white.png" alt="وزارة التعليم"><span class="topbar-title">شروحات المقارنات الكمية</span><span class="tb-user-chip" id="tb-user-chip" style="display:none"></span></div>
   <a class="topbar-back" href="../../index.html">الرئيسية</a>
 </div>
 
@@ -180,6 +182,18 @@ function render(){
   document.getElementById('hero-sub').textContent=`اختر المقطع وشاهد الشرح — ${active} مقطع متاح`;
 }
 render();
+</script>
+<script>
+(function(){
+  try {
+    const a = localStorage.getItem('lg_academic_user');
+    const d = a ? JSON.parse(a) : null;
+    if (d && d.name) { var c=document.getElementById('tb-user-chip'); c.textContent=d.name; c.style.display='inline-flex'; return; }
+    const r = localStorage.getItem('lg_remember');
+    const rd = r ? JSON.parse(r) : null;
+    if (rd && rd.name) { var c=document.getElementById('tb-user-chip'); c.textContent=rd.name; c.style.display='inline-flex'; }
+  } catch(e){}
+})();
 </script>
 </body>
 </html>

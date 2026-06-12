@@ -191,6 +191,7 @@ function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
   if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
+  if (id === 'screen-student-home') { history.replaceState(null, '', location.pathname); }
 }
 
 // ── Cooldown helpers ─────────────────────────────────────────────────────
@@ -269,6 +270,7 @@ const App = {
     startIdleWatch();
     App.renderStudentHome();
     show('screen-student-home');
+    routeHash();
   },
 
   // ── Admin Login ──────────────────────────────────────────────────────────
@@ -2118,6 +2120,12 @@ function showToast(msg) {
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
+}
+
+// ── Hash routing ──────────────────────────────────────────────────────────
+function routeHash() {
+  const hash = decodeURIComponent(location.hash.replace(/^#/, ''));
+  if (hash === 'قدرات' && State.student) { App.startCapabilities(); }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────

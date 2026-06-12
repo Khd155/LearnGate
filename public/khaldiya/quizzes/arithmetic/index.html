@@ -20,9 +20,9 @@
   html,body{min-height:100vh;font-family:'Tajawal','Cairo',Arial,sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
   h1,h2{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
 
-  .topbar{background:var(--grad);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);}
-  .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;}
-  .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;}
+  .topbar{background:var(--grad);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);min-height:64px;}
+  .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;white-space:nowrap;}
+  .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;order:1;}
   .topbar-back:hover{background:rgba(255,255,255,.28);}
 
   .hero-banner{background:var(--grad);color:#fff;padding:36px 24px 48px;text-align:center;position:relative;overflow:hidden;}
@@ -55,8 +55,8 @@
     .hero-banner{padding:28px 16px 38px;}
   }
   .topbar-logo-wrap{display:flex;align-items:center;gap:10px;}
-  .topbar-logo-wrap img{height:32px;opacity:.92;flex-shrink:0;}
-  .tb-user-chip{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;padding:4px 12px;font-size:12px;font-family:inherit;font-weight:700;display:inline-flex;align-items:center;gap:5px;margin-right:8px;}
+  .topbar-logo-wrap img{height:30px;opacity:.92;flex-shrink:0;}
+  .tb-user-chip{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;padding:5px 12px;font-size:12px;font-family:inherit;font-weight:700;display:none;align-items:center;gap:5px;max-width:150px;overflow:hidden;white-space:nowrap;}
   .tb-user-chip::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#a3e635;flex-shrink:0;}
 </style>
 </head>

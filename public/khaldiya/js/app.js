@@ -322,12 +322,12 @@ const App = {
   // ── Inject logo + name into all ghost topbar slots ───────────────────────
   _fillTopbarGhosts() {
     const name = State.student?.name || State.admin?.admin_name || '';
+    const chip = name
+      ? `<span class="tb-chip"><span class="tb-dot"></span>${name}</span>`
+      : '';
+    const logo = `<a href="https://moe.gov.sa" target="_blank" class="topbar-logo" style="margin:0;flex-shrink:0;" aria-label="وزارة التعليم"></a>`;
     document.querySelectorAll('.topbar-ghost').forEach(el => {
-      el.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0;';
-      el.innerHTML = name
-        ? `<span style="color:#fff;font-size:12px;font-weight:700;opacity:.88;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>`
-        + `<a href="https://moe.gov.sa" target="_blank" class="topbar-logo" style="margin:0;flex-shrink:0;" aria-label="وزارة التعليم"></a>`
-        : `<a href="https://moe.gov.sa" target="_blank" class="topbar-logo" style="margin:0;" aria-label="وزارة التعليم"></a>`;
+      el.innerHTML = chip + logo;
     });
   },
 

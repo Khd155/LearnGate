@@ -93,17 +93,6 @@
   .grade-name{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;color:var(--text);}
   .grade-hint{font-size:12px;color:var(--muted);}
 
-  /* ── Back row ── */
-  .back-row{margin-bottom:22px;}
-  .back-btn{
-    display:inline-flex;align-items:center;gap:7px;
-    background:none;border:1.5px solid var(--border);color:var(--muted);
-    border-radius:99px;padding:6px 16px;font-size:13px;
-    font-family:inherit;font-weight:700;cursor:pointer;
-    transition:border-color .18s,color .18s;
-  }
-  .back-btn:hover{border-color:var(--primary);color:var(--primary);}
-
   /* ── Subject cards ── */
   .subject-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;}
 
@@ -141,7 +130,7 @@
       <span class="dot"></span>
       <span id="user-name-label">...</span>
     </span>
-    <a class="tb-back" href="../index.html">الرئيسية →</a>
+    <button class="tb-back" onclick="navBack()">→ رجوع</button>
   </div>
 </div>
 
@@ -183,9 +172,6 @@
     <p>المحتوى قيد الإعداد — سيكون متاحاً قريباً</p>
   </div>
   <div class="container">
-    <div class="back-row">
-      <button class="back-btn" onclick="goBack()">← العودة لاختيار الصف</button>
-    </div>
     <div class="section-label" id="subjects-label">المواد الدراسية</div>
     <div class="subject-grid">
       <div class="subject-card">
@@ -246,6 +232,11 @@ function logout() {
   localStorage.removeItem('lg_academic_user');
   localStorage.removeItem('learngate_remember');
   window.location.href = '../index.html';
+}
+
+function navBack() {
+  const onSubjects = document.getElementById('screen-subjects').classList.contains('active');
+  if (onSubjects) { goBack(); } else { window.location.href = '../index.html'; }
 }
 
 function selectGrade(name) {

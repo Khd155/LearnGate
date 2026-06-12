@@ -261,7 +261,9 @@ const App = {
     State.student = student;
     State.role = 'student';
     if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
-    sessionStorage.setItem('lg_session', JSON.stringify({ role: 'student', code, name: student.name, school: student.school || '' }));
+    const _sess = { role: 'student', code, name: student.name, school: student.school || '', expiry: Date.now() + 4 * 60 * 60 * 1000 };
+    sessionStorage.setItem('lg_session', JSON.stringify(_sess));
+    localStorage.setItem('lg_xsession', JSON.stringify(_sess));
     const remember = document.getElementById('sl-remember');
     if (remember && remember.checked) {
       localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code, name: student.name, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
@@ -299,7 +301,9 @@ const App = {
     State.admin = admin;
     if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
     const adminName = admin.admin_name || admin.name || '';
-    sessionStorage.setItem('lg_session', JSON.stringify({ role: State.role, code, name: adminName, school: admin.school || '' }));
+    const _sess = { role: State.role, code, name: adminName, school: admin.school || '', expiry: Date.now() + 4 * 60 * 60 * 1000 };
+    sessionStorage.setItem('lg_session', JSON.stringify(_sess));
+    localStorage.setItem('lg_xsession', JSON.stringify(_sess));
     const alRemember = document.getElementById('al-remember');
     if (alRemember && alRemember.checked) {
       localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, name: adminName, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
@@ -2088,6 +2092,7 @@ const App = {
     const alCode = document.getElementById('al-code');
     if (alCode) alCode.value = '';
     sessionStorage.removeItem('lg_session');
+    localStorage.removeItem('lg_xsession');
     localStorage.removeItem('lg_remember');
     show('screen-school');
   },
@@ -2159,16 +2164,23 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
   DB.loadQuestions().catch(() => {});
 
-  // 1) Check active session (tab refresh — no login required again)
+  // 1) Same-tab refresh
   try {
     const sess = sessionStorage.getItem('lg_session');
-    if (sess) {
-      const { role, code } = JSON.parse(sess);
-      if (role && code) { _autoLogin(role, code); return; }
-    }
+    if (sess) { const { role, code } = JSON.parse(sess); if (role && code) { _autoLogin(role, code); return; } }
   } catch (e) { sessionStorage.removeItem('lg_session'); }
 
-  // 2) Check long-term remember-me token
+  // 2) Cross-tab session (new tab from lesson/quiz pages, 4h expiry)
+  try {
+    const xs = localStorage.getItem('lg_xsession');
+    if (xs) {
+      const { role, code, expiry } = JSON.parse(xs);
+      if (expiry && Date.now() > expiry) { localStorage.removeItem('lg_xsession'); }
+      else if (role && code) { _autoLogin(role, code); return; }
+    }
+  } catch (e) { localStorage.removeItem('lg_xsession'); }
+
+  // 3) Long-term remember-me token (2 days)
   try {
     const saved = localStorage.getItem('lg_remember');
     if (saved) {

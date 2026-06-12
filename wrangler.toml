@@ -1,8 +1,8 @@
 name = "learngate"
 pages_build_output_dir = "./public/khaldiya"
 
-[vars]
-DEV_KEY = "learngate-dev-2026"
+# DEV_KEY and JWT_SECRET must be set as Secrets in Cloudflare Dashboard
+# (Settings → Environment Variables → Secret)
 
 [[d1_databases]]
 binding = "DB"

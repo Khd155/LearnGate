@@ -8,12 +8,14 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// JWT token — set on login, restored from session storage on page load
+let _authToken = null;
+
 // Base API call helper
 async function apiFetch(path, opts = {}) {
-  const res = await fetch('/api' + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-  });
+  const headers = { 'Content-Type': 'application/json' };
+  if (_authToken) headers['Authorization'] = 'Bearer ' + _authToken;
+  const res = await fetch('/api' + path, { headers, ...opts });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
@@ -256,16 +258,28 @@ const App = {
     if (!/^\d{10}$/.test(code)) {
       showAlert(errEl, 'الرجاء إدخال رقم السجل المدني (١٠ أرقام).'); return;
     }
-    try { await DB.loadAll(); }
-    catch (e) { showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return; }
-    const student = DB.students().find(s => s.code === code);
-    if (!student) {
-      showAlert(errEl, 'السجل المدني غير مسجّل. راجع المشرف لإضافتك في النظام.'); return;
+    let token, student;
+    try {
+      const data = await apiFetch('/auth/student-login', {
+        method: 'POST',
+        body: JSON.stringify({ code, school: State.school || '' }),
+      });
+      token = data.token;
+      student = { id: data.student.id, code, name: data.student.name, school: data.student.school || '' };
+    } catch (e) {
+      if (e.message && (e.message.includes('404') || e.message.includes('غير مسجّل'))) {
+        showAlert(errEl, 'السجل المدني غير مسجّل. راجع المشرف لإضافتك في النظام.'); return;
+      }
+      if (e.message && e.message.includes('429')) {
+        showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
+      }
+      showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return;
     }
+    _authToken = token;
     State.student = student;
     State.role = 'student';
     if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
-    const _sess = { role: 'student', code, name: student.name, school: student.school || '', expiry: Date.now() + 4 * 60 * 60 * 1000 };
+    const _sess = { role: 'student', code, name: student.name, school: student.school, token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
     sessionStorage.setItem('lg_session', JSON.stringify(_sess));
     localStorage.setItem('lg_xsession', JSON.stringify(_sess));
     const remember = document.getElementById('sl-remember');
@@ -287,25 +301,31 @@ const App = {
     if (!/^\d{10}$/.test(code)) {
       showAlert(errEl, 'الرجاء إدخال رقم السجل المدني (١٠ أرقام).'); return;
     }
-    let admin;
+    let token, admin;
     try {
-      const school = encodeURIComponent(State.school || '');
-      const data = await apiFetch(`/admins/${code}?school=${school}`);
+      const data = await apiFetch('/auth/admin-login', {
+        method: 'POST',
+        body: JSON.stringify({ code, school: State.school || '' }),
+      });
+      token = data.token;
       admin = data.admin;
     } catch (e) {
-      if (e.message && e.message.includes('404')) {
+      if (e.message && (e.message.includes('404') || e.message.includes('غير مسجّل'))) {
         showAlert(errEl, 'السجل المدني غير مسجّل ضمن المشرفين.'); return;
+      }
+      if (e.message && e.message.includes('429')) {
+        showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
       }
       showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return;
     }
-    if (!admin) { showAlert(errEl, 'السجل المدني غير مسجّل ضمن المشرفين.'); return; }
-    try { await DB.loadAll(); }
-    catch (e) { showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return; }
+    _authToken = token;
     State.role  = admin.role === 'director' ? 'director' : 'admin';
     State.admin = admin;
     if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
-    const adminName = admin.admin_name || admin.name || '';
-    const _sess = { role: State.role, code, name: adminName, school: admin.school || '', expiry: Date.now() + 4 * 60 * 60 * 1000 };
+    const adminName = admin.name || '';
+    try { await DB.loadAll(); }
+    catch (e) { showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return; }
+    const _sess = { role: State.role, code, name: adminName, school: admin.school || '', token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
     sessionStorage.setItem('lg_session', JSON.stringify(_sess));
     localStorage.setItem('lg_xsession', JSON.stringify(_sess));
     const alRemember = document.getElementById('al-remember');
@@ -315,7 +335,6 @@ const App = {
       localStorage.removeItem('lg_remember');
     }
     startIdleWatch();
-    // Show director-only tabs
     document.querySelectorAll('.director-tab').forEach(el => {
       el.style.display = State.role === 'director' ? '' : 'none';
     });
@@ -325,7 +344,7 @@ const App = {
 
   // ── Inject logo + name into all ghost topbar slots ───────────────────────
   _fillTopbarGhosts() {
-    const name = State.student?.name || State.admin?.admin_name || '';
+    const name = State.student?.name || State.admin?.name || '';
     const chip = name
       ? `<span class="tb-chip"><span class="tb-dot"></span>${escapeHtml(name)}</span>`
       : '';
@@ -1995,7 +2014,19 @@ const App = {
   async supportAdminLogin() {
     const key   = document.getElementById('sp-login-key').value.trim();
     const errEl = document.getElementById('sp-login-err');
-    if (key !== 'learngate-dev-2026') { showAlert(errEl, 'مفتاح الدخول غير صحيح'); return; }
+    if (!key) { showAlert(errEl, 'أدخل مفتاح الدخول'); return; }
+    try {
+      const data = await apiFetch('/auth/dev', {
+        method: 'POST',
+        body: JSON.stringify({ key }),
+      });
+      _authToken = data.token;
+    } catch (e) {
+      if (e.message && e.message.includes('429')) {
+        showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة'); return;
+      }
+      showAlert(errEl, 'مفتاح الدخول غير صحيح'); return;
+    }
     State.role = 'support';
     startIdleWatch();
     show('screen-support-admin');
@@ -2160,7 +2191,9 @@ function routeHash() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
-function _autoLogin(role, code) {
+function _autoLogin(role, code, token) {
+  // Restore JWT if we have one stored
+  if (token) _authToken = token;
   if (role === 'student') {
     const input = document.getElementById('sl-code');
     const cb    = document.getElementById('sl-remember');
@@ -2184,16 +2217,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1) Same-tab refresh
   try {
     const sess = sessionStorage.getItem('lg_session');
-    if (sess) { const { role, code } = JSON.parse(sess); if (role && code) { _autoLogin(role, code); return; } }
+    if (sess) { const { role, code, token } = JSON.parse(sess); if (role && code) { _autoLogin(role, code, token); return; } }
   } catch (e) { sessionStorage.removeItem('lg_session'); }
 
   // 2) Cross-tab session (new tab from lesson/quiz pages, 4h expiry)
   try {
     const xs = localStorage.getItem('lg_xsession');
     if (xs) {
-      const { role, code, expiry } = JSON.parse(xs);
+      const { role, code, token, expiry } = JSON.parse(xs);
       if (expiry && Date.now() > expiry) { localStorage.removeItem('lg_xsession'); }
-      else if (role && code) { _autoLogin(role, code); return; }
+      else if (role && code) { _autoLogin(role, code, token); return; }
     }
   } catch (e) { localStorage.removeItem('lg_xsession'); }
 
@@ -2203,7 +2236,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (saved) {
       const { role, code, expiry } = JSON.parse(saved);
       if (expiry && Date.now() > expiry) { localStorage.removeItem('lg_remember'); }
-      else if (role && code) { _autoLogin(role, code); return; }
+      else if (role && code) { _autoLogin(role, code, null); return; }
     }
   } catch (e) { localStorage.removeItem('lg_remember'); }
 

@@ -337,6 +337,14 @@ const App = {
     App.loadTicketNotifications();
   },
 
+  goToAcademic() {
+    const user = State.student || State.admin || {};
+    const name = user.name || user.admin_name || '';
+    const role = State.student ? 'student' : (State.admin ? 'admin' : '');
+    localStorage.setItem('lg_academic_user', JSON.stringify({ name, role }));
+    window.location.href = 'academic/index.html';
+  },
+
   async startCapabilities() {
     try { await DB.loadAll(); } catch (e) {}
     const plans = DB.studentPlans(State.student.id);

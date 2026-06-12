@@ -2122,32 +2122,39 @@ function showToast(msg) {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  show('screen-landing');
   const btn = document.getElementById('selfdiag-submit');
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
   DB.loadQuestions().catch(() => {});
 
-  // Auto-login if remember me was checked
+  // Auto-login if remember me was checked — skip landing flash
   try {
     const saved = localStorage.getItem('lg_remember');
     if (saved) {
       const { role, code, expiry } = JSON.parse(saved);
-      if (expiry && Date.now() > expiry) { localStorage.removeItem('lg_remember'); return; }
+      if (expiry && Date.now() > expiry) {
+        localStorage.removeItem('lg_remember');
+        show('screen-landing');
+        return;
+      }
       if (role === 'student') {
         const input = document.getElementById('sl-code');
         const cb    = document.getElementById('sl-remember');
         if (input) input.value = code;
         if (cb)    cb.checked  = true;
-        App.studentLogin();
+        App.studentLogin().catch(() => show('screen-landing'));
       } else if (role === 'admin') {
         const input = document.getElementById('al-code');
         const cb    = document.getElementById('al-remember');
         if (input) input.value = code;
         if (cb)    cb.checked  = true;
-        App.adminLogin();
+        App.adminLogin().catch(() => show('screen-landing'));
+      } else {
+        show('screen-landing');
       }
+      return;
     }
   } catch (e) {
     localStorage.removeItem('lg_remember');
   }
+  show('screen-landing');
 });

@@ -882,3 +882,227 @@ p, span, div, button, input, label, td, th {
   background: #2563c8;
   transform: translateY(-2px);
 }
+
+/* ══════════════════════════════════════════════════════════
+   PERFORMANCE INDICATOR — مؤشر الأداء
+══════════════════════════════════════════════════════════ */
+
+/* ── Admin: performance tab grid ── */
+.perf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+@media (max-width: 480px) { .perf-grid { grid-template-columns: 1fr 1fr; gap: 12px; } }
+
+.perf-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  padding: 20px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+  transition: transform .18s, box-shadow .18s;
+}
+.perf-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px -12px rgba(63,124,184,.22); }
+.perf-card::before {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; left: 0;
+  height: 4px;
+  border-radius: 18px 18px 0 0;
+}
+.perf-card.pf-high::before  { background: linear-gradient(90deg,#4FA877,#22d3a5); }
+.perf-card.pf-mid::before   { background: linear-gradient(90deg,#f59e0b,#fbbf24); }
+.perf-card.pf-low::before   { background: linear-gradient(90deg,#ef4444,#f87171); }
+.perf-card.pf-none::before  { background: #e2e8f0; }
+
+/* Score ring */
+.perf-ring-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+}
+.perf-ring-wrap svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+.perf-ring-bg  { fill: none; stroke: #f0f4f8; stroke-width: 7; }
+.perf-ring-fg  { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset .7s cubic-bezier(.4,0,.2,1); }
+.pf-high .perf-ring-fg  { stroke: #4FA877; }
+.pf-mid  .perf-ring-fg  { stroke: #f59e0b; }
+.pf-low  .perf-ring-fg  { stroke: #ef4444; }
+.pf-none .perf-ring-fg  { stroke: #cbd5e1; }
+.perf-ring-label {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cairo', sans-serif;
+  font-size: 17px; font-weight: 900;
+}
+.pf-high .perf-ring-label { color: #16a34a; }
+.pf-mid  .perf-ring-label { color: #d97706; }
+.pf-low  .perf-ring-label { color: #dc2626; }
+.pf-none .perf-ring-label { color: #94a3b8; font-size: 11px; text-align: center; line-height: 1.3; }
+
+.perf-name {
+  font-family: 'Cairo', sans-serif;
+  font-size: 13.5px; font-weight: 800;
+  color: var(--text); text-align: center;
+  max-width: 100%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.perf-code { font-size: 11px; color: var(--muted); font-weight: 600; }
+
+/* Trend row */
+.perf-trend {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700;
+  background: #f8fafc; border-radius: 99px;
+  padding: 4px 12px;
+}
+.perf-trend.trend-up   { background: #f0fdf4; color: #16a34a; }
+.perf-trend.trend-down { background: #fef2f2; color: #dc2626; }
+.perf-trend.trend-same { background: #f8fafc; color: #64748b; }
+.perf-trend-arrow { font-size: 14px; }
+
+/* Attempt count chip */
+.perf-attempts {
+  position: absolute; top: 10px; left: 10px;
+  background: rgba(63,124,184,.10);
+  color: var(--primary);
+  font-size: 10.5px; font-weight: 800;
+  border-radius: 99px; padding: 2px 8px;
+}
+
+/* "Not tested" badge */
+.perf-none-badge {
+  background: #f1f5f9; color: #94a3b8;
+  border-radius: 99px; padding: 4px 12px;
+  font-size: 12px; font-weight: 700;
+}
+
+/* ── Admin: performance header summary ── */
+.perf-summary-bar {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.perf-summary-item {
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  padding: 16px 14px;
+  text-align: center;
+}
+.perf-summary-num {
+  font-family: 'Cairo', sans-serif;
+  font-size: 28px; font-weight: 900;
+  line-height: 1.1;
+}
+.perf-summary-lbl {
+  font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 4px;
+}
+
+/* ── Admin: search/filter bar ── */
+.perf-filter-bar {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 16px; align-items: center;
+}
+.perf-search {
+  flex: 1; min-width: 160px;
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 8px 14px; font-family: inherit; font-size: 13.5px;
+  color: var(--text); background: var(--surface);
+  outline: none; transition: border-color .18s;
+}
+.perf-search:focus { border-color: var(--primary); }
+.perf-filter-btn {
+  background: #f1f5f9; color: var(--text);
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 8px 14px; font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .15s;
+}
+.perf-filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ── Student: performance card (student home) ── */
+.sh-perf-card {
+  background: linear-gradient(135deg, #f0f7ff 0%, #edfaf3 100%);
+  border: 1.5px solid #bcd6ee;
+  border-radius: 18px;
+  padding: 20px 20px 18px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.sh-perf-card::before {
+  content: "📈";
+  position: absolute;
+  top: -6px; left: -6px;
+  font-size: 70px;
+  opacity: .07;
+  pointer-events: none;
+  line-height: 1;
+}
+.sh-perf-title {
+  font-family: 'Cairo', sans-serif;
+  font-size: 15px; font-weight: 800;
+  color: var(--primary); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 6px;
+}
+.sh-perf-scores {
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; flex-wrap: wrap;
+}
+.sh-score-box {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 14px 18px;
+  text-align: center;
+  min-width: 110px;
+  box-shadow: 0 2px 10px rgba(63,124,184,.10);
+  flex: 1;
+}
+.sh-score-num {
+  font-family: 'Cairo', sans-serif;
+  font-size: 32px; font-weight: 900; line-height: 1.1;
+}
+.sh-score-lbl { font-size: 11.5px; color: var(--muted); font-weight: 700; margin-top: 2px; }
+.sh-score-box.latest .sh-score-num { color: var(--primary); }
+.sh-score-box.prev   .sh-score-num { color: var(--muted); }
+
+.sh-perf-delta {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.sh-delta-arrow {
+  font-size: 28px; line-height: 1;
+}
+.sh-delta-val {
+  font-family: 'Cairo', sans-serif;
+  font-size: 15px; font-weight: 900;
+}
+.sh-delta-up   .sh-delta-arrow { color: #16a34a; }
+.sh-delta-up   .sh-delta-val   { color: #16a34a; }
+.sh-delta-down .sh-delta-arrow { color: #dc2626; }
+.sh-delta-down .sh-delta-val   { color: #dc2626; }
+.sh-delta-same .sh-delta-arrow { color: #94a3b8; }
+.sh-delta-same .sh-delta-val   { color: #94a3b8; }
+
+.sh-perf-bar-wrap {
+  margin-top: 14px;
+  background: #e2e8f0; border-radius: 99px; height: 8px; overflow: hidden;
+}
+.sh-perf-bar-fill {
+  height: 100%; border-radius: 99px;
+  transition: width .8s cubic-bezier(.4,0,.2,1);
+}
+.sh-perf-bar-fill.pf-high { background: linear-gradient(90deg,#4FA877,#22d3a5); }
+.sh-perf-bar-fill.pf-mid  { background: linear-gradient(90deg,#f59e0b,#fbbf24); }
+.sh-perf-bar-fill.pf-low  { background: linear-gradient(90deg,#ef4444,#f87171); }
+.sh-perf-footer {
+  margin-top: 10px; font-size: 12px; color: var(--muted);
+  font-weight: 600; text-align: center;
+}

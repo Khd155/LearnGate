@@ -378,6 +378,8 @@ const App = {
     } else {
       planBanner.style.display = 'none';
     }
+    // Performance indicator (2nd test onwards)
+    App.renderStudentPerformanceCard();
     // Check for unread support replies
     App.loadTicketNotifications();
   },
@@ -897,13 +899,184 @@ const App = {
   },
 
   setTab(tab) {
-    document.getElementById('tab-manage').style.display      = tab === 'settings'   ? 'block' : 'none';
-    document.getElementById('tab-supervisors').style.display = tab === 'supervisors' ? 'block' : 'none';
-    document.getElementById('tab-questions').style.display   = tab === 'questions'   ? 'block' : 'none';
+    document.getElementById('tab-manage').style.display       = tab === 'settings'    ? 'block' : 'none';
+    document.getElementById('tab-supervisors').style.display  = tab === 'supervisors' ? 'block' : 'none';
+    document.getElementById('tab-questions').style.display    = tab === 'questions'   ? 'block' : 'none';
+    document.getElementById('tab-performance').style.display  = tab === 'performance' ? 'block' : 'none';
     if (tab === 'stats')       { App.renderAdminDashboard(tab); App.renderAdminStats(); return; }
     if (tab === 'supervisors') { App.renderAdminDashboard(tab); App.loadSupervisors(); return; }
     if (tab === 'questions')   { App.renderAdminDashboard(tab); App.loadQuestions(); return; }
+    if (tab === 'performance') { App.renderAdminDashboard(tab); App.renderPerformanceTab(); return; }
     App.renderAdminDashboard(tab);
+  },
+
+  // ── مؤشر الأداء — Admin view ───────────────────────────────────────────────
+  renderPerformanceTab(filter) {
+    const el = document.getElementById('tab-performance');
+    if (!el) return;
+    const students = DB.students();
+    const plans    = DB.plans();
+    if (!students.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📈</div><p>لا يوجد طلاب بعد</p></div>`;
+      return;
+    }
+
+    const planScore = p => p && p.gaps.length
+      ? Math.round(p.gaps.reduce((s,g) => s+g.pct, 0) / p.gaps.length) : null;
+
+    const scoreClass = sc =>
+      sc === null ? 'pf-none' : sc >= 71 ? 'pf-high' : sc >= 50 ? 'pf-mid' : 'pf-low';
+
+    // Build per-student data
+    const data = students.map(st => {
+      const myPlans  = DB.studentPlans(st.id);          // sorted newest-first
+      const latest   = myPlans[0] || null;
+      const previous = myPlans[1] || null;
+      const latestSc  = planScore(latest);
+      const prevSc    = planScore(previous);
+      const delta     = (latestSc !== null && prevSc !== null) ? latestSc - prevSc : null;
+      return { st, myPlans, latest, latestSc, prevSc, delta };
+    });
+
+    // Filter logic
+    const f = filter || 'all';
+    const filtered = f === 'tested'   ? data.filter(d => d.latestSc !== null)
+                   : f === 'untested' ? data.filter(d => d.latestSc === null)
+                   : data;
+
+    // Summary counts
+    const tested   = data.filter(d => d.latestSc !== null).length;
+    const untested = students.length - tested;
+    const allSc    = data.filter(d => d.latestSc !== null).map(d => d.latestSc);
+    const classAvg = allSc.length ? Math.round(allSc.reduce((a,b) => a+b,0)/allSc.length) : null;
+
+    const ringPath = (pct) => {
+      const r = 34, c = 40, circ = 2 * Math.PI * r;
+      const dash = ((pct ?? 0) / 100) * circ;
+      return `<svg viewBox="0 0 80 80" width="80" height="80">
+        <circle class="perf-ring-bg" cx="${c}" cy="${c}" r="${r}"/>
+        <circle class="perf-ring-fg" cx="${c}" cy="${c}" r="${r}"
+          stroke-dasharray="${circ.toFixed(1)}"
+          stroke-dashoffset="${(circ - dash).toFixed(1)}"/>
+      </svg>`;
+    };
+
+    const cardHtml = (d) => {
+      const { st, myPlans, latestSc, prevSc, delta } = d;
+      const sc  = latestSc;
+      const cls = scoreClass(sc);
+
+      const ring = sc !== null ? ringPath(sc) : ringPath(0);
+      const ringLabel = sc !== null
+        ? `<div class="perf-ring-label">${sc}%</div>`
+        : `<div class="perf-ring-label">لم<br>يختبر</div>`;
+
+      const trendHtml = (() => {
+        if (sc === null) return `<span class="perf-none-badge">لم يختبر بعد</span>`;
+        if (delta === null) return `<div class="perf-trend trend-same"><span class="perf-trend-arrow">◉</span>محاولة أولى</div>`;
+        if (delta > 0)  return `<div class="perf-trend trend-up"><span class="perf-trend-arrow">↑</span>+${delta} نقطة</div>`;
+        if (delta < 0)  return `<div class="perf-trend trend-down"><span class="perf-trend-arrow">↓</span>${delta} نقطة</div>`;
+        return `<div class="perf-trend trend-same"><span class="perf-trend-arrow">→</span>لا تغيير</div>`;
+      })();
+
+      const attemptsChip = myPlans.length
+        ? `<div class="perf-attempts">${myPlans.length} ${myPlans.length === 1 ? 'محاولة' : 'محاولات'}</div>`
+        : '';
+
+      return `<div class="perf-card ${cls}">
+        ${attemptsChip}
+        <div class="perf-ring-wrap">${ring}${ringLabel}</div>
+        <div class="perf-name" title="${escapeHtml(st.name)}">${escapeHtml(st.name)}</div>
+        <div class="perf-code">رمز: ${escapeHtml(st.code)}</div>
+        ${trendHtml}
+      </div>`;
+    };
+
+    el.innerHTML = `
+      <div class="perf-summary-bar">
+        <div class="perf-summary-item">
+          <div class="perf-summary-num" style="color:var(--primary)">${students.length}</div>
+          <div class="perf-summary-lbl">إجمالي الطلاب</div>
+        </div>
+        <div class="perf-summary-item">
+          <div class="perf-summary-num" style="color:#16a34a">${tested}</div>
+          <div class="perf-summary-lbl">أجروا الاختبار</div>
+        </div>
+        <div class="perf-summary-item">
+          <div class="perf-summary-num" style="color:var(--primary)">${classAvg !== null ? classAvg + '%' : '—'}</div>
+          <div class="perf-summary-lbl">متوسط الفصل</div>
+        </div>
+      </div>
+      <div class="perf-filter-bar">
+        <input class="perf-search" id="perf-search-input" type="text" placeholder="🔍 ابحث عن طالب…" oninput="App._perfFilter()">
+        <button class="perf-filter-btn ${f==='all'?'active':''}"      onclick="App.renderPerformanceTab('all')">الكل</button>
+        <button class="perf-filter-btn ${f==='tested'?'active':''}"   onclick="App.renderPerformanceTab('tested')">اختبروا</button>
+        <button class="perf-filter-btn ${f==='untested'?'active':''}" onclick="App.renderPerformanceTab('untested')">لم يختبروا</button>
+      </div>
+      <div class="perf-grid" id="perf-cards-grid">
+        ${filtered.map(d => cardHtml(d)).join('')}
+      </div>`;
+  },
+
+  _perfFilter() {
+    const q = (document.getElementById('perf-search-input')?.value || '').trim().toLowerCase();
+    document.querySelectorAll('#perf-cards-grid .perf-card').forEach(card => {
+      const name = card.querySelector('.perf-name')?.textContent.toLowerCase() || '';
+      const code = card.querySelector('.perf-code')?.textContent.toLowerCase() || '';
+      card.style.display = (!q || name.includes(q) || code.includes(q)) ? '' : 'none';
+    });
+  },
+
+  // ── مؤشر الأداء — Student view ────────────────────────────────────────────
+  renderStudentPerformanceCard() {
+    const el = document.getElementById('sh-perf-card');
+    if (!el) return;
+    const myPlans = DB.studentPlans(State.student.id);
+    if (myPlans.length < 2) { el.style.display = 'none'; return; }
+
+    const planScore = p => p && p.gaps.length
+      ? Math.round(p.gaps.reduce((s,g) => s+g.pct, 0) / p.gaps.length) : null;
+
+    const latest = myPlans[0];
+    const prev   = myPlans[1];
+    const latestSc = planScore(latest);
+    const prevSc   = planScore(prev);
+
+    if (latestSc === null) { el.style.display = 'none'; return; }
+
+    const delta = prevSc !== null ? latestSc - prevSc : null;
+    const deltaClass = delta === null ? 'sh-delta-same'
+                     : delta > 0     ? 'sh-delta-up'
+                     : delta < 0     ? 'sh-delta-down' : 'sh-delta-same';
+    const deltaArrow = delta === null ? '◉' : delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
+    const deltaLabel = delta === null ? '' : delta > 0 ? `+${delta}` : `${delta}`;
+
+    const barClass = latestSc >= 71 ? 'pf-high' : latestSc >= 50 ? 'pf-mid' : 'pf-low';
+
+    const attempts = myPlans.length;
+
+    el.style.display = 'block';
+    el.innerHTML = `<div class="sh-perf-card">
+      <div class="sh-perf-title">📈 مؤشر أدائك</div>
+      <div class="sh-perf-scores">
+        ${prevSc !== null ? `<div class="sh-score-box prev">
+          <div class="sh-score-num">${prevSc}%</div>
+          <div class="sh-score-lbl">المحاولة السابقة</div>
+        </div>` : ''}
+        ${delta !== null ? `<div class="sh-perf-delta ${deltaClass}">
+          <div class="sh-delta-arrow">${deltaArrow}</div>
+          <div class="sh-delta-val">${deltaLabel}</div>
+        </div>` : ''}
+        <div class="sh-score-box latest">
+          <div class="sh-score-num">${latestSc}%</div>
+          <div class="sh-score-lbl">آخر محاولة</div>
+        </div>
+      </div>
+      <div class="sh-perf-bar-wrap" style="margin-top:14px;">
+        <div class="sh-perf-bar-fill ${barClass}" style="width:${latestSc}%"></div>
+      </div>
+      <div class="sh-perf-footer">محاولاتك الإجمالية: ${attempts} · استمر وأنت قادر! 💪</div>
+    </div>`;
   },
 
   // ── Director: Supervisors Management ─────────────────────────────────────

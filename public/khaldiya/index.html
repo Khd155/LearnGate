@@ -593,6 +593,9 @@
     <!-- Plan status banner -->
     <div id="sh-plan-banner" style="display:none;margin-bottom:20px;"></div>
 
+    <!-- Performance indicator (shown from 2nd test onwards) -->
+    <div id="sh-perf-card" style="display:none;"></div>
+
     <div class="service-section-title">مسارات الدعم التعليمي</div>
     <div class="service-cards">
       <div class="service-card active" onclick="App.goToAcademic()">
@@ -1155,9 +1158,13 @@
       <button class="tab-btn active" data-tab="students" onclick="App.setTab('students')">👥 الطلاب</button>
       <button class="tab-btn" data-tab="stats"    onclick="App.setTab('stats')">📊 الإحصائيات</button>
       <button class="tab-btn" data-tab="settings" onclick="App.setTab('settings')">⚙️ الإدارة</button>
+      <button class="tab-btn" data-tab="performance" onclick="App.setTab('performance')">📈 الأداء</button>
       <button class="tab-btn director-tab" data-tab="supervisors" onclick="App.setTab('supervisors')" style="display:none;">👨‍💼 المشرفون</button>
       <button class="tab-btn director-tab" data-tab="questions"   onclick="App.setTab('questions')"   style="display:none;">📝 الأسئلة</button>
     </div>
+
+    <!-- Performance tab content -->
+    <div id="tab-performance" style="display:none;margin-bottom:20px;"></div>
 
     <!-- Settings tab content -->
     <div id="tab-manage" style="display:none;margin-bottom:20px;">

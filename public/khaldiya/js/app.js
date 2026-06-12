@@ -261,6 +261,7 @@ const App = {
     State.student = student;
     State.role = 'student';
     if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
+    sessionStorage.setItem('lg_session', JSON.stringify({ role: 'student', code, name: student.name, school: student.school || '' }));
     const remember = document.getElementById('sl-remember');
     if (remember && remember.checked) {
       localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code, name: student.name, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
@@ -297,9 +298,11 @@ const App = {
     State.role  = admin.role === 'director' ? 'director' : 'admin';
     State.admin = admin;
     if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
+    const adminName = admin.admin_name || admin.name || '';
+    sessionStorage.setItem('lg_session', JSON.stringify({ role: State.role, code, name: adminName, school: admin.school || '' }));
     const alRemember = document.getElementById('al-remember');
     if (alRemember && alRemember.checked) {
-      localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, name: admin.admin_name || admin.name || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
+      localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, name: adminName, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
     } else {
       localStorage.removeItem('lg_remember');
     }
@@ -2084,6 +2087,8 @@ const App = {
     document.getElementById('sl-code').value = '';
     const alCode = document.getElementById('al-code');
     if (alCode) alCode.value = '';
+    sessionStorage.removeItem('lg_session');
+    localStorage.removeItem('lg_remember');
     show('screen-school');
   },
 };
@@ -2133,40 +2138,45 @@ function routeHash() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
+function _autoLogin(role, code) {
+  if (role === 'student') {
+    const input = document.getElementById('sl-code');
+    const cb    = document.getElementById('sl-remember');
+    if (input) input.value = code;
+    if (cb)    cb.checked  = true;
+    App.studentLogin().catch(() => { sessionStorage.removeItem('lg_session'); show('screen-landing'); });
+  } else {
+    const input = document.getElementById('al-code');
+    const cb    = document.getElementById('al-remember');
+    if (input) input.value = code;
+    if (cb)    cb.checked  = true;
+    App.adminLogin().catch(() => { sessionStorage.removeItem('lg_session'); show('screen-landing'); });
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('selfdiag-submit');
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
   DB.loadQuestions().catch(() => {});
 
-  // Auto-login if remember me was checked — skip landing flash
+  // 1) Check active session (tab refresh — no login required again)
+  try {
+    const sess = sessionStorage.getItem('lg_session');
+    if (sess) {
+      const { role, code } = JSON.parse(sess);
+      if (role && code) { _autoLogin(role, code); return; }
+    }
+  } catch (e) { sessionStorage.removeItem('lg_session'); }
+
+  // 2) Check long-term remember-me token
   try {
     const saved = localStorage.getItem('lg_remember');
     if (saved) {
       const { role, code, expiry } = JSON.parse(saved);
-      if (expiry && Date.now() > expiry) {
-        localStorage.removeItem('lg_remember');
-        show('screen-landing');
-        return;
-      }
-      if (role === 'student') {
-        const input = document.getElementById('sl-code');
-        const cb    = document.getElementById('sl-remember');
-        if (input) input.value = code;
-        if (cb)    cb.checked  = true;
-        App.studentLogin().catch(() => show('screen-landing'));
-      } else if (role === 'admin') {
-        const input = document.getElementById('al-code');
-        const cb    = document.getElementById('al-remember');
-        if (input) input.value = code;
-        if (cb)    cb.checked  = true;
-        App.adminLogin().catch(() => show('screen-landing'));
-      } else {
-        show('screen-landing');
-      }
-      return;
+      if (expiry && Date.now() > expiry) { localStorage.removeItem('lg_remember'); }
+      else if (role && code) { _autoLogin(role, code); return; }
     }
-  } catch (e) {
-    localStorage.removeItem('lg_remember');
-  }
+  } catch (e) { localStorage.removeItem('lg_remember'); }
+
   show('screen-landing');
 });

@@ -319,8 +319,21 @@ const App = {
     show('screen-admin');
   },
 
+  // ── Inject logo + name into all ghost topbar slots ───────────────────────
+  _fillTopbarGhosts() {
+    const name = State.student?.name || State.admin?.admin_name || '';
+    document.querySelectorAll('.topbar-ghost').forEach(el => {
+      el.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0;';
+      el.innerHTML = name
+        ? `<span style="color:#fff;font-size:12px;font-weight:700;opacity:.88;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>`
+        + `<a href="https://moe.gov.sa" target="_blank" class="topbar-logo" style="margin:0;flex-shrink:0;" aria-label="وزارة التعليم"></a>`
+        : `<a href="https://moe.gov.sa" target="_blank" class="topbar-logo" style="margin:0;" aria-label="وزارة التعليم"></a>`;
+    });
+  },
+
   // ── Student Home ─────────────────────────────────────────────────────────
   renderStudentHome() {
+    App._fillTopbarGhosts();
     document.getElementById('sh-name').textContent = State.student.name;
     const myPlan    = DB.plans().find(p => p.studentId === State.student.id);
     const planBanner = document.getElementById('sh-plan-banner');

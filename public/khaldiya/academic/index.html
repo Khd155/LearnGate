@@ -228,7 +228,6 @@
 })();
 
 function logout() {
-  if (!confirm('تريد الخروج من الحساب؟')) return;
   localStorage.removeItem('lg_academic_user');
   localStorage.removeItem('learngate_remember');
   window.location.href = '../index.html';

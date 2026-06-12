@@ -714,6 +714,16 @@ export async function onRequest({ request, env }) {
       if (!msgClaims) return err('Unauthorized', 401, CORS);
       const isPrivileged = ['admin','director','dev','support'].includes(msgClaims.role);
 
+      // GET /api/messages/unread-student — student checks unread messages from admin
+      if (sub === 'unread-student' && method === 'GET') {
+        if (msgClaims.role !== 'student') return err('Forbidden', 403, CORS);
+        const studentId = msgClaims.sub;
+        const row = await DB.prepare(
+          "SELECT COUNT(*) as count FROM messages WHERE student_id=? AND sender_type='admin' AND is_read=0"
+        ).bind(studentId).first();
+        return ok({ count: row?.count || 0 }, 200, CORS);
+      }
+
       // GET /api/messages/unread — admin/director/dev only
       if (sub === 'unread' && method === 'GET') {
         if (!isPrivileged) return err('Forbidden', 403, CORS);

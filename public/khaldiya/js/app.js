@@ -289,6 +289,8 @@ const App = {
       localStorage.removeItem('lg_remember');
     }
     startIdleWatch();
+    App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
+    App.startNotifPolling();
     App.renderStudentHome();
     show('screen-student-home');
     routeHash();
@@ -335,6 +337,8 @@ const App = {
       localStorage.removeItem('lg_remember');
     }
     startIdleWatch();
+    App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
+    App.startNotifPolling();
     document.querySelectorAll('.director-tab').forEach(el => {
       el.style.display = State.role === 'director' ? '' : 'none';
     });
@@ -362,19 +366,11 @@ const App = {
     const planBanner = document.getElementById('sh-plan-banner');
     if (myPlan) {
       planBanner.style.display = 'flex';
-      if (myPlan.status === 'active') {
-        planBanner.className = 'status-banner active';
-        planBanner.innerHTML = `<div class="status-icon">✅</div><div>
-          <div class="status-title">خطتك جاهزة!</div>
-          <div class="status-desc">تمت الموافقة على خطة دعم التعلم. <a href="#" onclick="App.viewStudentPlan();return false;" style="color:var(--primary);font-weight:700;">عرض الخطة ←</a></div>
-        </div>`;
-      } else {
-        planBanner.className = 'status-banner pending';
-        planBanner.innerHTML = `<div class="status-icon">⏳</div><div>
-          <div class="status-title">خطتك قيد المراجعة</div>
-          <div class="status-desc">تم إنشاء خطة دعمك. <a href="#" onclick="App.viewStudentPlan();return false;" style="color:var(--primary);font-weight:700;">عرض نتائجك وخطتك ←</a></div>
-        </div>`;
-      }
+      planBanner.className = 'status-banner active';
+      planBanner.innerHTML = `<div class="status-icon">✅</div><div>
+        <div class="status-title">خطتك جاهزة!</div>
+        <div class="status-desc">تمت الموافقة على خطة دعم التعلم. <a href="#" onclick="App.viewStudentPlan();return false;" style="color:var(--primary);font-weight:700;">عرض الخطة ←</a></div>
+      </div>`;
     } else {
       planBanner.style.display = 'none';
     }
@@ -859,6 +855,8 @@ const App = {
     document.getElementById('stat-avg').textContent      = avgScore !== null ? avgScore + '%' : '—';
 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === State.tab));
+    const searchBar = document.getElementById('student-search-bar');
+    if (searchBar) searchBar.style.display = State.tab === 'students' ? 'block' : 'none';
     const listEl = document.getElementById('admin-student-list');
 
     if (State.tab === 'students') {
@@ -896,6 +894,15 @@ const App = {
     } else {
       listEl.innerHTML = '';
     }
+  },
+
+  _filterStudentList() {
+    const q = (document.getElementById('student-search-input')?.value || '').trim().toLowerCase();
+    document.querySelectorAll('#admin-student-list .student-row').forEach(row => {
+      const name = row.querySelector('.student-name')?.textContent.toLowerCase() || '';
+      const code = row.querySelector('.student-code')?.textContent.toLowerCase() || '';
+      row.style.display = (!q || name.includes(q) || code.includes(q)) ? '' : 'none';
+    });
   },
 
   setTab(tab) {
@@ -1583,7 +1590,6 @@ const App = {
         </div>
         <div class="gap-rec">${g.recommendation}</div>
       </div>`).join('');
-    document.getElementById('btn-modal-approve').style.display = plan.status === 'pending' ? 'flex' : 'none';
     document.getElementById('review-modal').classList.add('open');
   },
 
@@ -1699,6 +1705,132 @@ const App = {
   closeStudentDetail() {
     document.getElementById('student-detail-modal').classList.remove('open');
     State.detailStudentId = null;
+  },
+
+  exportStudentPlanPDF() {
+    const studentId = State.detailStudentId;
+    if (!studentId) return;
+    const st = DB.students().find(s => s.id === studentId);
+    const allPlans = DB.plans().filter(p => p.studentId === studentId)
+      .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const latest = allPlans[0];
+    if (!st || !latest) { showToast('لا توجد بيانات اختبار لهذا الطالب'); return; }
+
+    const avg = latest.gaps.length ? Math.round(latest.gaps.reduce((s,g)=>s+g.pct,0)/latest.gaps.length) : 0;
+    const avgColor = avg >= 71 ? '#16a34a' : avg >= 50 ? '#d97706' : '#dc2626';
+    const dateStr = new Date(latest.createdAt).toLocaleDateString('ar-SA', { year:'numeric', month:'long', day:'numeric' });
+    const school = State.school || st.school || '';
+    const printDate = new Date().toLocaleDateString('ar-SA', { year:'numeric', month:'long', day:'numeric' });
+
+    const skillRows = latest.gaps.map((g, i) => {
+      const lvlTxt = g.pct <= 30 ? 'ضعيف' : g.pct <= 49 ? 'دون المتوسط' : g.pct <= 70 ? 'متوسط' : 'فوق المتوسط';
+      const barColor = g.pct <= 30 ? '#ef4444' : g.pct <= 49 ? '#f59e0b' : g.pct <= 70 ? '#3b82f6' : '#22c55e';
+      const catTxt = g.category === 'verbal' ? 'لفظي' : 'كمي';
+      return `<tr style="background:${i%2===0?'#f9fafb':'#fff'}">
+        <td style="padding:9px 14px;font-weight:700;border-bottom:1px solid #e2e8f0;">${g.skillName || g.skillId}</td>
+        <td style="padding:9px 14px;border-bottom:1px solid #e2e8f0;text-align:center;">${catTxt}</td>
+        <td style="padding:9px 14px;border-bottom:1px solid #e2e8f0;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;background:#e2e8f0;border-radius:99px;height:8px;overflow:hidden;">
+              <div style="width:${g.pct}%;height:100%;background:${barColor};border-radius:99px;"></div>
+            </div>
+            <span style="font-weight:800;color:${barColor};min-width:38px;text-align:left;">${g.pct}%</span>
+          </div>
+        </td>
+        <td style="padding:9px 14px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b;">${lvlTxt}</td>
+      </tr>`;
+    }).join('');
+
+    const histRows = allPlans.map((p,i) => {
+      const a = p.gaps.length ? Math.round(p.gaps.reduce((s,g)=>s+g.pct,0)/p.gaps.length) : 0;
+      const c = a >= 71 ? '#16a34a' : a >= 50 ? '#d97706' : '#dc2626';
+      const d = new Date(p.createdAt).toLocaleDateString('ar-SA', {year:'numeric',month:'short',day:'numeric'});
+      return `<tr style="background:${i%2===0?'#f9fafb':'#fff'}">
+        <td style="padding:8px 14px;text-align:center;font-weight:700;border-bottom:1px solid #e2e8f0;">${allPlans.length-i}</td>
+        <td style="padding:8px 14px;border-bottom:1px solid #e2e8f0;">${d}</td>
+        <td style="padding:8px 14px;text-align:center;border-bottom:1px solid #e2e8f0;font-weight:800;color:${c};">${a}%</td>
+      </tr>`;
+    }).join('');
+
+    const adminNote = latest.adminNote ? `<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;line-height:1.7;">
+      <strong style="color:#92400e;">ملاحظة المشرف:</strong> ${latest.adminNote.replace(/</g,'&lt;')}
+    </div>` : '';
+
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>تقرير أداء — ${st.name}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Tajawal','Cairo',Arial,sans-serif;background:#fff;color:#0f172a;font-size:14px;direction:rtl;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  @media print{body{margin:0;} .no-print{display:none!important;}}
+  table{width:100%;border-collapse:collapse;}
+  th{background:#f0f4ff;padding:10px 14px;font-weight:800;text-align:right;border-bottom:2px solid #cbd5e1;}
+</style>
+</head>
+<body>
+<div style="max-width:780px;margin:0 auto;padding:28px 24px;">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:18px;border-bottom:3px solid #3F7CB8;margin-bottom:24px;">
+    <div>
+      <div style="font-size:22px;font-weight:900;color:#3F7CB8;line-height:1.2;">تقرير أداء الطالب</div>
+      <div style="font-size:13px;color:#64748b;margin-top:4px;">برنامج الاستعداد لاختبار القدرات</div>
+    </div>
+    <div style="text-align:left;font-size:12px;color:#64748b;line-height:1.8;">
+      <div><strong>تاريخ الطباعة:</strong> ${printDate}</div>
+      ${school ? `<div><strong>المدرسة:</strong> ${school.replace(/</g,'&lt;')}</div>` : ''}
+    </div>
+  </div>
+
+  <!-- Student info -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px;">
+    <div style="background:#f0f7ff;border-radius:12px;padding:14px;text-align:center;">
+      <div style="font-size:24px;font-weight:900;color:#3F7CB8;">${avg}%</div>
+      <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:4px;">آخر متوسط درجة</div>
+    </div>
+    <div style="background:#f0fdf4;border-radius:12px;padding:14px;text-align:center;">
+      <div style="font-size:24px;font-weight:900;color:#16a34a;">${allPlans.length}</div>
+      <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:4px;">عدد المحاولات</div>
+    </div>
+    <div style="background:#fef3e2;border-radius:12px;padding:14px;text-align:center;">
+      <div style="font-size:14px;font-weight:900;color:#d97706;padding-top:4px;">${dateStr}</div>
+      <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:4px;">تاريخ آخر اختبار</div>
+    </div>
+  </div>
+
+  <div style="background:linear-gradient(135deg,#3F7CB8,#4FA877);border-radius:14px;padding:16px 20px;margin-bottom:24px;color:#fff;display:flex;align-items:center;gap:16px;">
+    <div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;flex-shrink:0;">${st.name.charAt(0)}</div>
+    <div>
+      <div style="font-size:18px;font-weight:900;">${st.name.replace(/</g,'&lt;')}</div>
+      <div style="font-size:12px;opacity:.85;margin-top:2px;">رمز الدخول: ${st.code}</div>
+    </div>
+  </div>
+
+  ${adminNote}
+
+  <!-- Skills table -->
+  <div style="font-size:15px;font-weight:800;color:#3F7CB8;margin-bottom:12px;border-right:4px solid #4FA877;padding-right:10px;">📊 تفصيل المهارات — آخر اختبار</div>
+  <table style="margin-bottom:24px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
+    <thead><tr><th>المهارة</th><th style="text-align:center;">القسم</th><th>الدرجة</th><th style="text-align:center;">المستوى</th></tr></thead>
+    <tbody>${skillRows}</tbody>
+  </table>
+
+  <!-- History -->
+  <div style="font-size:15px;font-weight:800;color:#3F7CB8;margin-bottom:12px;border-right:4px solid #4FA877;padding-right:10px;">📋 سجل المحاولات</div>
+  <table style="margin-bottom:32px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
+    <thead><tr><th style="text-align:center;">المحاولة</th><th>التاريخ</th><th style="text-align:center;">المتوسط</th></tr></thead>
+    <tbody>${histRows}</tbody>
+  </table>
+
+  <div style="text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;">
+    بوابة دعم التعلم — ثانوية الخالدية · ${printDate}
+  </div>
+</div>
+<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),800);};<\/script>
+</body></html>`;
+
+    const w = window.open('', '_blank', 'width=850,height=700');
+    if (w) { w.document.write(html); w.document.close(); }
   },
 
   async loadDetailChatMessages(studentId) {
@@ -2310,7 +2442,163 @@ const App = {
     sessionStorage.removeItem('lg_session');
     localStorage.removeItem('lg_xsession');
     localStorage.removeItem('lg_remember');
+    App.stopNotifPolling();
+    App.closeNotifPanel();
     show('screen-school');
+  },
+
+  // ══════════════════════════════════════════════════════
+  // NOTIFICATION SYSTEM — إشعارات داخلية
+  // ══════════════════════════════════════════════════════
+  _notifTimer: null,
+  _notifPrev: { studentMsg: 0, ticket: 0, adminMsg: 0 },
+  _notifItems: [],   // [{id, type, title, sub, read, action}]
+
+  startNotifPolling() {
+    App.stopNotifPolling();
+    App._checkNotifications();
+    App._notifTimer = setInterval(() => App._checkNotifications(), 30000);
+  },
+
+  stopNotifPolling() {
+    clearInterval(App._notifTimer);
+    App._notifTimer = null;
+  },
+
+  async _checkNotifications() {
+    try {
+      if (State.role === 'student' && State.student?.id) {
+        const [msgRes, tkRes] = await Promise.all([
+          apiFetch('/messages/unread-student').catch(() => ({ count: 0 })),
+          apiFetch(`/tickets/unread?studentId=${State.student.id}`).catch(() => ({ count: 0 })),
+        ]);
+        const msgCount = msgRes.count || 0;
+        const tkCount  = tkRes.count  || 0;
+
+        const items = [];
+        if (msgCount > 0) items.push({ id:'msg', type:'msg', title:`${msgCount} رسالة جديدة من المشرف`, sub:'اضغط للاطلاع', read: false, action: () => App.goToChat() });
+        if (tkCount  > 0) items.push({ id:'ticket', type:'ticket', title:`${tkCount} رد جديد على طلبات الدعم`, sub:'اضغط للمراجعة', read: false, action: () => App.goToTickets() });
+
+        // Toast on new notifications
+        if (msgCount > App._notifPrev.studentMsg && App._notifPrev.studentMsg !== null) {
+          const diff = msgCount - App._notifPrev.studentMsg;
+          showToast(`🔔 وصلتك ${diff > 1 ? diff + ' رسائل' : 'رسالة'} جديدة من المشرف`);
+          App._ringBell('student');
+        }
+        if (tkCount > App._notifPrev.ticket && App._notifPrev.ticket !== null) {
+          const diff = tkCount - App._notifPrev.ticket;
+          showToast(`🎫 وصلك ${diff > 1 ? diff + ' ردود' : 'رد'} جديد على طلب الدعم`);
+          App._ringBell('student');
+        }
+        App._notifPrev.studentMsg = msgCount;
+        App._notifPrev.ticket     = tkCount;
+        App._notifItems = items;
+        App._updateBell('student', msgCount + tkCount);
+
+      } else if (State.role === 'admin' || State.role === 'director') {
+        const school = encodeURIComponent(State.school || '');
+        const data = await apiFetch(`/messages/unread?school=${school}`).catch(() => ({ counts: [] }));
+        const counts = data.counts || [];
+        const total  = counts.reduce((s,c) => s + (c.cnt || 0), 0);
+
+        const items = counts.map(c => ({
+          id: 'msg_' + c.student_id,
+          type: 'msg',
+          title: `${c.cnt} ${c.cnt === 1 ? 'رسالة' : 'رسائل'} من ${c.student_name}`,
+          sub: 'لم تُقرأ بعد',
+          read: false,
+          action: () => { App.setTab('students'); }
+        }));
+
+        if (total > App._notifPrev.adminMsg && App._notifPrev.adminMsg !== null) {
+          const diff = total - App._notifPrev.adminMsg;
+          showToast(`🔔 وصلتك ${diff > 1 ? diff + ' رسائل' : 'رسالة'} جديدة من الطلاب`);
+          App._ringBell('admin');
+        }
+        App._notifPrev.adminMsg = total;
+        App._notifItems = items;
+        App._updateBell('admin', total);
+      }
+    } catch {}
+  },
+
+  _updateBell(who, count) {
+    const badge = document.getElementById(`notif-count-${who}`);
+    if (!badge) return;
+    badge.style.display = count > 0 ? 'flex' : 'none';
+    badge.textContent   = count > 9 ? '9+' : count;
+  },
+
+  _ringBell(who) {
+    const btn = document.getElementById(`notif-bell-${who}`);
+    if (!btn) return;
+    btn.classList.remove('has-notif');
+    void btn.offsetWidth;
+    btn.classList.add('has-notif');
+    setTimeout(() => btn.classList.remove('has-notif'), 700);
+  },
+
+  toggleNotifPanel() {
+    const panel = document.getElementById('notif-panel');
+    const overlay = document.getElementById('notif-overlay');
+    if (!panel) return;
+    if (panel.style.display === 'none') {
+      App._renderNotifPanel();
+      panel.style.display = 'block';
+      overlay.style.display = 'block';
+    } else {
+      App.closeNotifPanel();
+    }
+  },
+
+  closeNotifPanel() {
+    const panel = document.getElementById('notif-panel');
+    const overlay = document.getElementById('notif-overlay');
+    if (panel)   panel.style.display   = 'none';
+    if (overlay) overlay.style.display = 'none';
+  },
+
+  _renderNotifPanel() {
+    const panel = document.getElementById('notif-panel');
+    if (!panel) return;
+    const items = App._notifItems;
+    const iconMap = { msg: '💬', ticket: '🎫', plan: '📋' };
+    const clsMap  = { msg: 'msg-icon', ticket: 'ticket-icon', plan: 'plan-icon' };
+    const bodyHtml = items.length
+      ? items.map(item => `
+        <div class="notif-item ${item.read ? '' : 'unread'}"
+             onclick="App._notifClick('${item.id}')">
+          <div class="notif-icon ${clsMap[item.type] || 'msg-icon'}">${iconMap[item.type] || '🔔'}</div>
+          <div class="notif-info">
+            <div class="notif-info-title">${escapeHtml(item.title)}</div>
+            <div class="notif-info-sub">${escapeHtml(item.sub)}</div>
+          </div>
+          ${!item.read ? '<div class="notif-dot"></div>' : ''}
+        </div>`).join('')
+      : `<div class="notif-empty">🎉 لا توجد إشعارات جديدة</div>`;
+
+    panel.innerHTML = `
+      <div class="notif-panel-header">
+        <div class="notif-panel-title">🔔 الإشعارات</div>
+        ${items.length ? `<button class="notif-clear-btn" onclick="App._clearNotifs()">مسح الكل</button>` : ''}
+      </div>
+      <div class="notif-panel-body">${bodyHtml}</div>`;
+  },
+
+  _notifClick(id) {
+    const item = App._notifItems.find(i => i.id === id);
+    if (!item) return;
+    item.read = true;
+    App.closeNotifPanel();
+    if (item.action) item.action();
+  },
+
+  _clearNotifs() {
+    App._notifItems = [];
+    App._notifPrev  = { studentMsg: 0, ticket: 0, adminMsg: 0 };
+    if (State.role === 'student') App._updateBell('student', 0);
+    else App._updateBell('admin', 0);
+    App.closeNotifPanel();
   },
 };
 

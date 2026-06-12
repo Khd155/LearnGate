@@ -579,6 +579,9 @@
       <div class="topbar-title">بوابة دعم التعلم</div>
       <div class="topbar-sub" id="sh-school-sub"></div>
     </div>
+    <button class="notif-bell-btn" id="notif-bell-student" onclick="App.toggleNotifPanel()" title="الإشعارات">
+      🔔<span class="notif-count-badge" id="notif-count-student" style="display:none;"></span>
+    </button>
     <button class="topbar-back" onclick="App.logout()" title="خروج" style="font-size:14px;">خروج</button>
   </div>
   <div class="page-wrap">
@@ -1049,7 +1052,7 @@
       style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.45);
              color:#fff;border-radius:10px;padding:8px 16px;font-size:13px;
              font-family:inherit;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
-      🖨️ طباعة
+      📄 تصدير PDF
     </button>
   </div>
   <div class="page-wrap">
@@ -1130,6 +1133,9 @@
       <div class="topbar-title">لوحة تحكم المشرف</div>
       <div class="topbar-sub" id="ad-school-sub"></div>
     </div>
+    <button class="notif-bell-btn" id="notif-bell-admin" onclick="App.toggleNotifPanel()" title="الإشعارات">
+      🔔<span class="notif-count-badge" id="notif-count-admin" style="display:none;"></span>
+    </button>
     <button class="topbar-back" onclick="App.logout()" style="font-size:14px;">خروج</button>
   </div>
   <div class="page-wrap">
@@ -1269,6 +1275,13 @@
       </div>
     </div>
 
+    <!-- Student search bar (shown only on students tab) -->
+    <div id="student-search-bar" style="margin-bottom:12px;display:none;">
+      <input type="text" id="student-search-input" class="perf-search"
+             placeholder="🔍 ابحث باسم الطالب أو رقمه…"
+             oninput="App._filterStudentList()" style="width:100%;">
+    </div>
+
     <div class="student-list" id="admin-student-list"></div>
   </div>
 </div>
@@ -1284,9 +1297,6 @@
     <label class="form-label">ملاحظات المشرف (اختياري)</label>
     <textarea id="modal-admin-note" class="admin-note" placeholder="أضف ملاحظات أو توجيهات للطالب..."></textarea>
     <div class="modal-actions">
-      <button id="btn-modal-approve" class="btn btn-success" onclick="App.approvePlan()">
-        ✅ اعتماد ونشر للطالب
-      </button>
       <button class="btn btn-outline" onclick="App.closeModal()">إغلاق</button>
     </div>
   </div>
@@ -1537,10 +1547,15 @@
                onkeydown="if(event.key==='Enter')App.sendAdminMsgFromDetail()">
         <button class="chat-send-btn" onclick="App.sendAdminMsgFromDetail()">إرسال ←</button>
       </div>
+      <button class="btn btn-primary sdm-close" style="margin-bottom:8px;" onclick="App.exportStudentPlanPDF()">📄 تصدير تقرير PDF</button>
       <button class="btn btn-outline sdm-close" onclick="App.closeStudentDetail()">إغلاق</button>
     </div>
   </div>
 </div>
+
+<!-- Notification panel (shared, global) -->
+<div id="notif-panel" class="notif-panel" style="display:none;" role="dialog" aria-label="الإشعارات"></div>
+<div id="notif-overlay" class="notif-overlay" onclick="App.closeNotifPanel()"></div>
 
 <script src="js/data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>

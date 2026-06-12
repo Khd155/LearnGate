@@ -1562,10 +1562,7 @@ const App = {
         method:'POST',
         body: JSON.stringify({
           studentId: State.detailStudentId,
-          studentName: st ? st.name : '',
-          senderType: 'admin',
           body,
-          school: State.school || '',
           recipientAdminId: State.admin.id,
         }),
       });
@@ -1777,9 +1774,7 @@ const App = {
       await apiFetch('/messages', {
         method:'POST',
         body: JSON.stringify({
-          studentId: State.student.id, studentName: State.student.name,
-          senderType:'student', body,
-          school: State.school || '',
+          body,
           recipientAdminId: State.chatAdminId,
         }),
       });
@@ -1874,7 +1869,7 @@ const App = {
     try {
       await apiFetch('/tickets', {
         method: 'POST',
-        body: JSON.stringify({ studentId: State.student.id, studentName: State.student.name, subject, body, category, priority, school: State.school || '' }),
+        body: JSON.stringify({ subject, body, category, priority }),
       });
       App.closeNewTicketModal();
       showToast('تم إرسال طلب الدعم ✅');
@@ -1976,7 +1971,7 @@ const App = {
     try {
       await apiFetch(`/tickets/${App._currentTicketId}/reply`, {
         method: 'POST',
-        body: JSON.stringify({ senderType: App._ticketSenderType, body }),
+        body: JSON.stringify({ body }),
       });
       document.getElementById('td-reply-input').value = '';
       await App.openTicketDetail(App._currentTicketId, App._ticketSenderType);

@@ -710,10 +710,13 @@ export async function onRequest({ request, env }) {
 
     // ── MESSAGES ─────────────────────────────────────────────────────────────
     if (resource === 'messages') {
+      const msgClaims = await verifyToken(request, env);
+      if (!msgClaims) return err('Unauthorized', 401, CORS);
+      const isPrivileged = ['admin','director','dev','support'].includes(msgClaims.role);
 
-      // GET /api/messages/unread?school=X&adminId=Y — unread per student
-      // Omit school to get all schools (support admin view)
+      // GET /api/messages/unread — admin/director/dev only
       if (sub === 'unread' && method === 'GET') {
+        if (!isPrivileged) return err('Forbidden', 403, CORS);
         const adminId = url.searchParams.get('adminId') || '';
         let q, params;
         if (adminId) {
@@ -736,11 +739,12 @@ export async function onRequest({ request, env }) {
         return ok({ counts: results }, 200, CORS);
       }
 
-      // GET /api/messages?studentId=X&adminId=Y — conversation between student and specific admin
+      // GET /api/messages — students see only their own
       if (method === 'GET') {
         const studentId = url.searchParams.get('studentId');
         const adminId   = url.searchParams.get('adminId') || '';
         if (!studentId) return err('studentId required', 400, CORS);
+        if (msgClaims.role === 'student' && msgClaims.sub !== studentId) return err('Forbidden', 403, CORS);
         let q, params;
         if (adminId) {
           q = 'SELECT * FROM messages WHERE student_id=? AND recipient_admin_id=? ORDER BY created_at ASC';
@@ -753,23 +757,36 @@ export async function onRequest({ request, env }) {
         return ok({ messages: results }, 200, CORS);
       }
 
-      // POST /api/messages — send message
+      // POST /api/messages — senderType derived from JWT; studentId trusted from JWT for students
       if (method === 'POST') {
-        const { studentId, studentName, senderType, body,
-                school: bodySchool, recipientAdminId } = await request.json();
-        if (!studentId || !senderType || !body) return err('missing fields', 400, CORS);
-        const effectiveSchool = school || bodySchool || '';
+        const { body: msgBody, school: bodySchool, recipientAdminId, studentId: targetStudentId } = await request.json();
+        if (!msgBody) return err('missing fields', 400, CORS);
+        if (msgBody.length > 2000) return err('الرسالة طويلة جداً', 400, CORS);
+        let studentId, studentName, senderType;
+        if (isPrivileged) {
+          // Admin sending to a student's conversation — studentId identifies the conversation
+          if (!targetStudentId) return err('studentId required', 400, CORS);
+          studentId = targetStudentId;
+          studentName = '';
+          senderType = 'admin';
+        } else {
+          studentId = msgClaims.sub;
+          studentName = msgClaims.name || '';
+          senderType = 'student';
+        }
+        const effectiveSchool = msgClaims.school || school || bodySchool || '';
         const id  = crypto.randomUUID();
         const now = new Date().toISOString();
         await DB.prepare(
           'INSERT INTO messages (id, student_id, student_name, school, sender_type, body, is_read, recipient_admin_id, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)'
-        ).bind(id, studentId, studentName || '', effectiveSchool, senderType, body, recipientAdminId || '', now).run();
-        return ok({ message: { id, student_id: studentId, student_name: studentName, school: effectiveSchool, sender_type: senderType, body, is_read: 0, recipient_admin_id: recipientAdminId || '', created_at: now } }, 201, CORS);
+        ).bind(id, studentId, studentName, effectiveSchool, senderType, msgBody, recipientAdminId || '', now).run();
+        return ok({ message: { id, student_id: studentId, student_name: studentName, school: effectiveSchool, sender_type: senderType, body: msgBody, is_read: 0, recipient_admin_id: recipientAdminId || '', created_at: now } }, 201, CORS);
       }
 
-      // PATCH /api/messages/read — mark messages as read
+      // PATCH /api/messages/read
       if (sub === 'read' && method === 'PATCH') {
         const { studentId, readerType } = await request.json();
+        if (msgClaims.role === 'student' && msgClaims.sub !== studentId) return err('Forbidden', 403, CORS);
         const senderType = readerType === 'admin' ? 'student' : 'admin';
         await DB.prepare(
           'UPDATE messages SET is_read=1 WHERE student_id=? AND sender_type=? AND is_read=0'
@@ -780,6 +797,10 @@ export async function onRequest({ request, env }) {
 
     // ── TICKETS ──────────────────────────────────────────────────────────────
     if (resource === 'tickets') {
+      const tkClaims = await verifyToken(request, env);
+      if (!tkClaims) return err('Unauthorized', 401, CORS);
+      const tkPrivileged = ['admin','director','dev','support'].includes(tkClaims.role);
+
       // Idempotent schema migrations
       try { await DB.prepare('ALTER TABLE tickets ADD COLUMN category TEXT NOT NULL DEFAULT "أخرى"').run(); } catch {}
       try { await DB.prepare('ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT "متوسطة"').run(); } catch {}
@@ -787,8 +808,9 @@ export async function onRequest({ request, env }) {
       try { await DB.prepare('ALTER TABLE tickets ADD COLUMN rating INTEGER DEFAULT 0').run(); } catch {}
       try { await DB.prepare('ALTER TABLE ticket_replies ADD COLUMN is_read INTEGER DEFAULT 0').run(); } catch {}
 
-      // GET /api/tickets/stats
+      // GET /api/tickets/stats — admin only
       if (method === 'GET' && sub === 'stats') {
+        if (!tkPrivileged) return err('Forbidden', 403, CORS);
         const [total, openC, progC, resolvedC, urgentC] = await Promise.all([
           DB.prepare('SELECT COUNT(*) as c FROM tickets').first(),
           DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE status='open'").first(),
@@ -802,26 +824,29 @@ export async function onRequest({ request, env }) {
         return ok({ total: total?.c||0, open: openC?.c||0, inProgress: progC?.c||0, resolved: resolvedC?.c||0, urgent: urgentC?.c||0, today: todayC?.c||0, topCategories: topCats }, 200, CORS);
       }
 
-      // GET /api/tickets/unread?studentId=X
+      // GET /api/tickets/unread — students see only their own
       if (method === 'GET' && sub === 'unread') {
         const studentId = url.searchParams.get('studentId');
         if (!studentId) return err('missing studentId', 400, CORS);
+        if (tkClaims.role === 'student' && tkClaims.sub !== studentId) return err('Forbidden', 403, CORS);
         const row = await DB.prepare(
           "SELECT COUNT(*) as count FROM ticket_replies tr JOIN tickets t ON tr.ticket_id=t.id WHERE t.student_id=? AND tr.sender_type='admin' AND tr.is_read=0"
         ).bind(studentId).first();
         return ok({ count: row?.count || 0 }, 200, CORS);
       }
 
-      // GET /api/tickets?studentId=X or ?school=X
+      // GET /api/tickets — students see only their own
       if (method === 'GET' && !sub) {
         const studentId = url.searchParams.get('studentId');
         let q, params;
         if (studentId) {
+          if (tkClaims.role === 'student' && tkClaims.sub !== studentId) return err('Forbidden', 403, CORS);
           q = `SELECT t.*,
             (SELECT COUNT(*) FROM ticket_replies tr WHERE tr.ticket_id=t.id AND tr.sender_type='admin' AND tr.is_read=0) as unread_count
             FROM tickets t WHERE t.student_id=? ORDER BY t.created_at DESC`;
           params = [studentId];
         } else {
+          if (!tkPrivileged) return err('Forbidden', 403, CORS);
           q = school
             ? 'SELECT * FROM tickets WHERE school=? ORDER BY created_at DESC'
             : 'SELECT * FROM tickets ORDER BY created_at DESC';
@@ -831,21 +856,25 @@ export async function onRequest({ request, env }) {
         return ok({ tickets: results }, 200, CORS);
       }
 
-      // GET /api/tickets/:id — ticket + replies
+      // GET /api/tickets/:id — students can only see their own
       if (method === 'GET' && sub && !subsub) {
         const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
         if (!ticket) return err('not found', 404, CORS);
+        if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('Forbidden', 403, CORS);
         const { results: replies } = await DB.prepare(
           'SELECT * FROM ticket_replies WHERE ticket_id=? ORDER BY created_at ASC'
         ).bind(sub).all();
         return ok({ ticket, replies }, 200, CORS);
       }
 
-      // POST /api/tickets — create ticket
+      // POST /api/tickets — use JWT claims for student identity
       if (method === 'POST' && !sub) {
-        const { studentId, studentName, subject, body, school: bodySchool, category, priority } = await request.json();
-        if (!studentId || !subject || !body) return err('missing fields', 400, CORS);
-        const effectiveSchool = school || bodySchool || '';
+        const { subject, body: tkBody, school: bodySchool, category, priority } = await request.json();
+        if (!subject || !tkBody) return err('missing fields', 400, CORS);
+        if (tkBody.length > 3000) return err('النص طويل جداً', 400, CORS);
+        const studentId = tkClaims.sub;
+        const studentName = tkClaims.name || '';
+        const effectiveSchool = tkClaims.school || school || bodySchool || '';
         const countRow = await DB.prepare('SELECT COUNT(*) as c FROM tickets').first();
         const ticketNum = 'T-' + String(((countRow?.c) || 0) + 1).padStart(5, '0');
         const tid = crypto.randomUUID();
@@ -853,44 +882,56 @@ export async function onRequest({ request, env }) {
         const now = new Date().toISOString();
         await DB.prepare(
           'INSERT INTO tickets (id, student_id, student_name, school, subject, status, category, priority, ticket_num, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ).bind(tid, studentId, studentName||'', effectiveSchool, subject, 'open', category||'أخرى', priority||'متوسطة', ticketNum, now).run();
+        ).bind(tid, studentId, studentName, effectiveSchool, subject, 'open', category||'أخرى', priority||'متوسطة', ticketNum, now).run();
         await DB.prepare(
           'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-        ).bind(rid, tid, 'student', body, 1, now).run();
+        ).bind(rid, tid, 'student', tkBody, 1, now).run();
         return ok({ ticket: { id: tid, subject, status: 'open', category: category||'أخرى', priority: priority||'متوسطة', ticket_num: ticketNum, created_at: now } }, 201, CORS);
       }
 
-      // POST /api/tickets/:id/read — mark replies as read
+      // POST /api/tickets/:id/read
       if (method === 'POST' && sub && subsub === 'read') {
+        const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
+        if (!ticket) return err('not found', 404, CORS);
+        if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('Forbidden', 403, CORS);
         const { readerType } = await request.json();
         const markSender = readerType === 'student' ? 'admin' : 'student';
         await DB.prepare("UPDATE ticket_replies SET is_read=1 WHERE ticket_id=? AND sender_type=?").bind(sub, markSender).run();
         return ok({ ok: true }, 200, CORS);
       }
 
-      // POST /api/tickets/:id/reply — add reply
+      // POST /api/tickets/:id/reply
       if (method === 'POST' && sub && subsub === 'reply') {
-        const { senderType, body } = await request.json();
-        if (!senderType || !body) return err('missing fields', 400, CORS);
+        const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
+        if (!ticket) return err('not found', 404, CORS);
+        if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('Forbidden', 403, CORS);
+        const { body: replyBody } = await request.json();
+        if (!replyBody) return err('missing fields', 400, CORS);
+        if (replyBody.length > 3000) return err('النص طويل جداً', 400, CORS);
+        const senderType = tkPrivileged ? 'admin' : 'student';
         const id  = crypto.randomUUID();
         const now = new Date().toISOString();
         await DB.prepare(
           'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-        ).bind(id, sub, senderType, body, senderType === 'admin' ? 0 : 1, now).run();
+        ).bind(id, sub, senderType, replyBody, senderType === 'admin' ? 0 : 1, now).run();
         if (senderType === 'admin') {
           await DB.prepare("UPDATE tickets SET status='in_progress' WHERE id=? AND status='open'").bind(sub).run();
         }
-        return ok({ reply: { id, ticket_id: sub, sender_type: senderType, body, created_at: now } }, 201, CORS);
+        return ok({ reply: { id, ticket_id: sub, sender_type: senderType, body: replyBody, created_at: now } }, 201, CORS);
       }
 
-      // PATCH /api/tickets/:id — update status or rating
+      // PATCH /api/tickets/:id — status/rating
       if (method === 'PATCH' && sub && !subsub) {
+        const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
+        if (!ticket) return err('not found', 404, CORS);
         const body = await request.json();
         if (body.rating !== undefined) {
+          if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('Forbidden', 403, CORS);
           await DB.prepare('UPDATE tickets SET rating=? WHERE id=?').bind(body.rating, sub).run();
           const t = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
           return ok({ ticket: t }, 200, CORS);
         }
+        if (!tkPrivileged) return err('Forbidden', 403, CORS);
         const { status } = body;
         if (!['open','in_progress','resolved','rejected'].includes(status)) return err('invalid status', 400, CORS);
         await DB.prepare('UPDATE tickets SET status=? WHERE id=?').bind(status, sub).run();

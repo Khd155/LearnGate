@@ -191,7 +191,7 @@ function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
   if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
-  if (id === 'screen-student-home') { history.replaceState(null, '', location.pathname); }
+  if (id === 'screen-student-home') { history.replaceState(null, '', '/'); }
 }
 
 // ── Cooldown helpers ─────────────────────────────────────────────────────
@@ -2124,8 +2124,12 @@ function showToast(msg) {
 
 // ── Hash routing ──────────────────────────────────────────────────────────
 function routeHash() {
+  const path = location.pathname;
   const hash = decodeURIComponent(location.hash.replace(/^#/, ''));
-  if (hash === 'قدرات' && State.student) { App.startCapabilities(); }
+  if ((path === '/capabilities' || hash === 'capabilities') && State.student) {
+    history.replaceState(null, '', '/capabilities');
+    App.startCapabilities();
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────

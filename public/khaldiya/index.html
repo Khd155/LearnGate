@@ -455,10 +455,11 @@
   <div class="topbar">
     <button class="topbar-back" onclick="show('screen-identity')">رجوع</button>
     <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div>
+    <div style="flex:1;">
       <div class="topbar-title">تسجيل الدخول</div>
       <div class="topbar-sub">بيانات الطالب</div>
     </div>
+    <div class="topbar-ghost"></div>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div style="text-align:center;margin-bottom:32px;">
@@ -490,9 +491,10 @@
   <div class="topbar">
     <button class="topbar-back" onclick="show('screen-identity')">رجوع</button>
     <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div>
+    <div style="flex:1;">
       <div class="topbar-title">دخول المشرف</div>
     </div>
+    <div class="topbar-ghost"></div>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div style="text-align:center;margin-bottom:32px;">
@@ -617,7 +619,7 @@
         </div>
         <span class="service-badge badge-soon">قريباً</span>
       </div>
-      <div class="service-card active" onclick="location.hash='قدرات';App.startCapabilities()">
+      <div class="service-card active" onclick="history.pushState(null,'','/capabilities');App.startCapabilities()">
         <div class="service-card-icon">🧠</div>
         <div class="service-card-info">
           <div class="service-card-name">الاستعداد لاختبار القدرات</div>

@@ -98,9 +98,10 @@ p, span, div, button, input, label, td, th {
   white-space: nowrap;
 }
 .topbar-back:hover { background: rgba(255,255,255,.3); }
+.topbar-back { order: 1; }
 .topbar-title { font-size: 18px; font-weight: 800; flex: 1; letter-spacing: -0.01em; }
 .topbar-sub { font-size: 13px; opacity: .85; margin-top: 2px; font-weight: 500; }
-.topbar-ghost { min-width: 42px; flex-shrink: 0; }
+.topbar-ghost { min-width: 42px; flex-shrink: 0; order: -1; }
 
 /* ── Identity Screen ─────────────────────────────────── */
 #screen-identity {

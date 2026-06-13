@@ -290,7 +290,7 @@ const App = {
       if (!navigator.onLine || msg.includes('NETWORK_ERROR')) {
         showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
       }
-      showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (' + (msg || 'خطأ غير معروف') + ')'); return;
+      showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
     _authToken = token;
     State.student = student;
@@ -346,7 +346,7 @@ const App = {
       if (!navigator.onLine || msg.includes('NETWORK_ERROR')) {
         showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
       }
-      showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (' + (msg || 'خطأ غير معروف') + ')'); return;
+      showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
     _authToken = token;
     State.role  = admin.role === 'director' ? 'director' : 'admin';
@@ -357,7 +357,7 @@ const App = {
     catch (e) {
       const loadMsg = e?.message || '';
       if (!navigator.onLine) { showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة.'); return; }
-      showAlert(errEl, 'تم الدخول لكن تعذّر تحميل البيانات — حاول مرة أخرى. (' + (loadMsg || 'خطأ') + ')'); return;
+      showAlert(errEl, 'تم الدخول لكن تعذّر تحميل البيانات — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
     const _sess = { role: State.role, code, name: adminName, school: admin.school || '', token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
     sessionStorage.setItem('lg_session', JSON.stringify(_sess));

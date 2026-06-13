@@ -166,7 +166,7 @@ export async function onRequest({ request, env }) {
 
       // POST /api/auth/student-login
       if (sub === 'student-login' && method === 'POST') {
-        if (!await rateLimit(DB, ip, 'student-login', 10)) return err('Too many requests — try again in a minute', 429, CORS);
+        if (!await rateLimit(DB, ip, 'student-login', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         const body = await request.json();
         const { code, school: bodySchool } = body;
         if (!code || !/^\d{10}$/.test(code)) return err('رمز غير صالح', 400, CORS);
@@ -180,7 +180,7 @@ export async function onRequest({ request, env }) {
 
       // POST /api/auth/admin-login
       if (sub === 'admin-login' && method === 'POST') {
-        if (!await rateLimit(DB, ip, 'admin-login', 5)) return err('Too many requests', 429, CORS);
+        if (!await rateLimit(DB, ip, 'admin-login', 5)) return err('طلبات كثيرة', 429, CORS);
         const { code: adminCode, school: bodySchool } = await request.json();
         if (!adminCode || !/^\d{10}$/.test(adminCode)) return err('رمز غير صالح', 400, CORS);
         const admin = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(adminCode).first();
@@ -195,10 +195,10 @@ export async function onRequest({ request, env }) {
 
       // POST /api/auth/dev
       if (sub === 'dev' && method === 'POST') {
-        if (!await rateLimit(DB, ip, 'dev-login', 5)) return err('Too many requests', 429, CORS);
+        if (!await rateLimit(DB, ip, 'dev-login', 5)) return err('طلبات كثيرة', 429, CORS);
         const { key } = await request.json();
         const devKey = env.DEV_KEY;
-        if (!devKey || key !== devKey) return err('Unauthorized', 401, CORS);
+        if (!devKey || key !== devKey) return err('غير مصرح', 401, CORS);
         const secret = env.JWT_SECRET || 'lg-jwt-fallback-2026';
         const token = await jwtSign({ role: 'dev', exp: Math.floor(Date.now() / 1000) + 4 * 3600 }, secret);
         return ok({ token }, 200, CORS);
@@ -216,7 +216,7 @@ export async function onRequest({ request, env }) {
 
       if (method === 'GET') {
         const claims = await verifyToken(request, env);
-        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('Unauthorized', 401, CORS);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         let q = 'SELECT * FROM students';
         const params = [];
         if (school) { q += ' WHERE school = ?'; params.push(school); }
@@ -258,7 +258,7 @@ export async function onRequest({ request, env }) {
 
       if (method === 'DELETE' && sub) {
         const claims = await verifyToken(request, env);
-        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('Unauthorized', 401, CORS);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         await DB.prepare('DELETE FROM students WHERE id = ?').bind(sub).run();
         return ok({ ok: true }, 200, CORS);
       }
@@ -269,11 +269,11 @@ export async function onRequest({ request, env }) {
 
       if (method === 'GET' && sub === 'history') {
         const claims = await verifyToken(request, env);
-        if (!claims) return err('Unauthorized', 401, CORS);
+        if (!claims) return err('غير مصرح', 401, CORS);
         const studentId = url.searchParams.get('studentId');
-        if (!studentId) return err('studentId param required', 400, CORS);
+        if (!studentId) return err('معرّف الطالب مطلوب', 400, CORS);
         // Students can only see their own plans
-        if (claims.role === 'student' && claims.sub !== studentId) return err('Forbidden', 403, CORS);
+        if (claims.role === 'student' && claims.sub !== studentId) return err('غير مسموح', 403, CORS);
         let q = 'SELECT * FROM plans WHERE student_id = ?';
         const params = [studentId];
         if (school) { q += ' AND school = ?'; params.push(school); }
@@ -284,7 +284,7 @@ export async function onRequest({ request, env }) {
 
       if (method === 'GET') {
         const claims = await verifyToken(request, env);
-        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('Unauthorized', 401, CORS);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         let q = 'SELECT * FROM plans';
         const params = [];
         if (school) { q += ' WHERE school = ?'; params.push(school); }
@@ -295,7 +295,7 @@ export async function onRequest({ request, env }) {
 
       if (method === 'POST') {
         const claims = await verifyToken(request, env);
-        if (!claims || !['student','admin','director'].includes(claims.role)) return err('Unauthorized', 401, CORS);
+        if (!claims || !['student','admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const { studentId, studentName, status, gaps, adminNote, school: bodySchool } = await request.json();
         const pid = crypto.randomUUID();
         const now = new Date().toISOString();
@@ -309,7 +309,7 @@ export async function onRequest({ request, env }) {
 
       if (method === 'PATCH' && sub) {
         const claims = await verifyToken(request, env);
-        if (!claims || !['admin','director'].includes(claims.role)) return err('Unauthorized', 401, CORS);
+        if (!claims || !['admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const { adminNote } = await request.json();
         const now = new Date().toISOString();
         await DB.prepare(
@@ -355,11 +355,11 @@ export async function onRequest({ request, env }) {
     // ── QUIZ GRADING (server-side, requires student JWT) ─────────────────────
     if (resource === 'quiz' && sub === 'grade' && method === 'POST') {
       const claims = await verifyToken(request, env);
-      if (!claims || claims.role !== 'student') return err('Unauthorized', 401, CORS);
+      if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
       const { answers } = await request.json(); // [{qnum, ans}, ...]
-      if (!Array.isArray(answers) || answers.length === 0) return err('answers array required', 400, CORS);
+      if (!Array.isArray(answers) || answers.length === 0) return err('إجابات مطلوبة', 400, CORS);
       const qnums = answers.map(a => Number(a.qnum)).filter(n => !isNaN(n));
-      if (qnums.length === 0) return err('invalid qnum values', 400, CORS);
+      if (qnums.length === 0) return err('أرقام أسئلة غير صالحة', 400, CORS);
       const placeholders = qnums.map(() => '?').join(',');
       const { results } = await DB.prepare(
         `SELECT qnum, skill_id, ans FROM questions WHERE qnum IN (${placeholders})`
@@ -396,7 +396,7 @@ export async function onRequest({ request, env }) {
     // ── DEV ENDPOINTS ────────────────────────────────────────────────────────
     if (resource === 'dev') {
 
-      if (!authDev(request, env)) return err('Unauthorized', 401, CORS);
+      if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
 
       // GET /api/dev/stats — stats per school
       if (sub === 'stats' && method === 'GET') {
@@ -424,7 +424,7 @@ export async function onRequest({ request, env }) {
       // POST /api/dev/admins — add admin
       if (sub === 'admins' && method === 'POST') {
         const { name, code, school: adminSchool, role: adminRole } = await request.json();
-        if (!name || !code) return err('name and code required', 400, CORS);
+        if (!name || !code) return err('الاسم والرمز مطلوبان', 400, CORS);
         // Ensure role column exists (idempotent migration)
         try { await DB.prepare('ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT "admin"').run(); } catch {}
         const aid = crypto.randomUUID();
@@ -456,7 +456,7 @@ export async function onRequest({ request, env }) {
       // POST /api/dev/schools — add school
       if (sub === 'schools' && method === 'POST') {
         const { name } = await request.json();
-        if (!name) return err('name required', 400, CORS);
+        if (!name) return err('الاسم مطلوب', 400, CORS);
         const sid = 'school-' + crypto.randomUUID().slice(0, 8);
         const now = new Date().toISOString();
         try {
@@ -502,7 +502,7 @@ export async function onRequest({ request, env }) {
       // POST /api/dev/students — add single student from dev panel
       if (sub === 'students' && method === 'POST') {
         const { name, code, school: bodySchool } = await request.json();
-        if (!name || !code) return err('name and code required', 400, CORS);
+        if (!name || !code) return err('الاسم والرمز مطلوبان', 400, CORS);
         const sid = crypto.randomUUID();
         const now = new Date().toISOString();
         try {
@@ -525,7 +525,7 @@ export async function onRequest({ request, env }) {
       // DELETE /api/dev/students?school=X — clear all students of a school
       if (sub === 'students' && !subsub && method === 'DELETE') {
         const targetSchool = url.searchParams.get('school');
-        if (!targetSchool) return err('school param required', 400, CORS);
+        if (!targetSchool) return err('رمز المدرسة مطلوب', 400, CORS);
         await DB.prepare('DELETE FROM students WHERE school = ?').bind(targetSchool).run();
         return ok({ ok: true }, 200, CORS);
       }
@@ -609,7 +609,7 @@ export async function onRequest({ request, env }) {
       // GET /api/director/admins?school=X&director_code=Y
       if (sub === 'admins' && method === 'GET') {
         const dir = await authDirector(url.searchParams.get('director_code'), school);
-        if (!dir) return err('Unauthorized', 401, CORS);
+        if (!dir) return err('غير مصرح', 401, CORS);
         const { results } = await DB.prepare(
           "SELECT id, name, code, role FROM admins WHERE school = ? ORDER BY name ASC"
         ).bind(school).all();
@@ -620,8 +620,8 @@ export async function onRequest({ request, env }) {
       if (sub === 'admins' && method === 'POST') {
         const { name, code: newCode, director_code } = await request.json();
         const dir = await authDirector(director_code, school);
-        if (!dir) return err('Unauthorized', 401, CORS);
-        if (!name || !newCode) return err('name and code required', 400, CORS);
+        if (!dir) return err('غير مصرح', 401, CORS);
+        if (!name || !newCode) return err('الاسم والرمز مطلوبان', 400, CORS);
         if (!/^\d{10}$/.test(newCode)) return err('الرمز يجب أن يكون 10 أرقام', 400, CORS);
         const adminSchool = dir.school === '*' ? school : dir.school;
         const aid = crypto.randomUUID();
@@ -640,9 +640,9 @@ export async function onRequest({ request, env }) {
       // DELETE /api/director/admins/:id?school=X&director_code=Y
       if (sub === 'admins' && subsub && method === 'DELETE') {
         const dir = await authDirector(url.searchParams.get('director_code'), school);
-        if (!dir) return err('Unauthorized', 401, CORS);
+        if (!dir) return err('غير مصرح', 401, CORS);
         const target = await DB.prepare('SELECT * FROM admins WHERE id = ?').bind(subsub).first();
-        if (!target) return err('Admin not found', 404, CORS);
+        if (!target) return err('المشرف غير موجود', 404, CORS);
         if (target.role === 'director') return err('لا يمكن حذف مدير', 403, CORS);
         await DB.prepare('DELETE FROM admins WHERE id = ?').bind(subsub).run();
         return ok({ ok: true }, 200, CORS);
@@ -652,7 +652,7 @@ export async function onRequest({ request, env }) {
       if (sub === 'seed-questions' && method === 'POST') {
         const body = await request.json();
         const dir = await authDirector(body.director_code, school);
-        if (!dir) return err('Unauthorized', 401, CORS);
+        if (!dir) return err('غير مصرح', 401, CORS);
         const { results: existing } = await DB.prepare('SELECT qnum FROM questions').all();
         const existingNums = new Set(existing.map(r => r.qnum));
         let added = 0, updated = 0;
@@ -675,7 +675,7 @@ export async function onRequest({ request, env }) {
       // PATCH /api/director/questions/:id?director_code=Y&school=X — edit one question
       if (sub === 'questions' && subsub && method === 'PATCH') {
         const dir = await authDirector(url.searchParams.get('director_code'), school);
-        if (!dir) return err('Unauthorized', 401, CORS);
+        if (!dir) return err('غير مصرح', 401, CORS);
         const { qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans } = await request.json();
         await DB.prepare(
           'UPDATE questions SET qnum=?,type=?,skill_id=?,text=?,opt1=?,opt2=?,opt3=?,opt4=?,ans=? WHERE id=?'
@@ -686,7 +686,7 @@ export async function onRequest({ request, env }) {
       // DELETE /api/director/questions/:id?director_code=Y&school=X — delete one question
       if (sub === 'questions' && subsub && method === 'DELETE') {
         const dir = await authDirector(url.searchParams.get('director_code'), school);
-        if (!dir) return err('Unauthorized', 401, CORS);
+        if (!dir) return err('غير مصرح', 401, CORS);
         await DB.prepare('DELETE FROM questions WHERE id = ?').bind(subsub).run();
         return ok({ ok: true }, 200, CORS);
       }
@@ -695,9 +695,9 @@ export async function onRequest({ request, env }) {
       if (sub === 'questions' && method === 'POST') {
         const body = await request.json();
         const dir = await authDirector(body.director_code, school);
-        if (!dir) return err('Unauthorized', 401, CORS);
+        if (!dir) return err('غير مصرح', 401, CORS);
         const { action = 'append', questions: rows } = body;
-        if (!Array.isArray(rows) || !rows.length) return err('no questions', 400, CORS);
+        if (!Array.isArray(rows) || !rows.length) return err('لا توجد أسئلة', 400, CORS);
         if (action === 'replace') await DB.prepare('DELETE FROM questions').run();
         const { results: existing } = await DB.prepare('SELECT qnum FROM questions').all();
         const existingNums = new Set(existing.map(r => r.qnum));
@@ -716,12 +716,12 @@ export async function onRequest({ request, env }) {
     // ── MESSAGES ─────────────────────────────────────────────────────────────
     if (resource === 'messages') {
       const msgClaims = await verifyToken(request, env);
-      if (!msgClaims) return err('Unauthorized', 401, CORS);
+      if (!msgClaims) return err('غير مصرح', 401, CORS);
       const isPrivileged = ['admin','director','dev','support'].includes(msgClaims.role);
 
       // GET /api/messages/unread-student — student checks unread messages from admin
       if (sub === 'unread-student' && method === 'GET') {
-        if (msgClaims.role !== 'student') return err('Forbidden', 403, CORS);
+        if (msgClaims.role !== 'student') return err('غير مسموح', 403, CORS);
         const studentId = msgClaims.sub;
         const row = await DB.prepare(
           "SELECT COUNT(*) as count FROM messages WHERE student_id=? AND sender_type='admin' AND is_read=0"
@@ -731,7 +731,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/messages/unread — admin/director/dev only
       if (sub === 'unread' && method === 'GET') {
-        if (!isPrivileged) return err('Forbidden', 403, CORS);
+        if (!isPrivileged) return err('غير مسموح', 403, CORS);
         const adminId = url.searchParams.get('adminId') || '';
         let q, params;
         if (adminId) {
@@ -758,8 +758,8 @@ export async function onRequest({ request, env }) {
       if (method === 'GET') {
         const studentId = url.searchParams.get('studentId');
         const adminId   = url.searchParams.get('adminId') || '';
-        if (!studentId) return err('studentId required', 400, CORS);
-        if (msgClaims.role === 'student' && msgClaims.sub !== studentId) return err('Forbidden', 403, CORS);
+        if (!studentId) return err('معرّف الطالب مطلوب', 400, CORS);
+        if (msgClaims.role === 'student' && msgClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
         let q, params;
         if (adminId) {
           q = 'SELECT * FROM messages WHERE student_id=? AND recipient_admin_id=? ORDER BY created_at ASC';
@@ -775,12 +775,12 @@ export async function onRequest({ request, env }) {
       // POST /api/messages — senderType derived from JWT; studentId trusted from JWT for students
       if (method === 'POST') {
         const { body: msgBody, school: bodySchool, recipientAdminId, studentId: targetStudentId } = await request.json();
-        if (!msgBody) return err('missing fields', 400, CORS);
+        if (!msgBody) return err('حقول مفقودة', 400, CORS);
         if (msgBody.length > 2000) return err('الرسالة طويلة جداً', 400, CORS);
         let studentId, studentName, senderType;
         if (isPrivileged) {
           // Admin sending to a student's conversation — studentId identifies the conversation
-          if (!targetStudentId) return err('studentId required', 400, CORS);
+          if (!targetStudentId) return err('معرّف الطالب مطلوب', 400, CORS);
           studentId = targetStudentId;
           studentName = '';
           senderType = 'admin';
@@ -801,7 +801,7 @@ export async function onRequest({ request, env }) {
       // PATCH /api/messages/read
       if (sub === 'read' && method === 'PATCH') {
         const { studentId, readerType } = await request.json();
-        if (msgClaims.role === 'student' && msgClaims.sub !== studentId) return err('Forbidden', 403, CORS);
+        if (msgClaims.role === 'student' && msgClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
         const senderType = readerType === 'admin' ? 'student' : 'admin';
         await DB.prepare(
           'UPDATE messages SET is_read=1 WHERE student_id=? AND sender_type=? AND is_read=0'
@@ -813,7 +813,7 @@ export async function onRequest({ request, env }) {
     // ── TICKETS ──────────────────────────────────────────────────────────────
     if (resource === 'tickets') {
       const tkClaims = await verifyToken(request, env);
-      if (!tkClaims) return err('Unauthorized', 401, CORS);
+      if (!tkClaims) return err('غير مصرح', 401, CORS);
       const tkPrivileged = ['admin','director','dev','support'].includes(tkClaims.role);
 
       // Idempotent schema migrations
@@ -825,7 +825,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/tickets/stats — admin only
       if (method === 'GET' && sub === 'stats') {
-        if (!tkPrivileged) return err('Forbidden', 403, CORS);
+        if (!tkPrivileged) return err('غير مسموح', 403, CORS);
         const [total, openC, progC, resolvedC, urgentC] = await Promise.all([
           DB.prepare('SELECT COUNT(*) as c FROM tickets').first(),
           DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE status='open'").first(),
@@ -842,8 +842,8 @@ export async function onRequest({ request, env }) {
       // GET /api/tickets/unread — students see only their own
       if (method === 'GET' && sub === 'unread') {
         const studentId = url.searchParams.get('studentId');
-        if (!studentId) return err('missing studentId', 400, CORS);
-        if (tkClaims.role === 'student' && tkClaims.sub !== studentId) return err('Forbidden', 403, CORS);
+        if (!studentId) return err('معرّف الطالب مفقود', 400, CORS);
+        if (tkClaims.role === 'student' && tkClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
         const row = await DB.prepare(
           "SELECT COUNT(*) as count FROM ticket_replies tr JOIN tickets t ON tr.ticket_id=t.id WHERE t.student_id=? AND tr.sender_type='admin' AND tr.is_read=0"
         ).bind(studentId).first();
@@ -855,13 +855,13 @@ export async function onRequest({ request, env }) {
         const studentId = url.searchParams.get('studentId');
         let q, params;
         if (studentId) {
-          if (tkClaims.role === 'student' && tkClaims.sub !== studentId) return err('Forbidden', 403, CORS);
+          if (tkClaims.role === 'student' && tkClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
           q = `SELECT t.*,
             (SELECT COUNT(*) FROM ticket_replies tr WHERE tr.ticket_id=t.id AND tr.sender_type='admin' AND tr.is_read=0) as unread_count
             FROM tickets t WHERE t.student_id=? ORDER BY t.created_at DESC`;
           params = [studentId];
         } else {
-          if (!tkPrivileged) return err('Forbidden', 403, CORS);
+          if (!tkPrivileged) return err('غير مسموح', 403, CORS);
           q = school
             ? 'SELECT * FROM tickets WHERE school=? ORDER BY created_at DESC'
             : 'SELECT * FROM tickets ORDER BY created_at DESC';
@@ -874,8 +874,8 @@ export async function onRequest({ request, env }) {
       // GET /api/tickets/:id — students can only see their own
       if (method === 'GET' && sub && !subsub) {
         const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
-        if (!ticket) return err('not found', 404, CORS);
-        if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('Forbidden', 403, CORS);
+        if (!ticket) return err('غير موجود', 404, CORS);
+        if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('غير مسموح', 403, CORS);
         const { results: replies } = await DB.prepare(
           'SELECT * FROM ticket_replies WHERE ticket_id=? ORDER BY created_at ASC'
         ).bind(sub).all();
@@ -885,7 +885,7 @@ export async function onRequest({ request, env }) {
       // POST /api/tickets — use JWT claims for student identity
       if (method === 'POST' && !sub) {
         const { subject, body: tkBody, school: bodySchool, category, priority } = await request.json();
-        if (!subject || !tkBody) return err('missing fields', 400, CORS);
+        if (!subject || !tkBody) return err('حقول مفقودة', 400, CORS);
         if (tkBody.length > 3000) return err('النص طويل جداً', 400, CORS);
         const studentId = tkClaims.sub;
         const studentName = tkClaims.name || '';
@@ -907,8 +907,8 @@ export async function onRequest({ request, env }) {
       // POST /api/tickets/:id/read
       if (method === 'POST' && sub && subsub === 'read') {
         const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
-        if (!ticket) return err('not found', 404, CORS);
-        if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('Forbidden', 403, CORS);
+        if (!ticket) return err('غير موجود', 404, CORS);
+        if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('غير مسموح', 403, CORS);
         const { readerType } = await request.json();
         const markSender = readerType === 'student' ? 'admin' : 'student';
         await DB.prepare("UPDATE ticket_replies SET is_read=1 WHERE ticket_id=? AND sender_type=?").bind(sub, markSender).run();
@@ -918,10 +918,10 @@ export async function onRequest({ request, env }) {
       // POST /api/tickets/:id/reply
       if (method === 'POST' && sub && subsub === 'reply') {
         const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
-        if (!ticket) return err('not found', 404, CORS);
-        if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('Forbidden', 403, CORS);
+        if (!ticket) return err('غير موجود', 404, CORS);
+        if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('غير مسموح', 403, CORS);
         const { body: replyBody } = await request.json();
-        if (!replyBody) return err('missing fields', 400, CORS);
+        if (!replyBody) return err('حقول مفقودة', 400, CORS);
         if (replyBody.length > 3000) return err('النص طويل جداً', 400, CORS);
         const senderType = tkPrivileged ? 'admin' : 'student';
         const id  = crypto.randomUUID();
@@ -938,27 +938,27 @@ export async function onRequest({ request, env }) {
       // PATCH /api/tickets/:id — status/rating
       if (method === 'PATCH' && sub && !subsub) {
         const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
-        if (!ticket) return err('not found', 404, CORS);
+        if (!ticket) return err('غير موجود', 404, CORS);
         const body = await request.json();
         if (body.rating !== undefined) {
-          if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('Forbidden', 403, CORS);
+          if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('غير مسموح', 403, CORS);
           await DB.prepare('UPDATE tickets SET rating=? WHERE id=?').bind(body.rating, sub).run();
           const t = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
           return ok({ ticket: t }, 200, CORS);
         }
-        if (!tkPrivileged) return err('Forbidden', 403, CORS);
+        if (!tkPrivileged) return err('غير مسموح', 403, CORS);
         const { status } = body;
-        if (!['open','in_progress','resolved','rejected'].includes(status)) return err('invalid status', 400, CORS);
+        if (!['open','in_progress','resolved','rejected'].includes(status)) return err('حالة غير صالحة', 400, CORS);
         await DB.prepare('UPDATE tickets SET status=? WHERE id=?').bind(status, sub).run();
         const t = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
         return ok({ ticket: t }, 200, CORS);
       }
     }
 
-    return err('Not found', 404, CORS);
+    return err('غير موجود', 404, CORS);
 
   } catch (e) {
     console.error('[API Error]', e);
-    return err(e.message || 'Server error', 500, getCORS(request));
+    return err('خطأ في الخادم', 500, getCORS(request));
   }
 }

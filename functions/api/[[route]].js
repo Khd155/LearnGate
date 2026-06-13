@@ -89,7 +89,11 @@ const _b64u = s => {
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
 };
-const _b64uDec = s => atob(s.replace(/-/g,'+').replace(/_/g,'/'));
+const _b64uDec = s => {
+  const bin = atob(s.replace(/-/g,'+').replace(/_/g,'/'));
+  const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+};
 
 async function jwtSign(payload, secret) {
   const h = _b64u({ alg:'HS256', typ:'JWT' });

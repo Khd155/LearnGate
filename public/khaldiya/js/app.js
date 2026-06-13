@@ -59,6 +59,12 @@ const DB = {
     await DB.loadQuestions();
   },
 
+  async loadStudentData() {
+    if (!State.student) return;
+    const { plans } = await apiFetch(`/plans?studentId=${encodeURIComponent(State.student.id)}`);
+    Cache.plans = (plans || []).map(_mapPlan);
+  },
+
   async loadQuestions() {
     const { questions } = await apiFetch('/questions').catch(() => ({ questions: [] }));
     if (questions && questions.length) {
@@ -308,6 +314,7 @@ const App = {
     startIdleWatch();
     App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
     App.startNotifPolling();
+    try { await DB.loadStudentData(); } catch (e) {}
     App.renderStudentHome();
     show('screen-student-home');
     routeHash();
@@ -421,7 +428,7 @@ const App = {
   },
 
   async startCapabilities() {
-    try { await DB.loadAll(); } catch (e) {}
+    try { await DB.loadStudentData(); } catch (e) {}
     const plans = DB.studentPlans(State.student.id);
     const latest = plans[0];
     if (latest) {
@@ -710,7 +717,27 @@ const App = {
     App.showSupportPlan(newIdx);
   },
 
-  renderSupportPlan(plan) {
+  renderSupportPlan(plan, idx, total) {
+    // Plan navigator bar
+    const nav = document.getElementById('sp-plan-nav');
+    if (nav) {
+      if (total > 1) {
+        nav.style.display = 'flex';
+        const num = total - idx;
+        const ordinals = ['الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة','السابعة','الثامنة','التاسعة','العاشرة'];
+        const ord = ordinals[num - 1] || num;
+        const dateStr = plan.createdAt ? new Date(plan.createdAt).toLocaleDateString('ar-SA', { day:'numeric', month:'short', year:'numeric' }) : '';
+        document.getElementById('sp-plan-label').textContent = `الخطة ${ord} — ${dateStr}`;
+        const prevBtn = nav.children[0];
+        const nextBtn = nav.children[2];
+        prevBtn.disabled = idx >= total - 1;
+        prevBtn.style.opacity = idx >= total - 1 ? '.4' : '1';
+        nextBtn.disabled = idx <= 0;
+        nextBtn.style.opacity = idx <= 0 ? '.4' : '1';
+      } else {
+        nav.style.display = 'none';
+      }
+    }
     // Admin note
     const note = document.getElementById('sp-admin-note');
     note.style.display = plan.adminNote ? 'block' : 'none';

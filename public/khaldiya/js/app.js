@@ -681,20 +681,33 @@ const App = {
   },
 
   // ── Student Plan View ────────────────────────────────────────────────────
-  viewStudentPlan() {
-    const plan = DB.plans().find(p => p.studentId === State.student.id);
+  viewStudentPlan(idx) {
+    const plans = DB.studentPlans(State.student.id);
+    const i = (idx !== undefined) ? idx : 0;
+    const plan = plans[i];
     if (!plan) return;
     State.currentPlan = plan;
+    State._planIdx = i;
     App.renderLevelAnalysis(plan);
     show('screen-level-analysis');
   },
 
   // ── Support Plan ─────────────────────────────────────────────────────────
-  showSupportPlan() {
-    const plan = State.currentPlan || DB.plans().find(p => p.studentId === State.student.id);
-    if (!plan) return;
-    App.renderSupportPlan(plan);
+  showSupportPlan(idx) {
+    const plans = DB.studentPlans(State.student.id);
+    if (!plans.length) return;
+    const i = (idx !== undefined) ? idx : (State._planIdx || 0);
+    State._planIdx = i;
+    State.currentPlan = plans[i];
+    App.renderSupportPlan(plans[i], i, plans.length);
     show('screen-support-plan');
+  },
+
+  navPlan(dir) {
+    const plans = DB.studentPlans(State.student.id);
+    const newIdx = (State._planIdx || 0) + dir;
+    if (newIdx < 0 || newIdx >= plans.length) return;
+    App.showSupportPlan(newIdx);
   },
 
   renderSupportPlan(plan) {

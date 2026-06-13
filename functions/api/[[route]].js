@@ -82,8 +82,13 @@ function authDev(request, env) {
 
 // ── JWT (HS256 via WebCrypto) ─────────────────────────────────────────────
 const _jwtAlg = { name: 'HMAC', hash: 'SHA-256' };
-const _b64u = s => btoa(typeof s === 'string' ? s : JSON.stringify(s))
-  .replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+const _b64u = s => {
+  const str = typeof s === 'string' ? s : JSON.stringify(s);
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+};
 const _b64uDec = s => atob(s.replace(/-/g,'+').replace(/_/g,'/'));
 
 async function jwtSign(payload, secret) {

@@ -15,9 +15,18 @@ let _authToken = null;
 async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (_authToken) headers['Authorization'] = 'Bearer ' + _authToken;
-  const res = await fetch('/api' + path, { headers, ...opts });
+  let res;
+  try {
+    res = await fetch('/api' + path, { headers, ...opts });
+  } catch (netErr) {
+    throw new Error('NETWORK_ERROR: ' + (netErr.message || 'failed to fetch'));
+  }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const e = new Error(data.error || res.statusText || 'HTTP ' + res.status);
+    e.status = res.status;
+    throw e;
+  }
   return data;
 }
 
@@ -267,13 +276,20 @@ const App = {
       token = data.token;
       student = { id: data.student.id, code, name: data.student.name, school: data.student.school || '' };
     } catch (e) {
-      if (e.message && (e.message.includes('404') || e.message.includes('غير مسجّل'))) {
-        showAlert(errEl, 'السجل المدني غير مسجّل. راجع المشرف لإضافتك في النظام.'); return;
+      const msg = e?.message || '';
+      if (msg.includes('404') || msg.includes('غير مسجّل')) {
+        showAlert(errEl, 'السجل المدني غير مسجّل — راجع المشرف لإضافتك في النظام.'); return;
       }
-      if (e.message && e.message.includes('429')) {
+      if (msg.includes('429')) {
         showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
       }
-      showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return;
+      if (msg.includes('400') || msg.includes('غير صالح')) {
+        showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
+      }
+      if (!navigator.onLine) {
+        showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
+      }
+      showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (' + (msg || 'خطأ غير معروف') + ')'); return;
     }
     _authToken = token;
     State.student = student;
@@ -312,13 +328,23 @@ const App = {
       token = data.token;
       admin = data.admin;
     } catch (e) {
-      if (e.message && (e.message.includes('404') || e.message.includes('غير مسجّل'))) {
+      const msg = e?.message || '';
+      if (msg.includes('404') || msg.includes('غير مسجّل')) {
         showAlert(errEl, 'السجل المدني غير مسجّل ضمن المشرفين.'); return;
       }
-      if (e.message && e.message.includes('429')) {
+      if (msg.includes('429')) {
         showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
       }
-      showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return;
+      if (msg.includes('403') || msg.includes('غير مصرح')) {
+        showAlert(errEl, 'هذا الرمز غير مصرح له بالدخول على هذه المدرسة.'); return;
+      }
+      if (msg.includes('400') || msg.includes('غير صالح')) {
+        showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
+      }
+      if (!navigator.onLine) {
+        showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
+      }
+      showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (' + (msg || 'خطأ غير معروف') + ')'); return;
     }
     _authToken = token;
     State.role  = admin.role === 'director' ? 'director' : 'admin';
@@ -326,7 +352,11 @@ const App = {
     if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
     const adminName = admin.name || '';
     try { await DB.loadAll(); }
-    catch (e) { showAlert(errEl, 'تعذّر الاتصال بقاعدة البيانات.'); return; }
+    catch (e) {
+      const loadMsg = e?.message || '';
+      if (!navigator.onLine) { showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة.'); return; }
+      showAlert(errEl, 'تم الدخول لكن تعذّر تحميل البيانات — حاول مرة أخرى. (' + (loadMsg || 'خطأ') + ')'); return;
+    }
     const _sess = { role: State.role, code, name: adminName, school: admin.school || '', token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
     sessionStorage.setItem('lg_session', JSON.stringify(_sess));
     localStorage.setItem('lg_xsession', JSON.stringify(_sess));

@@ -277,16 +277,17 @@ const App = {
       student = { id: data.student.id, code, name: data.student.name, school: data.student.school || '' };
     } catch (e) {
       const msg = e?.message || '';
-      if (msg.includes('404') || msg.includes('غير مسجّل')) {
+      const status = e?.status;
+      if (status === 404 || msg.includes('غير مسجّل')) {
         showAlert(errEl, 'السجل المدني غير مسجّل — راجع المشرف لإضافتك في النظام.'); return;
       }
-      if (msg.includes('429')) {
+      if (status === 429 || msg.includes('Too many') || msg.includes('429')) {
         showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
       }
-      if (msg.includes('400') || msg.includes('غير صالح')) {
+      if (status === 400 || msg.includes('غير صالح')) {
         showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
       }
-      if (!navigator.onLine) {
+      if (!navigator.onLine || msg.includes('NETWORK_ERROR')) {
         showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
       }
       showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (' + (msg || 'خطأ غير معروف') + ')'); return;
@@ -329,19 +330,20 @@ const App = {
       admin = data.admin;
     } catch (e) {
       const msg = e?.message || '';
-      if (msg.includes('404') || msg.includes('غير مسجّل')) {
+      const status = e?.status;
+      if (status === 404 || msg.includes('غير مسجّل')) {
         showAlert(errEl, 'السجل المدني غير مسجّل ضمن المشرفين.'); return;
       }
-      if (msg.includes('429')) {
+      if (status === 429 || msg.includes('Too many') || msg.includes('429')) {
         showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
       }
-      if (msg.includes('403') || msg.includes('غير مصرح')) {
+      if (status === 403 || msg.includes('غير مصرح')) {
         showAlert(errEl, 'هذا الرمز غير مصرح له بالدخول على هذه المدرسة.'); return;
       }
-      if (msg.includes('400') || msg.includes('غير صالح')) {
+      if (status === 400 || msg.includes('غير صالح')) {
         showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
       }
-      if (!navigator.onLine) {
+      if (!navigator.onLine || msg.includes('NETWORK_ERROR')) {
         showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
       }
       showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (' + (msg || 'خطأ غير معروف') + ')'); return;

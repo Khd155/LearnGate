@@ -83,7 +83,7 @@ const DB = {
 
   async loadStudentData() {
     if (!State.student) return;
-    const { plans } = await apiFetch(`/plans?studentId=${encodeURIComponent(State.student.id)}`);
+    const { plans } = await apiFetch(`/plans/history?studentId=${encodeURIComponent(State.student.id)}`);
     Cache.plans = (plans || []).map(_mapPlan);
   },
 

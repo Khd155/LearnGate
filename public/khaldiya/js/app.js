@@ -283,6 +283,39 @@ const App = {
     show('screen-identity');
   },
 
+  showOtherSchools() {
+    const container = document.getElementById('school-cards');
+    container.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:340px;">
+        <input id="other-school-input" type="text" dir="rtl"
+          placeholder="اكتب اسم مدرستك..."
+          style="width:100%;padding:14px 18px;border-radius:12px;border:2px solid rgba(255,255,255,.4);
+                 background:rgba(255,255,255,.15);color:#fff;font-size:16px;font-family:inherit;
+                 text-align:center;backdrop-filter:blur(4px);outline:none;"
+          onfocus="this.style.borderColor='rgba(255,255,255,.8)'"
+          onblur="this.style.borderColor='rgba(255,255,255,.4)'"
+          onkeydown="if(event.key==='Enter') App.confirmOtherSchool()">
+        <button onclick="App.confirmOtherSchool()"
+          style="width:100%;padding:14px;border-radius:12px;border:none;
+                 background:#fff;color:#3F7CB8;font-size:16px;font-weight:800;
+                 font-family:inherit;cursor:pointer;">
+          متابعة ←
+        </button>
+        <button onclick="location.reload()"
+          style="background:transparent;border:none;color:rgba(255,255,255,.7);
+                 font-size:13px;font-family:inherit;cursor:pointer;text-decoration:underline;">
+          رجوع
+        </button>
+      </div>`;
+    setTimeout(() => document.getElementById('other-school-input')?.focus(), 100);
+  },
+
+  confirmOtherSchool() {
+    const name = (document.getElementById('other-school-input')?.value || '').trim();
+    if (!name) { document.getElementById('other-school-input').style.borderColor = '#f87171'; return; }
+    App.selectSchool(name);
+  },
+
   _updateSchoolDisplay(name) {
     ['id-school-name', 'sh-school-sub', 'ad-school-sub'].forEach(id => {
       const el = document.getElementById(id);
@@ -3094,17 +3127,5 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (e) { localStorage.removeItem('lg_remember'); }
 
   show('screen-landing');
-
-  // Load schools dynamically so any new school appears on the landing page
-  fetch('/api/schools').then(r => r.json()).then(({ schools }) => {
-    if (!schools || !schools.length) return;
-    const container = document.getElementById('school-cards');
-    if (!container) return;
-    container.innerHTML = schools.map(s => `
-      <button class="identity-card" onclick="App.selectSchool('${s.name.replace(/'/g,"\\'")}')">
-        <div class="card-icon">🏫</div>
-        <div class="card-title">${s.name}</div>
-        <div class="card-desc">اضغط للمتابعة</div>
-      </button>`).join('');
-  }).catch(() => {});
 });
+

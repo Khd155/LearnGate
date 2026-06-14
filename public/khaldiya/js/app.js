@@ -3094,4 +3094,17 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (e) { localStorage.removeItem('lg_remember'); }
 
   show('screen-landing');
+
+  // Load schools dynamically so any new school appears on the landing page
+  fetch('/api/schools').then(r => r.json()).then(({ schools }) => {
+    if (!schools || !schools.length) return;
+    const container = document.getElementById('school-cards');
+    if (!container) return;
+    container.innerHTML = schools.map(s => `
+      <button class="identity-card" onclick="App.selectSchool('${s.name.replace(/'/g,"\\'")}')">
+        <div class="card-icon">🏫</div>
+        <div class="card-title">${s.name}</div>
+        <div class="card-desc">اضغط للمتابعة</div>
+      </button>`).join('');
+  }).catch(() => {});
 });

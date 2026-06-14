@@ -387,8 +387,9 @@ const App = {
     const adminName = admin.name || '';
     try { await DB.loadAll(); }
     catch (e) {
-      const loadMsg = e?.message || '';
+      _authToken = null;
       if (!navigator.onLine) { showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة.'); return; }
+      if (e?.status === 401) { showAlert(errEl, 'الصلاحيات غير كافية — راجع مدير النظام لضبط دورك في قاعدة البيانات.'); return; }
       showAlert(errEl, 'تم الدخول لكن تعذّر تحميل البيانات — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
     const _sess = { role: State.role, code, name: adminName, school: admin.school || '', token, expiry: Date.now() + 4 * 60 * 60 * 1000 };

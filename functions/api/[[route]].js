@@ -193,8 +193,10 @@ export async function onRequest({ request, env }) {
         if (admin.school !== '*' && sc && admin.school !== sc) return err('غير مصرح', 403, CORS);
         const secret = env.JWT_SECRET || 'lg-jwt-fallback-2026';
         const adminName = admin.admin_name || admin.name || '';
-        const token = await jwtSign({ sub: admin.id, role: admin.role || 'admin', name: adminName, school: admin.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, secret);
-        return ok({ token, admin: { id: admin.id, name: adminName, school: admin.school, role: admin.role || 'admin' } }, 200, CORS);
+        // Normalize role: only 'director' keeps its value, everything else becomes 'admin'
+        const adminRole = admin.role === 'director' ? 'director' : 'admin';
+        const token = await jwtSign({ sub: admin.id, role: adminRole, name: adminName, school: admin.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, secret);
+        return ok({ token, admin: { id: admin.id, name: adminName, school: admin.school, role: adminRole } }, 200, CORS);
       }
 
       // POST /api/auth/dev

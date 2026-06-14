@@ -224,19 +224,34 @@ h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
 .sec-bar{height:7px;background:#e2e8f0;border-radius:99px;overflow:hidden;}
 .sec-bar-fill{height:100%;border-radius:99px;transition:width .5s .2s ease;}
 
-/* ── Wrong answers feedback ── */
-.wrong-list{display:flex;flex-direction:column;gap:12px;margin-top:6px;}
+/* ── All-questions feedback ── */
+.wrong-list{display:flex;flex-direction:column;gap:14px;margin-top:6px;}
 .wrong-item{
-  background:var(--surface);border:1.5px solid #fecaca;border-radius:13px;padding:16px;
+  border-radius:13px;padding:0;overflow:hidden;border:1.5px solid #e2e8f0;
 }
-.wi-qnum{font-size:11px;font-weight:800;color:#ef4444;margin-bottom:6px;}
-.wi-qtext{font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.6;}
-.wi-answers{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.wrong-item.fb-correct{border-color:#86efac;}
+.wrong-item.fb-wrong{border-color:#fca5a5;}
+.wrong-item.fb-dk{border-color:#fcd34d;}
+.wi-header{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;font-size:12px;font-weight:800;
+}
+.fb-correct .wi-header{background:#f0fdf4;color:#166534;}
+.fb-wrong   .wi-header{background:#fef2f2;color:#991b1b;}
+.fb-dk      .wi-header{background:#fffbeb;color:#92400e;}
+.wi-qnum{font-size:12px;font-weight:800;}
+.wi-badge{margin-right:auto;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;}
+.fb-correct .wi-badge{background:#bbf7d0;color:#15803d;}
+.fb-wrong   .wi-badge{background:#fecaca;color:#b91c1c;}
+.fb-dk      .wi-badge{background:#fde68a;color:#92400e;}
+.wi-qtext{font-size:13.5px;font-weight:700;color:var(--text);line-height:1.65;padding:12px 14px 8px;}
+.wi-answers{display:flex;flex-direction:column;gap:6px;padding:0 14px 10px;}
 .wi-ans{font-size:13px;font-weight:600;padding:8px 12px;border-radius:8px;display:flex;align-items:center;gap:8px;}
 .wi-ans.wrong{background:#fef2f2;color:#991b1b;}
 .wi-ans.correct{background:#f0fdf4;color:#166534;}
 .wi-ans.dk{background:#fffbeb;color:#92400e;}
 .wi-exp{
+  margin:0 14px 14px;
   background:#f8fafc;border-right:3px solid var(--primary);
   border-radius:0 8px 8px 0;padding:10px 12px;
   font-size:13px;font-weight:600;color:var(--text);line-height:1.65;
@@ -455,8 +470,8 @@ footer{text-align:center;font-size:12.5px;color:var(--muted);padding:20px 0 36px
 
     <div id="post-support-box"></div>
 
-    <div class="card" id="post-wrong-card" style="display:none;">
-      <div class="section-label">التغذية الراجعة — مراجعة الأخطاء</div>
+    <div class="card" id="post-wrong-card">
+      <div class="section-label">التغذية الراجعة: تعزيز الإجابات الصحيحة وتصحيح الخاطئة</div>
       <div class="wrong-list" id="post-wrong-list"></div>
     </div>
 
@@ -1023,28 +1038,46 @@ function showPostResults() {
       </div>`;
   }
 
-  // Wrong answers feedback
-  const wrongQs = POST_Q.map((q, i) => ({ q, i, a: postAnswers[i] })).filter(({ q, a }) => a !== q.ans);
-  const wrongCard = document.getElementById('post-wrong-card');
+  // All-questions feedback
   const wrongList = document.getElementById('post-wrong-list');
-  if (wrongQs.length > 0) {
-    wrongCard.style.display = 'block';
-    wrongList.innerHTML = wrongQs.map(({ q, i, a }) => {
-      const myLabel = a === 'dk' ? '❓ لا أعرف الإجابة' : `${LETTERS[a]}) ${q.opts[a]}`;
-      const myClass = a === 'dk' ? 'dk' : 'wrong';
-      const corrLabel = `${LETTERS[q.ans]}) ${q.opts[q.ans]}`;
+  wrongList.innerHTML = POST_Q.map((q, i) => {
+    const a = postAnswers[i];
+    const isCorrect = a === q.ans;
+    const isDK = a === 'dk';
+    const corrLabel = `${LETTERS[q.ans]}) ${q.opts[q.ans]}`;
+
+    if (isCorrect) {
       return `
-        <div class="wrong-item">
-          <div class="wi-qnum">السؤال ${arabicNum(i + 1)}</div>
+        <div class="wrong-item fb-correct">
+          <div class="wi-header">
+            <span class="wi-qnum">السؤال ${arabicNum(i + 1)}</span>
+            <span class="wi-badge">✓ صحيح</span>
+          </div>
+          <div class="wi-qtext">${q.text}</div>
+          <div class="wi-answers">
+            <div class="wi-ans correct">✓ ${corrLabel}</div>
+          </div>
+          <div class="wi-exp">✅ أحسنت! إجابتك صحيحة لأن ${q.exp}</div>
+        </div>`;
+    } else {
+      const myLabel = isDK ? 'لا أعرف الإجابة' : `${LETTERS[a]}) ${q.opts[a]}`;
+      const myClass = isDK ? 'dk' : 'wrong';
+      const fbClass = isDK ? 'fb-dk' : 'fb-wrong';
+      return `
+        <div class="wrong-item ${fbClass}">
+          <div class="wi-header">
+            <span class="wi-qnum">السؤال ${arabicNum(i + 1)}</span>
+            <span class="wi-badge">✗ ${isDK ? 'لم تجب' : 'خطأ'}</span>
+          </div>
           <div class="wi-qtext">${q.text}</div>
           <div class="wi-answers">
             <div class="wi-ans ${myClass}">✗ إجابتك: ${myLabel}</div>
             <div class="wi-ans correct">✓ الإجابة الصحيحة: ${corrLabel}</div>
           </div>
-          <div class="wi-exp">💬 ${q.exp}</div>
+          <div class="wi-exp">❌ لقد أجبت إجابة خاطئة لأن ${q.exp}</div>
         </div>`;
-    }).join('');
-  }
+    }
+  }).join('');
 
   showScreen('screen-post-results');
 }

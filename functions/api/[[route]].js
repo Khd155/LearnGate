@@ -220,6 +220,36 @@ export async function onRequest({ request, env }) {
         const token = await jwtSign({ role: 'dev', exp: Math.floor(Date.now() / 1000) + 4 * 3600 }, secret);
         return ok({ token }, 200, CORS);
       }
+
+      // GET /api/auth/ping — JWT self-test (no auth required, safe diagnostics only)
+      if (sub === 'ping' && method === 'GET') {
+        const secret = env.JWT_SECRET || 'lg-jwt-fallback-2026';
+        const hasCustomSecret = !!env.JWT_SECRET;
+        const testPayload = { role: 'admin', sub: 'test', exp: Math.floor(Date.now() / 1000) + 60 };
+        let selfTest = false, selfTestErr = null;
+        try {
+          const testToken = await jwtSign(testPayload, secret);
+          const verified  = await jwtVerify(testToken, secret);
+          selfTest = verified && verified.role === 'admin';
+          if (!selfTest) selfTestErr = 'verify returned: ' + JSON.stringify(verified);
+        } catch (e) { selfTestErr = e.message; }
+        // Also try to verify the caller's token if provided
+        let callerClaims = null, callerErr = null;
+        const callerToken = getToken(request);
+        if (callerToken) {
+          try { callerClaims = await jwtVerify(callerToken, secret); }
+          catch (e) { callerErr = e.message; }
+        }
+        return ok({
+          jwtSelfTest: selfTest,
+          jwtSelfTestErr: selfTestErr,
+          hasCustomJwtSecret: hasCustomSecret,
+          callerTokenProvided: !!callerToken,
+          callerTokenValid: !!callerClaims,
+          callerRole: callerClaims?.role || null,
+          callerTokenErr: callerErr,
+        }, 200, CORS);
+      }
     }
 
     // ── SCHOOLS ─────────────────────────────────────────────────────────────

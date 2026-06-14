@@ -276,16 +276,42 @@ export async function onRequest({ request, env }) {
         const body = await request.json();
 
         if (Array.isArray(body)) {
-          let added = 0;
-          const stmt = DB.prepare(
-            'INSERT OR IGNORE INTO students (id, code, name, school, created_at) VALUES (?, ?, ?, ?, ?)'
-          );
-          for (const { name, code, school: s } of body) {
-            if (!name || !code) continue;
-            const res = await stmt.bind(crypto.randomUUID(), code, name, s || school, new Date().toISOString()).run();
-            if (res.changes) added++;
+          const now = new Date().toISOString();
+          const valid = body.filter(r => r.name && r.code);
+
+          // Fetch existing codes in one query
+          const { results: existing } = await DB.prepare('SELECT code FROM students').all();
+          const existingCodes = new Set(existing.map(r => r.code));
+
+          const toAdd    = valid.filter(r => !existingCodes.has(r.code));
+          const toUpdate = valid.filter(r =>  existingCodes.has(r.code));
+
+          // Check if caller wants upsert (update existing names)
+          const upsert = url.searchParams.get('upsert') === '1';
+
+          let added = 0, updated = 0;
+
+          // Batch insert new students
+          if (toAdd.length) {
+            const stmts = toAdd.map(({ name, code, school: s }) =>
+              DB.prepare('INSERT OR IGNORE INTO students (id, code, name, school, created_at) VALUES (?, ?, ?, ?, ?)')
+                .bind(crypto.randomUUID(), code, name, s || school, now)
+            );
+            const results = await DB.batch(stmts);
+            added = results.filter(r => r.changes).length;
           }
-          return ok({ added, skipped: body.length - added }, 200, CORS);
+
+          // Batch update existing students if upsert mode
+          if (upsert && toUpdate.length) {
+            const stmts = toUpdate.map(({ name, code, school: s }) =>
+              DB.prepare('UPDATE students SET name = ?, school = ? WHERE code = ?')
+                .bind(name, s || school, code)
+            );
+            const results = await DB.batch(stmts);
+            updated = results.filter(r => r.changes).length;
+          }
+
+          return ok({ added, updated, skipped: valid.length - added - updated, total: valid.length }, 200, CORS);
         }
 
         const { name, code, school: bodySchool } = body;

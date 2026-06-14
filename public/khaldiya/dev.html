@@ -251,7 +251,7 @@
           </div>
           <label class="btn btn-primary" for="bulk-file" style="align-self:flex-end">📤 رفع ملف Excel</label>
           <input type="file" id="bulk-file" accept=".xlsx,.xls" style="display:none"
-                 onchange="Dev.bulkImport(this)">
+                 onchange="Dev.bulkPreview(this)">
           <a href="#" onclick="Dev.downloadTemplate();return false;" class="btn btn-warn" style="align-self:flex-end">⬇️ تحميل القالب</a>
         </div>
         <div id="bulk-result" style="margin-top:12px"></div>
@@ -603,29 +603,74 @@ const Dev = {
     } catch (e) { showAlert('add-st-err', e.message); }
   },
 
-  async bulkImport(input) {
+  async bulkPreview(input) {
     const file   = input.files && input.files[0];
     const school = document.getElementById('bulk-school').value;
     input.value  = '';
     if (!file) return;
     if (!school) { showToast('اختر مدرسة أولاً', true); return; }
     const resultEl = document.getElementById('bulk-result');
-    resultEl.innerHTML = '<div style="color:var(--muted);font-size:13px">⏳ جارٍ الاستيراد...</div>';
+    resultEl.innerHTML = '<div style="color:var(--muted);font-size:13px">⏳ جارٍ قراءة الملف...</div>';
+    let parsed;
     try {
-      const rows   = await readExcel(file);
-      const parsed = rows.map(r => ({
+      // Defer XLSX parse to next tick to avoid freezing the UI
+      const rows = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onerror = () => rej(new Error('تعذّر قراءة الملف'));
+        reader.onload = e => setTimeout(() => {
+          try {
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '', raw: false }));
+          } catch (err) { rej(err); }
+        }, 0);
+        reader.readAsArrayBuffer(file);
+      });
+      parsed = rows.map(r => ({
         code: String(r['السجل المدني'] ?? r['code'] ?? r['رمز الدخول'] ?? '').trim(),
         name: String(r['اسم الطالب']  ?? r['name']  ?? r['الاسم']      ?? '').trim(),
         school,
       })).filter(r => /^\d{10}$/.test(r.code) && r.name);
-      if (!parsed.length) { resultEl.innerHTML = '<div style="color:#f87171;font-size:13px">⚠️ لم يتم العثور على صفوف صالحة</div>'; return; }
-      // Use regular API for bulk (same logic, includes school in each row)
-      const res = await fetch(API + '/students', {
+    } catch (e) {
+      resultEl.innerHTML = `<div style="color:#f87171;font-size:13px">❌ ${e.message}</div>`; return;
+    }
+    if (!parsed.length) {
+      resultEl.innerHTML = '<div style="color:#f87171;font-size:13px">⚠️ لم يتم العثور على صفوف صالحة — تأكد أن الأعمدة: "اسم الطالب" و"السجل المدني"</div>'; return;
+    }
+    // Show preview with confirm buttons
+    resultEl.innerHTML = `
+      <div style="background:#1e293b;border:1.5px solid #334155;border-radius:10px;padding:14px;font-size:13px;">
+        <div style="font-weight:700;color:#e2e8f0;margin-bottom:10px;">📋 معاينة الاستيراد — ${parsed.length} سجل</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <button onclick="Dev.bulkImport(_bulkParsed, false)"
+            style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-family:inherit;cursor:pointer;font-weight:700;">
+            ✅ إضافة الجدد فقط
+          </button>
+          <button onclick="Dev.bulkImport(_bulkParsed, true)"
+            style="background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-family:inherit;cursor:pointer;font-weight:700;">
+            🔄 إضافة الجدد + تحديث الموجودين
+          </button>
+        </div>
+        <div style="color:#94a3b8;font-size:12px;">سيتم التحقق من المكررين تلقائياً عند الإضافة</div>
+      </div>`;
+    window._bulkParsed = parsed;
+  },
+
+  async bulkImport(parsed, upsert) {
+    const resultEl = document.getElementById('bulk-result');
+    resultEl.innerHTML = '<div style="color:var(--muted);font-size:13px">⏳ جارٍ الاستيراد...</div>';
+    try {
+      const url = API + '/students' + (upsert ? '?upsert=1' : '');
+      const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(devKey ? { 'X-Dev-Key': devKey } : {}) },
         body: JSON.stringify(parsed),
       }).then(r => r.json());
-      resultEl.innerHTML = `<div style="color:#86efac;font-size:13px">✅ تمت إضافة <strong>${res.added}</strong> طالب${res.skipped ? ' · تجاهل ' + res.skipped + ' مكرر' : ''}</div>`;
+      const parts = [];
+      if (res.added)   parts.push(`<strong>${res.added}</strong> مضاف`);
+      if (res.updated) parts.push(`<strong>${res.updated}</strong> محدَّث`);
+      if (res.skipped) parts.push(`<strong>${res.skipped}</strong> تجاهل`);
+      resultEl.innerHTML = `<div style="color:#86efac;font-size:13px">✅ ${parts.join(' · ')}</div>`;
+      window._bulkParsed = null;
       Dev.loadStudents(); Dev.loadStats();
     } catch (e) {
       resultEl.innerHTML = `<div style="color:#f87171;font-size:13px">❌ ${e.message}</div>`;

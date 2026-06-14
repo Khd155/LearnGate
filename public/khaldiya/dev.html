@@ -110,6 +110,38 @@
     /* ── Empty ── */
     .empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px}
 
+    /* ── Support Tab ── */
+    .sp-sub-tabs{display:flex;gap:8px;margin-bottom:20px}
+    .sp-sub-btn{flex:1;padding:10px;border:1.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--muted);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+    .sp-sub-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+    .ticket-item{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px;cursor:pointer;transition:border-color .2s}
+    .ticket-item:hover{border-color:var(--border2)}
+    .ticket-item.expanded{border-color:var(--primary)}
+    .ticket-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+    .ticket-subject{font-size:14px;font-weight:700;color:#f1f5f9}
+    .ticket-meta-row{font-size:12px;color:var(--muted);margin-top:5px}
+    .tbadge{padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+    .tbadge-open{background:rgba(239,68,68,.15);color:#f87171}
+    .tbadge-progress{background:rgba(245,158,11,.15);color:#fbbf24}
+    .tbadge-resolved{background:rgba(34,197,94,.15);color:#86efac}
+    .ticket-body{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:none}
+    .ticket-item.expanded .ticket-body{display:block}
+    .thread-msg{padding:10px 14px;border-radius:10px;margin-bottom:8px;font-size:13px;line-height:1.6;max-width:80%}
+    .thread-msg.student{background:var(--surface2);color:#e2e8f0}
+    .thread-msg.admin{background:rgba(59,130,246,.2);color:#bfdbfe;margin-right:auto}
+    .thread-wrap{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;margin-bottom:12px}
+    .thread-who{font-size:11px;font-weight:700;margin-bottom:3px;opacity:.7}
+    .thread-time{font-size:11px;opacity:.5;margin-top:3px}
+    .reply-row{display:flex;gap:8px;margin-top:8px}
+    .reply-input{flex:1;background:var(--bg);border:1.5px solid var(--border2);color:#f1f5f9;border-radius:8px;padding:9px 14px;font-size:13px;font-family:inherit}
+    .reply-input:focus{outline:none;border-color:var(--primary)}
+    .msg-row{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:8px}
+    .msg-avatar{width:40px;height:40px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;color:#fff}
+    .msg-info{flex:1}
+    .msg-name{font-size:14px;font-weight:700;color:#f1f5f9}
+    .msg-school{font-size:12px;color:var(--muted);margin-top:2px}
+    .msg-cnt{background:var(--danger);color:#fff;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:700;flex-shrink:0}
+
     /* ── Danger confirm box ── */
     .danger-box{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:16px;margin-top:12px}
     .danger-box p{font-size:13px;color:#fca5a5;margin-bottom:12px}
@@ -158,6 +190,7 @@
     <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')">🏫 المدارس والمشرفون</button>
     <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')">📝 الأسئلة</button>
     <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')">⚠️ أدوات</button>
+    <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')">🎫 الدعم الفني</button>
   </div>
 
   <div class="content">
@@ -271,6 +304,13 @@
               <option value="*">⭐ سوبر مشرف (كل المدارس)</option>
             </select>
           </div>
+          <div class="form-group">
+            <div class="form-label">الدور</div>
+            <select id="new-admin-role" class="form-select">
+              <option value="admin">👤 مشرف</option>
+              <option value="director">👑 مدير</option>
+            </select>
+          </div>
           <button class="btn btn-primary" onclick="Dev.addAdmin()">+ إضافة</button>
         </div>
       </div>
@@ -302,6 +342,15 @@
       </div>
     </div>
 
+    <!-- ── Support ── -->
+    <div id="tab-support" class="tab-pane">
+      <div class="sp-sub-tabs">
+        <button class="sp-sub-btn active" id="sp-btn-tickets"  onclick="Dev.setSupportTab('tickets')">🎫 التذاكر</button>
+        <button class="sp-sub-btn"        id="sp-btn-messages" onclick="Dev.setSupportTab('messages')">💬 الرسائل غير المقروءة</button>
+      </div>
+      <div id="sp-content"><div class="empty">جارٍ التحميل...</div></div>
+    </div>
+
     <!-- ── Danger Zone ── -->
     <div id="tab-danger" class="tab-pane">
       <div class="section">
@@ -315,6 +364,11 @@
           </div>
         </div>
 
+        <div style="background:#e8f4ee;border:1.5px solid #86efac;border-radius:10px;padding:14px 16px;margin-top:16px;">
+          <p style="margin-bottom:10px;">📥 <strong>تحميل الأسئلة الأصلية (50 سؤال)</strong> — الأسئلة المدمجة في الموقع</p>
+          <button class="btn btn-primary" onclick="Dev.seedQuestions()">📥 تحميل الأسئلة الأصلية</button>
+          <span id="seed-result" style="margin-right:12px;font-size:13px;color:#15803d;"></span>
+        </div>
         <div class="danger-box" style="margin-top:16px">
           <p>🗑️ <strong>مسح بنك الأسئلة كاملاً</strong> — سيتم استخدام الأسئلة الافتراضية</p>
           <button class="btn btn-danger" onclick="Dev.clearQuestions()">🗑️ مسح كل الأسئلة</button>
@@ -436,11 +490,14 @@ const Dev = {
     const el = document.getElementById('admins-list');
     if (!admins.length) { el.innerHTML = '<div class="empty">لا يوجد مشرفون</div>'; return; }
     el.innerHTML = `<table class="data-table">
-      <thead><tr><th>الاسم</th><th>رقم السجل</th><th>المدرسة</th><th></th></tr></thead>
+      <thead><tr><th>الاسم</th><th>رقم السجل</th><th>الدور</th><th>المدرسة</th><th></th></tr></thead>
       <tbody>${admins.map(a => `
         <tr>
           <td>${a.name}</td>
           <td style="direction:ltr;text-align:right">${a.code}</td>
+          <td>${a.role === 'director'
+            ? '<span class="badge badge-super">👑 مدير</span>'
+            : '<span class="badge badge-school">👤 مشرف</span>'}</td>
           <td>${a.school === '*'
             ? '<span class="badge badge-super">⭐ كل المدارس</span>'
             : a.school
@@ -618,13 +675,14 @@ const Dev = {
     const name   = document.getElementById('new-admin-name').value.trim();
     const code   = document.getElementById('new-admin-code').value.trim();
     const school = document.getElementById('new-admin-school').value;
+    const role   = document.getElementById('new-admin-role').value;
     if (!name) { showAlert('add-admin-err', 'أدخل الاسم'); return; }
     if (!/^\d{10}$/.test(code)) { showAlert('add-admin-err', 'رقم السجل يجب أن يكون ١٠ أرقام'); return; }
     try {
-      await apiDev('/dev/admins', { method: 'POST', body: JSON.stringify({ name, code, school }) });
+      await apiDev('/dev/admins', { method: 'POST', body: JSON.stringify({ name, code, school, role }) });
       document.getElementById('new-admin-name').value = '';
       document.getElementById('new-admin-code').value = '';
-      showToast('تمت إضافة المشرف ✅');
+      showToast(`تمت إضافة ${role === 'director' ? 'المدير' : 'المشرف'} ✅`);
       Dev.loadAdmins();
     } catch (e) { showAlert('add-admin-err', e.message); }
   },
@@ -686,11 +744,141 @@ const Dev = {
     Dev.loadStats();
   },
 
+  async seedQuestions() {
+    const btn = document.querySelector('[onclick="Dev.seedQuestions()"]');
+    btn.disabled = true; btn.textContent = '⏳ جارٍ التحميل…';
+    try {
+      const { added, skipped } = await apiDev('/dev/seed-questions', { method: 'POST' });
+      document.getElementById('seed-result').textContent = `✅ تمت إضافة ${added} سؤال${skipped ? ' (تجاهل ' + skipped + ' موجود)' : ''}`;
+      Dev.loadQuestions();
+    } catch (e) {
+      document.getElementById('seed-result').textContent = '❌ ' + e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = '📥 تحميل الأسئلة الأصلية';
+    }
+  },
+
   async clearQuestions() {
     if (!confirm('مسح جميع الأسئلة من قاعدة البيانات؟ سيتم استخدام الأسئلة الافتراضية.')) return;
     await apiDev('/dev/questions', { method: 'DELETE' });
     showToast('تم مسح الأسئلة ✅');
     Dev.loadQuestions();
+  },
+
+  // ── Support Tab ────────────────────────────────────────────────────────
+  _spTab: 'tickets',
+
+  setSupportTab(tab) {
+    Dev._spTab = tab;
+    document.getElementById('sp-btn-tickets').classList.toggle('active', tab === 'tickets');
+    document.getElementById('sp-btn-messages').classList.toggle('active', tab === 'messages');
+    if (tab === 'tickets') Dev.loadTickets();
+    else Dev.loadUnreadMessages();
+  },
+
+  async loadTickets() {
+    const el = document.getElementById('sp-content');
+    el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
+    try {
+      const { tickets } = await fetch('/api/tickets').then(r => r.json());
+      if (!tickets.length) { el.innerHTML = '<div class="empty">لا توجد تذاكر دعم</div>'; return; }
+      el.innerHTML = tickets.map(t => {
+        const bc = t.status === 'open' ? 'tbadge-open' : t.status === 'in_progress' ? 'tbadge-progress' : 'tbadge-resolved';
+        const bt = t.status === 'open' ? 'مفتوح' : t.status === 'in_progress' ? 'قيد المعالجة' : 'تم الحل';
+        const date = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short', year:'numeric' });
+        return `<div class="ticket-item" id="ti-${t.id}" onclick="Dev.toggleTicket('${t.id}')">
+          <div class="ticket-top">
+            <div>
+              <div class="ticket-subject">${t.subject}</div>
+              <div class="ticket-meta-row">${t.student_name} · <span class="badge badge-school">${t.school}</span> · ${date}</div>
+            </div>
+            <span class="tbadge ${bc}">${bt}</span>
+          </div>
+          <div class="ticket-body" id="tb-${t.id}">
+            <div class="thread-wrap" id="tw-${t.id}"><div class="empty" style="padding:16px">جارٍ التحميل...</div></div>
+            ${t.status !== 'resolved' ? `
+            <div class="reply-row">
+              <input type="text" id="tr-${t.id}" class="reply-input" placeholder="رد..." onkeydown="if(event.key==='Enter')Dev.replyTicket('${t.id}')">
+              <button class="btn btn-primary btn-sm" onclick="Dev.replyTicket('${t.id}')">إرسال</button>
+              <button class="btn btn-success btn-sm" onclick="Dev.resolveTicket('${t.id}')">✅ حل</button>
+            </div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+    } catch { el.innerHTML = '<div class="empty" style="color:var(--danger)">تعذّر التحميل</div>'; }
+  },
+
+  async toggleTicket(id) {
+    const el = document.getElementById('ti-' + id);
+    if (el.classList.contains('expanded')) { el.classList.remove('expanded'); return; }
+    // Close others
+    document.querySelectorAll('.ticket-item.expanded').forEach(e => e.classList.remove('expanded'));
+    el.classList.add('expanded');
+    Dev.loadTicketThread(id);
+  },
+
+  async loadTicketThread(id) {
+    const el = document.getElementById('tw-' + id);
+    try {
+      const { ticket, replies } = await fetch(`/api/tickets/${id}`).then(r => r.json());
+      if (!replies.length) { el.innerHTML = '<div class="empty" style="padding:12px">لا توجد ردود بعد</div>'; return; }
+      el.innerHTML = replies.map(r => {
+        const time = new Date(r.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+        const who  = r.sender_type === 'student' ? ticket.student_name : '🔧 الدعم الفني';
+        return `<div class="thread-msg ${r.sender_type}">
+          <div class="thread-who">${who}</div>
+          ${r.body}
+          <div class="thread-time">${time}</div>
+        </div>`;
+      }).join('');
+      el.scrollTop = el.scrollHeight;
+    } catch {}
+  },
+
+  async replyTicket(id) {
+    const input = document.getElementById('tr-' + id);
+    const body = input.value.trim();
+    if (!body) return;
+    input.value = '';
+    try {
+      await fetch(`/api/tickets/${id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senderType: 'admin', body }),
+      });
+      Dev.loadTicketThread(id);
+    } catch { showToast('تعذّر الإرسال', true); input.value = body; }
+  },
+
+  async resolveTicket(id) {
+    if (!confirm('تعيين التذكرة كمحلولة؟')) return;
+    try {
+      await fetch(`/api/tickets/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'resolved' }),
+      });
+      showToast('تم الحل ✅');
+      Dev.loadTickets();
+    } catch { showToast('تعذّر التحديث', true); }
+  },
+
+  async loadUnreadMessages() {
+    const el = document.getElementById('sp-content');
+    el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
+    try {
+      const { counts } = await fetch('/api/messages/unread').then(r => r.json());
+      if (!counts || !counts.length) { el.innerHTML = '<div class="empty">لا توجد رسائل غير مقروءة</div>'; return; }
+      el.innerHTML = counts.map(c => `
+        <div class="msg-row">
+          <div class="msg-avatar">${(c.student_name || '؟').charAt(0)}</div>
+          <div class="msg-info">
+            <div class="msg-name">${c.student_name}</div>
+            <div class="msg-school">🏫 ${c.school || '—'}</div>
+          </div>
+          <span class="msg-cnt">${c.cnt} رسالة</span>
+        </div>`).join('');
+    } catch { el.innerHTML = '<div class="empty" style="color:var(--danger)">تعذّر التحميل</div>'; }
   },
 };
 

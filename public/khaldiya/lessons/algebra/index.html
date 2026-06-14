@@ -43,41 +43,14 @@
   }
 
   /* ── Top Bar ── */
-  .topbar {
-    background: var(--grad-hero);
-    color: #fff;
-    padding: 12px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 6px 24px -10px rgba(7,54,105,.55);
-  }
-  .topbar-title {
-    font-family: 'Cairo', sans-serif;
-    font-weight: 800;
-    font-size: 17px;
-  }
-  .topbar-back {
-    background: rgba(255,255,255,.18);
-    border: 1.5px solid rgba(255,255,255,.35);
-    color: #fff;
-    border-radius: 99px;
-    padding: 6px 18px;
-    font-size: 13px;
-    font-family: inherit;
-    font-weight: 700;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: background .18s;
-  }
-  .topbar-back:hover { background: rgba(255,255,255,.28); }
+  .topbar{background:var(--grad-hero);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);min-height:64px;}
+  .topbar-logo-wrap{display:flex;align-items:center;gap:10px;}
+  .topbar-logo-wrap img{height:30px;opacity:.92;flex-shrink:0;}
+  .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;white-space:nowrap;}
+  .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;order:1;}
+  .topbar-back:hover{background:rgba(255,255,255,.28);}
+  .tb-user-chip{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;padding:5px 12px;font-size:12px;font-family:inherit;font-weight:700;display:none;align-items:center;gap:5px;max-width:150px;overflow:hidden;white-space:nowrap;}
+  .tb-user-chip::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#a3e635;flex-shrink:0;}
 
   /* ── Hero Banner ── */
   .hero-banner {
@@ -279,19 +252,20 @@
     .yt-btn { width: 52px; height: 36px; }
     .hero-banner { padding: 28px 16px 38px; }
   }
+
 </style>
 </head>
 <body>
 
 <!-- Top Bar -->
 <div class="topbar">
-  <span class="topbar-title">شروحات الجبر</span>
-  <a class="topbar-back" href="../../index.html">← الرئيسية</a>
+  <div class="topbar-logo-wrap"><img src="../../logo-white.png" alt="وزارة التعليم"><span class="topbar-title">شروحات الجبر</span><span class="tb-user-chip" id="tb-user-chip" style="display:none"></span></div>
+  <button class="topbar-back" onclick="history.back()">رجوع</button>
 </div>
 
 <!-- Hero -->
 <div class="hero-banner">
-  <div class="hero-pill">الجبر والمسائل الكلامية</div>
+  <div class="hero-pill">الجبر</div>
   <h1>شروحات الجبر</h1>
   <p>اختر المقطع وشاهد الشرح — 85 مقطع متاح</p>
 </div>
@@ -688,5 +662,17 @@
   <footer>📌 التدريب اليومي يُصنع الفارق ✨</footer>
 </div>
 
+<script>
+(function(){
+  try {
+    const a = localStorage.getItem('lg_academic_user');
+    const d = a ? JSON.parse(a) : null;
+    if (d && d.name) { var c=document.getElementById('tb-user-chip'); c.textContent=d.name; c.style.display='inline-flex'; return; }
+    const r = localStorage.getItem('lg_remember');
+    const rd = r ? JSON.parse(r) : null;
+    if (rd && rd.name) { var c=document.getElementById('tb-user-chip'); c.textContent=rd.name; c.style.display='inline-flex'; }
+  } catch(e){}
+})();
+</script>
 </body>
 </html>

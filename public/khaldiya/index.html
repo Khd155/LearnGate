@@ -6,7 +6,7 @@
   <title>بوابة دعم التعلم (النسخة التجريبية)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <style>
     .diag-radio { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
@@ -37,7 +37,7 @@
     }
     .welcome-banner h2 { font-size:20px; margin-bottom:6px; font-weight:800; }
     .welcome-banner p  { font-size:13.5px; opacity:.9; line-height:1.7; }
-    #ap-admin-note {
+    #sp-admin-note {
       background:#fffbeb; border:1.5px solid #fde68a;
       border-radius:10px; padding:12px 16px; margin-bottom:16px;
       font-size:14px; line-height:1.7; display:none;
@@ -52,7 +52,7 @@
     .topbar-logo {
       width: 52px;
       height: 41px;
-      background: url(logo-white.png) center/contain no-repeat;
+      object-fit: contain;
       display: block;
       flex-shrink: 0;
     }
@@ -65,6 +65,263 @@
     .import-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     .import-row input[type=file] { display:none; }
     .import-btn { flex:1; min-width:140px; }
+
+    /* ── Add Question Modal ── */
+    .aq-opt-row {
+      display:flex; align-items:center; gap:10px; cursor:pointer;
+      padding:6px 10px; border-radius:10px; border:2px solid var(--border);
+      transition:border-color .15s, background .15s;
+    }
+    .aq-opt-row:has(input[type=radio]:checked) {
+      border-color:#16a34a; background:#f0fdf4;
+    }
+    .aq-opt-indicator {
+      width:18px; height:18px; border-radius:50%; border:2px solid var(--border);
+      flex-shrink:0; transition:all .15s; display:flex; align-items:center; justify-content:center;
+    }
+    .aq-opt-row:has(input[type=radio]:checked) .aq-opt-indicator {
+      border-color:#16a34a; background:#16a34a;
+    }
+    .aq-opt-row:has(input[type=radio]:checked) .aq-opt-indicator::after {
+      content:'✓'; color:#fff; font-size:11px; font-weight:800;
+    }
+    .aq-opt-input { border:none !important; box-shadow:none !important; padding:6px 8px !important; background:transparent !important; }
+
+    /* ── Level Analysis & Support Plan ───────────────── */
+    .analysis-intro {
+      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
+      border:1px solid #bcd6ee; border-radius:var(--radius-sm);
+      padding:16px 18px; margin-bottom:24px;
+      font-size:14px; line-height:1.85; color:var(--text);
+    }
+    .section-heading {
+      font-size:15px; font-weight:800; color:var(--primary);
+      margin:20px 0 10px; padding-right:12px;
+      border-right:3px solid var(--accent);
+    }
+    .table-scroll { overflow-x:auto; margin-bottom:4px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); }
+    .analysis-table {
+      width:100%; border-collapse:collapse; font-size:13.5px;
+      background:var(--surface);
+    }
+    .analysis-table th {
+      background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 100%);
+      color:#fff; padding:10px 14px; text-align:right;
+      font-weight:700; font-size:13px; border:none;
+    }
+    .analysis-table td {
+      padding:10px 14px; border-bottom:1px solid var(--border);
+      line-height:1.65; vertical-align:top;
+    }
+    .analysis-table tr:last-child td { border-bottom:none; }
+    .analysis-table tbody tr:nth-child(even) { background:#f7fafd; }
+    .sp-table {
+      width:100%; border-collapse:collapse; font-size:13.5px;
+      background:var(--surface);
+    }
+    .sp-table th {
+      background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 100%);
+      color:#fff; padding:10px 14px; text-align:right;
+      font-weight:700; font-size:13px;
+    }
+    .sp-table td {
+      padding:10px 14px; border-bottom:1px solid var(--border);
+      line-height:1.65; vertical-align:middle;
+    }
+    .sp-table tr:last-child td { border-bottom:none; }
+    .sp-table tbody tr:nth-child(even) { background:#f7fafd; }
+    .sp-lesson-btn {
+      display:inline-flex; align-items:center; gap:6px;
+      background:var(--primary); color:#fff; border-radius:10px;
+      padding:7px 14px; font-size:13px; font-weight:700;
+      text-decoration:none; font-family:inherit; transition:opacity .2s;
+      white-space:nowrap;
+    }
+    .sp-lesson-btn:hover { opacity:.85; }
+    /* ── Support Plan intro ─────────────────────────── */
+    .sp-intro-box {
+      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
+      border:1px solid #bcd6ee; border-radius:var(--radius);
+      padding:20px 22px; margin-bottom:20px;
+    }
+    .sp-intro-title { font-size:17px; font-weight:800; color:var(--primary); margin-bottom:10px; }
+    .sp-intro-text  { font-size:13.5px; line-height:1.9; color:var(--text); }
+    .sp-summary-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+    .sp-chip { border-radius:99px; padding:4px 14px; font-size:13px; font-weight:700; }
+    .sp-chip-red    { background:#fee2e2; color:#b91c1c; }
+    .sp-chip-orange { background:#ffedd5; color:#c2410c; }
+    .sp-chip-green  { background:#dcfce7; color:#15803d; }
+
+    /* ── Accordion skill cards ───────────────────────── */
+    .skill-card {
+      background:var(--surface); border:1.5px solid var(--border);
+      border-radius:var(--radius); margin-bottom:12px;
+      overflow:hidden; transition:box-shadow .2s, border-color .2s;
+    }
+    .skill-card.open { border-color:#5A95C9; box-shadow:var(--shadow); }
+    .skill-card-header {
+      padding:15px 18px; display:flex; align-items:center; gap:12px;
+      cursor:pointer; user-select:none; transition:background .15s;
+    }
+    .skill-card-header:hover { background:#f7fafd; }
+    .skill-card.open .skill-card-header {
+      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
+      border-bottom:1px solid var(--border);
+    }
+    .skill-card-rank {
+      width:26px; height:26px; border-radius:50%;
+      background:var(--primary); color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:800; flex-shrink:0;
+    }
+    .skill-card-icon  { font-size:20px; flex-shrink:0; }
+    .skill-card-name  { flex:1; font-weight:700; font-size:14px; }
+    .skill-card-chevron {
+      color:var(--muted); font-size:20px; line-height:1;
+      transition:transform .22s; flex-shrink:0;
+    }
+    .skill-card.open .skill-card-chevron { transform:rotate(180deg); }
+    .skill-card-body { display:none; }
+    .skill-card.open .skill-card-body { display:block; }
+
+    /* Tabs inside card */
+    .skill-tabs {
+      display:flex; border-bottom:2px solid var(--border);
+      background:#f8fbfd; overflow-x:auto;
+    }
+    .skill-tab {
+      flex:1; min-width:90px; padding:11px 6px; text-align:center;
+      font-size:12.5px; font-weight:700; cursor:pointer;
+      border:none; background:none; font-family:inherit;
+      color:var(--muted); transition:color .15s;
+      border-bottom:3px solid transparent; margin-bottom:-2px;
+      white-space:nowrap;
+    }
+    .skill-tab.active { color:var(--primary); border-bottom-color:var(--primary); background:var(--surface); }
+    .skill-tab:hover:not(.active) { color:var(--text); }
+    .skill-tab-content { display:none; padding:18px; }
+    .skill-tab-content.active { display:block; }
+
+    /* Guide tab */
+    .guide-section { margin-bottom:16px; }
+    .guide-label { font-size:13px; font-weight:800; color:var(--primary); margin-bottom:6px; }
+    .guide-text  { font-size:13.5px; line-height:1.85; color:var(--text); }
+    .guide-list  { margin-right:16px; font-size:13.5px; line-height:2.1; color:var(--text); }
+    .guide-list.mistakes li::marker { color:var(--danger); }
+    .guide-tip {
+      background:#fffbeb; border:1.5px solid #fde68a;
+      border-radius:10px; padding:11px 14px;
+      font-size:13.5px; line-height:1.75; display:flex; gap:8px;
+    }
+    .guide-warning {
+      background:#fff7ed; border:1.5px solid #fed7aa;
+      border-radius:10px; padding:11px 14px; margin-bottom:14px;
+      font-size:13.5px; line-height:1.75; display:flex; gap:8px; color:#92400e;
+    }
+
+    /* Videos tab */
+    .videos-btn-wrap { text-align:center; padding:10px 0 4px; }
+    .videos-note { color:var(--muted); font-size:13px; margin-bottom:16px; line-height:1.7; text-align:center; }
+
+    /* Quiz tab */
+    .quiz-start-screen { text-align:center; padding:10px 0 6px; }
+    .quiz-start-icon  { font-size:40px; margin-bottom:10px; }
+    .quiz-start-title { font-size:16px; font-weight:800; margin-bottom:6px; }
+    .quiz-start-sub   { font-size:13.5px; color:var(--muted); margin-bottom:4px; }
+    .quiz-soon { text-align:center; padding:20px 0; color:var(--muted); font-size:14px; }
+    .quiz-soon-icon { font-size:36px; margin-bottom:8px; }
+    .tab-empty { color:var(--muted); font-size:14px; padding:10px 0; }
+
+    /* Cooldown countdown */
+    .cd-unit { display:inline-flex; flex-direction:column; align-items:center; min-width:52px; }
+    .cd-val  { font-size:38px; font-weight:900; color:var(--primary); line-height:1; }
+    .cd-lbl  { font-size:11px; color:var(--muted); margin-top:3px; }
+    .cd-sep  { font-size:32px; font-weight:900; color:var(--primary); padding-bottom:18px; }
+
+    .print-only { display:none; }
+    @media print {
+      @page { margin:1.5cm 1.8cm; size:A4; }
+      * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+      body { font-family:'Cairo','Tajawal',Arial,sans-serif; font-size:11pt; }
+      .no-print  { display:none !important; }
+      .topbar    { display:none !important; }
+      .print-only { display:block !important; }
+      .print-flex { display:flex !important; }
+      .page-wrap  { max-width:100%; padding:0; margin:0; }
+
+      /* ── Print Header ── */
+      .print-header-wrap {
+        display:flex !important; align-items:center; gap:14pt;
+        border-bottom:3px solid #3F7CB8; padding-bottom:12pt; margin-bottom:14pt;
+      }
+      .print-logo-area { text-align:center; flex-shrink:0; width:70pt; }
+      .print-logo-area img { width:54pt; height:auto; filter:brightness(0); }
+      .print-logo-area div { font-size:7.5pt; color:#444; margin-top:3pt; }
+      .print-header-center { flex:1; text-align:center; }
+      .print-main-title { font-size:19pt; font-weight:900; color:#1a1a1a; line-height:1.2; }
+      .print-main-sub { font-size:10pt; color:#555; margin-top:3pt; }
+      .print-header-meta { text-align:left; font-size:8.5pt; color:#555; line-height:1.7; }
+
+      /* ── Student Band ── */
+      .print-student-band {
+        background:#f0f7ff !important; border:1px solid #bfdbfe;
+        border-right:4px solid #3F7CB8; border-radius:6pt;
+        padding:8pt 12pt; margin-bottom:12pt;
+        display:flex !important; justify-content:space-between; align-items:center;
+        flex-wrap:wrap; gap:8pt;
+      }
+      .print-student-band span { font-size:10pt; }
+      .print-student-band strong { color:#1e40af; }
+
+      /* ── Intro Box ── */
+      .sp-intro-box {
+        border:1px solid #bfdbfe; border-right:4px solid #3F7CB8;
+        background:#f8faff !important; padding:10pt 14pt;
+        border-radius:6pt; margin-bottom:12pt;
+        page-break-inside:avoid;
+      }
+      .sp-intro-title { font-weight:800; font-size:12pt; color:#1e40af; margin-bottom:7pt; }
+      .sp-intro-text { font-size:10pt; line-height:1.75; color:#222; }
+
+      /* ── Chips ── */
+      .sp-summary-chips { margin-top:10pt; }
+      .sp-chip { display:inline-block !important; padding:3pt 10pt; border-radius:20pt; font-size:9.5pt; font-weight:700; margin:2pt; }
+      .sp-chip-red    { background:#fee2e2 !important; color:#991b1b !important; border:1px solid #fca5a5; }
+      .sp-chip-orange { background:#fef9c3 !important; color:#854d0e !important; border:1px solid #fde68a; }
+      .sp-chip-green  { background:#dcfce7 !important; color:#166534 !important; border:1px solid #86efac; }
+
+      /* ── Section Title ── */
+      .section-heading {
+        font-size:13pt; font-weight:800; color:#1e40af;
+        border-bottom:2px solid #3F7CB8; padding-bottom:5pt; margin-bottom:10pt;
+      }
+
+      /* ── Skills Table ── */
+      .sp-table { width:100%; border-collapse:collapse; margin-top:8pt; font-size:10pt; }
+      .sp-table th {
+        background:#3F7CB8 !important; color:#fff !important;
+        padding:7pt 8pt; text-align:right; border:1px solid #2d5a8a;
+        font-size:10pt; font-weight:800;
+      }
+      .sp-table td { padding:6pt 8pt; border:1px solid #e0e7ef; vertical-align:top; line-height:1.55; }
+      .sp-table tr:nth-child(even) td { background:#f5f9ff !important; }
+      .sp-table td:nth-child(2) { font-weight:700; }
+      .sp-table td:last-child { font-size:9pt; color:#1d4ed8; word-break:break-word; overflow-wrap:anywhere; direction:ltr; text-align:left; }
+
+      /* ── Score badges ── */
+      .gap-score { display:inline-block !important; padding:2pt 8pt; border-radius:10pt; font-size:10pt; font-weight:800; }
+      .score-high { background:#dcfce7 !important; color:#166534 !important; }
+      .score-mid  { background:#fef9c3 !important; color:#854d0e !important; }
+      .score-low  { background:#fee2e2 !important; color:#991b1b !important; }
+
+      /* ── Print Footer ── */
+      .print-footer {
+        position:fixed; bottom:0; left:0; right:0; width:100%;
+        border-top:1px solid #ccc; padding-top:5pt; margin-top:14pt;
+        display:flex !important; justify-content:space-between; align-items:center;
+        font-size:8pt; color:#888; background:#fff !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -88,7 +345,13 @@
     <!-- Hero -->
     <div style="flex:1;display:flex;flex-direction:column;align-items:center;
                 justify-content:center;text-align:center;padding:32px 24px;">
-      <img src="logo-white.png" alt="وزارة التعليم" class="brand-logo" style="margin-bottom:16px;">
+      <img src="logo-white.png" alt="وزارة التعليم" class="brand-logo" style="margin-bottom:10px;">
+      <p style="color:rgba(255,255,255,.85);font-size:13.5px;font-weight:700;margin-bottom:2px;">
+        الإدارة العامة للتعليم بمنطقة مكة المكرمة
+      </p>
+      <p style="color:rgba(255,255,255,.7);font-size:13px;margin-bottom:14px;">
+        ثانوية الخالدية بالوسقة
+      </p>
       <h1 style="color:#fff;font-size:32px;font-weight:900;margin-bottom:6px;line-height:1.3;">
         بوابة دعم التعلم
       </h1>
@@ -96,9 +359,6 @@
                 background:rgba(255,255,255,.12);display:inline-block;
                 padding:3px 14px;border-radius:20px;">
         النسخة التجريبية
-      </p>
-      <p style="color:rgba(255,255,255,.9);font-size:17px;margin-bottom:6px;margin-top:8px;">
-        منصة الاستعداد والتشخيص الذاتي
       </p>
       <p style="color:rgba(255,255,255,.7);font-size:14px;margin-bottom:48px;">
         للمرحلة الثانوية
@@ -144,6 +404,14 @@
   <div style="background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
               min-height:100vh;width:100%;display:flex;flex-direction:column;
               justify-content:center;align-items:center;text-align:center;padding:40px 20px;">
+    <!-- Back button -->
+    <button onclick="show('screen-landing')"
+      style="position:absolute;top:18px;left:24px;
+             background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);
+             color:#fff;border-radius:99px;padding:8px 20px;font-size:13px;
+             font-family:inherit;font-weight:700;cursor:pointer;">
+      رجوع
+    </button>
     <img src="logo-white.png" alt="وزارة التعليم" class="brand-logo"
          style="margin-bottom:16px;">
     <h1 style="color:#fff;font-size:26px;font-weight:900;margin-bottom:6px;">
@@ -157,27 +425,16 @@
     <p style="color:rgba(255,255,255,.9);font-size:16px;margin-top:16px;margin-bottom:36px;">
       اختر مدرستك للمتابعة
     </p>
-    <div id="school-cards" style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
+    <div id="school-cards" style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;max-width:560px;">
       <button class="identity-card" onclick="App.selectSchool('ثانوية الخالدية')">
         <div class="card-icon">🏫</div>
         <div class="card-title">ثانوية الخالدية</div>
         <div class="card-desc">اضغط للمتابعة</div>
       </button>
-      <button class="identity-card" onclick="App.showOtherSchools()">
+      <button class="identity-card" onclick="App.selectSchool('')">
         <div class="card-icon">🏫</div>
         <div class="card-title">مدرسة أخرى</div>
-        <div class="card-desc">اختر مدرستك</div>
-      </button>
-    </div>
-
-    <!-- قائمة المدارس الأخرى -->
-    <div id="other-schools-panel" style="display:none;width:100%;max-width:480px;margin-top:8px;">
-      <div id="other-schools-list" style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:20px;"></div>
-      <button onclick="App.hideOtherSchools()"
-              style="background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);
-                     color:#fff;border-radius:99px;padding:10px 28px;font-size:14px;
-                     font-family:inherit;font-weight:700;cursor:pointer;">
-        ← رجوع
+        <div class="card-desc">اضغط للمتابعة</div>
       </button>
     </div>
   </div>
@@ -195,7 +452,6 @@
       <h1 style="color:#fff;font-size:30px;font-weight:800;margin-bottom:10px;">
         بوابة دعم التعلم
       </h1>
-      <p style="color:rgba(255,255,255,.85);font-size:16px;">منصة الاستعداد والتشخيص الذاتي</p>
       <p style="color:rgba(255,255,255,.65);font-size:14px;margin-top:6px;" id="id-school-name"></p>
     </div>
     <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
@@ -218,12 +474,13 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-student-login" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-identity')">←</button>
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
+    <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
       <div class="topbar-title">تسجيل الدخول</div>
       <div class="topbar-sub">بيانات الطالب</div>
     </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-identity')">رجوع</button>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div style="text-align:center;margin-bottom:32px;">
@@ -239,6 +496,10 @@
                oninput="this.value=this.value.replace(/[^0-9]/g,'')"
                onkeydown="if(event.key==='Enter') App.studentLogin()">
       </div>
+      <label class="remember-label">
+        <input type="checkbox" id="sl-remember">
+        <span>تذكرني</span>
+      </label>
       <button class="btn btn-primary" onclick="App.studentLogin()">دخول ←</button>
     </div>
   </div>
@@ -249,11 +510,12 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-admin-login" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-identity')">←</button>
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
+    <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
       <div class="topbar-title">دخول المشرف</div>
     </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-identity')">رجوع</button>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div style="text-align:center;margin-bottom:32px;">
@@ -267,6 +529,10 @@
                maxlength="10" placeholder="١٠ أرقام"
                onkeydown="if(event.key==='Enter') App.adminLogin()">
       </div>
+      <label class="remember-label">
+        <input type="checkbox" id="al-remember">
+        <span>تذكرني</span>
+      </label>
       <button class="btn btn-primary" onclick="App.adminLogin()">دخول ←</button>
       <p style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
         يتم الدخول بالسجل المدني المسجَّل لدى الإدارة.
@@ -276,15 +542,95 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
+     SCREEN: SUPPORT ADMIN LOGIN
+═══════════════════════════════════════════════════════ -->
+<div id="screen-support-login" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">دخول فريق الدعم</div>
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-admin-login')">رجوع</button>
+  </div>
+  <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
+    <div class="card">
+      <div style="text-align:center;font-size:36px;margin-bottom:12px;">🔧</div>
+      <div id="sp-login-err" class="alert alert-error"></div>
+      <div class="form-group">
+        <label class="form-label">مفتاح الدخول</label>
+        <input type="password" id="sp-login-key" class="form-input" placeholder="أدخل مفتاح الدخول"
+               onkeydown="if(event.key==='Enter') App.supportAdminLogin()">
+      </div>
+      <button class="btn btn-primary" onclick="App.supportAdminLogin()">دخول ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: SUPPORT ADMIN DASHBOARD
+═══════════════════════════════════════════════════════ -->
+<div id="screen-support-admin" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">لوحة الدعم الفني</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="App.logout()" style="font-size:14px;">خروج</button>
+  </div>
+  <div class="page-wrap">
+    <div id="support-stats-bar" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;"></div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="sa-tickets" onclick="App.setSupportTab('sa-tickets')">🎫 التذاكر</button>
+      <button class="tab-btn" data-tab="sa-messages" onclick="App.setSupportTab('sa-messages')">💬 الرسائل</button>
+      <button class="tab-btn" data-tab="sa-log" onclick="App.setSupportTab('sa-log')">📋 السجل</button>
+    </div>
+    <div id="support-filter-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="filter-chip active" data-filter="all" onclick="App.filterSupportTickets('all')">الكل</button>
+      <button class="filter-chip" data-filter="open" onclick="App.filterSupportTickets('open')">🔵 جديد</button>
+      <button class="filter-chip" data-filter="in_progress" onclick="App.filterSupportTickets('in_progress')">🟡 معالجة</button>
+      <button class="filter-chip" data-filter="resolved" onclick="App.filterSupportTickets('resolved')">🟢 محلول</button>
+      <button class="filter-chip" data-filter="urgent" onclick="App.filterSupportTickets('urgent')">🚨 عاجل</button>
+    </div>
+    <div id="support-admin-list"></div>
+    <!-- Activity log tab -->
+    <div id="sa-log-panel" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:14px;font-weight:700;color:var(--text);">سجل نشاط الموقع (هذه الجلسة)</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" style="font-size:12px;padding:5px 14px;" onclick="ActivityLog.clear();App.renderActivityLog()">🗑 مسح</button>
+          <button class="btn btn-outline" style="font-size:12px;padding:5px 14px;" onclick="App.renderActivityLog()">🔄 تحديث</button>
+        </div>
+      </div>
+      <div id="sa-log-filter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+        <button class="filter-chip active" onclick="App.filterLog('all',this)">الكل</button>
+        <button class="filter-chip" onclick="App.filterLog('success',this)">✅ نجاح</button>
+        <button class="filter-chip" onclick="App.filterLog('info',this)">ℹ️ معلومة</button>
+        <button class="filter-chip" onclick="App.filterLog('warn',this)">⚠️ تحذير</button>
+        <button class="filter-chip" onclick="App.filterLog('error',this)">❌ خطأ</button>
+      </div>
+      <div id="sa-log-list" style="font-family:monospace;font-size:12px;max-height:500px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:#0f172a;color:#e2e8f0;padding:12px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
      SCREEN 3a: STUDENT HOME
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-student-home" class="screen">
   <div class="topbar">
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">بوابة دعم التعلم</div>
       <div class="topbar-sub" id="sh-school-sub"></div>
     </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="notif-bell-btn" id="notif-bell-student" onclick="App.toggleNotifPanel()" title="الإشعارات">
+      🔔<span class="notif-count-badge" id="notif-count-student" style="display:none;"></span>
+    </button>
     <button class="topbar-back" onclick="App.logout()" title="خروج" style="font-size:14px;">خروج</button>
   </div>
   <div class="page-wrap">
@@ -299,15 +645,18 @@
     <!-- Plan status banner -->
     <div id="sh-plan-banner" style="display:none;margin-bottom:20px;"></div>
 
+    <!-- Performance indicator (shown from 2nd test onwards) -->
+    <div id="sh-perf-card" style="display:none;"></div>
+
     <div class="service-section-title">مسارات الدعم التعليمي</div>
     <div class="service-cards">
-      <div class="service-card disabled">
+      <div class="service-card active" onclick="App.goToAcademic()">
         <div class="service-card-icon">📗</div>
         <div class="service-card-info">
           <div class="service-card-name">دعم التعلم والتحصيل في المواد الدراسية</div>
           <div class="service-card-desc">دعم أكاديمي في المواد الدراسية المختلفة</div>
         </div>
-        <span class="service-badge badge-soon">قريباً</span>
+        <span class="service-badge badge-active">جديد</span>
       </div>
       <div class="service-card disabled">
         <div class="service-card-icon">🎯</div>
@@ -325,7 +674,7 @@
         </div>
         <span class="service-badge badge-soon">قريباً</span>
       </div>
-      <div class="service-card active" onclick="App.startCapabilities()">
+      <div class="service-card active" onclick="history.pushState(null,'','/capabilities');App.startCapabilities()">
         <div class="service-card-icon">🧠</div>
         <div class="service-card-info">
           <div class="service-card-name">الاستعداد لاختبار القدرات</div>
@@ -350,6 +699,69 @@
         <span class="service-badge badge-soon">قريباً</span>
       </div>
     </div>
+
+    <!-- Quick actions -->
+    <div class="quick-actions" style="margin-top:20px;">
+      <button class="quick-btn" onclick="App.goToChat()">
+        <span class="quick-btn-icon">💬</span>
+        <span>تواصل مع المشرف</span>
+        <span class="notif-badge" id="chat-unread-badge" style="display:none;"></span>
+      </button>
+      <button class="quick-btn" onclick="App.goToTickets()">
+        <span class="quick-btn-icon">🎫</span>
+        <span>الدعم الفني</span>
+        <span class="notif-badge" id="ticket-notif-badge" style="display:none;"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: COOLDOWN / RETAKE
+═══════════════════════════════════════════════════════ -->
+<div id="screen-cooldown" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">اختبار القدرات</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div id="cd-content"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: TEST HISTORY
+═══════════════════════════════════════════════════════ -->
+<div id="screen-history" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">سجل الاختبارات</div>
+      <div class="topbar-sub">جميع محاولاتك السابقة</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-cooldown')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div class="table-scroll">
+      <table class="analysis-table">
+        <thead>
+          <tr>
+            <th style="width:60px;text-align:center;">المحاولة</th>
+            <th>التاريخ</th>
+            <th style="width:80px;text-align:center;">المتوسط</th>
+            <th style="width:70px;text-align:center;">عرض</th>
+          </tr>
+        </thead>
+        <tbody id="hist-body"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -358,11 +770,14 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-intro" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-student-home')">←</button>
+    <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
       <div class="topbar-title">مسار القدرات</div>
       <div class="topbar-sub">المقدمة التوجيهية</div>
     </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="intro-box" style="margin-bottom:20px;">
@@ -458,15 +873,20 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-selfdiag" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-intro')">←</button>
+    <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
       <div class="topbar-title">التشخيص الذاتي</div>
       <div class="topbar-sub">قيّم مستواك في كل مهارة</div>
     </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-intro')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="alert alert-info show" style="margin-bottom:20px;">
-      ✅ مُتقنتُها &nbsp;|&nbsp; ~ نسبياً &nbsp;|&nbsp; ✗ أحتاج تدريب
+      <span style="color:#15803d;font-weight:800;">● متقن</span> &nbsp;|&nbsp;
+      <span style="color:#b45309;font-weight:800;">● متوسط</span> &nbsp;|&nbsp;
+      <span style="color:#dc2626;font-weight:800;">● غير متقن</span>
     </div>
     <div id="selfdiag-content"></div>
     <div style="margin-top:24px;">
@@ -478,12 +898,98 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
+     SCREEN 5b: PRE-TEST INSTRUCTIONS
+═══════════════════════════════════════════════════════ -->
+<div id="screen-pretest-intro" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">تعليمات الاختبار</div>
+      <div class="topbar-sub">اقرأها بعناية قبل البدء</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-selfdiag')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div class="analysis-intro" style="margin-bottom:24px;">
+      أخي الطالب، أنت على وشك البدء بالاختبار التشخيصي القبلي لاختبار القدرات العامة. يرجى قراءة التعليمات التالية بعناية قبل الشروع في الإجابة.
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:32px;">
+
+      <div style="display:flex;gap:14px;align-items:flex-start;
+                  background:#f7fafd;border-radius:12px;padding:14px 16px;
+                  border-right:4px solid var(--primary);">
+        <span style="font-size:22px;flex-shrink:0;">📋</span>
+        <div>
+          <div style="font-weight:800;font-size:14px;margin-bottom:3px;">محتوى الاختبار</div>
+          <div style="font-size:13.5px;color:var(--text);line-height:1.7;">
+            يتكون الاختبار من <strong>50 سؤالاً</strong>: 25 في القسم اللفظي و25 في القسم الكمي، موزّعة على جميع المهارات المستهدفة.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:14px;align-items:flex-start;
+                  background:#f7fafd;border-radius:12px;padding:14px 16px;
+                  border-right:4px solid var(--primary);">
+        <span style="font-size:22px;flex-shrink:0;">🎯</span>
+        <div>
+          <div style="font-weight:800;font-size:14px;margin-bottom:3px;">طريقة الإجابة</div>
+          <div style="font-size:13.5px;color:var(--text);line-height:1.7;">
+            لكل سؤال أربعة خيارات، اختر الإجابة الأنسب. يمكنك التنقل بين الأسئلة باستخدام أزرار <strong>التالي</strong> و<strong>السابق</strong>.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:14px;align-items:flex-start;
+                  background:#f7fafd;border-radius:12px;padding:14px 16px;
+                  border-right:4px solid var(--primary);">
+        <span style="font-size:22px;flex-shrink:0;">💡</span>
+        <div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:5px;">نصيحة</div>
+          <div style="font-size:14px;color:var(--text);line-height:1.8;font-weight:600;">
+            &#42;قم باختيار <span style="font-weight:800;color:var(--primary);">(لا أعرف الإجابة)</span> في حال لم تكن متأكداً من إجابتك، للبُعد عن التخمين وللحصول على دعم في المهارة.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:14px;align-items:flex-start;
+                  background:#fff7ed;border-radius:12px;padding:14px 16px;
+                  border-right:4px solid #f97316;">
+        <span style="font-size:22px;flex-shrink:0;">⏱</span>
+        <div>
+          <div style="font-weight:800;font-size:14px;margin-bottom:3px;color:#c2410c;">مدة الاختبار: 50 دقيقة</div>
+          <div style="font-size:13.5px;color:var(--text);line-height:1.7;">
+            يبدأ العدّ التنازلي فور الضغط على زر البدء. عند انتهاء الوقت <strong>يُسلَّم الاختبار تلقائياً</strong> بما أجبت عنه حتى تلك اللحظة.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <button class="btn btn-primary" onclick="App.startPretest()"
+            style="font-size:16px;padding:16px;display:flex;gap:10px;justify-content:center;">
+      <span>🚀</span> ابدأ الاختبار الآن
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
      SCREEN 6: PRE-TEST
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-pretest" class="screen">
   <div class="topbar">
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">الاختبار التشخيصي القبلي</div>
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <div id="test-timer"
+         style="font-size:15px;font-weight:800;color:#fff;
+                background:rgba(255,255,255,.18);border-radius:10px;
+                padding:6px 14px;letter-spacing:1px;flex-shrink:0;">
+      ⏱ 50:00
     </div>
   </div>
   <div class="page-wrap">
@@ -501,8 +1007,8 @@
     </div>
 
     <div class="test-nav">
-      <button class="btn btn-outline" id="btn-prev" onclick="App.prevQ()">← السابق</button>
-      <button class="btn btn-primary" id="btn-next" onclick="App.nextQ()">التالي →</button>
+      <button class="btn btn-outline" id="btn-prev" onclick="App.prevQ()">السابق →</button>
+      <button class="btn btn-primary" id="btn-next" onclick="App.nextQ()">← التالي</button>
     </div>
   </div>
 </div>
@@ -511,7 +1017,7 @@
      SCREEN 6b: PROCESSING
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-processing" class="screen">
-  <div class="processing-screen">
+  <div class="processing-screen" id="processing-loading">
     <div class="processing-icon">🤖</div>
     <div class="processing-title">يحلل النظام نتائجك...</div>
     <div class="processing-sub">
@@ -521,29 +1027,80 @@
       <div class="processing-bar-fill"></div>
     </div>
   </div>
+  <div class="processing-screen" id="processing-error" style="display:none;">
+    <div class="processing-icon">⚠️</div>
+    <div class="processing-title" style="color:#b45309;">تعذّر حفظ الخطة</div>
+    <div class="processing-sub">تحقق من اتصالك بالإنترنت ثم اضغط إعادة المحاولة — نتائجك محفوظة محلياً.</div>
+    <button onclick="App.retryProcessResults()" style="margin-top:24px;background:var(--grad);color:#fff;border:none;border-radius:99px;padding:13px 32px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;">إعادة المحاولة</button>
+    <button onclick="show('screen-student-home')" style="margin-top:12px;background:none;border:none;color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">الرجوع للرئيسية</button>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
-     SCREEN 7a: PLAN PENDING
+     SCREEN 7a: LEVEL ANALYSIS
 ═══════════════════════════════════════════════════════ -->
-<div id="screen-plan-pending" class="screen">
+<div id="screen-level-analysis" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">←</button>
+    <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
-      <div class="topbar-title">نتائج التشخيص</div>
+      <div class="topbar-title">تحليل المستوى</div>
+      <div class="topbar-sub">نتائج الاختبار التشخيصي</div>
     </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
   </div>
   <div class="page-wrap">
-    <div class="status-banner pending">
-      <div class="status-icon">⏳</div>
-      <div>
-        <div class="status-title">خطتك قيد المراجعة</div>
-        <div class="status-desc">تم إنشاء خطة دعم وإرسالها للمشرف. ستُنشر تلقائياً فور الاعتماد.</div>
-      </div>
+
+    <div class="analysis-intro">
+      لقد أنهيت الاختبار التشخيصي بحمد الله، وهذه صفحة تحليل مستوى أدائك في الاختبار على ضوء المهارات المستهدفة.
     </div>
-    <h3 style="font-size:16px;font-weight:700;margin-bottom:14px;">نتائج التشخيص (ترتيب الأولوية)</h3>
-    <div class="gap-list" id="pending-gaps"></div>
-    <div style="margin-top:24px;">
+
+    <!-- Verbal skills results -->
+    <h3 class="section-heading">📚 أداؤك في القسم اللفظي</h3>
+    <div class="table-scroll">
+      <table class="analysis-table">
+        <thead>
+          <tr>
+            <th>المهارة</th>
+            <th style="width:76px;text-align:center;">الدرجة</th>
+            <th>تحليل المستوى وفق الاختبار</th>
+            <th>مدى تطابق نتيجة الاختبار مع تشخيصك</th>
+          </tr>
+        </thead>
+        <tbody id="la-verbal-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Quantitative skills results -->
+    <h3 class="section-heading">🔢 أداؤك في القسم الكمي</h3>
+    <div class="table-scroll">
+      <table class="analysis-table">
+        <thead>
+          <tr>
+            <th>المهارة</th>
+            <th style="width:76px;text-align:center;">الدرجة</th>
+            <th>تحليل المستوى وفق الاختبار</th>
+            <th>مدى تطابق نتيجة الاختبار مع تشخيصك</th>
+          </tr>
+        </thead>
+        <tbody id="la-quant-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Navigate to support plan -->
+    <div style="margin-top:32px;text-align:center;padding:24px 0;
+                border-top:1.5px dashed var(--border);">
+      <p style="color:var(--muted);font-size:13.5px;margin-bottom:14px;line-height:1.7;">
+        بناءً على نتائجك يمكنك الانتقال لخطة الدعم المخصصة لك والتي تشمل المواد العلمية لكل مهارة
+      </p>
+      <button class="btn btn-primary" onclick="App.showSupportPlan()"
+              style="font-size:16px;padding:16px 36px;display:inline-flex;gap:10px;width:auto;">
+        <span>📋</span> الانتقال لخطة الدعم
+      </button>
+    </div>
+
+    <div style="margin-top:12px;">
       <button class="btn btn-outline btn-full" onclick="show('screen-student-home');App.renderStudentHome()">
         العودة للرئيسية
       </button>
@@ -552,27 +1109,107 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
-     SCREEN 7b: ACTIVE PLAN
+     SCREEN 7b: SUPPORT PLAN
 ═══════════════════════════════════════════════════════ -->
-<div id="screen-active-plan" class="screen">
-  <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">←</button>
-    <div>
-      <div class="topbar-title">خطة دعم التعلم</div>
-      <div class="topbar-sub">معتمدة من المشرف ✅</div>
+<div id="screen-support-plan" class="screen">
+  <div class="topbar no-print">
+    <button class="topbar-back" onclick="show('screen-level-analysis')">رجوع</button>
+    <div style="flex:1;">
+      <div class="topbar-title">خطة الدعم</div>
+      <div class="topbar-sub">مخصصة وفق نتائج تشخيصك</div>
     </div>
+    <button onclick="window.print()"
+      style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.45);
+             color:#fff;border-radius:10px;padding:8px 16px;font-size:13px;
+             font-family:inherit;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+      📄 تصدير PDF
+    </button>
   </div>
+
+  <!-- Plan navigator (shown when student has multiple plans) -->
+  <div id="sp-plan-nav" class="no-print"
+       style="display:none;background:rgba(0,0,0,.18);padding:8px 16px;
+              align-items:center;justify-content:space-between;gap:8px;">
+    <button onclick="App.navPlan(1)"
+      style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+             color:#fff;border-radius:8px;padding:5px 14px;font-size:13px;
+             font-family:inherit;cursor:pointer;white-space:nowrap;">
+      ← الأقدم
+    </button>
+    <span id="sp-plan-label" style="color:#fff;font-size:13px;font-weight:700;text-align:center;flex:1;"></span>
+    <button onclick="App.navPlan(-1)"
+      style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+             color:#fff;border-radius:8px;padding:5px 14px;font-size:13px;
+             font-family:inherit;cursor:pointer;white-space:nowrap;">
+      الأحدث →
+    </button>
+  </div>
+
   <div class="page-wrap">
-    <div class="status-banner active" style="margin-bottom:20px;">
-      <div class="status-icon">🎯</div>
-      <div>
-        <div class="status-title">خطتك جاهزة — ابدأ التدريب!</div>
-        <div class="status-desc">ركّز على المهارات المرتبة أدناه من الأضعف للأقوى.</div>
+
+    <!-- Print-only header -->
+    <div class="print-only print-header-wrap">
+      <div class="print-logo-area">
+        <img src="logo-white.png" alt="وزارة التعليم">
+        <div>وزارة التعليم</div>
       </div>
+      <div class="print-header-center">
+        <div class="print-main-title">خطة دعم التعلم</div>
+        <div class="print-main-sub">برنامج دعم التعلم والتشخيص الذاتي — الاستعداد لاختبار القدرات</div>
+      </div>
+      <div class="print-header-meta" id="sp-print-meta"></div>
     </div>
-    <div id="ap-admin-note"></div>
-    <h3 style="font-size:16px;font-weight:700;margin-bottom:14px;">مهاراتك مرتبة بالأولوية</h3>
-    <div class="gap-list" id="ap-gaps"></div>
+    <div class="print-only print-student-band">
+      <span><strong>الطالب:</strong> <span id="sp-student-name-print"></span></span>
+      <span id="sp-print-school"></span>
+      <span id="sp-print-date"></span>
+    </div>
+
+    <!-- Admin note -->
+    <div id="sp-admin-note"></div>
+
+    <!-- Intro (filled by JS) -->
+    <div id="sp-intro"></div>
+
+    <!-- Verbal section -->
+    <h3 class="section-heading no-print">📚 القسم اللفظي</h3>
+    <div id="sp-verbal-cards" class="no-print"></div>
+
+    <!-- Quantitative section -->
+    <h3 class="section-heading no-print">🔢 القسم الكمي</h3>
+    <div id="sp-quant-cards" class="no-print"></div>
+
+    <!-- Print-only flat table -->
+    <div class="print-only">
+      <p class="section-heading">ثانياً / محتويات الدعم مرتبة حسب أولويات الخطة</p>
+      <table class="sp-table" id="sp-print-table">
+        <thead>
+          <tr>
+            <th style="width:40px;text-align:center;">أولوية</th>
+            <th style="width:120px;">المهارة</th>
+            <th style="width:56px;text-align:center;">الدرجة</th>
+            <th>التوصية</th>
+            <th style="width:110px;">رابط المواد</th>
+          </tr>
+        </thead>
+        <tbody id="sp-print-body"></tbody>
+      </table>
+    </div>
+    <!-- Print footer -->
+    <div class="print-only print-footer">
+      <span>بوابة دعم التعلم — ثانوية الخالدية بالوسقة</span>
+      <span id="sp-print-footer-date"></span>
+    </div>
+
+    <div class="no-print" style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+      <button class="btn btn-outline" style="flex:1;" onclick="show('screen-level-analysis')">
+        ← تحليل المستوى
+      </button>
+      <button class="btn btn-outline" style="flex:1;"
+              onclick="show('screen-student-home');App.renderStudentHome()">
+        الرئيسية
+      </button>
+    </div>
   </div>
 </div>
 
@@ -581,38 +1218,53 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-admin" class="screen">
   <div class="topbar">
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">لوحة تحكم المشرف</div>
       <div class="topbar-sub" id="ad-school-sub"></div>
     </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="notif-bell-btn" id="notif-bell-admin" onclick="App.toggleNotifPanel()" title="الإشعارات">
+      🔔<span class="notif-count-badge" id="notif-count-admin" style="display:none;"></span>
+    </button>
     <button class="topbar-back" onclick="App.logout()" style="font-size:14px;">خروج</button>
   </div>
   <div class="page-wrap">
     <!-- Stats -->
-    <div class="stat-row">
+    <div class="stat-row" style="grid-template-columns:repeat(4,1fr);">
       <div class="stat-box">
         <div class="stat-num" id="stat-total">0</div>
         <div class="stat-lbl">إجمالي الطلاب</div>
       </div>
-      <div class="stat-box" style="border-top:3px solid var(--warn);">
-        <div class="stat-num" id="stat-pending" style="color:var(--warn)">0</div>
-        <div class="stat-lbl">خطط معلقة</div>
-      </div>
       <div class="stat-box" style="border-top:3px solid var(--success);">
-        <div class="stat-num" id="stat-active" style="color:var(--success)">0</div>
-        <div class="stat-lbl">خطط نشطة</div>
+        <div class="stat-num" id="stat-tested" style="color:var(--success)">0</div>
+        <div class="stat-lbl">أجروا الاختبار</div>
+      </div>
+      <div class="stat-box" style="border-top:3px solid var(--warn);">
+        <div class="stat-num" id="stat-cooldown" style="color:var(--warn)">0</div>
+        <div class="stat-lbl">في انتظار</div>
+      </div>
+      <div class="stat-box" style="border-top:3px solid var(--primary);">
+        <div class="stat-num" id="stat-avg" style="color:var(--primary)">—</div>
+        <div class="stat-lbl">متوسط الدرجات</div>
       </div>
     </div>
 
     <!-- Tabs -->
     <div class="tabs">
-      <button class="tab-btn active" data-tab="pending"  onclick="App.setTab('pending')">⏳ معلقة</button>
-      <button class="tab-btn" data-tab="active"   onclick="App.setTab('active')">✅ نشطة</button>
-      <button class="tab-btn" data-tab="manage"   onclick="App.setTab('manage')">👥 الطلاب</button>
+      <button class="tab-btn active" data-tab="students" onclick="App.setTab('students')">👥 الطلاب</button>
+      <button class="tab-btn" data-tab="stats"    onclick="App.setTab('stats')">📊 الإحصائيات</button>
+      <button class="tab-btn" data-tab="settings" onclick="App.setTab('settings')">⚙️ الإدارة</button>
+      <button class="tab-btn" data-tab="performance" onclick="App.setTab('performance')">📈 الأداء</button>
+      <button class="tab-btn director-tab" data-tab="supervisors" onclick="App.setTab('supervisors')" style="display:none;">👨‍💼 المشرفون</button>
+      <button class="tab-btn director-tab" data-tab="questions"   onclick="App.setTab('questions')"   style="display:none;">📝 الأسئلة</button>
     </div>
 
-    <!-- Student manage tab content -->
+    <!-- Performance tab content -->
+    <div id="tab-performance" style="display:none;margin-bottom:20px;"></div>
+
+    <!-- Settings tab content -->
     <div id="tab-manage" style="display:none;margin-bottom:20px;">
       <div class="card" style="margin-bottom:16px;">
         <div class="card-title-sm">إضافة طالب جديد</div>
@@ -645,10 +1297,33 @@
                  onchange="App.importStudents(this)">
         </div>
       </div>
+    </div>
 
-      <!-- Excel import: questions -->
+    <!-- Director: Supervisors tab -->
+    <div id="tab-supervisors" style="display:none;margin-bottom:20px;">
       <div class="card" style="margin-bottom:16px;">
-        <div class="card-title-sm">📝 استيراد أسئلة الاختبار من Excel</div>
+        <div class="card-title-sm">إضافة مشرف جديد</div>
+        <div id="add-sup-err" class="alert alert-error" style="display:none;"></div>
+        <div class="form-group">
+          <label class="form-label">اسم المشرف</label>
+          <input type="text" id="add-sup-name" class="form-input" placeholder="الاسم الكامل">
+        </div>
+        <div class="form-group">
+          <label class="form-label">رقم السجل المدني (رمز الدخول)</label>
+          <input type="text" id="add-sup-code" class="form-input" placeholder="١٠ أرقام"
+                 inputmode="numeric" maxlength="10"
+                 oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                 onkeydown="if(event.key==='Enter') App.addSupervisor()">
+        </div>
+        <button class="btn btn-primary" onclick="App.addSupervisor()">+ إضافة مشرف</button>
+      </div>
+      <div id="supervisors-list" class="student-list"></div>
+    </div>
+
+    <!-- Director: Questions tab -->
+    <div id="tab-questions" style="display:none;margin-bottom:20px;">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title-sm">📝 استيراد أسئلة من Excel</div>
         <p style="font-size:13px;color:var(--muted);margin:6px 0 12px;line-height:1.7;">
           حمّل القالب وعبّئ الأسئلة. عند الرفع تُستبدل أسئلة الاختبار الحالية.
         </p>
@@ -660,6 +1335,46 @@
                  onchange="App.importQuestions(this)">
         </div>
       </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
+          <div style="font-weight:800;font-size:15px;">📋 الأسئلة الحالية</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="q-count-badge" class="student-badge sbadge-active" style="font-size:12px;"></span>
+            <button class="btn btn-primary" style="font-size:13px;padding:6px 16px;" onclick="App.openAddQuestionModal()">➕ إضافة سؤال</button>
+          </div>
+        </div>
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="q-search" class="form-input" placeholder="🔍 ابحث في الأسئلة…"
+                 style="flex:1;min-width:180px;padding:7px 12px;font-size:13px;"
+                 oninput="App.filterQuestions()">
+          <select id="q-filter-type" class="form-input" style="width:130px;padding:7px 10px;font-size:13px;" onchange="App.filterQuestions()">
+            <option value="">كل الأنواع</option>
+            <option value="verbal">لفظي</option>
+            <option value="quantitative">كمي</option>
+          </select>
+          <select id="q-filter-skill" class="form-input" style="width:160px;padding:7px 10px;font-size:13px;" onchange="App.filterQuestions()">
+            <option value="">كل المهارات</option>
+            <option value="v1">v1 — الاستيعاب القرائي</option>
+            <option value="v2">v2 — الخطأ السياقي</option>
+            <option value="v3">v3 — المفردة الشاذة</option>
+            <option value="v4">v4 — التناظر اللفظي</option>
+            <option value="v5">v5 — إكمال الجمل</option>
+            <option value="q1">q1 — الحساب</option>
+            <option value="q2">q2 — الجبر</option>
+            <option value="q3">q3 — الهندسة والقياس</option>
+            <option value="q4">q4 — المقارنات الكمية</option>
+            <option value="q5">q5 — الإحصاء والاحتمالات</option>
+          </select>
+        </div>
+        <div id="questions-list" style="max-height:520px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Student search bar (shown only on students tab) -->
+    <div id="student-search-bar" style="margin-bottom:12px;display:none;">
+      <input type="text" id="student-search-input" class="perf-search"
+             placeholder="🔍 ابحث باسم الطالب أو رقمه…"
+             oninput="App._filterStudentList()" style="width:100%;">
     </div>
 
     <div class="student-list" id="admin-student-list"></div>
@@ -677,13 +1392,374 @@
     <label class="form-label">ملاحظات المشرف (اختياري)</label>
     <textarea id="modal-admin-note" class="admin-note" placeholder="أضف ملاحظات أو توجيهات للطالب..."></textarea>
     <div class="modal-actions">
-      <button id="btn-modal-approve" class="btn btn-success" onclick="App.approvePlan()">
-        ✅ اعتماد ونشر للطالب
-      </button>
       <button class="btn btn-outline" onclick="App.closeModal()">إغلاق</button>
     </div>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: SUPERVISOR SELECTION
+═══════════════════════════════════════════════════════ -->
+<div id="supervisor-select-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <div class="modal-title">اختر المشرف 👨‍🏫</div>
+    <div class="modal-sub">اختر المشرف الذي تريد التواصل معه</div>
+    <div id="supervisor-list" style="display:flex;flex-direction:column;gap:10px;margin:16px 0;"></div>
+    <button class="btn btn-outline btn-full" onclick="document.getElementById('supervisor-select-modal').classList.remove('open')">إلغاء</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: EDIT QUESTION
+═══════════════════════════════════════════════════════ -->
+<div id="edit-q-modal" class="modal-overlay" onclick="if(event.target===this)App.closeEditQuestion()">
+  <div class="modal-box" style="max-width:560px;width:calc(100% - 32px);">
+    <div class="modal-title">✏️ تعديل السؤال</div>
+    <input type="hidden" id="eq-id">
+    <div class="form-group" style="margin-top:14px;">
+      <label class="form-label">رقم السؤال</label>
+      <input type="number" id="eq-qnum" class="form-input" min="1">
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">النوع</label>
+        <select id="eq-type" class="form-input">
+          <option value="verbal">لفظي</option>
+          <option value="quantitative">كمي</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">المهارة</label>
+        <select id="eq-skill" class="form-input">
+          <option value="v1">الاستيعاب القرائي</option>
+          <option value="v2">الخطأ السياقي</option>
+          <option value="v3">المفردة الشاذة</option>
+          <option value="v4">التناظر اللفظي</option>
+          <option value="v5">إكمال الجمل</option>
+          <option value="q1">الحساب</option>
+          <option value="q2">الجبر</option>
+          <option value="q3">الهندسة والقياس</option>
+          <option value="q4">المقارنات الكمية</option>
+          <option value="q5">الإحصاء والاحتمالات</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">نص السؤال</label>
+      <textarea id="eq-text" class="admin-note" rows="3" placeholder="اكتب السؤال هنا…"></textarea>
+    </div>
+    <div id="eq-options" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+    <div class="form-group">
+      <label class="form-label">الإجابة الصحيحة</label>
+      <select id="eq-ans" class="form-input">
+        <option value="0">الخيار 1</option>
+        <option value="1">الخيار 2</option>
+        <option value="2">الخيار 3</option>
+        <option value="3">الخيار 4</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-success" onclick="App.saveQuestion()">💾 حفظ التعديلات</button>
+      <button class="btn btn-outline" onclick="App.closeEditQuestion()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: STUDENT CHAT
+═══════════════════════════════════════════════════════ -->
+<div id="screen-chat" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">التواصل مع المشرف</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="App.leaveChatScreen()">رجوع</button>
+  </div>
+  <div class="chat-wrap">
+    <div id="chat-messages" class="chat-messages">
+      <div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>
+    </div>
+    <div class="chat-input-bar">
+      <input type="text" id="chat-input" class="chat-input" placeholder="اكتب رسالتك هنا..."
+             onkeydown="if(event.key==='Enter')App.sendChatMsg()">
+      <button class="chat-send-btn" onclick="App.sendChatMsg()">إرسال ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: STUDENT TICKETS
+═══════════════════════════════════════════════════════ -->
+<div id="screen-tickets" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">الدعم الفني</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div class="section-heading">طلباتي</div>
+    <div id="st-ticket-list"></div>
+    <button class="btn btn-primary btn-full" onclick="App.openNewTicketModal()" style="margin-top:16px;">+ طلب دعم جديد</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: IMPORT PREVIEW
+═══════════════════════════════════════════════════════ -->
+<div id="import-preview-modal" class="modal-overlay" onclick="if(event.target===this)App.closeImportPreview()">
+  <div class="modal-box" style="max-width:680px;width:calc(100% - 24px);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <div class="modal-title" style="margin:0;">📋 مراجعة بيانات الاستيراد</div>
+      <button class="topbar-back" style="background:rgba(63,124,184,.1);border-color:var(--border);color:var(--text);font-size:12px;" onclick="App.closeImportPreview()">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">راجع البيانات قبل الإضافة — يمكنك تعديل أي خلية مباشرةً.</p>
+    <div id="imp-summary-bar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;font-weight:700;"></div>
+    <div style="overflow-x:auto;max-height:380px;overflow-y:auto;border-radius:10px;box-shadow:var(--shadow-sm);">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead style="position:sticky;top:0;z-index:1;">
+          <tr style="background:linear-gradient(135deg,#3F7CB8,#4A96A0);color:#fff;">
+            <th style="padding:9px 12px;text-align:center;width:40px;">#</th>
+            <th style="padding:9px 12px;text-align:right;">السجل المدني</th>
+            <th style="padding:9px 12px;text-align:right;">اسم الطالب</th>
+            <th style="padding:9px 12px;text-align:center;width:90px;">الحالة</th>
+          </tr>
+        </thead>
+        <tbody id="imp-preview-body"></tbody>
+      </table>
+    </div>
+    <div id="imp-modal-err" class="alert alert-error" style="margin-top:12px;"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-primary" id="imp-confirm-btn" onclick="App.confirmImport()">✅ تأكيد الإضافة</button>
+      <button class="btn btn-outline" onclick="App.closeImportPreview()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: NEW TICKET
+═══════════════════════════════════════════════════════ -->
+<div id="new-ticket-modal" class="modal-overlay" onclick="if(event.target===this)App.closeNewTicketModal()">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="modal-title" style="margin:0;">طلب دعم جديد 🎫</div>
+      <span id="nt-ticket-num" style="font-family:monospace;font-size:12px;font-weight:800;background:#f0f4ff;color:var(--primary);padding:3px 12px;border-radius:20px;"></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">تصنيف المشكلة <span style="color:var(--danger)">*</span></label>
+      <select id="nt-category" class="form-input">
+        <option value="تسجيل دخول">🔐 تسجيل دخول</option>
+        <option value="مشكلة تقنية">⚙️ مشكلة تقنية</option>
+        <option value="حساب وصلاحيات">👤 حساب وصلاحيات</option>
+        <option value="طلب ميزة">✨ طلب ميزة</option>
+        <option value="أخرى" selected>📋 أخرى</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">أولوية الطلب</label>
+      <div class="priority-chips">
+        <label class="priority-chip prio-low"><input type="radio" name="nt-priority" value="منخفضة"> منخفضة</label>
+        <label class="priority-chip"><input type="radio" name="nt-priority" value="متوسطة" checked> متوسطة</label>
+        <label class="priority-chip prio-high"><input type="radio" name="nt-priority" value="عالية"> 🚨 عالية</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">الموضوع <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="nt-subject" class="form-input" placeholder="مثال: مشكلة في تسجيل الدخول">
+    </div>
+    <div class="form-group">
+      <label class="form-label">تفاصيل المشكلة</label>
+      <textarea id="nt-body" class="form-input" rows="3" placeholder="اشرح المشكلة بالتفصيل..." style="resize:vertical;"></textarea>
+    </div>
+    <div id="nt-err" class="alert alert-error"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="App.submitTicket()">إرسال الطلب</button>
+      <button class="btn btn-outline" onclick="App.closeNewTicketModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: TICKET DETAIL (CHAT)
+═══════════════════════════════════════════════════════ -->
+<div id="ticket-detail-modal" class="modal-overlay" onclick="if(event.target===this)App.closeTicketDetail()">
+  <div class="modal-box modal-box-chat">
+    <!-- Header -->
+    <div class="ticket-detail-header">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:800;" id="td-subject"></div>
+          <div class="ticket-meta-chips" id="td-meta-chips"></div>
+        </div>
+        <span id="td-status-badge" style="flex-shrink:0;margin-top:2px;"></span>
+      </div>
+    </div>
+    <!-- Chat -->
+    <div class="ticket-chat" id="td-thread"></div>
+    <!-- Rating (shown after resolve for student) -->
+    <div id="td-rating-area" style="display:none;background:#fffbeb;border-top:1px solid #fde68a;padding:12px 16px;text-align:center;flex-shrink:0;">
+      <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px;">قيّم جودة الخدمة</div>
+      <div class="star-rating" id="td-stars" style="font-size:26px;">
+        <span onclick="App.rateTicket(1)">☆</span>
+        <span onclick="App.rateTicket(2)">☆</span>
+        <span onclick="App.rateTicket(3)">☆</span>
+        <span onclick="App.rateTicket(4)">☆</span>
+        <span onclick="App.rateTicket(5)">☆</span>
+      </div>
+    </div>
+    <!-- Reply footer -->
+    <div id="td-reply-area" class="ticket-reply-footer">
+      <textarea id="td-reply-input" class="form-input" rows="2" placeholder="اكتب ردك هنا..." style="resize:none;margin-bottom:8px;"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+        <button class="btn btn-outline" style="font-size:13px;" onclick="App.closeTicketDetail()">إغلاق</button>
+        <button class="btn btn-outline" id="td-student-close-btn" style="display:none;font-size:13px;" onclick="App.studentCloseTicket()">✔ تم الحل</button>
+        <button class="btn btn-outline" id="td-resolve-btn" style="display:none;font-size:13px;" onclick="App.resolveTicket()">✅ حل التذكرة</button>
+        <button class="btn btn-primary" id="td-send-btn" style="font-size:13px;" onclick="App.sendTicketReply()">إرسال</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     STUDENT DETAIL MODAL
+═══════════════════════════════════════════════════════ -->
+<div id="student-detail-modal" class="modal-overlay" onclick="if(event.target===this)App.closeStudentDetail()">
+  <div class="modal-box">
+    <div class="sdm-header">
+      <div class="sdm-avatar" id="sdm-avatar"></div>
+      <div>
+        <div class="sdm-name" id="sdm-name"></div>
+        <div class="sdm-code" id="sdm-code"></div>
+      </div>
+    </div>
+    <div class="sdm-body">
+      <div class="sdm-stats">
+        <div class="sdm-stat">
+          <div class="sdm-stat-val" id="sdm-access-status" style="font-size:20px;">—</div>
+          <div class="sdm-stat-lbl">الدخول للمنصة</div>
+        </div>
+        <div class="sdm-stat">
+          <div class="sdm-stat-val" id="sdm-attempts">0</div>
+          <div class="sdm-stat-lbl">عدد المحاولات</div>
+        </div>
+        <div class="sdm-stat">
+          <div class="sdm-stat-val" id="sdm-best">—</div>
+          <div class="sdm-stat-lbl">أفضل درجة</div>
+        </div>
+        <div class="sdm-stat">
+          <div class="sdm-stat-val" id="sdm-last-date">—</div>
+          <div class="sdm-stat-lbl">آخر اختبار</div>
+        </div>
+      </div>
+      <div id="sdm-status-banner" class="sdm-status-banner"></div>
+      <div class="sdm-section">📊 تفصيل المهارات — آخر اختبار</div>
+      <div class="table-scroll">
+        <table class="sdm-table">
+          <thead><tr><th>المهارة</th><th>القسم</th><th>الدرجة</th><th>المستوى</th></tr></thead>
+          <tbody id="sdm-skills-body"></tbody>
+        </table>
+      </div>
+      <div class="sdm-section">📋 سجل المحاولات</div>
+      <div class="table-scroll">
+        <table class="sdm-table">
+          <thead><tr><th>المحاولة</th><th>التاريخ</th><th>متوسط الدرجة</th></tr></thead>
+          <tbody id="sdm-history-body"></tbody>
+        </table>
+      </div>
+      <div class="sdm-section">💬 المحادثة</div>
+      <div class="chat-modal-messages" id="sdm-chat-messages">
+        <div class="chat-empty">لا توجد رسائل</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <input type="text" id="sdm-chat-input" class="chat-input" placeholder="رد على الطالب..."
+               onkeydown="if(event.key==='Enter')App.sendAdminMsgFromDetail()">
+        <button class="chat-send-btn" onclick="App.sendAdminMsgFromDetail()">إرسال ←</button>
+      </div>
+      <button class="btn btn-primary sdm-close" style="margin-bottom:8px;" onclick="App.exportStudentPlanPDF()">📄 تصدير تقرير PDF</button>
+      <button class="btn btn-outline sdm-close" onclick="App.closeStudentDetail()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: ADD QUESTION
+═══════════════════════════════════════════════════════ -->
+<div id="add-question-modal" class="modal-overlay" onclick="if(event.target===this)App.closeAddQuestionModal()">
+  <div class="modal-box" style="max-width:640px;width:calc(100% - 24px);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div class="modal-title" style="margin:0;" id="aq-modal-title">➕ إضافة سؤال جديد</div>
+      <button onclick="App.closeAddQuestionModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+
+    <div id="aq-err" class="alert alert-error" style="margin-bottom:14px;"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">رقم السؤال</label>
+        <input type="number" id="aq-num" class="form-input" placeholder="تلقائي" min="1">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">النوع <span style="color:var(--danger)">*</span></label>
+        <select id="aq-type" class="form-input" onchange="App._aqUpdateSkills()">
+          <option value="">— اختر —</option>
+          <option value="verbal">📚 لفظي</option>
+          <option value="quantitative">🔢 كمي</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">المهارة <span style="color:var(--danger)">*</span></label>
+        <select id="aq-skill" class="form-input">
+          <option value="">— اختر النوع أولاً —</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">نص السؤال <span style="color:var(--danger)">*</span></label>
+      <textarea id="aq-text" class="form-input" rows="3" placeholder="أدخل نص السؤال هنا..." style="resize:vertical;"></textarea>
+    </div>
+
+    <div class="form-label" style="margin-bottom:10px;">الخيارات <span style="color:var(--danger)">*</span> <span style="font-size:12px;font-weight:500;color:var(--muted);">(اختر الإجابة الصحيحة بالضغط على الدائرة)</span></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+      <label id="aq-opt-0" class="aq-opt-row">
+        <input type="radio" name="aq-ans" value="0" style="display:none;">
+        <span class="aq-opt-indicator"></span>
+        <input type="text" class="form-input aq-opt-input" placeholder="الخيار الأول" style="flex:1;margin:0;" oninput="App._aqHighlight()">
+      </label>
+      <label id="aq-opt-1" class="aq-opt-row">
+        <input type="radio" name="aq-ans" value="1" style="display:none;">
+        <span class="aq-opt-indicator"></span>
+        <input type="text" class="form-input aq-opt-input" placeholder="الخيار الثاني" style="flex:1;margin:0;" oninput="App._aqHighlight()">
+      </label>
+      <label id="aq-opt-2" class="aq-opt-row">
+        <input type="radio" name="aq-ans" value="2" style="display:none;">
+        <span class="aq-opt-indicator"></span>
+        <input type="text" class="form-input aq-opt-input" placeholder="الخيار الثالث" style="flex:1;margin:0;" oninput="App._aqHighlight()">
+      </label>
+      <label id="aq-opt-3" class="aq-opt-row">
+        <input type="radio" name="aq-ans" value="3" style="display:none;">
+        <span class="aq-opt-indicator"></span>
+        <input type="text" class="form-input aq-opt-input" placeholder="الخيار الرابع" style="flex:1;margin:0;" oninput="App._aqHighlight()">
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="App.submitAddQuestion()">✅ حفظ السؤال</button>
+      <button class="btn btn-outline" onclick="App.closeAddQuestionModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notification panel (shared, global) -->
+<div id="notif-panel" class="notif-panel" style="display:none;" role="dialog" aria-label="الإشعارات"></div>
+<div id="notif-overlay" class="notif-overlay" onclick="App.closeNotifPanel()"></div>
 
 <script src="js/data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>

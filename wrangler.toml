@@ -1,9 +1,6 @@
 name = "learngate"
 pages_build_output_dir = "./public/khaldiya"
 
-[vars]
-DEV_KEY = "learngate-dev-2026"
-
 [[d1_databases]]
 binding = "DB"
 database_name = "learngate-db"

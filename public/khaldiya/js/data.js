@@ -1,21 +1,24 @@
 // Skills for self-diagnostic
 const SKILLS = [
-  { id: 'v1', category: 'verbal',       name: 'الاستيعاب القرائي (استيعاب المقروء)',       desc: 'فهم النصوص واستيعاب مضامينها' },
-  { id: 'v2', category: 'verbal',       name: 'التحليل اللغوي (الخطأ السياقي)',             desc: 'تحليل التراكيب وإدراك العلاقات اللغوية' },
-  { id: 'v3', category: 'verbal',       name: 'الاستنتاج اللفظي (المفردة الشاذة - الربط)', desc: 'استنتاج المعلومات الضمنية من النصوص' },
-  { id: 'v4', category: 'verbal',       name: 'التناسب والتناظر اللفظي',                   desc: 'إدراك العلاقة بين الكلمات والمفاهيم' },
-  { id: 'v5', category: 'verbal',       name: 'إكمال الجمل',                               desc: 'اختيار الكلمة المناسبة لإكمال السياق' },
-  { id: 'q1', category: 'quantitative', name: 'الحساب والمسائل الكلامية',                  desc: 'العمليات الحسابية والنسب والمسائل التطبيقية' },
-  { id: 'q2', category: 'quantitative', name: 'الجبر والمسائل الكلامية',                   desc: 'حل المعادلات والمتتابعات والمسائل الجبرية' },
-  { id: 'q3', category: 'quantitative', name: 'الهندسة والقياس',                           desc: 'المساحات والمحيطات والأحجام والزوايا' },
-  { id: 'q4', category: 'quantitative', name: 'المقارنات الكمية الاستنتاجية',              desc: 'المقارنة بين القيم وتحليل الكميات' },
+  // ── القسم اللفظي ──────────────────────────────────────────────────────────
+  { id: 'v4', category: 'verbal',       name: 'التناظر اللفظي',        desc: 'إدراك العلاقة بين الكلمات والمفاهيم' },
+  { id: 'v5', category: 'verbal',       name: 'إكمال الجمل',           desc: 'اختيار الكلمة المناسبة لإكمال السياق' },
+  { id: 'v1', category: 'verbal',       name: 'الاستيعاب القرائي',     desc: 'فهم النصوص واستيعاب مضامينها' },
+  { id: 'v2', category: 'verbal',       name: 'الخطأ السياقي',         desc: 'تحديد الكلمة التي تُخل بسياق الجملة' },
+  { id: 'v3', category: 'verbal',       name: 'المفردة الشاذة',        desc: 'تحديد الكلمة التي لا تنتمي للمجموعة' },
+  // ── القسم الكمي ───────────────────────────────────────────────────────────
+  { id: 'q1', category: 'quantitative', name: 'الحساب',                desc: 'العمليات الحسابية والنسب والمسائل التطبيقية' },
+  { id: 'q2', category: 'quantitative', name: 'الجبر',                 desc: 'حل المعادلات والمتتابعات والمسائل الجبرية' },
+  { id: 'q3', category: 'quantitative', name: 'الهندسة والقياس',       desc: 'المساحات والمحيطات والأحجام والزوايا' },
+  { id: 'q4', category: 'quantitative', name: 'المقارنات الكمية',      desc: 'المقارنة بين القيم وتحليل الكميات' },
+  { id: 'q5', category: 'quantitative', name: 'الإحصاء والاحتمالات',   desc: 'تحليل البيانات وحساب الاحتمالات' },
 ];
 
 // 50 questions: 1-25 verbal, 26-50 quantitative
 const QUESTIONS = [
 
   // ── VERBAL ──────────────────────────────────────────────────────────────
-  // v4 التناسب والتناظر اللفظي (1-6)
+  // v4 التناظر اللفظي (1-6)
   { id:1,  type:'verbal', skillId:'v4',
     text:'نطفة : علقة — كـ —',
     opts:['غصن : شجرة','طائرة : مطار','زحف : مشي','يوم : أسبوع'], ans:2 },
@@ -35,12 +38,12 @@ const QUESTIONS = [
     text:'غليان : تبخر — كـ —',
     opts:['قراءة : كتاب','شمس : ضياء','ركض : تعب','ليل : ظلام'], ans:2 },
 
-  // v5 إكمال الجمل (7-12)
-  { id:7,  type:'verbal', skillId:'v5',
-    text:'إن الابتسامة تذيب ...... وتجلب ...... وتجعل القلوب أكثر تآلفاً.',
-    opts:['الجفاء - الكره','الجليد - السعادة','الحزن - التعب','الخلاف - الشقاق'], ans:1 },
+  // v3 المفردة الشاذة - الأسئلة المستبدلة (7، 13، 14)
+  { id:7,  type:'verbal', skillId:'v3',
+    text:'اختر الكلمة الشاذة: السيف — الرمح — الدرع — الحسام',
+    opts:['السيف','الرمح','الدرع','الحسام'], ans:2 },
   { id:8,  type:'verbal', skillId:'v5',
-    text:'حسن ...... يستر كثيرًا من ...... كما أن سوء الخلق يغطي كثيرًا من المحاسن.',
+    text:'حسن ...... يستر كثيراً من ...... كما أن سوء الخلق يغطي كثيراً من المحاسن.',
     opts:['الكلام - الصعاب','العمل - الأخطاء','المظهر - المزايا','الخلق - العيوب'], ans:3 },
   { id:9,  type:'verbal', skillId:'v5',
     text:'عدم التخطيط يجعلك عرضة لـ ...... الآخرين، ويحيل جهودك المنظمة إلى ...... عشوائية.',
@@ -55,13 +58,13 @@ const QUESTIONS = [
     text:'كثرة الوعود دون ...... تفقد المرء ...... الآخرين وتجعل كلامه بلا قيمة.',
     opts:['تأخير - احترام','شروط - مودة','تفكير - تقدير','تنفيذ - ثقة'], ans:3 },
 
-  // v2 التحليل اللغوي - الخطأ السياقي (13-18)
-  { id:13, type:'verbal', skillId:'v2',
-    text:'حدّد الكلمة التي تُخلّ بسياق الجملة: "الأمل نافذة صغيرة تفتح آفاقاً واسعة في الحياة، ومن خلالها يتطلع الإنسان إلى مستقبل مظلم."',
-    opts:['صغيرة','واسعة','مظلم','يتطلع'], ans:2 },
-  { id:14, type:'verbal', skillId:'v2',
-    text:'حدّد الكلمة التي تُخلّ بسياق الجملة: "الصمت زينة للعاقل، وستر للجاهل، فإذا تكلمت فاحرص على أن يكون كلامك أسوأ من سكوتك."',
-    opts:['زينة','للجاهل','أسوأ','سكوتك'], ans:2 },
+  // v2 الخطأ السياقي (15-18) + v3 مستبدلان (13،14)
+  { id:13, type:'verbal', skillId:'v3',
+    text:'اختر الكلمة الشاذة: الإحباط — القنوط — اليأس — الزهد',
+    opts:['الإحباط','القنوط','اليأس','الزهد'], ans:3 },
+  { id:14, type:'verbal', skillId:'v3',
+    text:'اختر الكلمة الشاذة: العسجد — النضار — التبر — اللجين',
+    opts:['العسجد','النضار','التبر','اللجين'], ans:3 },
   { id:15, type:'verbal', skillId:'v2',
     text:'حدّد الكلمة التي تُخلّ بسياق الجملة: "المدن الجامعية ليست مجرد مؤسسات لتعليم الطلاب، بل هي واحات علمية لبناء العقول وتدمير القيم."',
     opts:['مؤسسات','وتدمير','علمية','العقول'], ans:1 },
@@ -99,7 +102,7 @@ const QUESTIONS = [
     opts:['الأمن المائي العربي: التحديات والحلول الاستراتيجية','التوزيع السكاني والديموغرافي في الوطن العربي','تقنيات تحلية مياه البحر بالطاقة الشمسية الحديثة','تاريخ الجفاف في العصور الجيولوجية الحديثة'], ans:0 },
 
   // ── QUANTITATIVE ────────────────────────────────────────────────────────
-  // q1 الحساب والمسائل الكلامية (26-35)
+  // q1 الحساب (26-35)
   { id:26, type:'quantitative', skillId:'q1',
     text:'اشترى شخص جهازاً بـ2500 ريال وحصل على خصم 20%. كم ريالاً دفع بعد الخصم؟',
     opts:['1800 ريال','2000 ريال','2200 ريال','2300 ريال'], ans:1 },
@@ -112,12 +115,12 @@ const QUESTIONS = [
   { id:29, type:'quantitative', skillId:'q1',
     text:'ما قيمة: √(2⁶ × 5²) ؟',
     opts:['30','40','80','160'], ans:1 },
-  { id:30, type:'quantitative', skillId:'q1',
+  { id:30, type:'quantitative', skillId:'q5',
     text:'متوسط درجات 5 طلاب 85، بعد انضمام طالب سادس أصبح المتوسط 86. ما درجة الطالب السادس؟',
     opts:['86 درجة','89 درجة','90 درجة','91 درجة'], ans:3 },
-  { id:31, type:'quantitative', skillId:'q1',
-    text:'انطلقت سيارتان في نفس الوقت؛ الأولى بـ100 كم/س والثانية بـ120 كم/س. كم المسافة بينهما بعد 3 ساعات؟',
-    opts:['40 كم','50 كم','60 كم','80 كم'], ans:2 },
+  { id:31, type:'quantitative', skillId:'q5',
+    text:'مدرسة بها 40 طالباً، 25 منهم يفضلون كرة القدم، و20 يفضلون كرة السلة، و10 يفضلون اللعبتين معاً. إذا اختير طالب عشوائياً، فما احتمال أن يكون ممن لا يفضلون أي من اللعبتين؟',
+    opts:['١/٤','١/٥','١/٨','٣/٨'], ans:2 },
   { id:32, type:'quantitative', skillId:'q1',
     text:'6 عمال ينجزون جداراً في 8 أيام. كم يحتاج 4 عمال بنفس الكفاءة لإنجاز نفس الجدار؟',
     opts:['10 أيام','11 يوماً','12 يوماً','14 يوماً'], ans:2 },
@@ -127,7 +130,7 @@ const QUESTIONS = [
   { id:34, type:'quantitative', skillId:'q1',
     text:'عدد إذا قُسم على 5 الباقي 4، وإذا قُسم على 4 الباقي 3. ما هذا العدد؟',
     opts:['14','19','24','29'], ans:1 },
-  { id:35, type:'quantitative', skillId:'q1',
+  { id:35, type:'quantitative', skillId:'q5',
     text:'صافح 5 أشخاص بعضهم البعض مرة واحدة فقط. كم عدد المصافحات الكلية؟',
     opts:['10 مصافحات','15 مصافحة','20 مصافحة','25 مصافحة'], ans:0 },
 
@@ -151,7 +154,7 @@ const QUESTIONS = [
     text:'تقاطع مستقيمان وتشكلت زاويتان متقابلتان؛ الأولى (2س + 10)° والثانية 70°. ما قيمة س؟',
     opts:['25','30','35','40'], ans:1 },
 
-  // q2 الجبر والمسائل الكلامية (42-45)
+  // q2 الجبر (42-45)
   { id:42, type:'quantitative', skillId:'q2',
     text:'إذا كانت: س/4 + س/3 = 14، فما قيمة س؟',
     opts:['12','18','20','24'], ans:3 },
@@ -165,7 +168,7 @@ const QUESTIONS = [
     text:'أوجد الحد التالي في المتتابعة الهندسية: 3، 6، 12، 24، ......',
     opts:['36','40','44','48'], ans:3 },
 
-  // q4 المقارنات الكمية الاستنتاجية (46-50)
+  // q4 المقارنات الكمية (46-50)
   // أ = القيمة الأولى أكبر | ب = القيمة الثانية أكبر | ج = متساويتان | د = معطيات غير كافية
   { id:46, type:'quantitative', skillId:'q4',
     text:'قارن بين: (القيمة الأولى) 3⁴⁴ — (القيمة الثانية) 9²²',
@@ -186,3 +189,315 @@ const QUESTIONS = [
 
 // Admin credentials (offline simulation)
 const ADMIN = { username: 'admin', password: 'khaldiya2025' };
+
+// ── Skill training guides ─────────────────────────────────────────────────
+const SKILL_GUIDES = {
+  v1: {
+    what: 'فهم النصوص المقروءة فهماً دقيقاً، واستخراج الأفكار الرئيسة والفرعية، وتفسير المعاني الضمنية، وتحليل العلاقات بين الجمل، والإجابة عن أسئلة تتطلب فهماً عميقاً للنص.',
+    warning: 'ضعف الأداء في هذه المهارة لا يعني ضعف القراءة، بل غالباً يعود إلى: القراءة السريعة دون تحليل، والتعامل مع الأسئلة بمعزل عن السياق الكامل، والاعتماد على الذاكرة بدل الفهم.',
+    needs: [
+      'تحديد الفكرة الرئيسة للنص أو الفقرة',
+      'استخراج الأفكار الفرعية الداعمة',
+      'الاستنتاج الضمني (ما لم يُقَل صراحةً)',
+      'فهم المفردات من السياق دون حفظ مسبق',
+      'تحليل العلاقة بين الجمل (سبب، نتيجة، مثال، مقارنة)',
+      'التمييز بين الحقيقة والرأي داخل النص',
+    ],
+    mistakes: [
+      'القراءة السريعة دون تحليل أو ربط بالأسئلة',
+      'اختيار إجابة تحتوي كلمات من النص لكنها لا تعبر عن فكرته',
+      'الإجابة من المعرفة الشخصية بدلاً من النص',
+      'تجاهل أدوات الربط مثل: لكن، لأن، رغم، بينما',
+    ],
+    tip: 'اقرأ السؤال أولاً قبل النص — سيوجّهك نحو ما تبحث عنه ويوفّر عليك الوقت.',
+  },
+  v2: {
+    what: 'تحديد الكلمة التي لا تنسجم مع السياق العام للجملة من حيث المعنى، حتى لو كانت صحيحةً لغوياً في ذاتها.',
+    warning: 'ضعف الأداء في هذه المهارة لا يعني ضعف المفردات، بل غالباً يعود إلى: ضعف فهم السياق العام، والتركيز على الكلمات بشكل منفصل دون ربطها بالمعنى الكلي، والتسرع في الاختيار.',
+    needs: [
+      'فهم المعنى العام للجملة كوحدة واحدة',
+      'ربط كل كلمة بالسياق وليس بمعناها المعجمي فقط',
+      'اكتشاف التناقض المعنوي (اتجاه إيجابي/سلبي)',
+      'التمييز بين الشذوذ السياقي والشذوذ المعجمي',
+      'تتبع أدوات الربط: لكن، لأن، لذلك، رغم، بل',
+    ],
+    mistakes: [
+      'اختيار الكلمة بناءً على صعوبتها أو غرابتها لا لعدم انسجامها',
+      'التركيز على الكلمات بشكل منفصل بدلاً من فهم الجملة كاملة',
+      'العجلة في الاختيار قبل قراءة الجملة كاملة',
+      'الخلط بين الصحة الإملائية والصحة السياقية',
+    ],
+    tip: 'اقرأ الجملة مع حذف كل خيار بدوره — الخيار الذي يكسر المعنى هو الإجابة.',
+  },
+  v3: {
+    what: 'تحديد الكلمة التي لا تنتمي إلى مجموعة من الكلمات تشترك في علاقة أو تصنيف أو معنى عام واحد، بحيث تكون خارجةً عن النسق العام للمجموعة.',
+    warning: 'الشذوذ لا يكون في المعنى فقط — قد يكون في التصنيف أو الوظيفة أو العلاقة المفهومية. كما أن الانخفاض في هذه المهارة غالباً يعكس ضعفاً في "التصنيف الذهني" وليس ضعف المفردات.',
+    needs: [
+      'الشذوذ المعجمي: كلمة خارج معنى المجموعة',
+      'الشذوذ التصنيفي: كلمة من فئة مختلفة',
+      'الشذوذ الوظيفي: كلمة تؤدي وظيفة مختلفة',
+      'الشذوذ حسب العلاقة: كلمة لا تشارك في علاقة المجموعة',
+      'الشذوذ المركب: اجتماع أكثر من معيار',
+    ],
+    mistakes: [
+      'التركيز على كلمة واحدة دون فهم القاسم المشترك للمجموعة',
+      'اختيار الكلمة الأصعب أو الأغرب بدلاً من غير المنتمية',
+      'التسرع في الاختيار قبل تحديد الرابط المشترك',
+    ],
+    tip: 'حدّد الفكرة المشتركة أولاً بين الكلمات — ثم ابحث عن الكلمة التي لا تندرج تحت هذه الفكرة.',
+  },
+  v4: {
+    what: 'اكتشاف العلاقة بين كلمتين، ثم البحث عن زوج آخر من الكلمات يحمل العلاقة نفسها بدقة. الهدف ليس معرفة معنى الكلمات فقط، بل معرفة طبيعة العلاقة التي تربطها.',
+    warning: 'انخفاض الأداء لا يعني ضعفاً في جميع أنواع العلاقات — قد تكون متقناً لبعضها وتحتاج تطويراً في أخرى. راجع المهارات الفرعية وحدّد أين تحتاج التركيز.',
+    needs: [
+      'علاقة الترادف: كلمتان متقاربتان في المعنى',
+      'علاقة التضاد: كلمتان متقابلتان',
+      'علاقة الجزء والكل: إحداهما جزء من الأخرى',
+      'علاقة النوع والجنس: إحداهما تندرج تحت الأخرى',
+      'علاقة السبب والنتيجة: إحداهما تؤدي إلى الأخرى',
+      'علاقة الوظيفة: الأداة وما تؤديه',
+    ],
+    mistakes: [
+      'تحديد العلاقة بشكل مبهم "له علاقة بـ" دون تحديد نوعها',
+      'عكس اتجاه العلاقة: أ يصنع ب ≠ ب يصنع أ',
+      'اختيار أول خيار يبدو متشابهاً موضوعياً دون التحقق من العلاقة',
+    ],
+    tip: 'صِغ العلاقة في جملة محددة مثل "أ يُستخدم لـ ب" — ثم طبّق نفس الجملة على كل خيار.',
+  },
+  v5: {
+    what: 'فهم الجملة غير المكتملة واستنتاج الكلمة أو العبارة المناسبة لإكمال المعنى بشكل صحيح وفق السياق اللغوي والدلالي.',
+    warning: 'ضعف الأداء لا يعني ضعف الفهم اللغوي العام، بل قد يكون ناتجاً عن ضعف في فهم العلاقات داخل الجملة، أو تجاهل أدوات الربط، أو عدم توقع المعنى قبل النظر للخيارات.',
+    needs: [
+      'فهم السياق العام للجملة قبل النظر للفراغ',
+      'أدوات الربط ودلالاتها: لأن، لذلك، رغم، لكن، حتى',
+      'التوقع المسبق للإجابة ذهنياً قبل قراءة الخيارات',
+      'التمييز بين المعاني المتقاربة (حزن/أسى/اكتئاب)',
+      'الانتباه للنفي والاستدراك: ليس، لم، إلا، بل',
+    ],
+    mistakes: [
+      'قراءة الجملة بسرعة دون فهم الفكرة العامة',
+      'تجاهل أدوات الربط وأثرها على تغيير معنى الجملة',
+      'في الفراغين: الاكتفاء بنجاح الفراغ الأول دون اختبار الثاني',
+      'الاعتماد الكامل على الخيارات دون محاولة إكمال الجملة ذاتياً',
+    ],
+    tip: 'اقرأ الجملة كاملة وأغلق الخيارات مؤقتاً — حاول إكمالها من عندك أولاً ثم قارن بالخيارات.',
+  },
+  q1: {
+    what: 'حل العمليات الحسابية الأساسية والنسب والتناسب والنسبة المئوية، وتطبيقها على مسائل واقعية متنوعة.',
+    warning: '',
+    needs: [
+      'إتقان العمليات الأربع مع الكسور والأعداد العشرية',
+      'النسب والتناسب المباشر والعكسي',
+      'النسبة المئوية والخصم والزيادة',
+      'مسائل الزمن والسرعة والعمل والمتوسطات',
+    ],
+    mistakes: [
+      'الخطأ في ترتيب العمليات (الأقواس أولاً دائماً)',
+      'نسيان تحويل الوحدات قبل الحل',
+      'الخلط بين التناسب المباشر والعكسي',
+      'الخطأ في مسائل الربح والخسارة والخصم',
+    ],
+    tip: 'ارسم مخططاً بسيطاً للمسألة قبل الحل — يوضح المعطيات ويقلل الأخطاء بشكل كبير.',
+  },
+  q2: {
+    what: 'حل المعادلات الجبرية وإيجاد المجاهيل، والتعرف على أنماط المتتابعات الحسابية والهندسية واستنتاج قوانينها.',
+    warning: '',
+    needs: [
+      'المعادلات الخطية وطرق الحل',
+      'المتتابعات الحسابية (الفرق ثابت) والهندسية (النسبة ثابتة)',
+      'قوانين الأس والتحليل إلى عوامل',
+      'هوية الفرق بين مربعين: أ² − ب² = (أ+ب)(أ−ب)',
+    ],
+    mistakes: [
+      'الخطأ في نقل الحدود: الإشارة تنعكس عند النقل',
+      'الخلط بين المتتابعة الحسابية والهندسية',
+      'نسيان اختبار الحل بتعويضه في المعادلة الأصلية',
+    ],
+    tip: 'في المتتابعات: احسب الفرق بين حدّين متتاليين — إن كان ثابتاً فهي حسابية، وإن كانت النسبة ثابتة فهي هندسية.',
+  },
+  q3: {
+    what: 'تطبيق قوانين الهندسة لإيجاد المساحات والمحيطات والأحجام، وحل المسائل المتعلقة بالزوايا والأشكال الهندسية.',
+    warning: '',
+    needs: [
+      'قوانين مساحة: المربع، المستطيل، المثلث، الدائرة',
+      'محيط الأشكال الأساسية',
+      'نظرية فيثاغورس في المثلث القائم',
+      'خصائص الزوايا: المتكاملة، المتقابلة بالرأس، على مستقيم',
+    ],
+    mistakes: [
+      'الخلط بين صيغة المساحة والمحيط',
+      'نسيان تربيع نصف القطر في مساحة الدائرة: π × ر²',
+      'الخطأ في تحديد الوتر (أطول ضلع) في المثلث القائم',
+    ],
+    tip: 'اكتب القانون الكامل أولاً قبل التعويض — يمنعك من الخلط بين الصيغ المتشابهة.',
+  },
+  q4: {
+    what: 'مقارنة قيمتين كميتين واستنتاج أيهما أكبر أو إذا كانتا متساويتين أو إذا كانت المعطيات غير كافية للحكم.',
+    warning: '',
+    needs: [
+      'التبسيط الجبري لإزالة التعقيد الظاهري',
+      'التقدير الذهني والمقارنة السريعة',
+      'التعامل مع الكسور والأسس والجذور',
+      'استخدام قيم اختبار (موجبة، سالبة، صفر، كسر)',
+    ],
+    mistakes: [
+      'الاستسلام لـ "المعطيات غير كافية" بسرعة دون التبسيط',
+      'اختبار حالة واحدة فقط مع نسيان الكسور والأعداد السالبة',
+      'إهمال تبسيط التعبيرين قبل المقارنة',
+    ],
+    tip: 'قبل اختيار "غير كافية": بسّط جبرياً أولاً — كثير من الأسئلة تُحل فور التبسيط.',
+  },
+  q5: {
+    what: 'تحليل البيانات الإحصائية كالمتوسط والوسيط والمنوال والمدى، وحساب احتمالات الأحداث البسيطة والمركبة.',
+    warning: '',
+    needs: [
+      'المقاييس الإحصائية: المتوسط، الوسيط، المنوال، المدى',
+      'قراءة الجداول والرسوم البيانية',
+      'الاحتمال البسيط: عدد الحالات المطلوبة ÷ مجموع الحالات',
+      'قاعدة الاحتمال التكميلي: P(A) = 1 − P(Ā)',
+      'ترتيب البيانات وإيجاد الربيعيات والانحراف',
+    ],
+    mistakes: [
+      'الخلط بين المتوسط الحسابي والوسيط',
+      'نسيان ترتيب البيانات قبل إيجاد الوسيط',
+      'الخطأ في حساب الاحتمال عند وجود شروط',
+      'إهمال عدد أفراد العينة عند حساب التكرار النسبي',
+    ],
+    tip: 'في الاحتمال: ارسم جدول العينة الكاملة أولاً — يجعل العد أسهل وأدق.',
+  },
+};
+
+// ── Quiz links per skill ───────────────────────────────────────────────────
+const SKILL_QUIZZES = {
+  v1: { title: 'الاستيعاب القرائي',   urls: [
+    'https://docs.google.com/forms/d/e/1FAIpQLSfk8u8mk-7rs0xwCAd1SfNruitF2LRwC7loqSjeGUFtHb_kDg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdqsRFw3PpsML1kmJaS4fYPhI9OnvXni242snV4gXfzLRXz_w/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSd7gnSrjS1Fh9FEfFKb3AiVdXnFiX6Z4x0-SU2bjhdIECN2FQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSewxt69eXUgaXVTl9DDXo7HL-EoJ9DKIMchxgllsaToc2ygfw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdvSVJfHiBDh6XSQsRFq1MscPj_uBz54FgD87SKzKbeIA7l0A/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSfqeFzTghaMX4NKqbCBifVGK0sZ4RUuRhOJWzXW-osMjmvEIw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSf48e9fr7-aM0TZ6ugtMaoNDDxSZVt0ZM7pDsAnlKxyglBSyA/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdBhAUngC3xOI1LNZGTUi4ncxZ7te-ukam_BSfwOHUEVr6a_g/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSfba3g1csoKTDTKo-_Ckj0OHO8qUiGMXJ137LAxtMylsz92Dg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSes4QVJoXi45wNIatFAWQt-rl0G1XnRu-6SWsCExQRlbiILYw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeyZm1xZPfywWVu7Jnm2U8uohGc2GmK_arsY8WoRrYwoF_6wg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSe4Y_zhTiciCIGkU3SfAOTLAPtQ8rMKOcZz-HxMzH2L6sCEYg/viewform?usp=header',
+  ]},
+  v2: { title: 'الخطأ السياقي',        urls: [
+    'https://docs.google.com/forms/d/e/1FAIpQLScp3Sc5tlztaYkfuC1tyBhZMOT5HR2H_nmhFdlnylM5ua6tXw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScjI8ZkdUUnFWdzqHOK9CEdF_0qCXt5zUtYAHMXKFz7hJSBxA/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScCfpQi5_wbt8XW7p6GE2Gi1m36DHcFHUr1cpAg3f19yDWquQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSfRvKgv5DVw-KcbqOXn7CJyl1c2JDL_VEWRk5--wt60GSALhg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSf847L-nmHOfzovdxQQE7SP96iLb8R6raFzPE8IpoKIiTdQpw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScUA-GXywCzdCjQxe3T1zsk1rAvMhMZofltjYqny74QZVbOTQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSfECEFDKEu8B0B9qE_XN_FEnjeRlRixKgw2OTTadYdJ17Kkzg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScIkNx75XwH-8b8w14JcFqT_qLpCjb7yGe5x5pe1A9kLV7G-w/viewform?usp=header',
+  ]},
+  v3: { title: 'المفردة الشاذة',        urls: [
+    'https://docs.google.com/forms/d/e/1FAIpQLSeXovLY7hTo6ncpZpdIE51q2-BFKIXrSoWs4Ywkf9W3tun1Tg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSd7j51uTba5LHNEwmKVPCbyApknDLzccnLHdebZi59Q9nKFhw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdY-fB5MFfyeqwSLq9BnRUVrqeBdGqi1JhZiljoIHXrqNgGyw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScv2yX7b3tQ6nhxVM-SVhJ0Qxo_V44Mc9gmO9a5rWFGGJYeCA/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeBITWb8XGJ3gcYESfv14p6Ufn-hFf3252dmr4NE6P94_9f5A/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdwgwF0rUtInI6oh-tvvbDR6rh1_LzyadFQdQiSzCvAnjYo5w/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSfLDPmnR0IRxPOJAgFzoG0uABfXb6qXIY8DcK0swpz5YuE50w/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSd4_jblEgBhyJXzhJv2MX3s3gePjw46aHWpwgGZTcTk94m6BQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeSW6GwpWz3TUNTyHy9MApwK-aYBTIy0u6vl73gO1swhWOE-Q/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScn9a97ullienGvb0Pup5VjTW-oSAY22aqk6-GUPMEqU2JFrA/viewform?usp=header',
+  ]},
+  v4: { title: 'التناظر اللفظي',       urls: [
+    'https://docs.google.com/forms/d/e/1FAIpQLSdDonGQf2urxqnKWYdXQnrvkmDcjXE7hKCwuzNp0KjMPWIRjw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSepPGHijLajPbYbUhUCDI2nyzog_ZAcWPN5LRkqXqXiXwymVg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSe0_F39EJdssUhjXxiOk_aTpun0YWExt1gz6gqSj1NndZaMVg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeSdDet-aarAzIq-zhbDLO9Rm7f2oepjXft-b6xvKw6a_0jaw/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdW97_NUpIhy0fYxeRA9AQm3QL7CfhkhBJmImwBF40y0iONDg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeKNHB-RaimXXOarQrvTc_Z0Y7VpJqpn5pNLaLeSJRmeuCTdA/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeU-Bdlx6k1OZqw1R6gfB9JSRGl2B4HwMCH1Zg8IzrOu4zbuQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSe6-snYgqAF5GrCJ6ZmPz5nRjq6ba7U9k0XgvElICCMdj9FOg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSf-FnairIg8mKdpMtheDelf0f7ZGemuUXgIJa5uJVQQXlQzKg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeMMz0Ifq3JmlShlUW9H-qjzoBDMGmb-rw2-98hyT5iiYu6aw/viewform?usp=header',
+  ]},
+  v5: { title: 'إكمال الجمل',           urls: [
+    'https://docs.google.com/forms/d/e/1FAIpQLSdWO2Ti5lhMcrn__PNGBWjf-iIVoN0uRg7vT68G7i-Xym68gA/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScE7QfCwRKFxQKolCkhHht_wdwXQa43M_UJ9t4cCIIjLg-6vg/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSesCL9yFQDgSa79np6kuIAf7UCzG38MRdPRTevurAhaaQBf7g/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLScb-hixB_1kXg_ea3u5m3PkNOqdXvAYchT17xqnOQFiW3ca7w/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSd_zYmnDx_1otzGUs0n8FNCqh-dNReLdzZADkrbqTQy3ErtsQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdT3717Oi4yG8BW0kCppwG5WazbsNyog_IJas5V-Q7NoAqG9g/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSc-2OdrMqqD6F6rYtH6EVvBFrxdQbnj7dulJExr7oQF420fww/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSeEulBkuiZPazFODw5I7O2sBWLEIC0a8hLbV2eprCialHMfZQ/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSflt57MkME9HGE2qzRN8G182xG2v9NvyHvHWcwznN6AOqMa8A/viewform?usp=header',
+    'https://docs.google.com/forms/d/e/1FAIpQLSdJ6fuDi_RCb9XZLfzJgzcpZfOnBEG6x6FHWdPdwT5BhooSPA/viewform?usp=header',
+  ]},
+  q1: { title: 'الحساب',                urls: [
+    'https://forms.gle/prW38TgVi1TNEpNy7',
+    'https://forms.gle/otorh1JfZyV14RCbA',
+    'https://forms.gle/CLudkRr8h7SBJARD9',
+    'https://forms.gle/fMUYhfnLy7mbLMYw8',
+    'https://forms.gle/kNxeAfgk2jMHv4N57',
+    'https://forms.gle/rQ4Po72wYQGzBgga6',
+    'https://forms.gle/Hqe2m8X8bwWASkd3A',
+    'https://forms.gle/6Y1devuwwnMxCxzFA',
+    'https://forms.gle/D3XvQRDbAFEhidts5',
+    'https://forms.gle/Gx3rbQLDELA1LyNe6',
+    'https://forms.gle/KGCjdYxmx64t1CLp6',
+    'https://forms.gle/u6Lm92txaqaJGJNi6',
+    'https://forms.gle/w9BYYhSfKbF1CPzi6',
+    'https://forms.gle/PzywrVPKEWV6Egzk6',
+    'https://forms.gle/DPcj3KczQjGBwsdG9',
+    'https://forms.gle/KoHVDjc72KPCfACY6',
+    'https://forms.gle/EmPSCboDp3ZQGvF48',
+    'https://forms.gle/9snvWWziT66hvtTN9',
+    'https://forms.gle/Xhc6kzVPhPoMfDJA9',
+    'https://forms.gle/VextM849gTQo3dXu7',
+  ]},
+  q2: { title: 'الجبر',                 urls: [
+    'https://forms.gle/B6tHq7vcMA3hBET78',
+    'https://forms.gle/ZnCe5YMRFW3XpeML7',
+    'https://forms.gle/njAUNmqcEAa9Rb6i8',
+    'https://forms.gle/ZqJ5WgThBJrgmFjFA',
+    'https://forms.gle/portkUBF9P4vy2Zd6',
+    'https://forms.gle/3ExwvsVf1yX1hVEB7',
+    'https://forms.gle/FWQGrtyQz1Dv92Z7A',
+    'https://forms.gle/2RsPQ1jLo4Rcj41P7',
+  ]},
+  q3: { title: 'الهندسة والقياس',       urls: [
+    'https://forms.gle/Dj5GCwkqRGXbJutL7',
+    'https://forms.gle/YFaCvKM1shFbcoAX9',
+    'https://forms.gle/1ibQxShaYwNGofHd8',
+    'https://forms.gle/1feCc1jWUEC3PiFM6',
+    'https://forms.gle/KhqBXFY9AKp1auzm8',
+    'https://forms.gle/jYaWhBFQnajPPCVA7',
+    'https://forms.gle/sAU6EpTB8Yb4bo1v8',
+    'https://forms.gle/ZeM7wVbNk9FsAaJp9',
+    'https://forms.gle/YwbrEviLGkUULUAC7',
+    'https://forms.gle/k4nM38d6wUHuFJK2A',
+    'https://forms.gle/YMKiBMTsAzc6jt2s7',
+    'https://forms.gle/ES6C7Ex8VQBtQChT9',
+    'https://forms.gle/NkwTHnJ9B4J7eL1d9',
+    'https://forms.gle/KiPGJykuenfrTJBd8',
+    'https://forms.gle/tRqdSDgD7biQExPB7',
+    'https://forms.gle/i4RJTLVXSQzHiok69',
+  ]},
+  q4: { title: 'المقارنات الكمية',      urls: [
+    'https://forms.gle/neBUDdtTST4gDVYv8',
+    'https://forms.gle/bMqXsZtUfDgyMuQZ8',
+    'https://forms.gle/nQag6VDZSMqRJ8bM6',
+    'https://forms.gle/P6Vr7UUHL1sZcXco8',
+    'https://forms.gle/hueDWk8jscj63EoK6',
+    'https://forms.gle/qBYbHpgZ5tAujCBV8',
+    'https://forms.gle/z6erTrQLb2PfMcmw7',
+    'https://forms.gle/b47uyxuK3DWoqV2C6',
+    'https://forms.gle/F2SC8iEcUpJ1BcuJ6',
+    'https://forms.gle/94BEQGZvMGzkgdWz6',
+    'https://forms.gle/gVTjCK6hDxzySRTo9',
+    'https://forms.gle/3QSHAQnTfaXMjBMu7',
+  ]},
+  q5: { title: 'الإحصاء والاحتمالات', urls: [
+    'https://forms.gle/L9aZpWwmbGKMt6JE7','https://forms.gle/RC4XUZMafAfVVCar6',
+    'https://forms.gle/LJGnTD9mkcVmm5yu6','https://forms.gle/ZZde9rA3YUf7cH5WA',
+    'https://forms.gle/ZbspsEkBmCNT11x27','https://forms.gle/BPp2EFj615mNq9jp9',
+    'https://forms.gle/8p3b923JmziBgB8j6','https://forms.gle/jfJFGuu5H9Zpc8BX9',
+    'https://forms.gle/7RNYdaj8UkKeA5sP9',
+  ] },
+};

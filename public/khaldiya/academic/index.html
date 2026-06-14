@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دعم التعلم والتحصيل — بوابة دعم التعلم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --primary:#3F7CB8;--accent:#4FA877;
+    --bg:#f4f8fb;--surface:#fff;--border:#e2e8f0;
+    --text:#0f172a;--muted:#64748b;
+    --grad:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+    --shadow:0 8px 24px -8px rgba(63,124,184,.20),0 2px 6px rgba(15,23,42,.04);
+    --shadow-lg:0 24px 60px -20px rgba(63,124,184,.30);
+    --radius-lg:22px;
+  }
+  html,body{min-height:100vh;font-family:'Tajawal','Cairo',sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
+  h1,h2{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
+
+  /* ── Topbar ── */
+  .topbar{
+    background:var(--grad);color:#fff;
+    padding:14px 24px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    position:sticky;top:0;z-index:100;
+    box-shadow:0 6px 24px -10px rgba(7,54,105,.55);
+    min-height:64px;
+  }
+  .topbar-right{display:flex;align-items:center;gap:10px;}
+  .topbar-logo{height:30px;opacity:.92;flex-shrink:0;}
+  .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:16px;white-space:nowrap;}
+  .topbar-left{display:flex;align-items:center;gap:8px;}
+
+  /* Back button */
+  .tb-back{
+    background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);
+    color:#fff;border-radius:99px;padding:5px 14px;font-size:13px;
+    font-family:inherit;font-weight:700;text-decoration:none;
+    display:inline-flex;align-items:center;gap:5px;transition:background .18s;cursor:pointer;
+  }
+  .tb-back:hover{background:rgba(255,255,255,.28);}
+
+  /* User chip */
+  .user-chip{
+    background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);
+    color:#fff;border-radius:99px;padding:5px 14px;font-size:12.5px;
+    font-family:inherit;font-weight:700;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;transition:background .18s;
+    max-width:160px;overflow:hidden;
+  }
+  .user-chip:hover{background:rgba(255,255,255,.28);}
+  .user-chip .dot{width:7px;height:7px;border-radius:50%;background:#a3e635;flex-shrink:0;}
+
+  /* ── Hero ── */
+  .hero{
+    background:var(--grad);color:#fff;
+    padding:32px 20px 44px;text-align:center;
+    position:relative;overflow:hidden;
+  }
+  .hero::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(255,255,255,.12),transparent 70%);pointer-events:none;}
+  .hero-pill{
+    display:inline-block;background:rgba(255,255,255,.18);
+    border:1px solid rgba(255,255,255,.35);border-radius:99px;
+    padding:4px 16px;font-size:13px;font-weight:700;margin-bottom:12px;
+  }
+  .hero h1{font-size:clamp(18px,4vw,28px);margin-bottom:8px;text-shadow:0 3px 12px rgba(7,54,105,.3);line-height:1.4;}
+  .hero p{font-size:14px;opacity:.88;}
+
+  /* ── Container ── */
+  .container{max-width:860px;margin:0 auto;padding:30px 18px 60px;}
+
+  .section-label{
+    font-family:'Cairo',sans-serif;font-weight:800;font-size:16px;
+    color:var(--primary);margin-bottom:16px;
+  }
+
+  /* ── Grade cards ── */
+  .grade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  @media(max-width:560px){
+    .grade-grid{grid-template-columns:1fr;}
+    .topbar{padding:10px 14px;gap:8px;}
+    .topbar-title{font-size:13px;}
+    .user-chip{display:none!important;}
+  }
+
+  .grade-card{
+    background:var(--surface);border:2px solid var(--border);border-radius:var(--radius-lg);
+    padding:28px 16px;text-align:center;cursor:pointer;
+    transition:transform .18s,box-shadow .18s,border-color .18s;
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+  }
+  .grade-card:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg);border-color:var(--primary);}
+  .grade-card:active{transform:scale(.97);}
+  .grade-icon{font-size:40px;line-height:1;}
+  .grade-name{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;color:var(--text);}
+  .grade-hint{font-size:12px;color:var(--muted);}
+
+  /* ── Subject cards ── */
+  .subject-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;}
+
+  .subject-card{
+    background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);
+    padding:22px 14px;text-align:center;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    position:relative;opacity:.6;
+  }
+  .subject-card.available{
+    opacity:1;cursor:pointer;
+    transition:transform .18s,box-shadow .18s,border-color .18s;
+  }
+  .subject-card.available:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--primary);}
+  .subject-card.available:active{transform:scale(.97);}
+  .subject-icon{font-size:34px;line-height:1;}
+  .subject-name{font-family:'Cairo',sans-serif;font-weight:800;font-size:14px;color:var(--text);}
+  .soon-badge{
+    position:absolute;top:9px;left:9px;
+    background:#f1f5f9;color:var(--muted);
+    border-radius:99px;padding:2px 9px;font-size:11px;font-weight:700;
+  }
+  .avail-badge{
+    position:absolute;top:9px;left:9px;
+    background:#dcfce7;color:#166534;
+    border-radius:99px;padding:2px 9px;font-size:11px;font-weight:700;
+  }
+
+  footer{text-align:center;font-size:12.5px;color:var(--muted);padding:20px 0 36px;font-weight:600;}
+
+  /* Screens */
+  .screen{display:none;}
+  .screen.active{display:block;}
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-right">
+    <img class="topbar-logo" src="../logo-white.png" alt="">
+    <span class="topbar-title" id="topbar-title">دعم التعلم والتحصيل</span>
+    <span class="user-chip" id="user-chip" onclick="logout()" title="اضغط للخروج">
+      <span class="dot"></span>
+      <span id="user-name-label">...</span>
+    </span>
+  </div>
+  <div class="topbar-left">
+    <button class="tb-back" onclick="navBack()">رجوع</button>
+  </div>
+</div>
+
+<!-- ══ Screen 1: Grade ══ -->
+<div class="screen active" id="screen-grade">
+  <div class="hero">
+    <div class="hero-pill">📗 دعم أكاديمي</div>
+    <h1>دعم التعلم والتحصيل<br>في المواد الدراسية</h1>
+    <p>اختر صفك الدراسي للبدء</p>
+  </div>
+  <div class="container">
+    <div class="section-label">اختر الصف الدراسي</div>
+    <div class="grade-grid">
+      <div class="grade-card" onclick="selectGrade('أول ثانوي')">
+        <div class="grade-icon">📘</div>
+        <div class="grade-name">أول ثانوي</div>
+        <div class="grade-hint">الصف الأول الثانوي</div>
+      </div>
+      <div class="grade-card" onclick="selectGrade('ثاني ثانوي')">
+        <div class="grade-icon">📙</div>
+        <div class="grade-name">ثاني ثانوي</div>
+        <div class="grade-hint">الصف الثاني الثانوي</div>
+      </div>
+      <div class="grade-card" onclick="selectGrade('ثالث ثانوي')">
+        <div class="grade-icon">📕</div>
+        <div class="grade-name">ثالث ثانوي</div>
+        <div class="grade-hint">الصف الثالث الثانوي</div>
+      </div>
+    </div>
+    <footer>بوابة دعم التعلم — ثانوية الخالدية</footer>
+  </div>
+</div>
+
+<!-- ══ Screen 2: Subjects ══ -->
+<div class="screen" id="screen-subjects">
+  <div class="hero">
+    <div class="hero-pill" id="grade-pill">أول ثانوي</div>
+    <h1 id="subjects-hero-title">مواد أول ثانوي</h1>
+    <p>المحتوى قيد الإعداد — سيكون متاحاً قريباً</p>
+  </div>
+  <div class="container">
+    <div class="section-label" id="subjects-label">المواد الدراسية</div>
+    <div class="subject-grid" id="subjects-grid">
+      <div class="subject-card">
+        <span class="soon-badge">قريباً</span>
+        <div class="subject-icon">📐</div>
+        <div class="subject-name">الرياضيات</div>
+      </div>
+      <div class="subject-card" id="card-biology">
+        <span class="soon-badge" id="biology-badge">قريباً</span>
+        <div class="subject-icon">🔬</div>
+        <div class="subject-name">الأحياء</div>
+      </div>
+      <div class="subject-card">
+        <span class="soon-badge">قريباً</span>
+        <div class="subject-icon">⚡</div>
+        <div class="subject-name">الفيزياء</div>
+      </div>
+      <div class="subject-card">
+        <span class="soon-badge">قريباً</span>
+        <div class="subject-icon">🧪</div>
+        <div class="subject-name">الكيمياء</div>
+      </div>
+      <div class="subject-card">
+        <span class="soon-badge">قريباً</span>
+        <div class="subject-icon">🌐</div>
+        <div class="subject-name">الإنجليزي</div>
+      </div>
+    </div>
+    <footer>بوابة دعم التعلم — ثانوية الخالدية</footer>
+  </div>
+</div>
+
+<script>
+// ── Load user info ──
+(function() {
+  try {
+    const raw = localStorage.getItem('lg_academic_user');
+    const user = raw ? JSON.parse(raw) : null;
+    const label = document.getElementById('user-name-label');
+    if (user && user.name) {
+      label.textContent = user.name;
+    } else {
+      // Try to get name from session/remember
+      try {
+        const sess = sessionStorage.getItem('lg_session') || localStorage.getItem('lg_xsession') || localStorage.getItem('lg_remember');
+        const sessData = sess ? JSON.parse(sess) : null;
+        if (sessData && sessData.name) { label.textContent = sessData.name; }
+        else { document.getElementById('user-chip').style.display = 'none'; }
+      } catch(e2) { document.getElementById('user-chip').style.display = 'none'; }
+    }
+  } catch(e) {
+    document.getElementById('user-chip').style.display = 'none';
+  }
+
+  // Restore grade from URL param (coming back from a subject page)
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const grade = params.get('grade');
+    if (grade) { setTimeout(() => selectGrade(grade), 0); }
+  } catch(e) {}
+})();
+
+function logout() {
+  localStorage.removeItem('lg_academic_user');
+  localStorage.removeItem('lg_remember');
+  window.location.href = '../index.html';
+}
+
+function navBack() {
+  const onSubjects = document.getElementById('screen-subjects').classList.contains('active');
+  if (onSubjects) { goBack(); } else { window.location.href = '../index.html'; }
+}
+
+let currentGrade = '';
+
+function selectGrade(name) {
+  currentGrade = name;
+  document.getElementById('grade-pill').textContent = name;
+  document.getElementById('subjects-hero-title').textContent = 'مواد ' + name;
+  document.getElementById('subjects-label').textContent = 'المواد الدراسية — ' + name;
+  document.getElementById('topbar-title').textContent = name;
+  document.getElementById('screen-grade').classList.remove('active');
+  document.getElementById('screen-subjects').classList.add('active');
+
+  // Enable biology for أول ثانوي
+  const biologyCard = document.getElementById('card-biology');
+  const biologyBadge = document.getElementById('biology-badge');
+  if (name === 'أول ثانوي') {
+    biologyCard.classList.add('available');
+    biologyCard.onclick = () => { window.location.href = 'biology-g1/index.html'; };
+    biologyBadge.className = 'avail-badge';
+    biologyBadge.textContent = 'متاح';
+  } else {
+    biologyCard.classList.remove('available');
+    biologyCard.onclick = null;
+    biologyBadge.className = 'soon-badge';
+    biologyBadge.textContent = 'قريباً';
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goBack() {
+  document.getElementById('screen-subjects').classList.remove('active');
+  document.getElementById('screen-grade').classList.add('active');
+  document.getElementById('topbar-title').textContent = 'دعم التعلم والتحصيل';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

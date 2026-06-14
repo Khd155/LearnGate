@@ -89,10 +89,20 @@ const _b64u = s => {
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
 };
+// Decode base64url to a UTF-8 string (for header/payload — text only)
 const _b64uDec = s => {
-  const bin = atob(s.replace(/-/g,'+').replace(/_/g,'/'));
+  const str = s.replace(/-/g,'+').replace(/_/g,'/');
+  const padded = str + '='.repeat((4 - str.length % 4) % 4);
+  const bin = atob(padded);
   const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
   return new TextDecoder().decode(bytes);
+};
+// Decode base64url to raw bytes (for binary data like HMAC signatures)
+const _b64uDecBin = s => {
+  const str = s.replace(/-/g,'+').replace(/_/g,'/');
+  const padded = str + '='.repeat((4 - str.length % 4) % 4);
+  const bin = atob(padded);
+  return Uint8Array.from(bin, c => c.charCodeAt(0));
 };
 
 async function jwtSign(payload, secret) {
@@ -110,7 +120,8 @@ async function jwtVerify(token, secret) {
     if (parts.length !== 3) return null;
     const [h, b, s] = parts;
     const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), _jwtAlg, false, ['verify']);
-    const sig = Uint8Array.from(_b64uDec(s), c => c.charCodeAt(0));
+    // Use _b64uDecBin for the signature — raw binary must NOT go through TextDecoder
+    const sig = _b64uDecBin(s);
     const valid = await crypto.subtle.verify('HMAC', key, sig, new TextEncoder().encode(`${h}.${b}`));
     if (!valid) return null;
     const payload = JSON.parse(_b64uDec(b));

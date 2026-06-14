@@ -1,5 +1,22 @@
 'use strict';
 
+// ── Activity Log ──────────────────────────────────────────────────────────
+const ActivityLog = {
+  _entries: [],
+  _log(type, msg) {
+    const now = new Date();
+    const ts  = now.toLocaleTimeString('ar-SA', { hour12: false }) + '.' + String(now.getMilliseconds()).padStart(3,'0');
+    this._entries.unshift({ ts, type, msg });
+    if (this._entries.length > 1000) this._entries.pop();
+  },
+  info(msg)    { this._log('info',    msg); },
+  success(msg) { this._log('success', msg); },
+  warn(msg)    { this._log('warn',    msg); },
+  error(msg)   { this._log('error',   msg); },
+  entries()    { return this._entries; },
+  clear()      { this._entries = []; },
+};
+
 // ── Cloudflare D1 data layer (via Pages Functions API) ───────────────────
 const Cache = { students: [], plans: [], loaded: false };
 window.QUESTION_BANK = (typeof QUESTIONS !== 'undefined' ? QUESTIONS.slice() : []);
@@ -15,18 +32,23 @@ let _authToken = null;
 async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (_authToken) headers['Authorization'] = 'Bearer ' + _authToken;
+  const method = (opts.method || 'GET').toUpperCase();
+  ActivityLog.info(`← ${method} /api${path}`);
   let res;
   try {
     res = await fetch('/api' + path, { headers, ...opts });
   } catch (netErr) {
+    ActivityLog.error(`✗ ${method} /api${path} — خطأ شبكة: ${netErr.message}`);
     throw new Error('NETWORK_ERROR: ' + (netErr.message || 'failed to fetch'));
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    ActivityLog.error(`✗ ${method} /api${path} — ${res.status} ${data.error || res.statusText}`);
     const e = new Error(data.error || res.statusText || 'HTTP ' + res.status);
     e.status = res.status;
     throw e;
   }
+  ActivityLog.success(`✓ ${method} /api${path} — ${res.status}`);
   return data;
 }
 
@@ -298,6 +320,7 @@ const App = {
       }
       showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
+    ActivityLog.success(`🎓 تسجيل دخول طالب: ${student.name} (${code}) — ${student.school || '—'}`);
     _authToken = token;
     State.student = student;
     State.role = 'student';
@@ -356,6 +379,7 @@ const App = {
       }
       showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
+    ActivityLog.success(`👨‍💼 تسجيل دخول مشرف: ${admin.name || code} (${code}) — ${admin.school || '—'} — دور: ${admin.role || 'admin'}`);
     _authToken = token;
     State.role  = admin.role === 'director' ? 'director' : 'admin';
     State.admin = admin;
@@ -962,10 +986,13 @@ const App = {
         const unlockBtn = inCooldown
           ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="App.grantRetake('${st.id}')">🔓 سماح</button>`
           : '';
+        const accessDot = plan
+          ? '<span title="دخل المنصة" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#16a34a;margin-left:5px;flex-shrink:0;"></span>'
+          : '<span title="لم يدخل المنصة بعد" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#94a3b8;margin-left:5px;flex-shrink:0;"></span>';
         return `<div class="student-row">
           <div class="student-avatar">${escapeHtml(st.name.charAt(0))}</div>
           <div class="student-info" onclick="App.openStudentDetail('${st.id}')" style="cursor:pointer;">
-            <div class="student-name">${escapeHtml(st.name)}</div>
+            <div class="student-name" style="display:flex;align-items:center;gap:4px;">${accessDot}${escapeHtml(st.name)}</div>
             <div class="student-code">رمز: ${escapeHtml(st.code)}</div>
           </div>
           ${badge}
@@ -1597,6 +1624,7 @@ const App = {
     if (DB.students().find(s => s.code === code)) { showAlert(errEl, 'هذا السجل المدني مسجّل مسبقاً.'); return; }
     try { await DB.addStudent({ name, code }); }
     catch (e) { showAlert(errEl, e.message || 'فشل الحفظ.'); return; }
+    ActivityLog.success(`➕ إضافة طالب: ${name} (${code})`);
     document.getElementById('add-st-name').value = '';
     document.getElementById('add-st-code').value = '';
     showToast('تمت إضافة الطالب ✅');
@@ -1765,8 +1793,10 @@ const App = {
 
   async deleteStudent(studentId) {
     if (!confirm('هل تريد حذف هذا الطالب وخطته؟')) return;
+    const st = DB.students().find(s => s.id === studentId);
     try { await DB.deleteStudent(studentId); }
     catch (e) { alert('تعذّر الحذف.'); return; }
+    ActivityLog.warn(`🗑 حذف طالب: ${st?.name || studentId}`);
     App.renderAdminDashboard('manage');
     showToast('تم الحذف');
   },
@@ -1832,6 +1862,14 @@ const App = {
     document.getElementById('sdm-name').textContent   = st.name;
     document.getElementById('sdm-code').textContent   = `رمز الدخول: ${st.code}`;
     document.getElementById('sdm-attempts').textContent = allPlans.length || '—';
+
+    // Access status: if has any plans → has entered; else unknown (show as not entered)
+    const accessEl = document.getElementById('sdm-access-status');
+    if (allPlans.length > 0) {
+      accessEl.innerHTML = '<span style="color:#16a34a;font-size:13px;font-weight:800;">✅ دخل</span>';
+    } else {
+      accessEl.innerHTML = '<span style="color:#64748b;font-size:13px;font-weight:800;">⭕ لم يدخل</span>';
+    }
 
     const bestAvg = allPlans.length
       ? Math.max(...allPlans.map(p => p.gaps.length ? Math.round(p.gaps.reduce((s,g)=>s+g.pct,0)/p.gaps.length) : 0))
@@ -2535,8 +2573,47 @@ const App = {
     document.querySelectorAll('#screen-support-admin .tab-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.tab === tab));
     document.getElementById('support-filter-bar').style.display = tab === 'sa-tickets' ? 'flex' : 'none';
-    if (tab === 'sa-tickets') App.renderSupportTickets();
-    else App.renderSupportMessages();
+    const logPanel = document.getElementById('sa-log-panel');
+    const mainList = document.getElementById('support-admin-list');
+    if (tab === 'sa-log') {
+      if (logPanel) logPanel.style.display = 'block';
+      if (mainList) mainList.style.display = 'none';
+      App.renderActivityLog();
+    } else {
+      if (logPanel) logPanel.style.display = 'none';
+      if (mainList) mainList.style.display = 'block';
+      if (tab === 'sa-tickets') App.renderSupportTickets();
+      else App.renderSupportMessages();
+    }
+  },
+
+  renderActivityLog() {
+    const el = document.getElementById('sa-log-list');
+    if (!el) return;
+    const entries = ActivityLog.entries();
+    if (!entries.length) {
+      el.innerHTML = '<span style="color:#64748b;">لا توجد سجلات في هذه الجلسة بعد.</span>';
+      return;
+    }
+    const active = el.dataset.filter || 'all';
+    const filtered = active === 'all' ? entries : entries.filter(e => e.type === active);
+    const colorMap = { success:'#4ade80', info:'#93c5fd', warn:'#fbbf24', error:'#f87171' };
+    el.innerHTML = filtered.map(e =>
+      `<div style="border-bottom:1px solid #1e293b;padding:4px 0;display:flex;gap:10px;">
+        <span style="color:#475569;flex-shrink:0;">${e.ts}</span>
+        <span style="color:${colorMap[e.type]||'#e2e8f0'};flex-shrink:0;font-size:11px;text-transform:uppercase;">[${e.type}]</span>
+        <span style="word-break:break-all;">${escapeHtml(e.msg)}</span>
+      </div>`
+    ).join('');
+    el.dataset.filter = active;
+  },
+
+  filterLog(type, btn) {
+    document.querySelectorAll('#sa-log-filter .filter-chip').forEach(c => c.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const el = document.getElementById('sa-log-list');
+    if (el) el.dataset.filter = type;
+    App.renderActivityLog();
   },
 
   async renderSupportTickets() {
@@ -2625,6 +2702,8 @@ const App = {
   },
 
   logout() {
+    const who = State.student?.name || State.admin?.name || '—';
+    ActivityLog.warn(`🚪 تسجيل خروج: ${who}`);
     App.stopCooldownTimer();
     clearInterval(App._chatTimer);
     stopIdleWatch();
@@ -2865,6 +2944,7 @@ function _autoLogin(role, code, token, school) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  ActivityLog.info(`🌐 تحميل الصفحة — ${new Date().toLocaleString('ar-SA')} — ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
   const btn = document.getElementById('selfdiag-submit');
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
   DB.loadQuestions().catch(() => {});

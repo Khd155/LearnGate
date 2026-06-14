@@ -564,6 +564,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="sa-tickets" onclick="App.setSupportTab('sa-tickets')">🎫 التذاكر</button>
       <button class="tab-btn" data-tab="sa-messages" onclick="App.setSupportTab('sa-messages')">💬 الرسائل</button>
+      <button class="tab-btn" data-tab="sa-log" onclick="App.setSupportTab('sa-log')">📋 السجل</button>
     </div>
     <div id="support-filter-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
       <button class="filter-chip active" data-filter="all" onclick="App.filterSupportTickets('all')">الكل</button>
@@ -573,6 +574,24 @@
       <button class="filter-chip" data-filter="urgent" onclick="App.filterSupportTickets('urgent')">🚨 عاجل</button>
     </div>
     <div id="support-admin-list"></div>
+    <!-- Activity log tab -->
+    <div id="sa-log-panel" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:14px;font-weight:700;color:var(--text);">سجل نشاط الموقع (هذه الجلسة)</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" style="font-size:12px;padding:5px 14px;" onclick="ActivityLog.clear();App.renderActivityLog()">🗑 مسح</button>
+          <button class="btn btn-outline" style="font-size:12px;padding:5px 14px;" onclick="App.renderActivityLog()">🔄 تحديث</button>
+        </div>
+      </div>
+      <div id="sa-log-filter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+        <button class="filter-chip active" onclick="App.filterLog('all',this)">الكل</button>
+        <button class="filter-chip" onclick="App.filterLog('success',this)">✅ نجاح</button>
+        <button class="filter-chip" onclick="App.filterLog('info',this)">ℹ️ معلومة</button>
+        <button class="filter-chip" onclick="App.filterLog('warn',this)">⚠️ تحذير</button>
+        <button class="filter-chip" onclick="App.filterLog('error',this)">❌ خطأ</button>
+      </div>
+      <div id="sa-log-list" style="font-family:monospace;font-size:12px;max-height:500px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:#0f172a;color:#e2e8f0;padding:12px;"></div>
+    </div>
   </div>
 </div>
 
@@ -1591,6 +1610,10 @@
     </div>
     <div class="sdm-body">
       <div class="sdm-stats">
+        <div class="sdm-stat">
+          <div class="sdm-stat-val" id="sdm-access-status" style="font-size:20px;">—</div>
+          <div class="sdm-stat-lbl">الدخول للمنصة</div>
+        </div>
         <div class="sdm-stat">
           <div class="sdm-stat-val" id="sdm-attempts">0</div>
           <div class="sdm-stat-lbl">عدد المحاولات</div>

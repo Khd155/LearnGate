@@ -226,17 +226,24 @@
     if (user && user.name) {
       label.textContent = user.name;
     } else {
-      const rem = localStorage.getItem('learngate_remember');
-      const remData = rem ? JSON.parse(rem) : null;
-      if (remData && remData.role) {
-        label.textContent = remData.role === 'student' ? 'طالب' : remData.role === 'admin' ? 'مشرف' : 'مستخدم';
-      } else {
-        document.getElementById('user-chip').style.display = 'none';
-      }
+      // Try to get name from session/remember
+      try {
+        const sess = sessionStorage.getItem('lg_session') || localStorage.getItem('lg_xsession') || localStorage.getItem('lg_remember');
+        const sessData = sess ? JSON.parse(sess) : null;
+        if (sessData && sessData.name) { label.textContent = sessData.name; }
+        else { document.getElementById('user-chip').style.display = 'none'; }
+      } catch(e2) { document.getElementById('user-chip').style.display = 'none'; }
     }
   } catch(e) {
     document.getElementById('user-chip').style.display = 'none';
   }
+
+  // Restore grade from URL param (coming back from a subject page)
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const grade = params.get('grade');
+    if (grade) { setTimeout(() => selectGrade(grade), 0); }
+  } catch(e) {}
 })();
 
 function logout() {
@@ -247,7 +254,7 @@ function logout() {
 
 function navBack() {
   const onSubjects = document.getElementById('screen-subjects').classList.contains('active');
-  if (onSubjects) { goBack(); } else { history.back(); }
+  if (onSubjects) { goBack(); } else { window.location.href = '../index.html'; }
 }
 
 let currentGrade = '';

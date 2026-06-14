@@ -382,7 +382,7 @@ const App = {
     ActivityLog.success(`👨‍💼 تسجيل دخول مشرف: ${admin.name || code} (${code}) — ${admin.school || '—'} — دور: ${admin.role || 'admin'}`);
     _authToken = token;
     State.role  = admin.role === 'director' ? 'director' : 'admin';
-    State.admin = admin;
+    State.admin = { ...admin, code };
     if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
     const adminName = admin.name || '';
     try { await DB.loadAll(); }

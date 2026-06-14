@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>أحياء — أول ثانوي — بوابة دعم التعلم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#3F7CB8;--accent:#4FA877;
+  --bg:#f4f8fb;--surface:#fff;--border:#e2e8f0;
+  --text:#0f172a;--muted:#64748b;
+  --grad:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  --shadow:0 8px 24px -8px rgba(63,124,184,.20),0 2px 6px rgba(15,23,42,.04);
+  --shadow-lg:0 24px 60px -20px rgba(63,124,184,.30);
+  --radius:22px;
+}
+html,body{min-height:100vh;font-family:'Tajawal','Cairo',sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
+h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
+
+.topbar{
+  background:var(--grad);color:#fff;padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 6px 24px -10px rgba(7,54,105,.55);min-height:64px;
+}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.topbar-logo{height:30px;opacity:.92;flex-shrink:0;}
+.topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:15px;}
+.tb-back{
+  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);
+  color:#fff;border-radius:99px;padding:5px 14px;font-size:13px;
+  font-family:inherit;font-weight:700;cursor:pointer;
+  display:inline-flex;align-items:center;gap:5px;transition:background .18s;
+}
+.tb-back:hover{background:rgba(255,255,255,.28);}
+
+.hero{
+  background:var(--grad);color:#fff;
+  padding:28px 20px 40px;text-align:center;position:relative;overflow:hidden;
+}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(255,255,255,.12),transparent 70%);pointer-events:none;}
+.hero-pills{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;}
+.hero-pill{
+  display:inline-block;background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.35);border-radius:99px;
+  padding:4px 14px;font-size:12px;font-weight:700;
+}
+.hero h1{font-size:clamp(17px,4vw,24px);margin-bottom:6px;text-shadow:0 3px 12px rgba(7,54,105,.3);line-height:1.4;}
+.hero p{font-size:13.5px;opacity:.88;}
+
+.container{max-width:700px;margin:0 auto;padding:28px 18px 60px;}
+
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* ── Card ── */
+.card{background:var(--surface);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:18px;}
+
+/* ── Intro choice buttons ── */
+.choice-btn{
+  display:flex;align-items:center;gap:16px;width:100%;
+  background:var(--surface);border:2px solid var(--border);border-radius:18px;
+  padding:20px 22px;text-align:right;cursor:pointer;transition:all .18s;
+  font-family:inherit;margin-bottom:14px;
+}
+.choice-btn:hover{border-color:var(--primary);background:#f0f6ff;transform:translateY(-2px);box-shadow:var(--shadow);}
+.choice-icon-wrap{font-size:32px;flex-shrink:0;}
+.choice-content{text-align:right;}
+.choice-title{display:block;font-size:16px;font-weight:800;color:var(--primary);margin-bottom:4px;}
+.choice-desc{display:block;font-size:13px;font-weight:500;color:var(--muted);line-height:1.5;}
+
+/* ── Progress ── */
+.q-progress{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
+.q-progress-bar{flex:1;height:7px;background:var(--border);border-radius:99px;overflow:hidden;}
+.q-progress-fill{height:100%;background:var(--grad);border-radius:99px;transition:width .4s ease;}
+.q-counter{font-size:13px;font-weight:800;color:var(--muted);white-space:nowrap;}
+
+/* ── Question ── */
+.q-section-tag{
+  display:inline-block;font-size:12px;font-weight:800;
+  background:#e8f0ff;color:var(--primary);border-radius:99px;
+  padding:3px 12px;margin-bottom:14px;
+}
+.q-text{font-size:15.5px;font-weight:700;color:var(--text);line-height:1.75;margin-bottom:20px;}
+
+.q-options{display:flex;flex-direction:column;gap:9px;}
+.q-opt{
+  display:flex;align-items:center;gap:12px;
+  background:#f8fafc;border:1.5px solid var(--border);border-radius:12px;
+  padding:13px 16px;cursor:pointer;transition:all .15s;
+  font-family:inherit;font-size:14.5px;font-weight:600;color:var(--text);
+  text-align:right;
+}
+.q-opt:hover{border-color:var(--primary);background:#f0f6ff;}
+.q-opt.selected{border-color:var(--primary);background:#e8f0ff;}
+.q-opt-letter{
+  width:28px;height:28px;border-radius:50%;background:#e2e8f0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;flex-shrink:0;color:var(--muted);
+}
+.q-opt.selected .q-opt-letter{background:var(--primary);color:#fff;}
+.q-opt.correct-reveal{border-color:#22c55e;background:#f0fdf4;color:#166534;}
+.q-opt.wrong-reveal{border-color:#ef4444;background:#fef2f2;color:#991b1b;}
+.q-opt.correct-reveal .q-opt-letter{background:#22c55e;color:#fff;}
+.q-opt.wrong-reveal .q-opt-letter{background:#ef4444;color:#fff;}
+
+.q-dontknow{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;background:#f1f5f9;border:1.5px dashed #94a3b8;border-radius:12px;
+  padding:11px 16px;cursor:pointer;transition:all .15s;
+  font-family:inherit;font-size:13.5px;font-weight:700;color:var(--muted);margin-top:6px;
+}
+.q-dontknow:hover{border-color:var(--primary);color:var(--primary);background:#f0f6ff;}
+.q-dontknow.selected{border-color:#f59e0b;background:#fffbeb;color:#92400e;}
+
+/* ── Nav buttons ── */
+.btn-row{display:flex;justify-content:flex-end;margin-top:24px;}
+.btn-primary{
+  background:var(--grad);color:#fff;border:none;border-radius:99px;
+  padding:12px 32px;font-family:inherit;font-size:15px;font-weight:800;
+  cursor:pointer;transition:opacity .15s,transform .15s;
+  display:inline-flex;align-items:center;gap:8px;
+}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px);}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-outline{
+  background:var(--surface);color:var(--primary);border:2px solid var(--primary);
+  border-radius:99px;padding:12px 28px;font-family:inherit;font-size:14px;font-weight:800;
+  cursor:pointer;transition:all .15s;margin-left:10px;
+}
+.btn-outline:hover{background:#f0f6ff;}
+
+/* ── Results ── */
+.score-wrap{text-align:center;padding:28px 0 20px;}
+.score-circle{
+  width:130px;height:130px;border-radius:50%;background:var(--grad);color:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  margin:0 auto 16px;box-shadow:0 8px 32px rgba(63,124,184,.35);
+}
+.score-num{font-size:36px;font-weight:900;line-height:1;font-family:'Cairo',sans-serif;}
+.score-lbl{font-size:12px;font-weight:700;opacity:.88;}
+.score-title{font-size:18px;font-weight:800;color:var(--text);margin-bottom:6px;}
+.score-sub{font-size:14px;color:var(--muted);}
+
+/* ── Skill items ── */
+.skills-grid{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+.skill-item{
+  display:flex;align-items:center;gap:12px;
+  padding:13px 16px;border-radius:13px;border:1.5px solid var(--border);
+}
+.skill-item.mastered{border-color:#22c55e;background:#f0fdf4;}
+.skill-item.needs{border-color:#f59e0b;background:#fffbeb;}
+.skill-item.unknown{border-color:#e2e8f0;background:#f8fafc;}
+.skill-icon{font-size:18px;flex-shrink:0;}
+.skill-name{font-size:13.5px;font-weight:700;flex:1;}
+.skill-badge{font-size:11px;font-weight:800;border-radius:99px;padding:3px 10px;flex-shrink:0;}
+.mastered .skill-badge{background:#dcfce7;color:#166534;}
+.needs .skill-badge{background:#fef3c7;color:#92400e;}
+.unknown .skill-badge{background:#f1f5f9;color:#64748b;}
+
+/* ── Support plan ── */
+.support-box{
+  background:#fff7ed;border:1.5px solid #fed7aa;border-radius:18px;
+  padding:20px;margin-top:20px;
+}
+.support-box-title{
+  font-size:15px;font-weight:800;color:#c2410c;
+  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.support-item{
+  background:#fff;border:1px solid #fed7aa;border-radius:11px;
+  padding:12px 14px;margin-bottom:10px;
+  display:flex;align-items:flex-start;gap:10px;
+}
+.support-item:last-child{margin-bottom:0;}
+.si-icon{font-size:17px;flex-shrink:0;margin-top:2px;}
+.si-text{font-size:13.5px;font-weight:600;color:var(--text);line-height:1.65;}
+.si-text strong{color:#c2410c;}
+
+.good-box{
+  background:#f0fdf4;border:1.5px solid #86efac;border-radius:18px;
+  padding:20px;margin-top:20px;
+  display:flex;align-items:flex-start;gap:12px;
+}
+.good-box-icon{font-size:28px;flex-shrink:0;}
+.good-box-text strong{display:block;font-size:15px;font-weight:800;color:#166534;margin-bottom:4px;}
+.good-box-text span{font-size:13.5px;color:#166534;}
+
+/* ── Section scores (post-test) ── */
+.section-scores{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+.sec-score{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:13px;
+  padding:14px 16px;
+}
+.sec-score-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.sec-score-name{font-size:13.5px;font-weight:700;color:var(--text);}
+.sec-score-pct{font-size:14px;font-weight:800;color:var(--primary);}
+.sec-bar{height:7px;background:#e2e8f0;border-radius:99px;overflow:hidden;}
+.sec-bar-fill{height:100%;border-radius:99px;transition:width .5s .2s ease;}
+
+/* ── Wrong answers feedback ── */
+.wrong-list{display:flex;flex-direction:column;gap:12px;margin-top:6px;}
+.wrong-item{
+  background:var(--surface);border:1.5px solid #fecaca;border-radius:13px;padding:16px;
+}
+.wi-qnum{font-size:11px;font-weight:800;color:#ef4444;margin-bottom:6px;}
+.wi-qtext{font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.6;}
+.wi-answers{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.wi-ans{font-size:13px;font-weight:600;padding:8px 12px;border-radius:8px;display:flex;align-items:center;gap:8px;}
+.wi-ans.wrong{background:#fef2f2;color:#991b1b;}
+.wi-ans.correct{background:#f0fdf4;color:#166534;}
+.wi-ans.dk{background:#fffbeb;color:#92400e;}
+.wi-exp{
+  background:#f8fafc;border-right:3px solid var(--primary);
+  border-radius:0 8px 8px 0;padding:10px 12px;
+  font-size:13px;font-weight:600;color:var(--text);line-height:1.65;
+}
+
+.section-label{font-family:'Cairo',sans-serif;font-weight:800;font-size:15px;color:var(--primary);margin-bottom:14px;}
+
+footer{text-align:center;font-size:12.5px;color:var(--muted);padding:20px 0 36px;font-weight:600;}
+
+@media(max-width:560px){
+  .q-opt{font-size:13.5px;padding:11px 13px;}
+  .q-text{font-size:14.5px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Topbar ── -->
+<div class="topbar">
+  <div class="topbar-right">
+    <img class="topbar-logo" src="../../logo-white.png" alt="">
+    <span class="topbar-title">أحياء — أول ثانوي</span>
+  </div>
+  <div>
+    <button class="tb-back" onclick="handleBack()">رجوع</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     Screen 1: Intro
+══════════════════════════════════════════════ -->
+<div class="screen active" id="screen-intro">
+  <div class="hero">
+    <div class="hero-pills">
+      <span class="hero-pill">📗 دعم التعلم</span>
+      <span class="hero-pill">🔬 الأحياء</span>
+      <span class="hero-pill">أول ثانوي</span>
+    </div>
+    <h1>دعم التعلم والتحصيل<br>في مادة الأحياء</h1>
+    <p>الوحدة الأولى — دراسة الحياة</p>
+  </div>
+  <div class="container">
+
+    <div class="card">
+      <div style="font-size:22px;margin-bottom:12px;">👋</div>
+      <h3 style="font-size:16px;margin-bottom:10px;color:var(--primary);">أخي الطالب، مرحباً بك</h3>
+      <p style="font-size:14px;line-height:1.8;color:var(--text);">
+        نحن هنا نقدم لك دعم التعلم بشكل بنائي منظم على حسب ما يلي:
+      </p>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <span style="background:var(--primary);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;margin-top:2px;">١</span>
+          <span style="font-size:14px;line-height:1.7;">على حسب <strong>توقيت دخولك</strong> للبوابة — هل هو قبل دراسة الوحدة أم بعدها.</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <span style="background:var(--primary);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;margin-top:2px;">٢</span>
+          <span style="font-size:14px;line-height:1.7;">على حسب <strong>مستواك واحتياجك</strong> من خلال أدوات تشخيص تحدد ذلك.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:18px;text-align:center;">
+        هل ما زلت لم تتلقَّ دراسة الوحدة الأولى من المادة؟
+      </p>
+      <button class="choice-btn" onclick="startMode('pre')">
+        <div class="choice-icon-wrap">📋</div>
+        <div class="choice-content">
+          <span class="choice-title">نعم، لم أبدأ بعد بدراستها</span>
+          <span class="choice-desc">تفضل بالدخول لصفحة التشخيص القبلي وقياس الاستعداد</span>
+        </div>
+      </button>
+      <button class="choice-btn" onclick="startMode('post')">
+        <div class="choice-icon-wrap">✅</div>
+        <div class="choice-content">
+          <span class="choice-title">لا، لقد درستُ الوحدة</span>
+          <span class="choice-desc">تفضل بالدخول لصفحة تقويم تعلم الوحدة</span>
+        </div>
+      </button>
+    </div>
+
+    <footer>بوابة دعم التعلم — ثانوية الخالدية</footer>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     Screen 2: Pre-test (التشخيص القبلي)
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-pre">
+  <div class="hero">
+    <div class="hero-pills">
+      <span class="hero-pill">📋 التشخيص القبلي</span>
+      <span class="hero-pill">١٠ أسئلة</span>
+    </div>
+    <h1>التشخيص القبلي<br>لقياس الاستعداد لدراسة الوحدة</h1>
+    <p>يحدد موقعك من مهارات الوحدة ويكشف متطلبات التعلم القبلية</p>
+  </div>
+  <div class="container">
+    <div class="q-progress">
+      <div class="q-progress-bar"><div class="q-progress-fill" id="pre-progress-fill" style="width:0%"></div></div>
+      <span class="q-counter" id="pre-counter">١ / ١٠</span>
+    </div>
+    <div class="card" id="pre-q-card">
+      <!-- JS renders question here -->
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" id="pre-next-btn" onclick="preNext()" disabled>
+        التالي <span>←</span>
+      </button>
+    </div>
+    <footer>بوابة دعم التعلم — ثانوية الخالدية</footer>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     Screen 3: Pre-results
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-pre-results">
+  <div class="hero">
+    <div class="hero-pills">
+      <span class="hero-pill">✅ اكتمل التشخيص</span>
+    </div>
+    <h1>نتيجة التشخيص القبلي</h1>
+    <p>شكراً لك — تفضل باستعراض نتيجتك وخطة الدعم المقترحة</p>
+  </div>
+  <div class="container">
+    <div class="card">
+      <div class="score-wrap">
+        <div class="score-circle" id="pre-score-circle">
+          <span class="score-num" id="pre-score-num">0</span>
+          <span class="score-lbl">من ١٠</span>
+        </div>
+        <div class="score-title" id="pre-score-title">تحليل الاستعداد</div>
+        <div class="score-sub" id="pre-score-sub"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">تحليل المهارات</div>
+      <div class="skills-grid" id="pre-skills-grid"></div>
+    </div>
+
+    <div id="pre-support-box"></div>
+
+    <div class="btn-row" style="justify-content:center;gap:12px;flex-wrap:wrap;">
+      <button class="btn-primary" onclick="showScreen('screen-intro')">العودة للرئيسية</button>
+      <button class="btn-outline" onclick="startMode('post')">هل درستَ الوحدة؟ انتقل للتقويم</button>
+    </div>
+    <footer>بوابة دعم التعلم — ثانوية الخالدية</footer>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     Screen 4: Post-test (تقويم التعلم)
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-post">
+  <div class="hero">
+    <div class="hero-pills">
+      <span class="hero-pill">📝 تقويم التعلم</span>
+      <span class="hero-pill">٢٠ سؤالاً</span>
+    </div>
+    <h1>اختبار إتقان الوحدة الأولى<br>دراسة الحياة</h1>
+    <p>يقيس مدى تعلمك واكتسابك للمهارات اللازمة في الوحدة</p>
+  </div>
+  <div class="container">
+    <div class="q-progress">
+      <div class="q-progress-bar"><div class="q-progress-fill" id="post-progress-fill" style="width:0%"></div></div>
+      <span class="q-counter" id="post-counter">١ / ٢٠</span>
+    </div>
+    <div class="card" id="post-q-card">
+      <!-- JS renders question here -->
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" id="post-next-btn" onclick="postNext()" disabled>
+        التالي <span>←</span>
+      </button>
+    </div>
+    <footer>بوابة دعم التعلم — ثانوية الخالدية</footer>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     Screen 5: Post-results
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-post-results">
+  <div class="hero">
+    <div class="hero-pills">
+      <span class="hero-pill">✅ اكتمل الاختبار</span>
+    </div>
+    <h1>نتيجة اختبار إتقان الوحدة</h1>
+    <p>شكراً لك — تفضل باستعراض نتيجتك وخطة الدعم المقترحة</p>
+  </div>
+  <div class="container">
+    <div class="card">
+      <div class="score-wrap">
+        <div class="score-circle" id="post-score-circle">
+          <span class="score-num" id="post-score-num">0</span>
+          <span class="score-lbl">من ٢٠</span>
+        </div>
+        <div class="score-title" id="post-score-title">تحليل مستوى الإتقان</div>
+        <div class="score-sub" id="post-score-sub"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">أداؤك في أقسام الوحدة</div>
+      <div class="section-scores" id="post-section-scores"></div>
+    </div>
+
+    <div id="post-support-box"></div>
+
+    <div class="card" id="post-wrong-card" style="display:none;">
+      <div class="section-label">التغذية الراجعة — مراجعة الأخطاء</div>
+      <div class="wrong-list" id="post-wrong-list"></div>
+    </div>
+
+    <div class="btn-row" style="justify-content:center;">
+      <button class="btn-primary" onclick="showScreen('screen-intro')">العودة للرئيسية</button>
+    </div>
+    <footer>بوابة دعم التعلم — ثانوية الخالدية</footer>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     JavaScript
+══════════════════════════════════════════════ -->
+<script>
+// ── Data ───────────────────────────────────────
+
+const LETTERS = ['أ', 'ب', 'ج', 'د'];
+
+const PRE_Q = [
+  {
+    text: 'ما الفكرة الأساسية التي يدرسها علم الأحياء؟',
+    opts: ['دراسة الصخور والمعادن فقط','دراسة المخلوقات الحية وخصائصها وتفاعلاتها','دراسة حركة الأجسام فقط','دراسة الطقس والمناخ'],
+    ans: 1, skill: 'فهم هوية علم الأحياء'
+  },
+  {
+    text: 'أي مما يلي يُعدّ من خصائص المخلوقات الحية؟',
+    opts: ['لها لون محدد','تستطيع النمو والتكاثر والاستجابة للمؤثرات','تكون دائماً كبيرة الحجم','تتحرك من مكان إلى آخر'],
+    ans: 1, skill: 'تمييز خصائص المخلوقات الحية'
+  },
+  {
+    text: 'أي ترتيب صحيح لمستويات التنظيم من الأصغر إلى الأكبر؟',
+    opts: ['جهاز ← عضو ← نسيج ← خلية','خلية ← نسيج ← عضو ← جهاز','نسيج ← خلية ← جهاز ← عضو','عضو ← جهاز ← خلية ← نسيج'],
+    ans: 1, skill: 'مستويات التنظيم الحيوي'
+  },
+  {
+    text: 'أي عبارة صحيحة عن الخلية؟',
+    opts: ['هي أكبر مستوى في التنظيم الحيوي','هي الوحدة الأساسية في بناء المخلوقات الحية','توجد فقط في النباتات','لا تحتوي على تراكيب داخلية'],
+    ans: 1, skill: 'مفهوم الخلية'
+  },
+  {
+    text: 'باحث لاحظ أن نباتاً ينمو بشكل أفضل عند تعرضه لكمية معينة من الضوء. ما الخطوة العلمية التالية الأكثر مناسبة؟',
+    opts: ['وضع تفسير قابل للاختبار','كتابة النتيجة النهائية مباشرة','تغيير جميع الظروف مرة واحدة','تجاهل الملاحظة'],
+    ans: 0, skill: 'خطوات المنهج العلمي'
+  },
+  {
+    text: 'أي مما يلي يمثل سؤالاً علمياً قابلاً للاختبار؟',
+    opts: ['ما أجمل لون للنبات؟','هل تؤثر كمية الماء في نمو النبات؟','لماذا الطبيعة جميلة؟','ما أفضل كائن حي؟'],
+    ans: 1, skill: 'صياغة الأسئلة العلمية'
+  },
+  {
+    text: 'النظرية العلمية تعني:',
+    opts: ['رأياً شخصياً','فكرة غير مدعومة','تفسيراً مدعوماً بأدلة كثيرة','تخميناً عشوائياً'],
+    ans: 2, skill: 'فهم طبيعة المعرفة العلمية'
+  },
+  {
+    text: 'لماذا يصنّف العلماء المخلوقات الحية؟',
+    opts: ['لأن جميعها متشابهة تماماً','لتنظيم المعلومات وفهم العلاقات بينها','لتغيير صفاتها','لمعرفة حجمها فقط'],
+    ans: 1, skill: 'أهمية التصنيف'
+  },
+  {
+    text: 'أي علاقة صحيحة؟',
+    opts: ['الجهاز يتكون من خلايا فقط دون أعضاء','العضو يتكون من أنسجة','الخلية تتكون من أجهزة','النسيج أكبر من الجهاز'],
+    ans: 1, skill: 'الربط بين مستويات التنظيم'
+  },
+  {
+    text: 'إذا حصل طالب على معلومة علمية جديدة، فما السؤال الأفضل الذي يسأله؟',
+    opts: ['هل أحفظها فقط؟','كيف ترتبط بما أعرفه سابقاً؟','هل هي طويلة؟','هل هي في الاختبار فقط؟'],
+    ans: 1, skill: 'مهارات التفكير العلمي'
+  }
+];
+
+const POST_SECTIONS = ['فهم المفاهيم الأساسية','ربط المفاهيم','تطبيق المعرفة','التفكير العلمي والتحليل'];
+
+const POST_Q = [
+  // Section 0
+  {
+    text: 'ما العبارة التي تصف علم الأحياء بصورة صحيحة؟',
+    opts: ['علم يدرس الصخور والمعادن فقط','علم يدرس المخلوقات الحية وخصائصها وتفاعلاتها','علم يدرس حركة الأجسام والقوى','علم يدرس الطقس والمناخ فقط'],
+    ans: 1, sec: 0,
+    exp: 'لأن علم الأحياء هو العلم الذي يدرس المخلوقات الحية وخصائصها وتفاعلاتها وتنظيمها، وليس فرعاً يختص بمجال واحد فقط.'
+  },
+  {
+    text: 'أي مما يلي يُعدّ من خصائص المخلوقات الحية؟',
+    opts: ['امتلاك لون محدد','القدرة على النمو والتكاثر والاستجابة للمؤثرات','وجودها في مكان معين فقط','قدرتها على الحركة فقط'],
+    ans: 1, sec: 0,
+    exp: 'لأن المخلوقات الحية تتميز بمجموعة خصائص مثل النمو والتكاثر والاستجابة للمؤثرات، أما الصفات الشكلية أو الحركة وحدها فلا تكفي.'
+  },
+  {
+    text: 'أي مما يلي يمثل أصغر مستوى من مستويات التنظيم الحيوي؟',
+    opts: ['الجهاز','العضو','الخلية','النسيج'],
+    ans: 2, sec: 0,
+    exp: 'لأن الخلية هي أصغر مستوى من مستويات التنظيم الحيوي، ومنها تبدأ بقية المستويات الأكبر.'
+  },
+  {
+    text: 'لماذا تُعدّ الخلية الوحدة الأساسية للحياة؟',
+    opts: ['لأنها أكبر جزء في المخلوق الحي','لأنها موجودة في النباتات فقط','لأن جميع المخلوقات الحية تتكون من خلية أو أكثر','لأنها لا تحتوي على تراكيب داخلية'],
+    ans: 2, sec: 0,
+    exp: 'لأن جميع المخلوقات الحية تتكون من خلية واحدة أو أكثر، ولذلك تُعدّ الخلية الوحدة الأساسية للحياة.'
+  },
+  {
+    text: 'أي عبارة صحيحة عن الاتزان الداخلي؟',
+    opts: ['قدرة المخلوق الحي على المحافظة على ظروف داخلية مستقرة','قدرة الكائن على الانتقال من مكان لآخر','قدرة الكائن على تغيير نوعه','قدرة الكائن على زيادة حجمه فقط'],
+    ans: 0, sec: 0,
+    exp: 'لأن الاتزان الداخلي يعني قدرة المخلوق الحي على المحافظة على ظروف داخلية مستقرة تساعده على البقاء.'
+  },
+  // Section 1
+  {
+    text: 'أي ترتيب يمثل مستويات التنظيم الحيوي من الأصغر إلى الأكبر؟',
+    opts: ['خلية ← نسيج ← عضو ← جهاز ← مخلوق حي','عضو ← خلية ← نسيج ← جهاز','جهاز ← عضو ← نسيج ← خلية','نسيج ← جهاز ← خلية ← عضو'],
+    ans: 0, sec: 1,
+    exp: 'لأن الخلايا تتجمع لتكوين أنسجة، والأنسجة تكوّن أعضاء، والأعضاء تعمل معاً في أجهزة داخل المخلوق الحي.'
+  },
+  {
+    text: 'العلاقة الصحيحة بين النسيج والعضو هي:',
+    opts: ['النسيج يتكون من أجهزة','العضو يتكون من مجموعة أنسجة تعمل معاً','الجهاز يتكون من خلية واحدة','العضو أصغر من الخلية'],
+    ans: 1, sec: 1,
+    exp: 'لأن العضو يتكون من مجموعة أنسجة تعمل معاً لأداء وظيفة محددة.'
+  },
+  {
+    text: 'لماذا يحتاج العلماء إلى تصنيف المخلوقات الحية؟',
+    opts: ['لمعرفة لون كل مخلوق فقط','لتنظيم التنوع الحيوي وفهم العلاقات بين المخلوقات','لتغيير صفات الكائنات','لإثبات أن جميع الكائنات متشابهة'],
+    ans: 1, sec: 1,
+    exp: 'لأن التصنيف يساعد العلماء على تنظيم التنوع الحيوي وفهم أوجه التشابه والعلاقات بين المخلوقات الحية.'
+  },
+  {
+    text: 'إذا وجد العلماء تشابهاً كبيراً بين مخلوقين حيين فهذا يساعدهم على:',
+    opts: ['فهم العلاقات بينهما','اعتبارهما مخلوقاً واحداً','إلغاء التصنيف','معرفة عمرهما فقط'],
+    ans: 0, sec: 1,
+    exp: 'لأن التشابه بين المخلوقات يعطي العلماء معلومات تساعدهم على دراسة العلاقات بينها وتصنيفها.'
+  },
+  {
+    text: 'أي علاقة توضح بناء المخلوق الحي؟',
+    opts: ['أجهزة ← أعضاء ← أنسجة ← خلايا','خلايا ← أنسجة ← أعضاء ← أجهزة','أعضاء ← خلايا ← أجهزة ← أنسجة','خلايا ← أعضاء ← أنسجة ← أجهزة'],
+    ans: 1, sec: 1,
+    exp: 'لأن بناء المخلوق الحي يبدأ من الخلية ثم تتجمع الخلايا لتكوين أنسجة ثم أعضاء ثم أجهزة.'
+  },
+  // Section 2
+  {
+    text: 'شاهد طالب شيئاً يتحرك، فقال: "إذن هو مخلوق حي". ما التقييم الصحيح؟',
+    opts: ['صحيح دائماً','خطأ لأن الحركة وحدها لا تكفي لإثبات الحياة','صحيح إذا كان سريعاً','صحيح إذا كان كبيراً'],
+    ans: 1, sec: 2,
+    exp: 'لأن الحركة ليست دليلاً كافياً على الحياة؛ فبعض الأشياء غير الحية تتحرك، بينما الحياة تعتمد على مجموعة خصائص مترابطة.'
+  },
+  {
+    text: 'لاحظ باحث أن نباتاً معيناً ينمو أكثر عند زيادة الماء. ما السؤال العلمي المناسب؟',
+    opts: ['هل النبات جميل؟','هل كمية الماء تؤثر في نمو النبات؟','لماذا الطبيعة رائعة؟','ما أفضل نبات؟'],
+    ans: 1, sec: 2,
+    exp: 'لأن السؤال العلمي يجب أن يكون قابلاً للاختبار والقياس، وتأثير كمية الماء في النمو يمكن دراسته بتجربة.'
+  },
+  {
+    text: 'إذا أراد الباحث اختبار تأثير الضوء في نمو النبات، فما الذي يجب تغييره؟',
+    opts: ['كمية الضوء','جميع العوامل معاً','نوع النبات والماء والضوء معاً','لا يغير شيئاً'],
+    ans: 0, sec: 2,
+    exp: 'لأن اختبار أثر عامل معين يتطلب تغيير متغير واحد فقط مع تثبيت بقية العوامل لمعرفة السبب الحقيقي للنتيجة.'
+  },
+  {
+    text: 'أي موقف يمثل فرضية علمية؟',
+    opts: ['النبات جميل','أعتقد أن زيادة الضوء قد تزيد نمو النبات','شاهدت النبات ينمو','سجلت النتيجة النهائية'],
+    ans: 1, sec: 2,
+    exp: 'لأن الفرضية هي تفسير أو توقع يمكن اختباره، وليست مجرد ملاحظة أو رأياً عاماً.'
+  },
+  {
+    text: 'بعد إجراء تجربة وجمع البيانات، فإن الخطوة التالية هي:',
+    opts: ['تحليل النتائج واستخلاص الاستنتاج','حذف البيانات','تغيير الفرضية دون دراسة','تجاهل النتائج'],
+    ans: 0, sec: 2,
+    exp: 'لأن تحليل النتائج بعد جمع البيانات يساعد العالم على الوصول إلى استنتاج حول صحة الفرضية.'
+  },
+  // Section 3
+  {
+    text: 'ما الفرق بين النظرية العلمية والرأي الشخصي؟',
+    opts: ['لا يوجد فرق','النظرية العلمية تعتمد على الأدلة والتجارب','الرأي أكثر دقة دائماً','النظرية مجرد تخمين'],
+    ans: 1, sec: 3,
+    exp: 'لأن النظرية العلمية تفسير مدعوم بأدلة وتجارب كثيرة، وليست رأياً شخصياً أو تخميناً.'
+  },
+  {
+    text: 'أي سؤال يُعدّ سؤالاً علمياً؟',
+    opts: ['ما أجمل مخلوق حي؟','هل تؤثر درجة الحرارة في نمو النبات؟','ما أفضل لون؟','ما الحيوان المفضل؟'],
+    ans: 1, sec: 3,
+    exp: 'لأن السؤال العلمي هو الذي يمكن الإجابة عنه بالملاحظة أو التجربة والقياس.'
+  },
+  {
+    text: 'عندما يكرر العلماء التجربة أكثر من مرة فإن الهدف:',
+    opts: ['زيادة الثقة في النتائج','تغيير الحقيقة','تقليل المعلومات','إلغاء الفرضية'],
+    ans: 0, sec: 3,
+    exp: 'لأن تكرار التجربة يزيد من موثوقية النتائج ويقلل احتمال أن تكون النتيجة بسبب الصدفة.'
+  },
+  {
+    text: 'إذا حصل العلماء على نتائج لا توافق الفرضية، فماذا يفعلون؟',
+    opts: ['يخفون النتائج','يراجعون الفرضية أو التجربة','يغيرون البيانات','يتوقفون عن البحث'],
+    ans: 1, sec: 3,
+    exp: 'لأن النتائج غير المتوافقة مع الفرضية تدفع العلماء إلى مراجعة الفرضية أو طريقة التجربة، وليس تغيير البيانات.'
+  },
+  {
+    text: 'ما أفضل وصف للتعلم العلمي؟',
+    opts: ['حفظ المعلومات فقط','فهم الأفكار وربطها واستخدامها في تفسير الظواهر','قراءة الكتاب مرة واحدة','معرفة المصطلحات دون فهمها'],
+    ans: 1, sec: 3,
+    exp: 'لأن التعلم العلمي الحقيقي يعتمد على فهم الأفكار وربطها واستخدامها في تفسير الظواهر، وليس حفظ المعلومات فقط.'
+  }
+];
+
+// ── State ──────────────────────────────────────
+let preAnswers = new Array(PRE_Q.length).fill(null);  // null | 0-3 | 'dk'
+let postAnswers = new Array(POST_Q.length).fill(null);
+let preIdx = 0;
+let postIdx = 0;
+
+// ── Helpers ────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function handleBack() {
+  const active = document.querySelector('.screen.active');
+  if (!active || active.id === 'screen-intro') {
+    window.location.href = '../index.html';
+  } else {
+    showScreen('screen-intro');
+  }
+}
+
+function arabicNum(n) {
+  return n.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+}
+
+// ── Quiz render ────────────────────────────────
+function renderQ(questions, idx, cardId, progressFillId, counterId, answers, onSelect) {
+  const q = questions[idx];
+  const total = questions.length;
+  const pct = (idx / total) * 100;
+  document.getElementById(progressFillId).style.width = pct + '%';
+  document.getElementById(counterId).textContent = arabicNum(idx + 1) + ' / ' + arabicNum(total);
+
+  const card = document.getElementById(cardId);
+  const sectionTag = q.sec !== undefined
+    ? `<div class="q-section-tag">${POST_SECTIONS[q.sec]}</div>` : '';
+
+  let optsHTML = q.opts.map((opt, i) => `
+    <button class="q-opt" data-i="${i}" onclick="${onSelect}(${i})">
+      <span class="q-opt-letter">${LETTERS[i]}</span>
+      <span>${opt}</span>
+    </button>`).join('');
+
+  card.innerHTML = `
+    ${sectionTag}
+    <div class="q-text">${q.text}</div>
+    <div class="q-options">${optsHTML}</div>
+    <button class="q-dontknow" id="dontknow-btn" onclick="${onSelect}('dk')">
+      ❓ لا أعرف الإجابة
+    </button>`;
+
+  // Restore previous selection if any
+  const prev = answers[idx];
+  if (prev !== null) {
+    if (prev === 'dk') {
+      document.getElementById('dontknow-btn').classList.add('selected');
+    } else {
+      const btns = card.querySelectorAll('.q-opt');
+      if (btns[prev]) btns[prev].classList.add('selected');
+    }
+  }
+}
+
+// ── Pre-test ───────────────────────────────────
+function startMode(mode) {
+  if (mode === 'pre') {
+    preIdx = 0;
+    preAnswers = new Array(PRE_Q.length).fill(null);
+    renderPreQ();
+    showScreen('screen-pre');
+  } else {
+    postIdx = 0;
+    postAnswers = new Array(POST_Q.length).fill(null);
+    renderPostQ();
+    showScreen('screen-post');
+  }
+}
+
+function renderPreQ() {
+  renderQ(PRE_Q, preIdx, 'pre-q-card', 'pre-progress-fill', 'pre-counter', preAnswers, 'selectPreOpt');
+  updatePreBtn();
+}
+
+function selectPreOpt(val) {
+  preAnswers[preIdx] = val;
+  const card = document.getElementById('pre-q-card');
+  card.querySelectorAll('.q-opt').forEach(b => b.classList.remove('selected'));
+  document.getElementById('dontknow-btn').classList.remove('selected');
+  if (val === 'dk') {
+    document.getElementById('dontknow-btn').classList.add('selected');
+  } else {
+    const btns = card.querySelectorAll('.q-opt');
+    if (btns[val]) btns[val].classList.add('selected');
+  }
+  updatePreBtn();
+}
+
+function updatePreBtn() {
+  document.getElementById('pre-next-btn').disabled = preAnswers[preIdx] === null;
+  document.getElementById('pre-next-btn').textContent =
+    preIdx === PRE_Q.length - 1 ? 'إنهاء وعرض النتيجة' : 'التالي ←';
+}
+
+function preNext() {
+  if (preAnswers[preIdx] === null) return;
+  if (preIdx < PRE_Q.length - 1) {
+    preIdx++;
+    renderPreQ();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    showPreResults();
+  }
+}
+
+// ── Pre results ────────────────────────────────
+function showPreResults() {
+  let correct = 0;
+  preAnswers.forEach((a, i) => { if (a === PRE_Q[i].ans) correct++; });
+  const pct = Math.round(correct / PRE_Q.length * 100);
+
+  document.getElementById('pre-score-num').textContent = arabicNum(correct);
+  const circle = document.getElementById('pre-score-circle');
+
+  let titleText, subText, circleColor;
+  if (pct >= 80) {
+    titleText = 'مستعد للدراسة — أحسنت!';
+    subText = 'مستواك جيد في المتطلبات القبلية، يمكنك البدء بدراسة الوحدة مباشرة.';
+    circleColor = 'linear-gradient(135deg,#22c55e,#4FA877)';
+  } else if (pct >= 50) {
+    titleText = 'تحتاج إلى مراجعة بعض المفاهيم';
+    subText = 'لديك قاعدة جيدة ولكن هناك جوانب تحتاج تعزيزها قبل دراسة الوحدة.';
+    circleColor = 'linear-gradient(135deg,#f59e0b,#d97706)';
+  } else {
+    titleText = 'تحتاج إلى دعم في المتطلبات الأساسية';
+    subText = 'لا تقلق — خطة الدعم أدناه ستساعدك على بناء الأساس اللازم قبل البدء.';
+    circleColor = 'linear-gradient(135deg,#3F7CB8,#4A96A0)';
+  }
+  circle.style.background = circleColor;
+  document.getElementById('pre-score-title').textContent = titleText;
+  document.getElementById('pre-score-sub').textContent = subText;
+
+  // Skills grid
+  const skillsGrid = document.getElementById('pre-skills-grid');
+  skillsGrid.innerHTML = '';
+  PRE_Q.forEach((q, i) => {
+    const a = preAnswers[i];
+    const isCorrect = a === q.ans;
+    const isDK = a === 'dk';
+    const cls = isCorrect ? 'mastered' : isDK ? 'unknown' : 'needs';
+    const icon = isCorrect ? '✅' : isDK ? '❓' : '⚠️';
+    const badge = isCorrect ? 'أتقنتها' : isDK ? 'غير محدد' : 'تحتاج دعماً';
+    skillsGrid.innerHTML += `
+      <div class="skill-item ${cls}">
+        <span class="skill-icon">${icon}</span>
+        <span class="skill-name">${q.skill}</span>
+        <span class="skill-badge">${badge}</span>
+      </div>`;
+  });
+
+  // Support box
+  const needsSupport = PRE_Q.filter((q, i) => preAnswers[i] !== q.ans);
+  const supportBox = document.getElementById('pre-support-box');
+  if (needsSupport.length === 0) {
+    supportBox.innerHTML = `
+      <div class="good-box">
+        <div class="good-box-icon">🌟</div>
+        <div class="good-box-text">
+          <strong>مستعد تماماً!</strong>
+          <span>أتقنت جميع المهارات القبلية — تفضل بدراسة الوحدة بثقة.</span>
+        </div>
+      </div>`;
+  } else {
+    const items = needsSupport.map(q => `
+      <div class="support-item">
+        <span class="si-icon">📌</span>
+        <span class="si-text">راجع مفهوم: <strong>${q.skill}</strong> قبل البدء بدراسة الوحدة.</span>
+      </div>`).join('');
+    supportBox.innerHTML = `
+      <div class="support-box">
+        <div class="support-box-title">💡 خطة الدعم المقترحة قبل الدراسة</div>
+        <div class="support-item">
+          <span class="si-icon">📖</span>
+          <span class="si-text">راجع المفاهيم التالية لتتهيأ لدراسة الوحدة الأولى:</span>
+        </div>
+        ${items}
+        <div class="support-item" style="margin-top:4px;">
+          <span class="si-icon">🎯</span>
+          <span class="si-text">بعد المراجعة، تفضل بدراسة الوحدة ثم عد لإجراء اختبار تقويم التعلم.</span>
+        </div>
+      </div>`;
+  }
+
+  showScreen('screen-pre-results');
+}
+
+// ── Post-test ──────────────────────────────────
+function renderPostQ() {
+  renderQ(POST_Q, postIdx, 'post-q-card', 'post-progress-fill', 'post-counter', postAnswers, 'selectPostOpt');
+  updatePostBtn();
+}
+
+function selectPostOpt(val) {
+  postAnswers[postIdx] = val;
+  const card = document.getElementById('post-q-card');
+  card.querySelectorAll('.q-opt').forEach(b => b.classList.remove('selected'));
+  document.getElementById('dontknow-btn').classList.remove('selected');
+  if (val === 'dk') {
+    document.getElementById('dontknow-btn').classList.add('selected');
+  } else {
+    const btns = card.querySelectorAll('.q-opt');
+    if (btns[val]) btns[val].classList.add('selected');
+  }
+  updatePostBtn();
+}
+
+function updatePostBtn() {
+  document.getElementById('post-next-btn').disabled = postAnswers[postIdx] === null;
+  document.getElementById('post-next-btn').textContent =
+    postIdx === POST_Q.length - 1 ? 'إنهاء وعرض النتيجة' : 'التالي ←';
+}
+
+function postNext() {
+  if (postAnswers[postIdx] === null) return;
+  if (postIdx < POST_Q.length - 1) {
+    postIdx++;
+    renderPostQ();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    showPostResults();
+  }
+}
+
+// ── Post results ───────────────────────────────
+function showPostResults() {
+  let correct = 0;
+  postAnswers.forEach((a, i) => { if (a === POST_Q[i].ans) correct++; });
+  const pct = Math.round(correct / POST_Q.length * 100);
+
+  document.getElementById('post-score-num').textContent = arabicNum(correct);
+  const circle = document.getElementById('post-score-circle');
+
+  let titleText, subText, circleColor;
+  if (pct >= 80) {
+    titleText = 'أحسنت — أتقنت الوحدة بشكل ممتاز!';
+    subText = `حصلت على ${correct} من ${POST_Q.length} — مستوى إتقانك عالٍ.`;
+    circleColor = 'linear-gradient(135deg,#22c55e,#4FA877)';
+  } else if (pct >= 50) {
+    titleText = 'أداء جيد مع حاجة لتعزيز بعض المهارات';
+    subText = `حصلت على ${correct} من ${POST_Q.length} — راجع خطة الدعم أدناه.`;
+    circleColor = 'linear-gradient(135deg,#f59e0b,#d97706)';
+  } else {
+    titleText = 'تحتاج إلى مراجعة شاملة للوحدة';
+    subText = `حصلت على ${correct} من ${POST_Q.length} — لا تقلق، خطة الدعم ستساعدك.`;
+    circleColor = 'linear-gradient(135deg,#3F7CB8,#4A96A0)';
+  }
+  circle.style.background = circleColor;
+  document.getElementById('post-score-title').textContent = titleText;
+  document.getElementById('post-score-sub').textContent = subText;
+
+  // Section scores
+  const secScores = document.getElementById('post-section-scores');
+  secScores.innerHTML = '';
+  POST_SECTIONS.forEach((name, si) => {
+    const sQs = POST_Q.filter((q, i) => q.sec === si);
+    const sCorrect = sQs.filter((q, j) => {
+      const globalIdx = POST_Q.indexOf(q);
+      return postAnswers[globalIdx] === q.ans;
+    }).length;
+    const sPct = Math.round(sCorrect / sQs.length * 100);
+    const barColor = sPct >= 80 ? '#22c55e' : sPct >= 50 ? '#f59e0b' : '#ef4444';
+    secScores.innerHTML += `
+      <div class="sec-score">
+        <div class="sec-score-top">
+          <span class="sec-score-name">${name}</span>
+          <span class="sec-score-pct">${arabicNum(sCorrect)}/${arabicNum(sQs.length)}</span>
+        </div>
+        <div class="sec-bar">
+          <div class="sec-bar-fill" style="width:${sPct}%;background:${barColor};"></div>
+        </div>
+      </div>`;
+  });
+
+  // Support box
+  const weakSections = POST_SECTIONS.filter((name, si) => {
+    const sQs = POST_Q.filter(q => q.sec === si);
+    const sCorrect = sQs.filter(q => postAnswers[POST_Q.indexOf(q)] === q.ans).length;
+    return sCorrect / sQs.length < 0.6;
+  });
+
+  const supportBox = document.getElementById('post-support-box');
+  if (weakSections.length === 0) {
+    supportBox.innerHTML = `
+      <div class="good-box">
+        <div class="good-box-icon">🏆</div>
+        <div class="good-box-text">
+          <strong>إتقان ممتاز في جميع الأقسام!</strong>
+          <span>تفضل بالاطلاع على المواد الإثرائية لتعميق فهمك وتوسيع معرفتك بالوحدة.</span>
+        </div>
+      </div>`;
+  } else {
+    const items = weakSections.map(name => `
+      <div class="support-item">
+        <span class="si-icon">📚</span>
+        <span class="si-text">راجع قسم: <strong>${name}</strong> — تفضل بقراءة الوحدة مع التركيز على هذا القسم.</span>
+      </div>`).join('');
+    supportBox.innerHTML = `
+      <div class="support-box">
+        <div class="support-box-title">💡 خطة الدعم المقترحة</div>
+        ${items}
+        <div class="support-item">
+          <span class="si-icon">🔄</span>
+          <span class="si-text">بعد المراجعة، تفضل بإعادة الاختبار لقياس تحسّنك.</span>
+        </div>
+        <div class="support-item">
+          <span class="si-icon">✏️</span>
+          <span class="si-text">راجع التغذية الراجعة للأسئلة الخاطئة أدناه لفهم سبب الخطأ.</span>
+        </div>
+      </div>`;
+  }
+
+  // Wrong answers feedback
+  const wrongQs = POST_Q.map((q, i) => ({ q, i, a: postAnswers[i] })).filter(({ q, a }) => a !== q.ans);
+  const wrongCard = document.getElementById('post-wrong-card');
+  const wrongList = document.getElementById('post-wrong-list');
+  if (wrongQs.length > 0) {
+    wrongCard.style.display = 'block';
+    wrongList.innerHTML = wrongQs.map(({ q, i, a }) => {
+      const myLabel = a === 'dk' ? '❓ لا أعرف الإجابة' : `${LETTERS[a]}) ${q.opts[a]}`;
+      const myClass = a === 'dk' ? 'dk' : 'wrong';
+      const corrLabel = `${LETTERS[q.ans]}) ${q.opts[q.ans]}`;
+      return `
+        <div class="wrong-item">
+          <div class="wi-qnum">السؤال ${arabicNum(i + 1)}</div>
+          <div class="wi-qtext">${q.text}</div>
+          <div class="wi-answers">
+            <div class="wi-ans ${myClass}">✗ إجابتك: ${myLabel}</div>
+            <div class="wi-ans correct">✓ الإجابة الصحيحة: ${corrLabel}</div>
+          </div>
+          <div class="wi-exp">💬 ${q.exp}</div>
+        </div>`;
+    }).join('');
+  }
+
+  showScreen('screen-post-results');
+}
+</script>
+</body>
+</html>

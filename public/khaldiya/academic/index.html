@@ -103,11 +103,22 @@
     display:flex;flex-direction:column;align-items:center;gap:8px;
     position:relative;opacity:.6;
   }
+  .subject-card.available{
+    opacity:1;cursor:pointer;
+    transition:transform .18s,box-shadow .18s,border-color .18s;
+  }
+  .subject-card.available:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--primary);}
+  .subject-card.available:active{transform:scale(.97);}
   .subject-icon{font-size:34px;line-height:1;}
   .subject-name{font-family:'Cairo',sans-serif;font-weight:800;font-size:14px;color:var(--text);}
   .soon-badge{
     position:absolute;top:9px;left:9px;
     background:#f1f5f9;color:var(--muted);
+    border-radius:99px;padding:2px 9px;font-size:11px;font-weight:700;
+  }
+  .avail-badge{
+    position:absolute;top:9px;left:9px;
+    background:#dcfce7;color:#166534;
     border-radius:99px;padding:2px 9px;font-size:11px;font-weight:700;
   }
 
@@ -174,14 +185,14 @@
   </div>
   <div class="container">
     <div class="section-label" id="subjects-label">المواد الدراسية</div>
-    <div class="subject-grid">
+    <div class="subject-grid" id="subjects-grid">
       <div class="subject-card">
         <span class="soon-badge">قريباً</span>
         <div class="subject-icon">📐</div>
         <div class="subject-name">الرياضيات</div>
       </div>
-      <div class="subject-card">
-        <span class="soon-badge">قريباً</span>
+      <div class="subject-card" id="card-biology">
+        <span class="soon-badge" id="biology-badge">قريباً</span>
         <div class="subject-icon">🔬</div>
         <div class="subject-name">الأحياء</div>
       </div>
@@ -239,13 +250,32 @@ function navBack() {
   if (onSubjects) { goBack(); } else { history.back(); }
 }
 
+let currentGrade = '';
+
 function selectGrade(name) {
+  currentGrade = name;
   document.getElementById('grade-pill').textContent = name;
   document.getElementById('subjects-hero-title').textContent = 'مواد ' + name;
   document.getElementById('subjects-label').textContent = 'المواد الدراسية — ' + name;
   document.getElementById('topbar-title').textContent = name;
   document.getElementById('screen-grade').classList.remove('active');
   document.getElementById('screen-subjects').classList.add('active');
+
+  // Enable biology for أول ثانوي
+  const biologyCard = document.getElementById('card-biology');
+  const biologyBadge = document.getElementById('biology-badge');
+  if (name === 'أول ثانوي') {
+    biologyCard.classList.add('available');
+    biologyCard.onclick = () => { window.location.href = 'biology-g1/index.html'; };
+    biologyBadge.className = 'avail-badge';
+    biologyBadge.textContent = 'متاح';
+  } else {
+    biologyCard.classList.remove('available');
+    biologyCard.onclick = null;
+    biologyBadge.className = 'soon-badge';
+    biologyBadge.textContent = 'قريباً';
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 

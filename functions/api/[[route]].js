@@ -187,9 +187,13 @@ export async function onRequest({ request, env }) {
         if (!code || !/^\d{10}$/.test(code)) return err('رمز غير صالح', 400, CORS);
         const sc = bodySchool || school;
         const student = await DB.prepare('SELECT id, code, name, school FROM students WHERE code = ? AND school = ?').bind(code, sc).first();
-        if (!student) return err('السجل المدني غير مسجّل', 404, CORS);
+        if (!student) {
+          try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'warn','login',`محاولة دخول طالب فاشلة: ${code}`,'','student',sc,ip,new Date().toISOString()).run(); } catch {}
+          return err('السجل المدني غير مسجّل', 404, CORS);
+        }
         const secret = env.JWT_SECRET || 'lg-jwt-fallback-2026';
         const token = await jwtSign({ sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, secret);
+        try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'success','login',`تسجيل دخول طالب: ${student.name}`,student.name,'student',student.school||'',ip,new Date().toISOString()).run(); } catch {}
         return ok({ token, student: { id: student.id, name: student.name, school: student.school } }, 200, CORS);
       }
 
@@ -199,14 +203,18 @@ export async function onRequest({ request, env }) {
         const { code: adminCode, school: bodySchool } = await request.json();
         if (!adminCode || !/^\d{10}$/.test(adminCode)) return err('رمز غير صالح', 400, CORS);
         const admin = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(adminCode).first();
-        if (!admin) return err('السجل المدني غير مسجّل', 404, CORS);
         const sc = bodySchool || school;
+        if (!admin) {
+          try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'warn','login',`محاولة دخول مشرف فاشلة: ${adminCode}`,'','admin',sc,ip,new Date().toISOString()).run(); } catch {}
+          return err('السجل المدني غير مسجّل', 404, CORS);
+        }
         if (admin.school !== '*' && sc && admin.school !== sc) return err('غير مصرح', 403, CORS);
         const secret = env.JWT_SECRET || 'lg-jwt-fallback-2026';
         const adminName = admin.admin_name || admin.name || '';
         // Normalize role: only 'director' keeps its value, everything else becomes 'admin'
         const adminRole = admin.role === 'director' ? 'director' : 'admin';
         const token = await jwtSign({ sub: admin.id, role: adminRole, name: adminName, school: admin.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, secret);
+        try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'success','login',`تسجيل دخول ${adminRole==='director'?'مدير':'مشرف'}: ${adminName}`,adminName,adminRole,admin.school||'',ip,new Date().toISOString()).run(); } catch {}
         return ok({ token, admin: { id: admin.id, name: adminName, school: admin.school, role: adminRole } }, 200, CORS);
       }
 
@@ -628,6 +636,42 @@ export async function onRequest({ request, env }) {
       // DELETE /api/dev/questions — clear all questions
       if (sub === 'questions' && method === 'DELETE') {
         await DB.prepare('DELETE FROM questions').run();
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // GET /api/dev/logs — get activity logs
+      if (sub === 'logs' && method === 'GET') {
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
+        const level    = url.searchParams.get('level') || '';
+        const category = url.searchParams.get('category') || '';
+        const limitN   = Math.min(parseInt(url.searchParams.get('limit') || '200', 10), 500);
+        let q = 'SELECT * FROM logs';
+        const params = [];
+        const conds = [];
+        if (level)    { conds.push('level = ?');    params.push(level); }
+        if (category) { conds.push('category = ?'); params.push(category); }
+        if (conds.length) q += ' WHERE ' + conds.join(' AND ');
+        q += ' ORDER BY created_at DESC LIMIT ?';
+        params.push(limitN);
+        const { results } = await DB.prepare(q).bind(...params).all();
+        return ok({ logs: results }, 200, CORS);
+      }
+
+      // POST /api/dev/logs — write a log entry (also accepts JWT)
+      if (sub === 'logs' && method === 'POST') {
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
+        const body = await request.json();
+        const lid = crypto.randomUUID();
+        const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
+        const now = new Date().toISOString();
+        await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
+          .bind(lid, body.level||'info', body.category||'system', String(body.message||'').slice(0,500), body.user_name||'', body.user_role||'', body.school||'', ip, now).run();
+        return ok({ ok: true }, 201, CORS);
+      }
+
+      // DELETE /api/dev/logs — clear all logs
+      if (sub === 'logs' && method === 'DELETE') {
+        try { await DB.prepare('DELETE FROM logs').run(); } catch {}
         return ok({ ok: true }, 200, CORS);
       }
 

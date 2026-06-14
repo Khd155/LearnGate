@@ -17,6 +17,15 @@ const ActivityLog = {
   clear()      { this._entries = []; },
 };
 
+function serverLog(level, category, message, extra = {}) {
+  const payload = { level, category, message, ...extra };
+  fetch('/api/dev/logs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(_authToken ? { Authorization: 'Bearer ' + _authToken } : {}) },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+
 // ── Cloudflare D1 data layer (via Pages Functions API) ───────────────────
 const Cache = { students: [], plans: [], loaded: false };
 window.QUESTION_BANK = (typeof QUESTIONS !== 'undefined' ? QUESTIONS.slice() : []);
@@ -321,6 +330,7 @@ const App = {
       showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
     ActivityLog.success(`🎓 تسجيل دخول طالب: ${student.name} (${code}) — ${student.school || '—'}`);
+    serverLog('success', 'login', `تسجيل دخول طالب: ${student.name}`, { user_name: student.name, user_role: 'student', school: student.school || '' });
     _authToken = token;
     State.student = student;
     State.role = 'student';
@@ -380,6 +390,7 @@ const App = {
       showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
     ActivityLog.success(`👨‍💼 تسجيل دخول مشرف: ${admin.name || code} (${code}) — ${admin.school || '—'} — دور: ${admin.role || 'admin'}`);
+    serverLog('success', 'login', `تسجيل دخول مشرف: ${admin.name || code}`, { user_name: admin.name || '', user_role: admin.role || 'admin', school: admin.school || '' });
     _authToken = token;
     State.role  = admin.role === 'director' ? 'director' : 'admin';
     State.admin = { ...admin, code };
@@ -676,6 +687,7 @@ const App = {
       plan = await DB.addAttempt({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, adminNote: '' });
     } catch (e) {
       ActivityLog.error('✗ حفظ الخطة فشل: ' + (e?.message || e));
+      serverLog('error', 'plan', '✗ حفظ الخطة فشل: ' + (e?.message || e));
       if (loadEl) loadEl.style.display = 'none';
       if (errEl)  errEl.style.display  = '';
       return;
@@ -2809,6 +2821,7 @@ const App = {
   logout() {
     const who = State.student?.name || State.admin?.name || '—';
     ActivityLog.warn(`🚪 تسجيل خروج: ${who}`);
+    serverLog('info', 'logout', `تسجيل خروج: ${who}`, { user_name: who });
     App.stopCooldownTimer();
     clearInterval(App._chatTimer);
     stopIdleWatch();

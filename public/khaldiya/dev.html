@@ -153,6 +153,22 @@
       .topbar{padding:12px 16px}
       .stat-grid{grid-template-columns:repeat(2,1fr)}
     }
+
+    /* Better topbar gradient */
+    .topbar {
+      background: linear-gradient(135deg, #1e3a5f 0%, #1e4a3a 100%);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    /* Better stat cards */
+    .stat-card {
+      border-left: 3px solid var(--primary);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+
+    /* Logs auto-scroll container */
+    #logs-list { max-height: 600px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); }
   </style>
 </head>
 <body>

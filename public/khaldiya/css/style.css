@@ -98,8 +98,8 @@ p, span, div, button, input, label, td, th {
   order: 1;
 }
 .topbar-back:hover { background: rgba(255,255,255,.3); }
-.topbar-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; white-space: nowrap; }
-.topbar-sub { font-size: 12px; opacity: .85; margin-top: 2px; font-weight: 500; }
+.topbar-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-sub { font-size: 12px; opacity: .85; margin-top: 2px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-ghost { display:flex; align-items:center; gap:8px; flex-shrink:0; order: -1; }
 
 /* ══════════════════════════════════════════════════════════
@@ -676,11 +676,13 @@ p, span, div, button, input, label, td, th {
 /* ─ Small phones (≤ 640px) ─ */
 @media (max-width: 640px) {
   .page-wrap { padding: 16px 14px 36px; }
-  .topbar { padding: 12px 14px; gap: 10px; }
+  .topbar { padding: 12px 14px; gap: 8px; }
   .topbar-title { font-size: 14.5px; font-weight: 700; }
   .topbar-sub   { font-size: 11px; opacity: .85; }
   .topbar-back  { height: 34px; min-width: 34px; padding: 0 11px; font-size: 13px; }
   .topbar-ghost { min-width: 34px; }
+  /* hide user chip on small phones to prevent header overflow */
+  .tb-uname { display: none !important; }
   .card { padding: 18px 16px; border-radius: 14px; }
   .welcome-banner { padding: 18px 16px; border-radius: 16px; }
   .welcome-banner h2 { font-size: 16px; }

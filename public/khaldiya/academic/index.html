@@ -80,7 +80,12 @@
 
   /* ── Grade cards ── */
   .grade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
-  @media(max-width:560px){.grade-grid{grid-template-columns:1fr;}}
+  @media(max-width:560px){
+    .grade-grid{grid-template-columns:1fr;}
+    .topbar{padding:10px 14px;gap:8px;}
+    .topbar-title{font-size:13px;}
+    .user-chip{display:none!important;}
+  }
 
   .grade-card{
     background:var(--surface);border:2px solid var(--border);border-radius:var(--radius-lg);

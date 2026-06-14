@@ -207,6 +207,7 @@
     <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')">📝 الأسئلة</button>
     <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')">⚠️ أدوات</button>
     <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')">🎫 الدعم الفني</button>
+    <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')">📋 سجل النشاط</button>
   </div>
 
   <div class="content">
@@ -403,6 +404,34 @@
       </div>
     </div>
 
+    <!-- ── Logs ── -->
+    <div id="tab-logs" class="tab-pane">
+      <div class="section">
+        <div class="section-title"><span>📋</span> سجل النشاط الكامل
+          <div style="margin-right:auto;display:flex;gap:8px;flex-wrap:wrap">
+            <select id="log-level-filter" class="form-select" style="width:auto;padding:6px 10px;font-size:12px" onchange="Dev.loadLogs()">
+              <option value="">كل المستويات</option>
+              <option value="success">✅ نجاح</option>
+              <option value="info">ℹ️ معلومات</option>
+              <option value="warn">⚠️ تحذير</option>
+              <option value="error">❌ خطأ</option>
+            </select>
+            <select id="log-cat-filter" class="form-select" style="width:auto;padding:6px 10px;font-size:12px" onchange="Dev.loadLogs()">
+              <option value="">كل الأنواع</option>
+              <option value="login">🔑 دخول وخروج</option>
+              <option value="logout">🚪 خروج</option>
+              <option value="plan">📋 خطط</option>
+              <option value="error">❌ أخطاء</option>
+              <option value="system">⚙️ النظام</option>
+            </select>
+            <button class="btn btn-warn btn-sm" onclick="Dev.loadLogs()">🔄 تحديث</button>
+            <button class="btn btn-danger btn-sm" onclick="Dev.clearLogs()">🗑 مسح</button>
+          </div>
+        </div>
+        <div id="logs-list"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /app -->
 
@@ -470,6 +499,7 @@ const Dev = {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     document.getElementById('tab-' + tab).classList.add('active');
+    if (tab === 'logs') { Dev.loadLogs(); return; }
   },
 
   async loadAll() {
@@ -826,6 +856,52 @@ const Dev = {
     Dev.loadQuestions();
   },
 
+  // ── Logs Tab ────────────────────────────────────────────────────────────
+  async loadLogs() {
+    const el = document.getElementById('logs-list');
+    if (!el) return;
+    el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
+    try {
+      const level = document.getElementById('log-level-filter')?.value || '';
+      const cat   = document.getElementById('log-cat-filter')?.value || '';
+      let url = '/dev/logs?limit=200';
+      if (level) url += '&level=' + level;
+      if (cat)   url += '&category=' + cat;
+      const { logs } = await apiDev(url);
+      if (!logs || !logs.length) { el.innerHTML = '<div class="empty">لا توجد سجلات</div>'; return; }
+      const levelColors = { success: '#22c55e', info: '#3b82f6', warn: '#f59e0b', error: '#ef4444' };
+      const levelIcons  = { success: '✅', info: 'ℹ️', warn: '⚠️', error: '❌' };
+      el.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">${logs.length} سجل</div>` +
+        logs.map(l => {
+          const color = levelColors[l.level] || '#94a3b8';
+          const icon  = levelIcons[l.level]  || '•';
+          const time  = new Date(l.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+          return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;">
+            <span style="flex-shrink:0;color:${color};font-size:15px">${icon}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;color:#e2e8f0;word-break:break-word">${l.message}</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+                ${l.user_name ? `<span style="color:var(--muted);font-size:11px">👤 ${l.user_name}</span>` : ''}
+                ${l.school    ? `<span style="color:var(--muted);font-size:11px">🏫 ${l.school}</span>` : ''}
+                ${l.ip        ? `<span style="color:var(--muted);font-size:11px">🌐 ${l.ip}</span>` : ''}
+                <span style="color:var(--muted);font-size:11px">${time}</span>
+              </div>
+            </div>
+            <span style="flex-shrink:0;background:${color}22;color:${color};border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700">${l.category||''}</span>
+          </div>`;
+        }).join('');
+    } catch (e) {
+      el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل السجلات: ${e.message}</div>`;
+    }
+  },
+
+  async clearLogs() {
+    if (!confirm('مسح جميع السجلات نهائياً؟')) return;
+    await apiDev('/dev/logs', { method: 'DELETE' });
+    showToast('تم مسح السجلات ✅');
+    Dev.loadLogs();
+  },
+
   // ── Support Tab ────────────────────────────────────────────────────────
   _spTab: 'tickets',
 
@@ -841,7 +917,7 @@ const Dev = {
     const el = document.getElementById('sp-content');
     el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
     try {
-      const { tickets } = await fetch('/api/tickets').then(r => r.json());
+      const { tickets } = await fetch('/api/tickets', { headers: { 'X-Dev-Key': devKey } }).then(r => r.json());
       if (!tickets.length) { el.innerHTML = '<div class="empty">لا توجد تذاكر دعم</div>'; return; }
       el.innerHTML = tickets.map(t => {
         const bc = t.status === 'open' ? 'tbadge-open' : t.status === 'in_progress' ? 'tbadge-progress' : 'tbadge-resolved';
@@ -881,7 +957,7 @@ const Dev = {
   async loadTicketThread(id) {
     const el = document.getElementById('tw-' + id);
     try {
-      const { ticket, replies } = await fetch(`/api/tickets/${id}`).then(r => r.json());
+      const { ticket, replies } = await fetch(`/api/tickets/${id}`, { headers: { 'X-Dev-Key': devKey } }).then(r => r.json());
       if (!replies.length) { el.innerHTML = '<div class="empty" style="padding:12px">لا توجد ردود بعد</div>'; return; }
       el.innerHTML = replies.map(r => {
         const time = new Date(r.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
@@ -904,7 +980,7 @@ const Dev = {
     try {
       await fetch(`/api/tickets/${id}/reply`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
         body: JSON.stringify({ senderType: 'admin', body }),
       });
       Dev.loadTicketThread(id);
@@ -916,7 +992,7 @@ const Dev = {
     try {
       await fetch(`/api/tickets/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
         body: JSON.stringify({ status: 'resolved' }),
       });
       showToast('تم الحل ✅');

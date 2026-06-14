@@ -657,16 +657,37 @@ const App = {
       return { skillId: sk.id, skillName: sk.name, category: sk.category, pct, level, selfAssess: self, recommendation: rec, overconfident };
     }).sort((a, b) => a.pct - b.pct);
 
+    App._pendingGaps = gaps;
+    const _loadEl = document.getElementById('processing-loading');
+    const _errEl  = document.getElementById('processing-error');
+    if (_loadEl) _loadEl.style.display = '';
+    if (_errEl)  _errEl.style.display  = 'none';
+    await App._submitPlan(gaps);
+  },
+
+  async _submitPlan(gaps) {
+    const loadEl = document.getElementById('processing-loading');
+    const errEl  = document.getElementById('processing-error');
+    if (loadEl) loadEl.style.display = '';
+    if (errEl)  errEl.style.display  = 'none';
     let plan;
     try {
       plan = await DB.addAttempt({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, adminNote: '' });
     } catch (e) {
-      alert('تعذّر حفظ الخطة. حاول مرة أخرى.');
-      show('screen-student-home'); return;
+      ActivityLog.error('✗ حفظ الخطة فشل: ' + (e?.message || e));
+      if (loadEl) loadEl.style.display = 'none';
+      if (errEl)  errEl.style.display  = '';
+      return;
     }
     State.currentPlan = plan;
     App.renderLevelAnalysis(plan);
     show('screen-level-analysis');
+  },
+
+  _pendingGaps: null,
+
+  async retryProcessResults() {
+    if (App._pendingGaps) await App._submitPlan(App._pendingGaps);
   },
 
   // ── Level Analysis ───────────────────────────────────────────────────────

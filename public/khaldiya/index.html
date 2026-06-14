@@ -1017,7 +1017,7 @@
      SCREEN 6b: PROCESSING
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-processing" class="screen">
-  <div class="processing-screen">
+  <div class="processing-screen" id="processing-loading">
     <div class="processing-icon">🤖</div>
     <div class="processing-title">يحلل النظام نتائجك...</div>
     <div class="processing-sub">
@@ -1026,6 +1026,13 @@
     <div class="processing-bar">
       <div class="processing-bar-fill"></div>
     </div>
+  </div>
+  <div class="processing-screen" id="processing-error" style="display:none;">
+    <div class="processing-icon">⚠️</div>
+    <div class="processing-title" style="color:#b45309;">تعذّر حفظ الخطة</div>
+    <div class="processing-sub">تحقق من اتصالك بالإنترنت ثم اضغط إعادة المحاولة — نتائجك محفوظة محلياً.</div>
+    <button onclick="App.retryProcessResults()" style="margin-top:24px;background:var(--grad);color:#fff;border:none;border-radius:99px;padding:13px 32px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;">إعادة المحاولة</button>
+    <button onclick="show('screen-student-home')" style="margin-top:12px;background:none;border:none;color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">الرجوع للرئيسية</button>
   </div>
 </div>
 

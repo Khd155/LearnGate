@@ -154,21 +154,35 @@ h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
 .score-title{font-size:18px;font-weight:800;color:var(--text);margin-bottom:6px;}
 .score-sub{font-size:14px;color:var(--muted);}
 
-/* ── Skill items ── */
-.skills-grid{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
-.skill-item{
-  display:flex;align-items:center;gap:12px;
-  padding:13px 16px;border-radius:13px;border:1.5px solid var(--border);
+/* ── Question-by-question results (pre-test) ── */
+.pre-q-list{display:flex;flex-direction:column;gap:12px;margin-top:6px;}
+.pqi-item{border-radius:13px;border:1.5px solid var(--border);overflow:hidden;}
+.pqi-item.correct{border-color:#86efac;}
+.pqi-item.wrong{border-color:#fca5a5;}
+.pqi-item.unknown{border-color:#e2e8f0;}
+.pqi-header{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:9px 14px;
+  background:#f8fafc;border-bottom:1px solid var(--border);
 }
-.skill-item.mastered{border-color:#22c55e;background:#f0fdf4;}
-.skill-item.needs{border-color:#f59e0b;background:#fffbeb;}
-.skill-item.unknown{border-color:#e2e8f0;background:#f8fafc;}
-.skill-icon{font-size:18px;flex-shrink:0;}
-.skill-name{font-size:13.5px;font-weight:700;flex:1;}
-.skill-badge{font-size:11px;font-weight:800;border-radius:99px;padding:3px 10px;flex-shrink:0;}
-.mastered .skill-badge{background:#dcfce7;color:#166534;}
-.needs .skill-badge{background:#fef3c7;color:#92400e;}
-.unknown .skill-badge{background:#f1f5f9;color:#64748b;}
+.pqi-item.correct .pqi-header{background:#f0fdf4;border-bottom-color:#86efac;}
+.pqi-item.wrong .pqi-header{background:#fef2f2;border-bottom-color:#fca5a5;}
+.pqi-num{font-size:12px;font-weight:800;color:var(--muted);}
+.pqi-skill{
+  font-size:11.5px;font-weight:800;border-radius:99px;
+  padding:2px 10px;background:rgba(63,124,184,.1);color:var(--primary);
+}
+.pqi-question{font-size:13.5px;font-weight:700;color:var(--text);line-height:1.7;padding:12px 14px;}
+.pqi-correct-ans{
+  font-size:13px;font-weight:700;color:#166534;
+  padding:0 14px 8px;display:flex;align-items:flex-start;gap:6px;
+}
+.pqi-feedback{
+  font-size:13px;font-weight:600;line-height:1.65;
+  padding:10px 14px;border-top:1px solid var(--border);
+}
+.pqi-feedback.correct{background:#f0fdf4;color:#166534;border-top-color:#86efac;}
+.pqi-feedback.wrong{background:#fff7ed;color:#92400e;border-top-color:#fed7aa;}
 
 /* ── Support plan ── */
 .support-box{
@@ -368,8 +382,8 @@ footer{text-align:center;font-size:12.5px;color:var(--muted);padding:20px 0 36px
     </div>
 
     <div class="card">
-      <div class="section-label">تحليل المهارات</div>
-      <div class="skills-grid" id="pre-skills-grid"></div>
+      <div class="section-label">نتيجة كل سؤال</div>
+      <div class="pre-q-list" id="pre-q-list"></div>
     </div>
 
     <div id="pre-support-box"></div>
@@ -465,52 +479,62 @@ const PRE_Q = [
   {
     text: 'ما الفكرة الأساسية التي يدرسها علم الأحياء؟',
     opts: ['دراسة الصخور والمعادن فقط','دراسة المخلوقات الحية وخصائصها وتفاعلاتها','دراسة حركة الأجسام فقط','دراسة الطقس والمناخ'],
-    ans: 1, skill: 'فهم هوية علم الأحياء'
+    ans: 1, skill: 'فهم هوية علم الأحياء',
+    exp: 'علم الأحياء يدرس المخلوقات الحية بمجملها — خصائصها وتفاعلاتها ومستوياتها التنظيمية، وليس مجالاً واحداً كالصخور أو الطقس.'
   },
   {
     text: 'أي مما يلي يُعدّ من خصائص المخلوقات الحية؟',
     opts: ['لها لون محدد','تستطيع النمو والتكاثر والاستجابة للمؤثرات','تكون دائماً كبيرة الحجم','تتحرك من مكان إلى آخر'],
-    ans: 1, skill: 'تمييز خصائص المخلوقات الحية'
+    ans: 1, skill: 'تمييز خصائص المخلوقات الحية',
+    exp: 'خصائص الحياة مجموعة صفات مجتمعة — النمو والتكاثر والاستجابة للمؤثرات — وليست صفة شكلية واحدة كاللون أو الحجم.'
   },
   {
     text: 'أي ترتيب صحيح لمستويات التنظيم من الأصغر إلى الأكبر؟',
     opts: ['جهاز ← عضو ← نسيج ← خلية','خلية ← نسيج ← عضو ← جهاز','نسيج ← خلية ← جهاز ← عضو','عضو ← جهاز ← خلية ← نسيج'],
-    ans: 1, skill: 'مستويات التنظيم الحيوي'
+    ans: 1, skill: 'مستويات التنظيم الحيوي',
+    exp: 'الترتيب يبدأ من الأصغر: الخلية تتجمع لتكوّن نسيجاً، والأنسجة تكوّن عضواً، والأعضاء تعمل معاً ضمن جهاز.'
   },
   {
     text: 'أي عبارة صحيحة عن الخلية؟',
     opts: ['هي أكبر مستوى في التنظيم الحيوي','هي الوحدة الأساسية في بناء المخلوقات الحية','توجد فقط في النباتات','لا تحتوي على تراكيب داخلية'],
-    ans: 1, skill: 'مفهوم الخلية'
+    ans: 1, skill: 'مفهوم الخلية',
+    exp: 'الخلية هي الوحدة الأساسية للحياة — أصغر وحدة قادرة على أداء وظائف الحياة، وتوجد في جميع المخلوقات الحية.'
   },
   {
     text: 'باحث لاحظ أن نباتاً ينمو بشكل أفضل عند تعرضه لكمية معينة من الضوء. ما الخطوة العلمية التالية الأكثر مناسبة؟',
     opts: ['وضع تفسير قابل للاختبار','كتابة النتيجة النهائية مباشرة','تغيير جميع الظروف مرة واحدة','تجاهل الملاحظة'],
-    ans: 0, skill: 'خطوات المنهج العلمي'
+    ans: 0, skill: 'خطوات المنهج العلمي',
+    exp: 'بعد الملاحظة تأتي الفرضية — وضع تفسير أو توقع قابل للاختبار. لا نكتب نتيجة قبل إجراء التجربة الفعلية.'
   },
   {
     text: 'أي مما يلي يمثل سؤالاً علمياً قابلاً للاختبار؟',
     opts: ['ما أجمل لون للنبات؟','هل تؤثر كمية الماء في نمو النبات؟','لماذا الطبيعة جميلة؟','ما أفضل كائن حي؟'],
-    ans: 1, skill: 'صياغة الأسئلة العلمية'
+    ans: 1, skill: 'صياغة الأسئلة العلمية',
+    exp: 'السؤال العلمي يجب أن يكون قابلاً للقياس والاختبار. أسئلة الرأي والجمال لا يمكن قياسها، بينما تأثير الماء يمكن دراسته بتجربة.'
   },
   {
     text: 'النظرية العلمية تعني:',
     opts: ['رأياً شخصياً','فكرة غير مدعومة','تفسيراً مدعوماً بأدلة كثيرة','تخميناً عشوائياً'],
-    ans: 2, skill: 'فهم طبيعة المعرفة العلمية'
+    ans: 2, skill: 'فهم طبيعة المعرفة العلمية',
+    exp: 'النظرية العلمية ليست تخميناً ولا رأياً — بل هي تفسير موثوق مدعوم بأدلة وتجارب متعددة ومتكررة.'
   },
   {
     text: 'لماذا يصنّف العلماء المخلوقات الحية؟',
     opts: ['لأن جميعها متشابهة تماماً','لتنظيم المعلومات وفهم العلاقات بينها','لتغيير صفاتها','لمعرفة حجمها فقط'],
-    ans: 1, skill: 'أهمية التصنيف'
+    ans: 1, skill: 'أهمية التصنيف',
+    exp: 'التصنيف يساعد العلماء على تنظيم التنوع الحيوي الضخم وفهم أوجه الشبه والاختلاف والعلاقات بين الكائنات الحية.'
   },
   {
     text: 'أي علاقة صحيحة؟',
     opts: ['الجهاز يتكون من خلايا فقط دون أعضاء','العضو يتكون من أنسجة','الخلية تتكون من أجهزة','النسيج أكبر من الجهاز'],
-    ans: 1, skill: 'الربط بين مستويات التنظيم'
+    ans: 1, skill: 'الربط بين مستويات التنظيم',
+    exp: 'العضو يتكون من مجموعة أنسجة تعمل معاً لأداء وظيفة محددة — هذا هو الربط الصحيح بين مستوى النسيج ومستوى العضو.'
   },
   {
     text: 'إذا حصل طالب على معلومة علمية جديدة، فما السؤال الأفضل الذي يسأله؟',
     opts: ['هل أحفظها فقط؟','كيف ترتبط بما أعرفه سابقاً؟','هل هي طويلة؟','هل هي في الاختبار فقط؟'],
-    ans: 1, skill: 'مهارات التفكير العلمي'
+    ans: 1, skill: 'مهارات التفكير العلمي',
+    exp: 'التفكير العلمي يعني ربط المعلومات الجديدة بالسابقة وفهم كيف تترابط مع بعضها — وليس مجرد حفظها.'
   }
 ];
 
@@ -808,21 +832,33 @@ function showPreResults() {
   document.getElementById('pre-score-title').textContent = titleText;
   document.getElementById('pre-score-sub').textContent = subText;
 
-  // Skills grid
-  const skillsGrid = document.getElementById('pre-skills-grid');
-  skillsGrid.innerHTML = '';
+  // Question-by-question list
+  const qList = document.getElementById('pre-q-list');
+  qList.innerHTML = '';
   PRE_Q.forEach((q, i) => {
     const a = preAnswers[i];
     const isCorrect = a === q.ans;
     const isDK = a === 'dk';
-    const cls = isCorrect ? 'mastered' : isDK ? 'unknown' : 'needs';
-    const icon = isCorrect ? '✅' : isDK ? '❓' : '⚠️';
-    const badge = isCorrect ? 'أتقنتها' : isDK ? 'غير محدد' : 'تحتاج دعماً';
-    skillsGrid.innerHTML += `
-      <div class="skill-item ${cls}">
-        <span class="skill-icon">${icon}</span>
-        <span class="skill-name">${q.skill}</span>
-        <span class="skill-badge">${badge}</span>
+    const cls = isCorrect ? 'correct' : isDK ? 'unknown' : 'wrong';
+    const corrLabel = `${LETTERS[q.ans]}) ${q.opts[q.ans]}`;
+
+    let feedbackHTML;
+    if (isCorrect) {
+      feedbackHTML = `<div class="pqi-feedback correct">✅ أحسنت! إجابتك صحيحة.</div>`;
+    } else {
+      feedbackHTML = `
+        <div class="pqi-correct-ans">✓ الإجابة الصحيحة: ${corrLabel}</div>
+        <div class="pqi-feedback wrong">💡 ${q.exp}</div>`;
+    }
+
+    qList.innerHTML += `
+      <div class="pqi-item ${cls}">
+        <div class="pqi-header">
+          <span class="pqi-num">السؤال ${arabicNum(i + 1)}</span>
+          <span class="pqi-skill">${q.skill}</span>
+        </div>
+        <div class="pqi-question">${q.text}</div>
+        ${feedbackHTML}
       </div>`;
   });
 

@@ -52,7 +52,7 @@
     .topbar-logo {
       width: 52px;
       height: 41px;
-      background: url(logo-white.png) center/contain no-repeat;
+      object-fit: contain;
       display: block;
       flex-shrink: 0;
     }
@@ -453,13 +453,13 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-student-login" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-identity')">رجوع</button>
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">تسجيل الدخول</div>
       <div class="topbar-sub">بيانات الطالب</div>
     </div>
-    <div class="topbar-ghost"></div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-identity')">رجوع</button>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div style="text-align:center;margin-bottom:32px;">
@@ -489,12 +489,12 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-admin-login" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-identity')">رجوع</button>
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">دخول المشرف</div>
     </div>
-    <div class="topbar-ghost"></div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-identity')">رجوع</button>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div style="text-align:center;margin-bottom:32px;">
@@ -525,9 +525,12 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-support-login" class="screen">
   <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">دخول فريق الدعم</div>
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-admin-login')">رجوع</button>
-    <div style="flex:1;text-align:center;"><div class="topbar-title">دخول فريق الدعم</div></div>
-    <div class="topbar-ghost"></div>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div class="card">
@@ -548,8 +551,12 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-support-admin" class="screen">
   <div class="topbar">
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div style="flex:1;"><div class="topbar-title">لوحة الدعم الفني</div></div>
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">لوحة الدعم الفني</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="App.logout()" style="font-size:14px;">خروج</button>
   </div>
   <div class="page-wrap">
@@ -574,11 +581,13 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-student-home" class="screen">
   <div class="topbar">
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">بوابة دعم التعلم</div>
       <div class="topbar-sub" id="sh-school-sub"></div>
     </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
     <button class="notif-bell-btn" id="notif-bell-student" onclick="App.toggleNotifPanel()" title="الإشعارات">
       🔔<span class="notif-count-badge" id="notif-count-student" style="display:none;"></span>
     </button>
@@ -672,11 +681,13 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-cooldown" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
-    <div style="flex:1;text-align:center;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">اختبار القدرات</div>
     </div>
-    <div class="topbar-ghost"></div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
   </div>
   <div class="page-wrap">
     <div id="cd-content"></div>
@@ -688,12 +699,14 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-history" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-cooldown')">رجوع</button>
-    <div style="flex:1;text-align:center;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">سجل الاختبارات</div>
       <div class="topbar-sub">جميع محاولاتك السابقة</div>
     </div>
-    <div class="topbar-ghost"></div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-cooldown')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="table-scroll">
@@ -717,12 +730,14 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-intro" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
-    <div style="flex:1;text-align:center;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">مسار القدرات</div>
       <div class="topbar-sub">المقدمة التوجيهية</div>
     </div>
-    <div class="topbar-ghost"></div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="intro-box" style="margin-bottom:20px;">
@@ -818,12 +833,14 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-selfdiag" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-intro')">رجوع</button>
-    <div style="flex:1;text-align:center;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">التشخيص الذاتي</div>
       <div class="topbar-sub">قيّم مستواك في كل مهارة</div>
     </div>
-    <div class="topbar-ghost"></div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-intro')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="alert alert-info show" style="margin-bottom:20px;">
@@ -845,12 +862,14 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-pretest-intro" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-selfdiag')">رجوع</button>
-    <div style="flex:1;text-align:center;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">تعليمات الاختبار</div>
       <div class="topbar-sub">اقرأها بعناية قبل البدء</div>
     </div>
-    <div class="topbar-ghost"></div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-selfdiag')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="analysis-intro" style="margin-bottom:24px;">
@@ -921,9 +940,11 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-pretest" class="screen">
   <div class="topbar">
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">الاختبار التشخيصي القبلي</div>
     </div>
+    <div style="flex:1;min-width:8px;"></div>
     <div id="test-timer"
          style="font-size:15px;font-weight:800;color:#fff;
                 background:rgba(255,255,255,.18);border-radius:10px;
@@ -973,12 +994,14 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-level-analysis" class="screen">
   <div class="topbar">
-    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
-    <div style="flex:1;text-align:center;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">تحليل المستوى</div>
       <div class="topbar-sub">نتائج الاختبار التشخيصي</div>
     </div>
-    <div class="topbar-ghost"></div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
   </div>
   <div class="page-wrap">
 
@@ -1148,11 +1171,13 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-admin" class="screen">
   <div class="topbar">
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">لوحة تحكم المشرف</div>
       <div class="topbar-sub" id="ad-school-sub"></div>
     </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
     <button class="notif-bell-btn" id="notif-bell-admin" onclick="App.toggleNotifPanel()" title="الإشعارات">
       🔔<span class="notif-count-badge" id="notif-count-admin" style="display:none;"></span>
     </button>
@@ -1395,10 +1420,12 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-chat" class="screen">
   <div class="topbar">
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">التواصل مع المشرف</div>
     </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="App.leaveChatScreen()">رجوع</button>
   </div>
   <div class="chat-wrap">
@@ -1418,16 +1445,50 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-tickets" class="screen">
   <div class="topbar">
-    <a href="https://moe.gov.sa" rel="noreferrer" target="_blank" class="topbar-logo" aria-label="وزارة التعليم"></a>
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">الدعم الفني</div>
     </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="section-heading">طلباتي</div>
     <div id="st-ticket-list"></div>
     <button class="btn btn-primary btn-full" onclick="App.openNewTicketModal()" style="margin-top:16px;">+ طلب دعم جديد</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: IMPORT PREVIEW
+═══════════════════════════════════════════════════════ -->
+<div id="import-preview-modal" class="modal-overlay" onclick="if(event.target===this)App.closeImportPreview()">
+  <div class="modal-box" style="max-width:680px;width:calc(100% - 24px);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <div class="modal-title" style="margin:0;">📋 مراجعة بيانات الاستيراد</div>
+      <button class="topbar-back" style="background:rgba(63,124,184,.1);border-color:var(--border);color:var(--text);font-size:12px;" onclick="App.closeImportPreview()">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">راجع البيانات قبل الإضافة — يمكنك تعديل أي خلية مباشرةً.</p>
+    <div id="imp-summary-bar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;font-weight:700;"></div>
+    <div style="overflow-x:auto;max-height:380px;overflow-y:auto;border-radius:10px;box-shadow:var(--shadow-sm);">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead style="position:sticky;top:0;z-index:1;">
+          <tr style="background:linear-gradient(135deg,#3F7CB8,#4A96A0);color:#fff;">
+            <th style="padding:9px 12px;text-align:center;width:40px;">#</th>
+            <th style="padding:9px 12px;text-align:right;">السجل المدني</th>
+            <th style="padding:9px 12px;text-align:right;">اسم الطالب</th>
+            <th style="padding:9px 12px;text-align:center;width:90px;">الحالة</th>
+          </tr>
+        </thead>
+        <tbody id="imp-preview-body"></tbody>
+      </table>
+    </div>
+    <div id="imp-modal-err" class="alert alert-error" style="margin-top:12px;"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-primary" id="imp-confirm-btn" onclick="App.confirmImport()">✅ تأكيد الإضافة</button>
+      <button class="btn btn-outline" onclick="App.closeImportPreview()">إلغاء</button>
+    </div>
   </div>
 </div>
 

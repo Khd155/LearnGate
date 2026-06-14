@@ -307,13 +307,14 @@ const App = {
     localStorage.setItem('lg_xsession', JSON.stringify(_sess));
     const remember = document.getElementById('sl-remember');
     if (remember && remember.checked) {
-      localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code, name: student.name, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
+      localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code, name: student.name, school: student.school || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
     } else {
       localStorage.removeItem('lg_remember');
     }
     startIdleWatch();
     App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
     App.startNotifPolling();
+    App._setTopbarUser(student.name);
     try { await DB.loadStudentData(); } catch (e) {}
     App.renderStudentHome();
     show('screen-student-home');
@@ -371,18 +372,28 @@ const App = {
     localStorage.setItem('lg_xsession', JSON.stringify(_sess));
     const alRemember = document.getElementById('al-remember');
     if (alRemember && alRemember.checked) {
-      localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, name: adminName, expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
+      localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, name: adminName, school: admin.school || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
     } else {
       localStorage.removeItem('lg_remember');
     }
     startIdleWatch();
     App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
     App.startNotifPolling();
+    App._setTopbarUser(adminName);
     document.querySelectorAll('.director-tab').forEach(el => {
       el.style.display = State.role === 'director' ? '' : 'none';
     });
     App.renderAdminDashboard('students');
     show('screen-admin');
+  },
+
+  // ── Populate all .tb-uname chips with user name ───────────────────────────
+  _setTopbarUser(name) {
+    document.querySelectorAll('.tb-uname').forEach(chip => {
+      const textEl = chip.querySelector('.tb-uname-text');
+      if (textEl) textEl.textContent = name || '';
+      chip.style.display = name ? 'inline-flex' : 'none';
+    });
   },
 
   // ── Inject logo + name into all ghost topbar slots ───────────────────────
@@ -399,7 +410,7 @@ const App = {
 
   // ── Student Home ─────────────────────────────────────────────────────────
   renderStudentHome() {
-    App._fillTopbarGhosts();
+    App._setTopbarUser(State.student?.name || '');
     document.getElementById('sh-name').textContent = State.student.name;
     const myPlan    = DB.plans().find(p => p.studentId === State.student.id);
     const planBanner = document.getElementById('sh-plan-banner');
@@ -1593,21 +1604,136 @@ const App = {
   },
 
   // ── Excel: Students ────────────────────────────────────────────────────────
+  _importRows: [],
+
   async importStudents(input) {
     const file = input.files && input.files[0];
     input.value = '';
     if (!file) return;
     try {
-      const rows   = await readExcel(file);
-      const parsed = rows.map(r => ({
+      const rows = await readExcel(file);
+      const allRows = rows.map((r, i) => ({
+        _idx: i,
         code: String(r['السجل المدني'] ?? r['code'] ?? r['رمز الدخول'] ?? '').trim(),
         name: String(r['اسم الطالب']  ?? r['name']  ?? r['الاسم']      ?? '').trim(),
-      })).filter(r => /^\d{10}$/.test(r.code) && r.name);
-      if (!parsed.length) { alert('لم يتم العثور على صفوف صالحة.'); return; }
-      const res = await DB.bulkAddStudents(parsed);
-      showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'طلاب' : 'طالب'}${res.skipped ? ' (تجاهل ' + res.skipped + ' ' + (res.skipped >= 3 && res.skipped <= 10 ? 'مكررين' : 'مكرر') + ')' : ''} ✅`);
-      App.renderAdminDashboard('manage');
+      }));
+      if (!allRows.length) { alert('الملف فارغ أو لا يحتوي على بيانات.'); return; }
+
+      // Detect per-row issues
+      const codesSeen = {};
+      allRows.forEach(r => {
+        r.validCode = /^\d{10}$/.test(r.code);
+        r.validName = r.name.length > 0;
+        if (r.validCode) {
+          if (codesSeen[r.code] !== undefined) {
+            r.dupOf = codesSeen[r.code];
+            allRows[codesSeen[r.code]].isDupSrc = true;
+          } else {
+            codesSeen[r.code] = r._idx;
+          }
+        }
+      });
+
+      // Check existing students in system
+      const existing = new Set(DB.students().map(s => s.code));
+      allRows.forEach(r => { r.existsInDB = r.validCode && existing.has(r.code); });
+
+      App._importRows = allRows;
+      App._renderImportPreview();
+      document.getElementById('import-preview-modal').style.display = 'flex';
     } catch (e) { alert('فشل قراءة الملف: ' + (e.message || e)); }
+  },
+
+  _renderImportPreview() {
+    const rows = App._importRows;
+    const valid   = rows.filter(r => r.validCode && r.validName && !r.dupOf && !r.existsInDB).length;
+    const errors  = rows.filter(r => !r.validCode || !r.validName).length;
+    const dups    = rows.filter(r => r.dupOf !== undefined).length;
+    const inDB    = rows.filter(r => r.existsInDB && !r.dupOf).length;
+
+    const bar = document.getElementById('imp-summary-bar');
+    bar.innerHTML = `
+      <span style="background:#dcfce7;color:#166534;padding:3px 12px;border-radius:99px;">✅ صالح للإضافة: ${valid}</span>
+      ${errors  ? `<span style="background:#fee2e2;color:#991b1b;padding:3px 12px;border-radius:99px;">❌ خطأ: ${errors}</span>` : ''}
+      ${dups    ? `<span style="background:#fef9c3;color:#854d0e;padding:3px 12px;border-radius:99px;">⚠️ مكرر في الملف: ${dups}</span>` : ''}
+      ${inDB    ? `<span style="background:#f0f4ff;color:#3730a3;padding:3px 12px;border-radius:99px;">🔵 موجود مسبقاً: ${inDB}</span>` : ''}
+    `;
+
+    const btn = document.getElementById('imp-confirm-btn');
+    btn.disabled = valid === 0;
+    btn.style.opacity = valid === 0 ? '.5' : '1';
+    if (valid === 0) btn.title = 'لا توجد صفوف صالحة للإضافة';
+
+    const body = document.getElementById('imp-preview-body');
+    body.innerHTML = rows.map((r, i) => {
+      let status = '', rowStyle = '';
+      if (!r.validCode || !r.validName) {
+        status = `<span style="background:#fee2e2;color:#991b1b;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">❌ خطأ</span>`;
+        rowStyle = 'background:#fff5f5;';
+      } else if (r.dupOf !== undefined) {
+        status = `<span style="background:#fef9c3;color:#854d0e;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">⚠️ مكرر</span>`;
+        rowStyle = 'background:#fefce8;';
+      } else if (r.existsInDB) {
+        status = `<span style="background:#e0e7ff;color:#3730a3;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">🔵 موجود</span>`;
+        rowStyle = 'background:#f5f7ff;';
+      } else {
+        status = `<span style="background:#dcfce7;color:#166534;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">✅ صالح</span>`;
+      }
+      const borderBottom = i < rows.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
+      return `<tr style="${rowStyle}${borderBottom}">
+        <td style="padding:8px 12px;text-align:center;color:var(--muted);font-size:12px;">${i + 1}</td>
+        <td style="padding:8px 12px;">
+          <input type="text" value="${escapeHtml(r.code)}" maxlength="10" inputmode="numeric"
+            onchange="App._importRows[${i}].code=this.value.trim();App._importRows[${i}].validCode=/^\\d{10}$/.test(this.value.trim());App._revalidateImport();App._renderImportPreview()"
+            style="width:120px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:monospace;font-size:13px;">
+        </td>
+        <td style="padding:8px 12px;">
+          <input type="text" value="${escapeHtml(r.name)}"
+            onchange="App._importRows[${i}].name=this.value.trim();App._importRows[${i}].validName=this.value.trim().length>0;App._revalidateImport();App._renderImportPreview()"
+            style="width:100%;min-width:140px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px;">
+        </td>
+        <td style="padding:8px 12px;text-align:center;">${status}</td>
+      </tr>`;
+    }).join('');
+  },
+
+  _revalidateImport() {
+    const rows = App._importRows;
+    const codesSeen = {};
+    rows.forEach(r => { delete r.dupOf; delete r.isDupSrc; });
+    rows.forEach((r, i) => {
+      if (r.validCode) {
+        if (codesSeen[r.code] !== undefined) {
+          r.dupOf = codesSeen[r.code];
+          rows[codesSeen[r.code]].isDupSrc = true;
+        } else {
+          codesSeen[r.code] = i;
+        }
+      }
+    });
+    const existing = new Set(DB.students().map(s => s.code));
+    rows.forEach(r => { r.existsInDB = r.validCode && existing.has(r.code); });
+  },
+
+  closeImportPreview() {
+    document.getElementById('import-preview-modal').style.display = 'none';
+    App._importRows = [];
+  },
+
+  async confirmImport() {
+    const toAdd = App._importRows.filter(r => r.validCode && r.validName && !r.dupOf && !r.existsInDB);
+    if (!toAdd.length) return;
+    const errEl = document.getElementById('imp-modal-err');
+    errEl.style.display = 'none';
+    try {
+      const res = await DB.bulkAddStudents(toAdd.map(r => ({ code: r.code, name: r.name })));
+      App.closeImportPreview();
+      showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'طلاب' : 'طالب'}${res.skipped ? ' (تجاهل ' + res.skipped + ' مكرر)' : ''} ✅`);
+      App.renderAdminDashboard('manage');
+    } catch (e) {
+      errEl.textContent = 'فشلت عملية الإضافة: ' + (e.message || e);
+      errEl.style.display = 'block';
+    }
   },
 
   // ── Excel: Questions ────────────────────────────────────────────────────────
@@ -2719,10 +2845,11 @@ function routeHash() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
-function _autoLogin(role, code, token) {
+function _autoLogin(role, code, token, school) {
   // Restore JWT if we have one stored
   if (token) _authToken = token;
   if (role === 'student') {
+    if (school) { State.school = school; App._updateSchoolDisplay(school); }
     const input = document.getElementById('sl-code');
     const cb    = document.getElementById('sl-remember');
     if (input) input.value = code;
@@ -2745,16 +2872,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1) Same-tab refresh
   try {
     const sess = sessionStorage.getItem('lg_session');
-    if (sess) { const { role, code, token } = JSON.parse(sess); if (role && code) { _autoLogin(role, code, token); return; } }
+    if (sess) { const { role, code, token, school } = JSON.parse(sess); if (role && code) { _autoLogin(role, code, token, school); return; } }
   } catch (e) { sessionStorage.removeItem('lg_session'); }
 
   // 2) Cross-tab session (new tab from lesson/quiz pages, 4h expiry)
   try {
     const xs = localStorage.getItem('lg_xsession');
     if (xs) {
-      const { role, code, token, expiry } = JSON.parse(xs);
+      const { role, code, token, school, expiry } = JSON.parse(xs);
       if (expiry && Date.now() > expiry) { localStorage.removeItem('lg_xsession'); }
-      else if (role && code) { _autoLogin(role, code, token); return; }
+      else if (role && code) { _autoLogin(role, code, token, school); return; }
     }
   } catch (e) { localStorage.removeItem('lg_xsession'); }
 
@@ -2762,9 +2889,9 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const saved = localStorage.getItem('lg_remember');
     if (saved) {
-      const { role, code, expiry } = JSON.parse(saved);
+      const { role, code, school, expiry } = JSON.parse(saved);
       if (expiry && Date.now() > expiry) { localStorage.removeItem('lg_remember'); }
-      else if (role && code) { _autoLogin(role, code, null); return; }
+      else if (role && code) { _autoLogin(role, code, null, school); return; }
     }
   } catch (e) { localStorage.removeItem('lg_remember'); }
 

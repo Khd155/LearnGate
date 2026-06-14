@@ -1801,6 +1801,89 @@ const App = {
     showToast('تم الحذف');
   },
 
+  // ── Add Question Modal ──────────────────────────────────────────────────────
+  _AQ_SKILLS: {
+    verbal: [
+      { id:'v1', label:'v1 — الاستيعاب القرائي' },
+      { id:'v2', label:'v2 — الخطأ السياقي' },
+      { id:'v3', label:'v3 — المفردة الشاذة' },
+      { id:'v4', label:'v4 — التناظر اللفظي' },
+      { id:'v5', label:'v5 — إكمال الجمل' },
+    ],
+    quantitative: [
+      { id:'q1', label:'q1 — الحساب' },
+      { id:'q2', label:'q2 — الجبر' },
+      { id:'q3', label:'q3 — الهندسة والقياس' },
+      { id:'q4', label:'q4 — المقارنات الكمية' },
+      { id:'q5', label:'q5 — الإحصاء والاحتمالات' },
+    ],
+  },
+
+  openAddQuestionModal(editQ) {
+    const modal = document.getElementById('add-question-modal');
+    // Reset form
+    document.getElementById('aq-err').style.display = 'none';
+    document.getElementById('aq-num').value  = editQ?.qnum || '';
+    document.getElementById('aq-type').value = editQ?.type || '';
+    document.getElementById('aq-text').value = editQ?.text || '';
+    document.querySelectorAll('input[name="aq-ans"]').forEach(r => r.checked = false);
+    document.querySelectorAll('.aq-opt-input').forEach((inp, i) => { inp.value = editQ?.opts?.[i] || ''; });
+    if (editQ?.ans !== undefined) {
+      const radio = document.querySelector(`input[name="aq-ans"][value="${editQ.ans}"]`);
+      if (radio) radio.checked = true;
+    }
+    App._aqUpdateSkills(editQ?.skillId);
+    modal.dataset.editQnum = editQ?.qnum || '';
+    document.getElementById('aq-modal-title').textContent = editQ ? '✏️ تعديل السؤال' : '➕ إضافة سؤال جديد';
+    modal.classList.add('open');
+  },
+
+  closeAddQuestionModal() {
+    document.getElementById('add-question-modal').classList.remove('open');
+  },
+
+  _aqUpdateSkills(preselect) {
+    const type = document.getElementById('aq-type').value;
+    const sel  = document.getElementById('aq-skill');
+    const skills = App._AQ_SKILLS[type] || [];
+    sel.innerHTML = skills.length
+      ? `<option value="">— اختر المهارة —</option>` + skills.map(s => `<option value="${s.id}"${preselect===s.id?' selected':''}>${s.label}</option>`).join('')
+      : `<option value="">— اختر النوع أولاً —</option>`;
+  },
+
+  _aqHighlight() {
+    // visual only — handled by CSS :has selector
+  },
+
+  async submitAddQuestion() {
+    const errEl   = document.getElementById('aq-err');
+    errEl.style.display = 'none';
+    const qnum    = Number(document.getElementById('aq-num').value) || (window.QUESTION_BANK.length + 1);
+    const type    = document.getElementById('aq-type').value;
+    const skillId = document.getElementById('aq-skill').value;
+    const text    = document.getElementById('aq-text').value.trim();
+    const opts    = [...document.querySelectorAll('.aq-opt-input')].map(i => i.value.trim());
+    const ansRadio = document.querySelector('input[name="aq-ans"]:checked');
+
+    if (!type)               { errEl.textContent = 'اختر نوع السؤال.'; errEl.style.display = 'block'; return; }
+    if (!skillId)            { errEl.textContent = 'اختر المهارة.'; errEl.style.display = 'block'; return; }
+    if (!text)               { errEl.textContent = 'أدخل نص السؤال.'; errEl.style.display = 'block'; return; }
+    if (opts.some(o => !o)) { errEl.textContent = 'أدخل جميع الخيارات الأربعة.'; errEl.style.display = 'block'; return; }
+    if (!ansRadio)           { errEl.textContent = 'اختر الإجابة الصحيحة بالضغط على أحد الخيارات.'; errEl.style.display = 'block'; return; }
+
+    const q = { qnum, type, skillId, text, opts, ans: Number(ansRadio.value) };
+    try {
+      const res = await DB.appendQuestions([q]);
+      ActivityLog.success(`➕ إضافة سؤال #${qnum}: "${text.slice(0,40)}..."`);
+      App.closeAddQuestionModal();
+      showToast(`تمت إضافة السؤال ✅${res.skipped ? ' (مكرر، تجاهل)' : ''}`);
+      App.renderAdminDashboard('questions');
+    } catch(e) {
+      errEl.textContent = 'فشلت الإضافة: ' + (e.message || e);
+      errEl.style.display = 'block';
+    }
+  },
+
   // ── Review Modal ───────────────────────────────────────────────────────────
   openReview(planId) {
     const plan = DB.plans().find(p => p.id === planId);

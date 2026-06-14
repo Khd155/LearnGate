@@ -66,6 +66,27 @@
     .import-row input[type=file] { display:none; }
     .import-btn { flex:1; min-width:140px; }
 
+    /* ── Add Question Modal ── */
+    .aq-opt-row {
+      display:flex; align-items:center; gap:10px; cursor:pointer;
+      padding:6px 10px; border-radius:10px; border:2px solid var(--border);
+      transition:border-color .15s, background .15s;
+    }
+    .aq-opt-row:has(input[type=radio]:checked) {
+      border-color:#16a34a; background:#f0fdf4;
+    }
+    .aq-opt-indicator {
+      width:18px; height:18px; border-radius:50%; border:2px solid var(--border);
+      flex-shrink:0; transition:all .15s; display:flex; align-items:center; justify-content:center;
+    }
+    .aq-opt-row:has(input[type=radio]:checked) .aq-opt-indicator {
+      border-color:#16a34a; background:#16a34a;
+    }
+    .aq-opt-row:has(input[type=radio]:checked) .aq-opt-indicator::after {
+      content:'✓'; color:#fff; font-size:11px; font-weight:800;
+    }
+    .aq-opt-input { border:none !important; box-shadow:none !important; padding:6px 8px !important; background:transparent !important; }
+
     /* ── Level Analysis & Support Plan ───────────────── */
     .analysis-intro {
       background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
@@ -1310,7 +1331,10 @@
       <div class="card" style="padding:0;overflow:hidden;">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
           <div style="font-weight:800;font-size:15px;">📋 الأسئلة الحالية</div>
-          <span id="q-count-badge" class="student-badge sbadge-active" style="font-size:12px;"></span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="q-count-badge" class="student-badge sbadge-active" style="font-size:12px;"></span>
+            <button class="btn btn-primary" style="font-size:13px;padding:6px 16px;" onclick="App.openAddQuestionModal()">➕ إضافة سؤال</button>
+          </div>
         </div>
         <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <input type="text" id="q-search" class="form-input" placeholder="🔍 ابحث في الأسئلة…"
@@ -1653,6 +1677,75 @@
       </div>
       <button class="btn btn-primary sdm-close" style="margin-bottom:8px;" onclick="App.exportStudentPlanPDF()">📄 تصدير تقرير PDF</button>
       <button class="btn btn-outline sdm-close" onclick="App.closeStudentDetail()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: ADD QUESTION
+═══════════════════════════════════════════════════════ -->
+<div id="add-question-modal" class="modal-overlay" onclick="if(event.target===this)App.closeAddQuestionModal()">
+  <div class="modal-box" style="max-width:640px;width:calc(100% - 24px);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div class="modal-title" style="margin:0;" id="aq-modal-title">➕ إضافة سؤال جديد</div>
+      <button onclick="App.closeAddQuestionModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+
+    <div id="aq-err" class="alert alert-error" style="margin-bottom:14px;"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">رقم السؤال</label>
+        <input type="number" id="aq-num" class="form-input" placeholder="تلقائي" min="1">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">النوع <span style="color:var(--danger)">*</span></label>
+        <select id="aq-type" class="form-input" onchange="App._aqUpdateSkills()">
+          <option value="">— اختر —</option>
+          <option value="verbal">📚 لفظي</option>
+          <option value="quantitative">🔢 كمي</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">المهارة <span style="color:var(--danger)">*</span></label>
+        <select id="aq-skill" class="form-input">
+          <option value="">— اختر النوع أولاً —</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">نص السؤال <span style="color:var(--danger)">*</span></label>
+      <textarea id="aq-text" class="form-input" rows="3" placeholder="أدخل نص السؤال هنا..." style="resize:vertical;"></textarea>
+    </div>
+
+    <div class="form-label" style="margin-bottom:10px;">الخيارات <span style="color:var(--danger)">*</span> <span style="font-size:12px;font-weight:500;color:var(--muted);">(اختر الإجابة الصحيحة بالضغط على الدائرة)</span></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+      <label id="aq-opt-0" class="aq-opt-row">
+        <input type="radio" name="aq-ans" value="0" style="display:none;">
+        <span class="aq-opt-indicator"></span>
+        <input type="text" class="form-input aq-opt-input" placeholder="الخيار الأول" style="flex:1;margin:0;" oninput="App._aqHighlight()">
+      </label>
+      <label id="aq-opt-1" class="aq-opt-row">
+        <input type="radio" name="aq-ans" value="1" style="display:none;">
+        <span class="aq-opt-indicator"></span>
+        <input type="text" class="form-input aq-opt-input" placeholder="الخيار الثاني" style="flex:1;margin:0;" oninput="App._aqHighlight()">
+      </label>
+      <label id="aq-opt-2" class="aq-opt-row">
+        <input type="radio" name="aq-ans" value="2" style="display:none;">
+        <span class="aq-opt-indicator"></span>
+        <input type="text" class="form-input aq-opt-input" placeholder="الخيار الثالث" style="flex:1;margin:0;" oninput="App._aqHighlight()">
+      </label>
+      <label id="aq-opt-3" class="aq-opt-row">
+        <input type="radio" name="aq-ans" value="3" style="display:none;">
+        <span class="aq-opt-indicator"></span>
+        <input type="text" class="form-input aq-opt-input" placeholder="الخيار الرابع" style="flex:1;margin:0;" oninput="App._aqHighlight()">
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="App.submitAddQuestion()">✅ حفظ السؤال</button>
+      <button class="btn btn-outline" onclick="App.closeAddQuestionModal()">إلغاء</button>
     </div>
   </div>
 </div>

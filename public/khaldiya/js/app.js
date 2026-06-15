@@ -401,7 +401,8 @@ const App = {
     App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
     App.startNotifPolling();
     App._setTopbarUser(student.name);
-    try { await DB.loadStudentData(); } catch (e) {}
+    const _minWait = new Promise(r => setTimeout(r, 1000));
+    try { await Promise.all([DB.loadStudentData(), _minWait]); } catch (e) { await _minWait; }
     App.renderStudentHome();
     show('screen-student-home');
     routeHash();
@@ -479,6 +480,7 @@ const App = {
     document.querySelectorAll('.director-tab').forEach(el => {
       el.style.display = State.role === 'director' ? '' : 'none';
     });
+    await new Promise(r => setTimeout(r, 1000));
     App.setTab('students');
     show('screen-admin');
   },

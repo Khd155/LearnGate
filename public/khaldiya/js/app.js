@@ -259,6 +259,11 @@ const _SCREEN_PATHS = {
   'screen-history':      '/history',
   'screen-chat':         '/chat',
   'screen-intro':        '/capabilities',
+  'screen-landing':      '/login',
+  'screen-school':       '/login',
+  'screen-identity':     '/login',
+  'screen-student-login':'/login',
+  'screen-admin-login':  '/login',
 };
 
 function show(id) {
@@ -3432,6 +3437,12 @@ function routeHash() {
   if (path === '/chat' && State.student) {
     show('screen-chat');
     return;
+  }
+  // /login while already authenticated → go home
+  if (path === '/login') {
+    if (State.student) { show('screen-student-home'); return; }
+    if (State.role === 'admin' || State.role === 'director') { show('screen-admin'); return; }
+    // not logged in → stay on landing (already showing)
   }
 }
 

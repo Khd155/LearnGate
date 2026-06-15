@@ -43,12 +43,17 @@ async function apiFetch(path, opts = {}) {
   if (_authToken) headers['Authorization'] = 'Bearer ' + _authToken;
   const method = (opts.method || 'GET').toUpperCase();
   ActivityLog.info(`← ${method} /api${path}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000); // 15s timeout
   let res;
   try {
-    res = await fetch('/api' + path, { headers, ...opts });
+    res = await fetch('/api' + path, { headers, signal: controller.signal, ...opts });
+    clearTimeout(timer);
   } catch (netErr) {
-    ActivityLog.error(`✗ ${method} /api${path} — خطأ شبكة: ${netErr.message}`);
-    throw new Error('NETWORK_ERROR: ' + (netErr.message || 'failed to fetch'));
+    clearTimeout(timer);
+    const isTimeout = netErr.name === 'AbortError';
+    ActivityLog.error(`✗ ${method} /api${path} — ${isTimeout ? 'انتهت مهلة الاتصال' : 'خطأ شبكة: ' + netErr.message}`);
+    throw new Error(isTimeout ? 'TIMEOUT' : 'NETWORK_ERROR: ' + (netErr.message || 'failed to fetch'));
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -134,6 +139,15 @@ const DB = {
     await apiFetch(`/students/${id}`, { method: 'DELETE' });
     Cache.students = Cache.students.filter(s => s.id !== id);
     Cache.plans    = Cache.plans.filter(p => p.studentId !== id);
+  },
+
+  async deleteNoSchoolStudents() {
+    await apiFetch('/dev/students?noschool=1', { method: 'DELETE' });
+    Cache.students = Cache.students.filter(s => s.school);
+    Cache.plans    = Cache.plans.filter(p => {
+      const st = Cache.students.find(s => s.id === p.studentId);
+      return st ? !!st.school : false;
+    });
   },
 
   async addAttempt(plan) {
@@ -360,6 +374,9 @@ const App = {
       if (status === 400 || msg.includes('غير صالح')) {
         _restoreBtn(); showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
       }
+      if (msg.includes('TIMEOUT')) {
+        _restoreBtn(); showAlert(errEl, 'انتهت مهلة الاتصال — تحقق من الإنترنت وأعد المحاولة.'); return;
+      }
       if (!navigator.onLine || msg.includes('NETWORK_ERROR')) {
         _restoreBtn(); showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
       }
@@ -422,6 +439,9 @@ const App = {
       }
       if (status === 400 || msg.includes('غير صالح')) {
         _restoreBtn(); showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
+      }
+      if (msg.includes('TIMEOUT')) {
+        _restoreBtn(); showAlert(errEl, 'انتهت مهلة الاتصال — تحقق من الإنترنت وأعد المحاولة.'); return;
       }
       if (!navigator.onLine || msg.includes('NETWORK_ERROR')) {
         _restoreBtn(); showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
@@ -1948,7 +1968,14 @@ const App = {
     const errEl = document.getElementById('imp-modal-err');
     errEl.style.display = 'none';
     try {
-      const res = await DB.bulkAddStudents(toAdd.map(r => ({ code: r.code, name: r.name, school: r.school || State.school || '' })));
+      // For directors (State.school is null), use selected school filter or prompt
+      const importSchool = State.school || document.getElementById('school-filter-select')?.value || '';
+      if (!importSchool) {
+        errEl.textContent = 'يرجى اختيار المدرسة من القائمة أولاً قبل الاستيراد.';
+        errEl.style.display = 'block';
+        return;
+      }
+      const res = await DB.bulkAddStudents(toAdd.map(r => ({ code: r.code, name: r.name, school: r.school || importSchool })));
       App.closeImportPreview();
       showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'طلاب' : 'طالب'}${res.skipped ? ' (تجاهل ' + res.skipped + ' مكرر)' : ''} ✅`);
       App.renderAdminDashboard('manage');
@@ -3206,7 +3233,7 @@ function routeHash() {
 // Fast path: skip auth API call when token is still valid
 async function _quickRestoreSession(sess) {
   show('screen-loading');
-  await new Promise(r => setTimeout(r, 0)); // yield so browser paints the loading screen
+  const _minDelay = new Promise(r => setTimeout(r, 3000)); // minimum 3s loading screen
   try {
     _authToken = sess.token;
     const expiry = Date.now() + 4 * 60 * 60 * 1000;
@@ -3221,7 +3248,7 @@ async function _quickRestoreSession(sess) {
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();
       App._setTopbarUser(sess.name);
-      try { await DB.loadStudentData(); } catch (e) {}
+      try { await Promise.all([DB.loadStudentData(), _minDelay]); } catch (e) { await _minDelay; }
       App.renderStudentHome();
       show('screen-student-home');
       routeHash();
@@ -3239,7 +3266,7 @@ async function _quickRestoreSession(sess) {
       document.querySelectorAll('.director-tab').forEach(el => {
         el.style.display = State.role === 'director' ? '' : 'none';
       });
-      await DB.loadAll();
+      await Promise.all([DB.loadAll(), _minDelay]);
       App.renderAdminDashboard('students');
       show('screen-admin');
     }
@@ -3247,6 +3274,7 @@ async function _quickRestoreSession(sess) {
     _authToken = null;
     sessionStorage.removeItem('lg_session');
     localStorage.removeItem('lg_xsession');
+    await _minDelay;
     show('screen-landing');
   }
 }

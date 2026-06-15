@@ -667,7 +667,13 @@ export async function onRequest({ request, env }) {
       }
 
       // DELETE /api/dev/students?school=X — clear all students of a school
+      // DELETE /api/dev/students?noschool=1 — delete students with empty school
       if (sub === 'students' && !subsub && method === 'DELETE') {
+        const noSchool = url.searchParams.get('noschool') === '1';
+        if (noSchool) {
+          await DB.prepare("DELETE FROM students WHERE school = '' OR school IS NULL").run();
+          return ok({ ok: true }, 200, CORS);
+        }
         const targetSchool = url.searchParams.get('school');
         if (!targetSchool) return err('رمز المدرسة مطلوب', 400, CORS);
         await DB.prepare('DELETE FROM students WHERE school = ?').bind(targetSchool).run();

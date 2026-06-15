@@ -368,7 +368,7 @@ const App = {
     State.student = student;
     State.role = 'student';
     if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
-    const _sess = { role: 'student', code, name: student.name, school: student.school, token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
+    const _sess = { role: 'student', id: student.id, code, name: student.name, school: student.school, token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
     sessionStorage.setItem('lg_session', JSON.stringify(_sess));
     localStorage.setItem('lg_xsession', JSON.stringify(_sess));
     const remember = document.getElementById('sl-remember');
@@ -3195,7 +3195,56 @@ function routeHash() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
+
+// Fast path: skip auth API call when token is still valid
+async function _quickRestoreSession(sess) {
+  show('screen-loading');
+  try {
+    _authToken = sess.token;
+    const expiry = Date.now() + 4 * 60 * 60 * 1000;
+    if (sess.role === 'student') {
+      State.student = { id: sess.id, code: sess.code, name: sess.name, school: sess.school || '' };
+      State.role = 'student';
+      if (sess.school) { State.school = sess.school; App._updateSchoolDisplay(sess.school); }
+      const _sess = { ...sess, expiry };
+      sessionStorage.setItem('lg_session', JSON.stringify(_sess));
+      localStorage.setItem('lg_xsession', JSON.stringify(_sess));
+      startIdleWatch();
+      App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
+      App.startNotifPolling();
+      App._setTopbarUser(sess.name);
+      try { await DB.loadStudentData(); } catch (e) {}
+      App.renderStudentHome();
+      show('screen-student-home');
+      routeHash();
+    } else {
+      State.role  = sess.role;
+      State.admin = { code: sess.code, name: sess.name, school: sess.school || '' };
+      if (sess.school && sess.school !== '*') { State.school = sess.school; App._updateSchoolDisplay(sess.school); }
+      const _sess = { ...sess, expiry };
+      sessionStorage.setItem('lg_session', JSON.stringify(_sess));
+      localStorage.setItem('lg_xsession', JSON.stringify(_sess));
+      startIdleWatch();
+      App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
+      App.startNotifPolling();
+      App._setTopbarUser(sess.name);
+      document.querySelectorAll('.director-tab').forEach(el => {
+        el.style.display = State.role === 'director' ? '' : 'none';
+      });
+      await DB.loadAll();
+      App.renderAdminDashboard('students');
+      show('screen-admin');
+    }
+  } catch (e) {
+    _authToken = null;
+    sessionStorage.removeItem('lg_session');
+    localStorage.removeItem('lg_xsession');
+    show('screen-landing');
+  }
+}
+
 function _autoLogin(role, code, token, school) {
+  show('screen-loading');
   // Restore JWT if we have one stored
   if (token) _authToken = token;
   if (role === 'student') {
@@ -3220,29 +3269,43 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
   DB.loadQuestions().catch(() => {});
 
+  // Helper: check if a session has a valid, unexpired token
+  const _canFastRestore = (s) =>
+    s.token && s.expiry && Date.now() < s.expiry &&
+    (s.role !== 'student' || s.id); // student needs stored id
+
   // 1) Same-tab refresh
   try {
-    const sess = sessionStorage.getItem('lg_session');
-    if (sess) { const { role, code, token, school } = JSON.parse(sess); if (role && code) { _autoLogin(role, code, token, school); return; } }
+    const raw = sessionStorage.getItem('lg_session');
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s.role && s.code) {
+        if (_canFastRestore(s)) { _quickRestoreSession(s); return; }
+        _autoLogin(s.role, s.code, s.token, s.school); return;
+      }
+    }
   } catch (e) { sessionStorage.removeItem('lg_session'); }
 
   // 2) Cross-tab session (new tab from lesson/quiz pages, 4h expiry)
   try {
-    const xs = localStorage.getItem('lg_xsession');
-    if (xs) {
-      const { role, code, token, school, expiry } = JSON.parse(xs);
-      if (expiry && Date.now() > expiry) { localStorage.removeItem('lg_xsession'); }
-      else if (role && code) { _autoLogin(role, code, token, school); return; }
+    const raw = localStorage.getItem('lg_xsession');
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s.expiry && Date.now() > s.expiry) { localStorage.removeItem('lg_xsession'); }
+      else if (s.role && s.code) {
+        if (_canFastRestore(s)) { _quickRestoreSession(s); return; }
+        _autoLogin(s.role, s.code, s.token, s.school); return;
+      }
     }
   } catch (e) { localStorage.removeItem('lg_xsession'); }
 
-  // 3) Long-term remember-me token (2 days)
+  // 3) Long-term remember-me (2 days, no JWT — must re-auth but show loading screen)
   try {
-    const saved = localStorage.getItem('lg_remember');
-    if (saved) {
-      const { role, code, school, expiry } = JSON.parse(saved);
-      if (expiry && Date.now() > expiry) { localStorage.removeItem('lg_remember'); }
-      else if (role && code) { _autoLogin(role, code, null, school); return; }
+    const raw = localStorage.getItem('lg_remember');
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s.expiry && Date.now() > s.expiry) { localStorage.removeItem('lg_remember'); }
+      else if (s.role && s.code) { _autoLogin(s.role, s.code, null, s.school); return; }
     }
   } catch (e) { localStorage.removeItem('lg_remember'); }
 

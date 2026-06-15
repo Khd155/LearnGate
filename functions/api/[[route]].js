@@ -955,12 +955,28 @@ export async function onRequest({ request, env }) {
         return ok({ counts: results }, 200, CORS);
       }
 
-      // GET /api/messages/threads — admin: list students with conversations
+      // GET /api/messages/threads — admin: list students with conversations FOR THIS admin
       if (sub === 'threads' && method === 'GET') {
         if (!isPrivileged) return err('غير مسموح', 403, CORS);
-        const adminId = url.searchParams.get('adminId') || (msgClaims.sub || '');
+        const adminId = url.searchParams.get('adminId') || '';
         let q, params;
-        if (school) {
+        if (adminId && school) {
+          q = `SELECT student_id, student_name, school,
+                 MAX(created_at) as last_at,
+                 SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
+                 (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id AND m2.recipient_admin_id=? ORDER BY m2.created_at DESC LIMIT 1) as last_msg
+               FROM messages WHERE recipient_admin_id=? AND school=?
+               GROUP BY student_id ORDER BY last_at DESC`;
+          params = [adminId, adminId, school];
+        } else if (adminId) {
+          q = `SELECT student_id, student_name, school,
+                 MAX(created_at) as last_at,
+                 SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
+                 (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id AND m2.recipient_admin_id=? ORDER BY m2.created_at DESC LIMIT 1) as last_msg
+               FROM messages WHERE recipient_admin_id=?
+               GROUP BY student_id ORDER BY last_at DESC`;
+          params = [adminId, adminId];
+        } else if (school) {
           q = `SELECT student_id, student_name, school,
                  MAX(created_at) as last_at,
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,

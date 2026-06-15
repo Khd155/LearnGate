@@ -2762,8 +2762,9 @@ const App = {
     const contacts = document.getElementById('wachat-contacts');
     contacts.innerHTML = '<div class="wachat-loading">جارٍ التحميل…</div>';
     try {
-      const school = State.school || '';
-      const data = await apiFetch(`/messages/threads?school=${encodeURIComponent(school)}`);
+      const school  = State.school || '';
+      const adminId = State.admin?.id || '';
+      const data = await apiFetch(`/messages/threads?school=${encodeURIComponent(school)}&adminId=${encodeURIComponent(adminId)}`);
       const threads = data.threads || [];
       App._chatContacts = threads.map(t => ({ id: t.student_id, name: t.student_name, role: 'student', unread: t.unread }));
       if (!threads.length) {
@@ -2807,7 +2808,7 @@ const App = {
     document.querySelectorAll('.wachat-contact-item').forEach(el => el.classList.remove('active'));
     const item = document.getElementById('wcc-' + id);
     if (item) item.classList.add('active');
-    if (State.role === 'admin') {
+    if (State.role === 'admin' || State.role === 'director') {
       App.openAdminChatWith(id, name);
     } else {
       App.openChatWithAdmin(id, name);

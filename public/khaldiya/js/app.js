@@ -1498,12 +1498,49 @@ const App = {
     const deltaLabel = delta === null ? '' : delta > 0 ? `+${delta}` : `${delta}`;
 
     const barClass = latestSc >= 71 ? 'pf-high' : latestSc >= 50 ? 'pf-mid' : 'pf-low';
-
     const attempts = myPlans.length;
+
+    // ── SVG line chart (all attempts, oldest→newest) ──
+    const allPts = [...myPlans].reverse().map((p, i) => ({
+      i, score: planScore(p) ?? 0,
+      date: new Date(p.createdAt).toLocaleDateString('ar-SA', { day:'numeric', month:'short' })
+    }));
+    const W = 320, H = 90, pL = 6, pR = 6, pT = 10, pB = 18;
+    const cW = W - pL - pR, cH = H - pT - pB;
+    const n = allPts.length;
+    const xs = i => pL + (n > 1 ? (i / (n - 1)) * cW : cW / 2);
+    const ys = s => pT + cH - (s / 100) * cH;
+    const linePts = allPts.map((p, i) => `${xs(i)},${ys(p.score)}`).join(' ');
+    const areaPts = `${xs(0)},${pT + cH} ${linePts} ${xs(n-1)},${pT + cH}`;
+    const gridSvg = [0, 25, 50, 75, 100].map(v => {
+      const y = ys(v);
+      return `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="rgba(63,124,184,.15)" stroke-width="1" stroke-dasharray="4,3"/>`;
+    }).join('');
+    const dotsSvg = allPts.map((p, i) => {
+      const isLast = i === n - 1;
+      return `<circle cx="${xs(i)}" cy="${ys(p.score)}" r="${isLast ? 5 : 3.5}"
+        fill="${isLast ? '#3F7CB8' : '#fff'}" stroke="#3F7CB8" stroke-width="${isLast ? 0 : 2}"
+        style="cursor:default"
+        onmouseover="_spt(event,'${p.date}',${p.score})"
+        onmouseout="_spth()"/>`;
+    }).join('');
+    const chartSvg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;margin-bottom:12px;">
+      <defs>
+        <linearGradient id="spg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3F7CB8" stop-opacity=".18"/>
+          <stop offset="100%" stop-color="#3F7CB8" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${gridSvg}
+      <polygon points="${areaPts}" fill="url(#spg)"/>
+      <polyline points="${linePts}" fill="none" stroke="#3F7CB8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dotsSvg}
+    </svg>`;
 
     el.style.display = 'block';
     el.innerHTML = `<div class="sh-perf-card">
       <div class="sh-perf-title">📈 مؤشر أدائك</div>
+      ${chartSvg}
       <div class="sh-perf-scores">
         ${prevSc !== null ? `<div class="sh-score-box prev">
           <div class="sh-score-num">${prevSc}%</div>
@@ -1522,7 +1559,8 @@ const App = {
         <div class="sh-perf-bar-fill ${barClass}" style="width:${latestSc}%"></div>
       </div>
       <div class="sh-perf-footer">محاولاتك الإجمالية: ${attempts} · استمر وأنت قادر! 💪</div>
-    </div>`;
+    </div>
+    <div id="sp-tip" style="display:none;position:fixed;background:#0f172a;color:#fff;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:700;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.25);"></div>`;
   },
 
   // ── Director: Supervisors Management ─────────────────────────────────────
@@ -3486,6 +3524,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   show('screen-landing');
 });
+
+function _spt(e, date, score) {
+  const t = document.getElementById('sp-tip');
+  if (!t) return;
+  t.textContent = `${score}%  ·  ${date}`;
+  t.style.display = 'block';
+  t.style.left = (e.clientX + 14) + 'px';
+  t.style.top  = (e.clientY - 36) + 'px';
+}
+function _spth() {
+  const t = document.getElementById('sp-tip');
+  if (t) t.style.display = 'none';
+}
 
 function _pct(e, n, date, score) {
   const tip = document.getElementById('perf-chart-tip');

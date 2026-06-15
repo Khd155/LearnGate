@@ -366,16 +366,23 @@ footer{text-align:center;font-size:12.5px;color:var(--muted);padding:20px 0 36px
 </div>
 
 <!-- مودال نتائج الطالب -->
-<div id="my-results-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeMyResults()">
-  <div style="background:#fff;border-radius:20px;width:100%;max-width:460px;max-height:82vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.3);" dir="rtl">
-    <div style="background:linear-gradient(135deg,#3F7CB8,#4FA877);padding:18px 20px;display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <div style="font-weight:800;font-size:16px;color:#fff;">📊 سجل اختباراتي</div>
-        <div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:2px;">الأحياء — الوحدة الأولى</div>
+<div id="my-results-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:12px;padding-bottom:max(12px,env(safe-area-inset-bottom));" onclick="if(event.target===this)closeMyResults()">
+  <div style="background:#fff;border-radius:20px;width:100%;max-width:460px;max-height:min(88vh,680px);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.3);" dir="rtl">
+    <div style="background:linear-gradient(135deg,#3F7CB8,#4FA877);padding:16px 20px 0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div>
+          <div style="font-weight:800;font-size:16px;color:#fff;">📊 سجل اختباراتي</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:2px;">الأحياء — الوحدة الأولى</div>
+        </div>
+        <button onclick="closeMyResults()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;">✕</button>
       </div>
-      <button onclick="closeMyResults()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
+      <!-- Tabs -->
+      <div style="display:flex;gap:4px;" id="bio-tabs">
+        <button id="bio-tab-pre" onclick="_bioSetTab('pre')" style="flex:1;background:rgba(255,255,255,.95);color:#3F7CB8;border:none;border-radius:12px 12px 0 0;padding:9px 0;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;">📋 القبلي</button>
+        <button id="bio-tab-post" onclick="_bioSetTab('post')" style="flex:1;background:rgba(255,255,255,.25);color:rgba(255,255,255,.9);border:none;border-radius:12px 12px 0 0;padding:9px 0;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;">✅ البعدي</button>
+      </div>
     </div>
-    <div id="my-results-body" style="overflow-y:auto;padding:18px;flex:1;background:#f4f8fb;"></div>
+    <div id="my-results-body" style="overflow-y:auto;padding:16px;flex:1;background:#f4f8fb;"></div>
   </div>
 </div>
 
@@ -1183,6 +1190,7 @@ function showPostResults() {
 
 function openMyResults() {
   document.getElementById('my-results-modal').style.display = 'flex';
+  window._bioActiveTab = window._bioActiveTab || 'pre';
   _bioShowList();
 }
 
@@ -1190,31 +1198,48 @@ function closeMyResults() {
   document.getElementById('my-results-modal').style.display = 'none';
 }
 
+function _bioSetTab(tab) {
+  window._bioActiveTab = tab;
+  const pre  = document.getElementById('bio-tab-pre');
+  const post = document.getElementById('bio-tab-post');
+  if (pre) {
+    pre.style.background  = tab === 'pre'  ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.2)';
+    pre.style.color       = tab === 'pre'  ? '#3F7CB8' : 'rgba(255,255,255,.85)';
+  }
+  if (post) {
+    post.style.background = tab === 'post' ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.2)';
+    post.style.color      = tab === 'post' ? '#4FA877' : 'rgba(255,255,255,.85)';
+  }
+  _bioShowList();
+}
+
 function _bioShowList() {
   const body    = document.getElementById('my-results-body');
   const results = window._myBioResults || [];
-  if (!results.length) {
-    body.innerHTML = '<p style="text-align:center;color:#64748b;padding:24px;">لا توجد نتائج محفوظة.</p>';
+  const tab     = window._bioActiveTab || 'pre';
+  const list    = results.filter(r => r.test_type === tab);
+  const isPre   = tab === 'pre';
+  const bd      = isPre ? '#bfdbfe' : '#86efac';
+  const emptyMsg= isPre ? 'لم تُجرِ الاختبار القبلي بعد' : 'لم تُجرِ الاختبار البعدي بعد';
+
+  if (!list.length) {
+    body.innerHTML = `<div style="text-align:center;color:#94a3b8;font-size:14px;padding:32px 0;">${emptyMsg}</div>`;
     return;
   }
 
-  const pre  = results.filter(r => r.test_type === 'pre');
-  const post = results.filter(r => r.test_type === 'post');
-
-  function entryCard(r, idx, type) {
+  body.innerHTML = list.map((r, idx) => {
     const allIdx = results.indexOf(r);
     const num    = arabicNum(idx + 1);
     const date   = new Date(r.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'long', year:'numeric' });
     const time   = new Date(r.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
     const scClr  = r.score >= 80 ? '#16a34a' : r.score >= 50 ? '#d97706' : '#dc2626';
-    const bd     = type === 'pre' ? '#bfdbfe' : '#86efac';
     return `<div onclick="_bioShowDetail(${allIdx})" style="
         display:flex;align-items:center;gap:14px;
         background:#fff;border:1.5px solid ${bd};border-radius:12px;
         padding:13px 15px;margin-bottom:9px;cursor:pointer;transition:all .15s;
       " onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)'"
          onmouseout="this.style.transform='';this.style.boxShadow=''">
-      <div style="font-size:26px;">${type==='pre'?'📋':'✅'}</div>
+      <div style="font-size:26px;">${isPre ? '📋' : '✅'}</div>
       <div style="flex:1;">
         <div style="font-weight:800;font-size:13.5px;color:#0f172a;">اختبار ${num}</div>
         <div style="font-size:11.5px;color:#64748b;margin-top:2px;">📅 ${date} · 🕐 ${time}</div>
@@ -1225,27 +1250,7 @@ function _bioShowList() {
       </div>
       <div style="color:#cbd5e1;font-size:14px;">←</div>
     </div>`;
-  }
-
-  let html = '';
-
-  html += `<div style="font-size:12.5px;font-weight:800;color:#3F7CB8;margin-bottom:9px;display:flex;align-items:center;gap:6px;">
-    📋 التشخيص القبلي
-    <span style="background:#eff6ff;color:#3F7CB8;border-radius:99px;padding:2px 8px;font-size:11px;">${pre.length} اختبار</span>
-  </div>`;
-  html += pre.length
-    ? pre.map((r, i) => entryCard(r, i, 'pre')).join('')
-    : `<div style="text-align:center;color:#94a3b8;font-size:13px;padding:10px 0 14px;">لم تُجرِ الاختبار القبلي بعد</div>`;
-
-  html += `<div style="font-size:12.5px;font-weight:800;color:#4FA877;margin-top:8px;margin-bottom:9px;display:flex;align-items:center;gap:6px;">
-    ✅ تقويم تعلم الوحدة — بعدي
-    <span style="background:#f0fdf4;color:#4FA877;border-radius:99px;padding:2px 8px;font-size:11px;">${post.length} اختبار</span>
-  </div>`;
-  html += post.length
-    ? post.map((r, i) => entryCard(r, i, 'post')).join('')
-    : `<div style="text-align:center;color:#94a3b8;font-size:13px;padding:10px 0;">لم تُجرِ الاختبار البعدي بعد</div>`;
-
-  body.innerHTML = html;
+  }).join('');
 }
 
 function _bioShowDetail(idx) {
@@ -1262,7 +1267,7 @@ function _bioShowDetail(idx) {
 
   let html = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-      <button onclick="_bioShowList()" style="background:#f1f5f9;border:none;border-radius:99px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#475569;flex-shrink:0;">← رجوع</button>
+      <button onclick="_bioSetTab(window._bioActiveTab||'pre')" style="background:#f1f5f9;border:none;border-radius:99px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#475569;flex-shrink:0;">← رجوع</button>
       <div>
         <div style="font-weight:800;font-size:14px;color:#0f172a;">${isPre ? '📋 التشخيص القبلي' : '✅ تقويم تعلم الوحدة'}</div>
         <div style="font-size:11.5px;color:#64748b;">📅 ${date}</div>

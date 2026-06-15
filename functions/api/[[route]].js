@@ -401,6 +401,69 @@ export async function onRequest({ request, env }) {
       }
     }
 
+    // ── TEST RESULTS ─────────────────────────────────────────────────────────
+    if (resource === 'test-results') {
+
+      // Auto-create table on first use
+      try {
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS test_results (
+          id           TEXT PRIMARY KEY,
+          student_id   TEXT NOT NULL,
+          student_name TEXT NOT NULL,
+          school       TEXT NOT NULL DEFAULT '',
+          subject      TEXT NOT NULL DEFAULT 'biology-g1',
+          test_type    TEXT NOT NULL,
+          score        INTEGER NOT NULL,
+          correct      INTEGER NOT NULL,
+          total        INTEGER NOT NULL,
+          answers      TEXT NOT NULL DEFAULT '[]',
+          created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+        )`).run();
+      } catch {}
+
+      // POST /api/test-results — student saves their own result
+      if (method === 'POST') {
+        const claims = await verifyToken(request, env);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        const { subject, testType, score, correct, total, answers } = await request.json();
+        const rid = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await DB.prepare(
+          `INSERT INTO test_results (id, student_id, student_name, school, subject, test_type, score, correct, total, answers, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(rid, claims.sub, claims.name, claims.school || '', subject || 'biology-g1', testType, score, correct, total, JSON.stringify(answers || []), now).run();
+        return ok({ id: rid, created_at: now }, 201, CORS);
+      }
+
+      // GET /api/test-results — student sees own, admin/director sees by school or studentId
+      if (method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims) return err('غير مصرح', 401, CORS);
+
+        if (claims.role === 'student') {
+          const { results } = await DB.prepare(
+            'SELECT id, subject, test_type, score, correct, total, created_at FROM test_results WHERE student_id = ? ORDER BY created_at DESC'
+          ).bind(claims.sub).all();
+          return ok({ results }, 200, CORS);
+        }
+
+        if (!['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const studentId = url.searchParams.get('studentId');
+        if (studentId) {
+          const { results } = await DB.prepare(
+            'SELECT * FROM test_results WHERE student_id = ? ORDER BY created_at DESC'
+          ).bind(studentId).all();
+          return ok({ results: results.map(r => ({ ...r, answers: JSON.parse(r.answers || '[]') })) }, 200, CORS);
+        }
+        let q = 'SELECT id, student_id, student_name, school, subject, test_type, score, correct, total, created_at FROM test_results';
+        const params = [];
+        if (school) { q += ' WHERE school = ?'; params.push(school); }
+        q += ' ORDER BY created_at DESC LIMIT 1000';
+        const { results } = await DB.prepare(q).bind(...params).all();
+        return ok({ results }, 200, CORS);
+      }
+    }
+
     // ── QUESTIONS ────────────────────────────────────────────────────────────
     if (resource === 'questions') {
 

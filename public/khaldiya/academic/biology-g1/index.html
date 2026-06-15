@@ -821,10 +821,30 @@ function preNext() {
 }
 
 // ── Pre results ────────────────────────────────
+function _saveTestResult(testType, correct, total, answers) {
+  try {
+    const sess = JSON.parse(sessionStorage.getItem('lg_session') || '{}');
+    if (!sess.token || sess.role !== 'student') return;
+    fetch('/api/test-results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sess.token },
+      body: JSON.stringify({
+        subject: 'biology-g1',
+        testType,
+        score: Math.round(correct / total * 100),
+        correct,
+        total,
+        answers: answers.map((a, i) => ({ q: i, a }))
+      })
+    }).catch(() => {});
+  } catch (e) {}
+}
+
 function showPreResults() {
   let correct = 0;
   preAnswers.forEach((a, i) => { if (a === PRE_Q[i].ans) correct++; });
   const pct = Math.round(correct / PRE_Q.length * 100);
+  _saveTestResult('pre', correct, PRE_Q.length, preAnswers);
 
   document.getElementById('pre-score-num').textContent = arabicNum(correct);
   const circle = document.getElementById('pre-score-circle');
@@ -961,6 +981,7 @@ function showPostResults() {
   let correct = 0;
   postAnswers.forEach((a, i) => { if (a === POST_Q[i].ans) correct++; });
   const pct = Math.round(correct / POST_Q.length * 100);
+  _saveTestResult('post', correct, POST_Q.length, postAnswers);
 
   document.getElementById('post-score-num').textContent = arabicNum(correct);
   const circle = document.getElementById('post-score-circle');

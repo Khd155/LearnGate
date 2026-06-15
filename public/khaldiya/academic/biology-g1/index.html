@@ -267,6 +267,15 @@ footer{text-align:center;font-size:12.5px;color:var(--muted);padding:20px 0 36px
   .topbar{padding:10px 14px;gap:8px;}
   .topbar-title{font-size:13px;}
   .user-chip{display:none!important;}
+  .container{padding:16px 14px 50px;}
+  .card{padding:18px 16px;}
+  .choice-btn{padding:16px 16px;}
+  footer{padding-bottom:24px;}
+}
+@media(max-width:400px){
+  .hero h1{font-size:16px;}
+  .hero{padding:20px 14px 30px;}
+  .topbar-title{font-size:12px;}
 }
 </style>
 </head>
@@ -374,7 +383,7 @@ footer{text-align:center;font-size:12.5px;color:var(--muted);padding:20px 0 36px
           <div style="font-weight:800;font-size:16px;color:#fff;">📊 سجل اختباراتي</div>
           <div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:2px;">الأحياء — الوحدة الأولى</div>
         </div>
-        <button onclick="closeMyResults()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;">✕</button>
+        <button onclick="closeMyResults()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:44px;height:44px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;">✕</button>
       </div>
       <!-- Tabs -->
       <div style="display:flex;gap:4px;" id="bio-tabs">
@@ -887,6 +896,7 @@ function _saveTestResult(testType, correct, total, answers) {
       const newResult = { subject: 'biology-g1', test_type: testType, score, correct, total, answers: answers.map((a, i) => ({ q: i, a })), created_at: new Date().toISOString() };
       if (!window._myBioResults) window._myBioResults = [];
       window._myBioResults.unshift(newResult);
+      try { sessionStorage.setItem('bio_rc', JSON.stringify(window._myBioResults)); } catch(e) {}
       const card  = document.getElementById('my-results-card');
       const badge = document.getElementById('my-results-badge');
       if (card)  card.style.display = 'block';
@@ -1167,24 +1177,35 @@ function showPostResults() {
 
 // ── سجل نتائجي ────────────────────────────────
 (function() {
+  function _showCard(results) {
+    if (!results || !results.length) return;
+    window._myBioResults = results;
+    const card  = document.getElementById('my-results-card');
+    const badge = document.getElementById('my-results-badge');
+    if (card)  card.style.display = 'block';
+    if (badge) badge.textContent = results.length + ' ' + (results.length === 1 ? 'اختبار' : 'اختبارات');
+  }
+
+  // 1) Show cached results immediately (no flicker)
+  try {
+    const cached = JSON.parse(sessionStorage.getItem('bio_rc') || 'null');
+    if (cached) _showCard(cached);
+  } catch(e) {}
+
+  // 2) Refresh from API in background
   try {
     const sess = JSON.parse(sessionStorage.getItem('lg_session') || localStorage.getItem('lg_xsession') || '{}');
     if (!sess.token || sess.role !== 'student') return;
-    fetch('/api/test-results', {
-      headers: { 'Authorization': 'Bearer ' + sess.token }
-    })
-    .then(r => r.ok ? r.json() : null)
-    .then(data => {
-      if (!data) return;
-      const myResults = (data.results || []).filter(r => r.subject === 'biology-g1');
-      if (!myResults.length) return;
-      const card = document.getElementById('my-results-card');
-      const badge = document.getElementById('my-results-badge');
-      card.style.display = 'block';
-      badge.textContent = myResults.length + ' ' + (myResults.length === 1 ? 'اختبار' : 'اختبارات');
-      window._myBioResults = myResults;
-    })
-    .catch(() => {});
+    fetch('/api/test-results', { headers: { 'Authorization': 'Bearer ' + sess.token } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const myResults = (data.results || []).filter(r => r.subject === 'biology-g1');
+        if (!myResults.length) return;
+        _showCard(myResults);
+        try { sessionStorage.setItem('bio_rc', JSON.stringify(myResults)); } catch(e) {}
+      })
+      .catch(() => {});
   } catch(e) {}
 })();
 

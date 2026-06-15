@@ -1505,7 +1505,7 @@ const App = {
       i, score: planScore(p) ?? 0,
       date: new Date(p.createdAt).toLocaleDateString('ar-SA', { day:'numeric', month:'short' })
     }));
-    const W = 320, H = 90, pL = 6, pR = 6, pT = 10, pB = 18;
+    const W = 320, H = 110, pL = 6, pR = 6, pT = 22, pB = 10;
     const cW = W - pL - pR, cH = H - pT - pB;
     const n = allPts.length;
     const xs = i => pL + (n > 1 ? (i / (n - 1)) * cW : cW / 2);
@@ -1518,13 +1518,16 @@ const App = {
     }).join('');
     const dotsSvg = allPts.map((p, i) => {
       const isLast = i === n - 1;
-      return `<circle cx="${xs(i)}" cy="${ys(p.score)}" r="${isLast ? 5 : 3.5}"
-        fill="${isLast ? '#3F7CB8' : '#fff'}" stroke="#3F7CB8" stroke-width="${isLast ? 0 : 2}"
-        style="cursor:default"
-        onmouseover="_spt(event,'${p.date}',${p.score})"
-        onmouseout="_spth()"/>`;
+      const cx = xs(i), cy = ys(p.score);
+      const lY  = p.score > 80 ? cy + 14 : cy - 8;
+      return `<g style="cursor:pointer" onclick="_spt(event,'${p.date}',${p.score})" onmouseout="_spth()">
+        <circle cx="${cx}" cy="${cy}" r="${isLast ? 5.5 : 4}"
+          fill="${isLast ? '#3F7CB8' : '#fff'}" stroke="#3F7CB8" stroke-width="2"/>
+        <text x="${cx}" y="${lY}" text-anchor="middle" font-size="10" font-weight="800"
+          fill="${isLast ? '#1e40af' : '#475569'}">${p.score}%</text>
+      </g>`;
     }).join('');
-    const chartSvg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;margin-bottom:12px;">
+    const chartSvg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;margin-bottom:10px;">
       <defs>
         <linearGradient id="spg" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#3F7CB8" stop-opacity=".18"/>
@@ -1533,7 +1536,7 @@ const App = {
       </defs>
       ${gridSvg}
       <polygon points="${areaPts}" fill="url(#spg)"/>
-      <polyline points="${linePts}" fill="none" stroke="#3F7CB8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <polyline points="${linePts}" fill="none" stroke="#3F7CB8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
       ${dotsSvg}
     </svg>`;
 

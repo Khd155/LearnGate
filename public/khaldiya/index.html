@@ -1292,6 +1292,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="students"    onclick="App.setTab('students')">👥 الطلاب</button>
       <button class="tab-btn"        data-tab="stats"       onclick="App.setTab('stats')">📊 الإحصائيات</button>
+      <button class="tab-btn"        data-tab="chat"        onclick="App.goToAdminChat()">💬 المحادثات<span class="notif-badge" id="admin-chat-badge" style="display:none;margin-right:4px;"></span></button>
       <button class="tab-btn director-tab" data-tab="supervisors" onclick="App.setTab('supervisors')" style="display:none;">👨‍💼 المشرفون</button>
       <button class="tab-btn director-tab" data-tab="questions"   onclick="App.setTab('questions')"   style="display:none;">📝 الأسئلة</button>
     </div>
@@ -1590,21 +1591,50 @@
   <div class="topbar">
     <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
-      <div class="topbar-title">التواصل مع المشرف</div>
+      <div class="topbar-title" id="chat-topbar-title">المحادثات</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="App.leaveChatScreen()">رجوع</button>
   </div>
-  <div class="chat-wrap">
-    <div id="chat-messages" class="chat-messages">
-      <div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>
+
+  <!-- WhatsApp-style split layout -->
+  <div class="wachat-layout" id="wachat-layout">
+
+    <!-- RIGHT: contacts sidebar -->
+    <div class="wachat-sidebar" id="wachat-sidebar">
+      <div class="wachat-sidebar-head">
+        <input type="search" id="wachat-search" class="wachat-search-input" placeholder="🔍 بحث..."
+               oninput="App._chatFilterContacts(this.value)">
+      </div>
+      <div id="wachat-contacts" class="wachat-contacts-list">
+        <div class="wachat-loading">جارٍ التحميل…</div>
+      </div>
     </div>
-    <div class="chat-input-bar">
-      <input type="text" id="chat-input" class="chat-input" placeholder="اكتب رسالتك هنا..."
-             onkeydown="if(event.key==='Enter')App.sendChatMsg()">
-      <button class="chat-send-btn" onclick="App.sendChatMsg()">إرسال ←</button>
+
+    <!-- LEFT: conversation -->
+    <div class="wachat-main" id="wachat-main">
+      <!-- Empty state (no conversation selected) -->
+      <div id="wachat-empty" class="wachat-empty-state">
+        <div style="font-size:52px;margin-bottom:12px;">💬</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text);">اختر محادثة للبدء</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px;">اضغط على اسم من القائمة على اليمين</div>
+      </div>
+      <!-- Active conversation -->
+      <div id="wachat-conv" style="display:none;flex-direction:column;height:100%;">
+        <div class="wachat-conv-header" id="wachat-conv-header">
+          <!-- filled by JS: avatar + name -->
+          <button class="wachat-back-btn" id="wachat-back-btn" onclick="App._chatShowSidebar()" style="display:none;">→</button>
+        </div>
+        <div id="chat-messages" class="chat-messages" style="flex:1;overflow-y:auto;"></div>
+        <div class="chat-input-bar">
+          <input type="text" id="chat-input" class="chat-input" placeholder="اكتب رسالتك هنا…"
+                 onkeydown="if(event.key==='Enter')App.sendChatMsg()">
+          <button class="chat-send-btn" onclick="App.sendChatMsg()">إرسال ←</button>
+        </div>
+      </div>
     </div>
+
   </div>
 </div>
 

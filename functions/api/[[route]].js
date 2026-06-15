@@ -953,6 +953,32 @@ export async function onRequest({ request, env }) {
         return ok({ counts: results }, 200, CORS);
       }
 
+      // GET /api/messages/threads — admin: list students with conversations
+      if (sub === 'threads' && method === 'GET') {
+        if (!isPrivileged) return err('غير مسموح', 403, CORS);
+        const adminId = url.searchParams.get('adminId') || (msgClaims.sub || '');
+        let q, params;
+        if (school) {
+          q = `SELECT student_id, student_name, school,
+                 MAX(created_at) as last_at,
+                 SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
+                 (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id ORDER BY m2.created_at DESC LIMIT 1) as last_msg
+               FROM messages WHERE school=?
+               GROUP BY student_id ORDER BY last_at DESC`;
+          params = [school];
+        } else {
+          q = `SELECT student_id, student_name, school,
+                 MAX(created_at) as last_at,
+                 SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
+                 (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id ORDER BY m2.created_at DESC LIMIT 1) as last_msg
+               FROM messages
+               GROUP BY student_id ORDER BY last_at DESC`;
+          params = [];
+        }
+        const { results: threads } = await DB.prepare(q).bind(...params).all();
+        return ok({ threads }, 200, CORS);
+      }
+
       // GET /api/messages — students see only their own
       if (method === 'GET') {
         const studentId = url.searchParams.get('studentId');

@@ -2743,79 +2743,191 @@ const App = {
   _chatTimer: null,
   _chatMsgCount: 0,
 
+  // ── Chat: WhatsApp-style split layout ───────────────────────────────────
+  _chatContacts: [],   // list shown in sidebar
+
+  // Student: open chat screen and load supervisors of this school
   async goToChat() {
-    // Fetch supervisors for this school
-    const school = State.school || '';
+    const title = document.getElementById('chat-topbar-title');
+    if (title) title.textContent = 'التواصل مع المشرف';
+    show('screen-chat');
+    App._chatShowSidebar();
+    const contacts = document.getElementById('wachat-contacts');
+    contacts.innerHTML = '<div class="wachat-loading">جارٍ التحميل…</div>';
     let admins = [];
     try {
-      const data = await apiFetch(`/admins?school=${encodeURIComponent(school)}`);
-      admins = data.admins || [];
+      const data = await apiFetch(`/admins?school=${encodeURIComponent(State.school || '')}`);
+      admins = (data.admins || []).filter(a => a.school === State.school || a.school === '*');
     } catch {}
-
+    App._chatContacts = admins.map(a => ({ id: a.id, name: a.name, role: 'admin' }));
     if (!admins.length) {
-      showToast('لا يوجد مشرفون مسجّلون في هذه المدرسة حالياً');
+      contacts.innerHTML = '<div class="wachat-loading">لا يوجد مشرفون في هذه المدرسة</div>';
       return;
     }
+    App._chatRenderContacts(admins.map(a => ({ id: a.id, name: a.name, sub: 'مشرف' })));
+    App.startChatPoll();
+    // Auto-open first if only one
+    if (admins.length === 1) App.openChatWithAdmin(admins[0].id, admins[0].name);
+  },
 
-    if (admins.length === 1) {
-      // Only one supervisor — go directly
-      App.openChatWithAdmin(admins[0].id, admins[0].name);
-      return;
+  // Admin: open chat screen and load students who have messages
+  async goToAdminChat() {
+    const title = document.getElementById('chat-topbar-title');
+    if (title) title.textContent = 'محادثات الطلاب';
+    show('screen-chat');
+    App._chatShowSidebar();
+    const contacts = document.getElementById('wachat-contacts');
+    contacts.innerHTML = '<div class="wachat-loading">جارٍ التحميل…</div>';
+    try {
+      const school = State.school || '';
+      const data = await apiFetch(`/messages/threads?school=${encodeURIComponent(school)}`);
+      const threads = data.threads || [];
+      App._chatContacts = threads.map(t => ({ id: t.student_id, name: t.student_name, role: 'student', unread: t.unread }));
+      if (!threads.length) {
+        contacts.innerHTML = '<div class="wachat-loading">لا توجد محادثات بعد</div>';
+        return;
+      }
+      App._chatRenderContacts(threads.map(t => ({
+        id: t.student_id, name: t.student_name,
+        sub: t.last_msg ? t.last_msg.slice(0, 35) : 'لا توجد رسائل',
+        unread: t.unread
+      })));
+    } catch {
+      contacts.innerHTML = '<div class="wachat-loading" style="color:var(--danger)">تعذّر التحميل</div>';
     }
+    App.startChatPoll();
+  },
 
-    // Show selection modal
-    const list = document.getElementById('supervisor-list');
-    list.innerHTML = admins.map(a => `
-      <button class="supervisor-btn" onclick="App.openChatWithAdmin('${a.id}','${escapeHtml(a.name).replace(/'/g,"&#39;")}');document.getElementById('supervisor-select-modal').classList.remove('open');">
-        <div class="supervisor-avatar">${escapeHtml(a.name.charAt(0))}</div>
-        <span>${escapeHtml(a.name)}</span>
-      </button>`).join('');
-    document.getElementById('supervisor-select-modal').classList.add('open');
+  _chatRenderContacts(list) {
+    const el = document.getElementById('wachat-contacts');
+    if (!list.length) { el.innerHTML = '<div class="wachat-loading">لا توجد محادثات</div>'; return; }
+    el.innerHTML = list.map(c => `
+      <div class="wachat-contact-item" id="wcc-${c.id}" onclick="App._chatSelectContact('${c.id}','${escapeHtml(c.name).replace(/'/g,"&#39;")}')">
+        <div class="wachat-contact-avatar">${escapeHtml(c.name.charAt(0))}</div>
+        <div class="wachat-contact-info">
+          <div class="wachat-contact-name">${escapeHtml(c.name)}</div>
+          ${c.sub ? `<div class="wachat-contact-preview">${escapeHtml(c.sub)}</div>` : ''}
+        </div>
+        ${c.unread ? `<span class="wachat-contact-badge">${c.unread}</span>` : ''}
+      </div>`).join('');
+  },
+
+  _chatFilterContacts(q) {
+    const s = q.trim().toLowerCase();
+    document.querySelectorAll('.wachat-contact-item').forEach(el => {
+      const name = el.querySelector('.wachat-contact-name')?.textContent.toLowerCase() || '';
+      el.style.display = !s || name.includes(s) ? '' : 'none';
+    });
+  },
+
+  _chatSelectContact(id, name) {
+    document.querySelectorAll('.wachat-contact-item').forEach(el => el.classList.remove('active'));
+    const item = document.getElementById('wcc-' + id);
+    if (item) item.classList.add('active');
+    if (State.role === 'admin') {
+      App.openAdminChatWith(id, name);
+    } else {
+      App.openChatWithAdmin(id, name);
+    }
+    // On mobile: hide sidebar, show conversation
+    if (window.innerWidth <= 640) App._chatShowConv();
+  },
+
+  _chatShowSidebar() {
+    const sidebar = document.getElementById('wachat-sidebar');
+    const main    = document.getElementById('wachat-main');
+    if (sidebar) sidebar.style.display = '';
+    if (main)    main.style.display    = window.innerWidth <= 640 ? 'none' : '';
+  },
+
+  _chatShowConv() {
+    const sidebar = document.getElementById('wachat-sidebar');
+    const main    = document.getElementById('wachat-main');
+    if (window.innerWidth <= 640) {
+      if (sidebar) sidebar.style.display = 'none';
+    }
+    if (main) main.style.display = '';
+    const backBtn = document.getElementById('wachat-back-btn');
+    if (backBtn) backBtn.style.display = window.innerWidth <= 640 ? 'flex' : 'none';
   },
 
   openChatWithAdmin(adminId, adminName) {
     State.chatAdminId   = adminId;
     State.chatAdminName = adminName;
-    // Update chat screen title
-    const sub = document.querySelector('#screen-chat .topbar-title');
-    if (sub) sub.textContent = `محادثة مع ${adminName}`;
-    show('screen-chat');
+    State.chatStudentId = null;
+    App._chatOpenConv(adminName, 'مشرف');
     App._chatMsgCount = 0;
     App.loadChatMessages();
-    App.startChatPoll();
+  },
+
+  openAdminChatWith(studentId, studentName) {
+    State.chatStudentId  = studentId;
+    State.chatStudentName = studentName;
+    State.chatAdminId    = null;
+    App._chatOpenConv(studentName, 'طالب');
+    App._chatMsgCount = 0;
+    App.loadChatMessages();
+  },
+
+  _chatOpenConv(name, role) {
+    const empty = document.getElementById('wachat-empty');
+    const conv  = document.getElementById('wachat-conv');
+    const hdr   = document.getElementById('wachat-conv-header');
+    if (empty) empty.style.display = 'none';
+    if (conv)  { conv.style.display = 'flex'; }
+    if (hdr) hdr.innerHTML = `
+      <button class="wachat-back-btn" onclick="App._chatShowSidebar()" style="${window.innerWidth<=640?'':'display:none'}">→</button>
+      <div class="wachat-contact-avatar" style="width:36px;height:36px;font-size:14px;">${escapeHtml(name.charAt(0))}</div>
+      <div>
+        <div class="wachat-conv-name">${escapeHtml(name)}</div>
+        <div class="wachat-conv-sub">${role}</div>
+      </div>`;
   },
 
   leaveChatScreen() {
     clearInterval(App._chatTimer);
     App._chatTimer = null;
-    show('screen-student-home');
+    State.chatAdminId   = null;
+    State.chatStudentId = null;
+    const back = State.role === 'admin' ? 'screen-admin' : 'screen-student-home';
+    show(back);
   },
 
   async loadChatMessages() {
-    if (!State.chatAdminId) return;
-    let msgs;
-    try {
-      const data = await apiFetch(`/messages?studentId=${State.student.id}&adminId=${State.chatAdminId}`);
-      msgs = data.messages || [];
-    } catch { return; }
-    // mark admin messages as read
-    if (msgs.some(m => m.sender_type === 'admin' && !m.is_read)) {
-      apiFetch('/messages/read', { method:'PATCH', body: JSON.stringify({ studentId: State.student.id, readerType:'student' }) }).catch(() => {});
-    }
     const el = document.getElementById('chat-messages');
     if (!el) return;
-    if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>'; return; }
+    let msgs = [], readPatch = null;
+
+    try {
+      if (State.role === 'admin' && State.chatStudentId) {
+        const data = await apiFetch(`/messages?studentId=${State.chatStudentId}&adminId=${State.admin.id}`);
+        msgs = data.messages || [];
+        if (msgs.some(m => m.sender_type === 'student' && !m.is_read))
+          readPatch = { studentId: State.chatStudentId, readerType: 'admin' };
+      } else if (State.chatAdminId && State.student) {
+        const data = await apiFetch(`/messages?studentId=${State.student.id}&adminId=${State.chatAdminId}`);
+        msgs = data.messages || [];
+        if (msgs.some(m => m.sender_type === 'admin' && !m.is_read))
+          readPatch = { studentId: State.student.id, readerType: 'student' };
+      }
+    } catch { return; }
+
+    if (readPatch) apiFetch('/messages/read', { method:'PATCH', body: JSON.stringify(readPatch) }).catch(() => {});
+
+    if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>'; App._chatMsgCount = 0; return; }
     el.innerHTML = msgs.map(m => {
-      const sent = m.sender_type === 'student';
+      const isMine = State.role === 'admin' ? m.sender_type === 'admin' : m.sender_type === 'student';
+      const senderName = isMine ? 'أنت' : (State.role === 'admin' ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(State.chatAdminName || 'المشرف'));
       const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
-      return `<div style="display:flex;flex-direction:column;align-items:${sent ? 'flex-end' : 'flex-start'};">
-        <div class="chat-bubble ${sent ? 'sent' : 'received'}">${escapeHtml(m.body)}</div>
-        <div class="chat-time">${sent ? 'أنت' : escapeHtml(State.chatAdminName || 'المشرف')} · ${time}</div>
+      return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};">
+        <div class="chat-bubble ${isMine ? 'sent' : 'received'}">${escapeHtml(m.body)}</div>
+        <div class="chat-time">${senderName} · ${time}</div>
       </div>`;
     }).join('');
     el.scrollTop = el.scrollHeight;
     App._chatMsgCount = msgs.length;
-    document.getElementById('chat-unread-badge').style.display = 'none';
+    const badge = document.getElementById('chat-unread-badge');
+    if (badge) badge.style.display = 'none';
   },
 
   startChatPoll() {
@@ -2824,28 +2936,31 @@ const App = {
       if (!document.getElementById('screen-chat').classList.contains('active')) {
         clearInterval(App._chatTimer); return;
       }
-      if (!State.chatAdminId) return;
       try {
-        const data = await apiFetch(`/messages?studentId=${State.student.id}&adminId=${State.chatAdminId}`);
-        if ((data.messages || []).length !== App._chatMsgCount) App.loadChatMessages();
+        let count = 0;
+        if (State.role === 'admin' && State.chatStudentId) {
+          const d = await apiFetch(`/messages?studentId=${State.chatStudentId}&adminId=${State.admin.id}`);
+          count = (d.messages || []).length;
+        } else if (State.chatAdminId && State.student) {
+          const d = await apiFetch(`/messages?studentId=${State.student.id}&adminId=${State.chatAdminId}`);
+          count = (d.messages || []).length;
+        }
+        if (count !== App._chatMsgCount) App.loadChatMessages();
       } catch {}
     }, 6000);
   },
 
   async sendChatMsg() {
-    if (!State.chatAdminId) return;
     const input = document.getElementById('chat-input');
     const body  = input.value.trim();
     if (!body) return;
     input.value = '';
     try {
-      await apiFetch('/messages', {
-        method:'POST',
-        body: JSON.stringify({
-          body,
-          recipientAdminId: State.chatAdminId,
-        }),
-      });
+      if (State.role === 'admin' && State.chatStudentId) {
+        await apiFetch('/messages', { method:'POST', body: JSON.stringify({ studentId: State.chatStudentId, body, recipientAdminId: State.admin.id }) });
+      } else if (State.chatAdminId) {
+        await apiFetch('/messages', { method:'POST', body: JSON.stringify({ body, recipientAdminId: State.chatAdminId }) });
+      }
       App.loadChatMessages();
     } catch { showToast('تعذّر الإرسال'); input.value = body; }
   },

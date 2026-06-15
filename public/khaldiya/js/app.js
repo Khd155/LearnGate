@@ -1224,7 +1224,12 @@ const App = {
           <div class="perf-summary-num" style="color:var(--primary)">${classAvg !== null ? classAvg + '%' : '—'}</div>
           <div class="perf-summary-lbl">متوسط الفصل</div>
         </div>
+        <div class="perf-summary-item">
+          <div class="perf-summary-num" style="color:#f59e0b;font-size:16px">${untested}</div>
+          <div class="perf-summary-lbl">لم يختبروا</div>
+        </div>
       </div>
+      <div class="perf-skill-breakdown" id="perf-skill-breakdown"></div>
       <div class="perf-filter-bar">
         <input class="perf-search" id="perf-search-input" type="text" placeholder="🔍 ابحث عن طالب…" oninput="App._perfFilter()">
         <button class="perf-filter-btn ${f==='all'?'active':''}"      onclick="App.renderPerformanceTab('all')">الكل</button>
@@ -1234,6 +1239,8 @@ const App = {
       <div class="perf-grid" id="perf-cards-grid">
         ${filtered.map(d => cardHtml(d)).join('')}
       </div>`;
+    // Render skill breakdown
+    App._renderSkillBreakdown(data.filter(d => d.latestSc !== null));
   },
 
   _perfFilter() {
@@ -1243,6 +1250,85 @@ const App = {
       const code = card.querySelector('.perf-code')?.textContent.toLowerCase() || '';
       card.style.display = (!q || name.includes(q) || code.includes(q)) ? '' : 'none';
     });
+  },
+
+  async openStudentTests(studentId, studentName) {
+    const modal = document.getElementById('perf-test-modal');
+    if (!modal) return;
+    document.getElementById('perf-test-modal-name').textContent = studentName;
+    document.getElementById('perf-test-modal-body').innerHTML = '<div class="empty-state"><p>⏳ جارٍ التحميل...</p></div>';
+    modal.style.display = 'flex';
+    try {
+      const { results } = await apiFetch('/test-results?studentId=' + encodeURIComponent(studentId));
+      if (!results || !results.length) {
+        document.getElementById('perf-test-modal-body').innerHTML = '<div class="empty-state"><p>لا توجد نتائج اختبارات مسجّلة لهذا الطالب</p></div>';
+        return;
+      }
+      const skillNames = { v1:'الاستيعاب القرائي', v2:'الخطأ السياقي', v3:'المفردة الشاذة', v4:'التناظر اللفظي', v5:'إكمال الجمل', q1:'الحساب', q2:'الجبر', q3:'الهندسة', q4:'المقارنات', q5:'الإحصاء' };
+      document.getElementById('perf-test-modal-body').innerHTML = results.map(r => {
+        const typeLabel = r.test_type === 'pre' ? '🔵 قبلي' : '🟢 بعدي';
+        const scoreClass = r.score >= 71 ? 'score-high' : r.score >= 50 ? 'score-mid' : 'score-low';
+        const date = new Date(r.created_at).toLocaleDateString('ar-SA');
+        const subjectLabel = r.subject === 'biology-g1' ? '🧬 الأحياء' : r.subject;
+        const answers = Array.isArray(r.answers) ? r.answers : [];
+        const answersHtml = answers.length
+          ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px">إجاباته: ${answers.map(a => `س${a.q+1}:${a.a!==-1?'✓':'⊘'}`).join(' ')}</div>`
+          : '';
+        return `<div style="background:var(--bg-card);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-weight:700;font-size:14px">${subjectLabel}</span>
+            <span class="gap-score ${scoreClass}">${r.score}%</span>
+          </div>
+          <div style="font-size:13px;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap;">
+            <span>${typeLabel}</span>
+            <span>✅ ${r.correct}/${r.total}</span>
+            <span>📅 ${date}</span>
+          </div>
+          ${answersHtml}
+        </div>`;
+      }).join('');
+    } catch (e) {
+      document.getElementById('perf-test-modal-body').innerHTML = `<div class="empty-state"><p>❌ تعذّر تحميل النتائج: ${e.message}</p></div>`;
+    }
+  },
+
+  closeStudentTests() {
+    const modal = document.getElementById('perf-test-modal');
+    if (modal) modal.style.display = 'none';
+  },
+
+  _renderSkillBreakdown(testedData) {
+    const el = document.getElementById('perf-skill-breakdown');
+    if (!el || !testedData.length) return;
+    const skillNames = { v1:'الاستيعاب القرائي', v2:'الخطأ السياقي', v3:'المفردة الشاذة', v4:'التناظر اللفظي', v5:'إكمال الجمل', q1:'الحساب', q2:'الجبر', q3:'الهندسة', q4:'المقارنات', q5:'الإحصاء' };
+    // Aggregate scores per skill across all latest plans
+    const skillTotals = {};
+    testedData.forEach(d => {
+      (d.latest?.gaps || []).forEach(g => {
+        if (!skillTotals[g.skillId]) skillTotals[g.skillId] = { sum: 0, count: 0 };
+        skillTotals[g.skillId].sum   += g.pct;
+        skillTotals[g.skillId].count += 1;
+      });
+    });
+    const skills = Object.entries(skillTotals)
+      .map(([id, { sum, count }]) => ({ id, avg: Math.round(sum / count), count }))
+      .sort((a, b) => a.avg - b.avg);
+    if (!skills.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">📊 متوسط الأداء بحسب المهارة</div>
+      ${skills.map(s => {
+        const cls = s.avg >= 71 ? '#16a34a' : s.avg >= 50 ? '#d97706' : '#dc2626';
+        const width = Math.max(s.avg, 3);
+        return `<div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px;">
+            <span style="color:var(--text)">${skillNames[s.id] || s.id}</span>
+            <span style="font-weight:700;color:${cls}">${s.avg}%</span>
+          </div>
+          <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+            <div style="height:100%;width:${width}%;background:${cls};border-radius:4px;transition:width .4s"></div>
+          </div>
+        </div>`;
+      }).join('')}`;
   },
 
   // ── مؤشر الأداء — Student view ────────────────────────────────────────────

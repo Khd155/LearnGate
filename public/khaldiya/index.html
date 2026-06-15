@@ -338,6 +338,7 @@
         font-size:8pt; color:#888; background:#fff !important;
       }
     }
+    .perf-skill-breakdown { background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
   </style>
 </head>
 <body>
@@ -1770,6 +1771,20 @@
       <button class="btn btn-primary" onclick="App.submitAddQuestion()">✅ حفظ السؤال</button>
       <button class="btn btn-outline" onclick="App.closeAddQuestionModal()">إلغاء</button>
     </div>
+  </div>
+</div>
+
+<!-- Performance Test Results Modal -->
+<div id="perf-test-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)App.closeStudentTests()">
+  <div style="background:var(--bg-card, #fff);border-radius:16px;width:100%;max-width:480px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);" dir="rtl">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border, #e2e8f0);">
+      <div>
+        <div style="font-weight:800;font-size:16px;color:var(--text, #1e293b)">📋 نتائج الاختبارات</div>
+        <div id="perf-test-modal-name" style="font-size:13px;color:var(--text-muted, #64748b);margin-top:2px"></div>
+      </div>
+      <button onclick="App.closeStudentTests()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted, #64748b);line-height:1;">✕</button>
+    </div>
+    <div id="perf-test-modal-body" style="overflow-y:auto;padding:16px;flex:1;"></div>
   </div>
 </div>
 

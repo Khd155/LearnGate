@@ -1252,7 +1252,7 @@
   <div class="topbar">
     <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
-      <div class="topbar-title">لوحة تحكم المشرف</div>
+      <div class="topbar-title">لوحة المشرف</div>
       <div class="topbar-sub" id="ad-school-sub"></div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
@@ -1263,8 +1263,9 @@
     <button class="topbar-back" onclick="App.logout()" style="font-size:14px;">خروج</button>
   </div>
   <div class="page-wrap">
-    <!-- Stats -->
-    <div class="stat-row" style="grid-template-columns:repeat(4,1fr);">
+
+    <!-- ── Quick Stats Row ─────────────────────────── -->
+    <div class="stat-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
       <div class="stat-box">
         <div class="stat-num" id="stat-total">0</div>
         <div class="stat-lbl">إجمالي الطلاب</div>
@@ -1283,55 +1284,23 @@
       </div>
     </div>
 
-    <!-- Tabs -->
+    <!-- ── Tabs ────────────────────────────────────── -->
     <div class="tabs">
-      <button class="tab-btn active" data-tab="students" onclick="App.setTab('students')">👥 الطلاب</button>
-      <button class="tab-btn" data-tab="stats"    onclick="App.setTab('stats')">📊 الإحصائيات</button>
-      <button class="tab-btn" data-tab="settings" onclick="App.setTab('settings')">⚙️ الإدارة</button>
-      <button class="tab-btn" data-tab="performance" onclick="App.setTab('performance')">📈 الأداء</button>
+      <button class="tab-btn active" data-tab="students"    onclick="App.setTab('students')">👥 الطلاب</button>
+      <button class="tab-btn"        data-tab="stats"       onclick="App.setTab('stats')">📊 الإحصائيات</button>
       <button class="tab-btn director-tab" data-tab="supervisors" onclick="App.setTab('supervisors')" style="display:none;">👨‍💼 المشرفون</button>
       <button class="tab-btn director-tab" data-tab="questions"   onclick="App.setTab('questions')"   style="display:none;">📝 الأسئلة</button>
     </div>
 
-    <!-- Performance tab content -->
-    <div id="tab-performance" style="display:none;margin-bottom:20px;"></div>
-
-    <!-- Settings tab content -->
-    <div id="tab-manage" style="display:none;margin-bottom:20px;">
-      <div class="card" style="margin-bottom:16px;">
-        <div class="card-title-sm">إضافة طالب جديد</div>
-        <div id="add-st-err" class="alert alert-error"></div>
-        <div class="form-group">
-          <label class="form-label">اسم الطالب</label>
-          <input type="text" id="add-st-name" class="form-input" placeholder="الاسم الكامل">
-        </div>
-        <div class="form-group">
-          <label class="form-label">رقم السجل المدني</label>
-          <input type="text" id="add-st-code" class="form-input" placeholder="١٠ أرقام"
-                 inputmode="numeric" maxlength="10"
-                 oninput="this.value=this.value.replace(/[^0-9]/g,'')"
-                 onkeydown="if(event.key==='Enter') App.addStudent()">
-        </div>
-        <button class="btn btn-primary" onclick="App.addStudent()">+ إضافة</button>
-      </div>
-
-      <!-- Excel import: students -->
-      <div class="card" style="margin-bottom:16px;">
-        <div class="card-title-sm">📥 استيراد طلاب من Excel</div>
-        <p style="font-size:13px;color:var(--muted);margin:6px 0 12px;line-height:1.7;">
-          حمّل القالب، عبّئ بيانات الطلاب (السجل المدني + الاسم)، ثم ارفع الملف.
-        </p>
-        <div class="import-row">
-          <a href="templates/students-template.xlsx" download
-             class="btn btn-outline import-btn">⬇️ تحميل القالب</a>
-          <label class="btn btn-primary import-btn" for="imp-students">📤 رفع ملف Excel</label>
-          <input type="file" id="imp-students" accept=".xlsx,.xls"
-                 onchange="App.importStudents(this)">
-        </div>
-      </div>
+    <!-- ── Tab: Stats + Performance ───────────────── -->
+    <div id="tab-stats" style="display:none;margin-bottom:20px;">
+      <!-- KPIs rendered dynamically by renderAdminStats() -->
+      <div id="admin-stats-kpis"></div>
+      <!-- Performance grid rendered dynamically -->
+      <div id="tab-performance" style="margin-bottom:20px;"></div>
     </div>
 
-    <!-- Director: Supervisors tab -->
+    <!-- ── Tab: Supervisors (director only) ───────── -->
     <div id="tab-supervisors" style="display:none;margin-bottom:20px;">
       <div class="card" style="margin-bottom:16px;">
         <div class="card-title-sm">إضافة مشرف جديد</div>
@@ -1347,12 +1316,16 @@
                  oninput="this.value=this.value.replace(/[^0-9]/g,'')"
                  onkeydown="if(event.key==='Enter') App.addSupervisor()">
         </div>
+        <div class="form-group">
+          <label class="form-label">المدرسة</label>
+          <input type="text" id="add-sup-school" class="form-input" placeholder="اسم المدرسة">
+        </div>
         <button class="btn btn-primary" onclick="App.addSupervisor()">+ إضافة مشرف</button>
       </div>
       <div id="supervisors-list" class="student-list"></div>
     </div>
 
-    <!-- Director: Questions tab -->
+    <!-- ── Tab: Questions (director only) ─────────── -->
     <div id="tab-questions" style="display:none;margin-bottom:20px;">
       <div class="card" style="margin-bottom:16px;">
         <div class="card-title-sm">📝 استيراد أسئلة من Excel</div>
@@ -1402,13 +1375,53 @@
       </div>
     </div>
 
-    <!-- Student search bar (shown only on students tab) -->
-    <div id="student-search-bar" style="margin-bottom:12px;display:none;">
-      <input type="text" id="student-search-input" class="perf-search"
-             placeholder="🔍 ابحث باسم الطالب أو رقمه…"
-             oninput="App._filterStudentList()" style="width:100%;">
+    <!-- ── Students tab: toolbar (shown when on students tab) ── -->
+    <div id="admin-students-toolbar" style="display:none;margin-bottom:12px;">
+      <!-- Row 1: search + action buttons -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+        <input type="text" id="student-search-input" class="perf-search"
+               placeholder="🔍 ابحث باسم الطالب أو رقمه…"
+               oninput="App._filterStudentList()"
+               style="flex:1;min-width:180px;">
+        <button class="btn btn-primary" style="padding:9px 16px;font-size:13px;white-space:nowrap;flex-shrink:0;"
+                onclick="App.toggleAddStudentPanel()">
+          <span style="font-size:16px;line-height:1;">+</span> إضافة طالب
+        </button>
+        <label class="btn btn-outline" style="padding:9px 14px;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin:0;" for="imp-students">
+          📥 استيراد Excel
+        </label>
+        <input type="file" id="imp-students" accept=".xlsx,.xls" style="display:none;"
+               onchange="App.importStudents(this)">
+      </div>
+      <!-- School filter (injected dynamically for directors) -->
+      <div id="school-filter-bar"></div>
+      <!-- Collapsible add student panel -->
+      <div id="add-student-panel" style="display:none;margin-bottom:8px;">
+        <div class="card" style="margin-bottom:0;border:2px solid var(--primary);border-radius:14px;padding:16px 18px;">
+          <div style="font-weight:800;font-size:14px;margin-bottom:12px;color:var(--primary);">إضافة طالب جديد</div>
+          <div id="add-st-err" class="alert alert-error"></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <div class="form-group" style="flex:1;min-width:140px;margin-bottom:8px;">
+              <label class="form-label">الاسم الكامل</label>
+              <input type="text" id="add-st-name" class="form-input" placeholder="اسم الطالب">
+            </div>
+            <div class="form-group" style="flex:1;min-width:140px;margin-bottom:8px;">
+              <label class="form-label">رقم السجل المدني</label>
+              <input type="text" id="add-st-code" class="form-input" placeholder="١٠ أرقام"
+                     inputmode="numeric" maxlength="10"
+                     oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                     onkeydown="if(event.key==='Enter') App.addStudent()">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" style="flex:1;" onclick="App.addStudent()">+ إضافة</button>
+            <button class="btn btn-outline" style="flex-shrink:0;" onclick="App.toggleAddStudentPanel()">إلغاء</button>
+          </div>
+        </div>
+      </div>
     </div>
 
+    <!-- ── Student List ────────────────────────────── -->
     <div class="student-list" id="admin-student-list"></div>
   </div>
 </div>

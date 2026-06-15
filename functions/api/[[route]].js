@@ -274,7 +274,9 @@ export async function onRequest({ request, env }) {
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         let q = 'SELECT * FROM students';
         const params = [];
-        if (school) { q += ' WHERE school = ?'; params.push(school); }
+        // Non-director admins: always filter by their own school from JWT
+        const effectiveSchool = (claims.role === 'admin' && claims.school) ? claims.school : school;
+        if (effectiveSchool) { q += ' WHERE school = ?'; params.push(effectiveSchool); }
         q += ' ORDER BY created_at ASC';
         const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ students: results }, 200, CORS);

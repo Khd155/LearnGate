@@ -479,7 +479,7 @@ const App = {
     document.querySelectorAll('.director-tab').forEach(el => {
       el.style.display = State.role === 'director' ? '' : 'none';
     });
-    App.renderAdminDashboard('students');
+    App.setTab('students');
     show('screen-admin');
   },
 
@@ -1070,26 +1070,21 @@ const App = {
     document.getElementById('stat-avg').textContent      = avgScore !== null ? avgScore + '%' : '—';
 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === State.tab));
-    const searchBar = document.getElementById('student-search-bar');
-    if (searchBar) searchBar.style.display = State.tab === 'students' ? 'block' : 'none';
     const listEl = document.getElementById('admin-student-list');
 
     if (State.tab === 'students') {
       if (!students.length) { listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>لا يوجد طلاب مضافون بعد</p></div>`; return; }
-      // School filter for director
+      // School filter for director — inject into the dedicated #school-filter-bar div in the toolbar
       if (State.admin?.school === '*') {
         const uniqueSchools = [...new Set(students.map(s => s.school).filter(Boolean))].sort();
-        const existingFilter = document.getElementById('school-filter-bar');
-        if (!existingFilter && uniqueSchools.length > 1) {
-          const filterBar = document.createElement('div');
-          filterBar.id = 'school-filter-bar';
-          filterBar.style.cssText = 'margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
-          filterBar.innerHTML = `<label style="font-size:13px;font-weight:600;color:var(--text);">🏫 المدرسة:</label>
+        const filterBarEl = document.getElementById('school-filter-bar');
+        if (filterBarEl && !filterBarEl.querySelector('select') && uniqueSchools.length > 1) {
+          filterBarEl.style.cssText = 'margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+          filterBarEl.innerHTML = `<label style="font-size:13px;font-weight:600;color:var(--text);">🏫 المدرسة:</label>
             <select id="school-filter-select" onchange="App._filterStudentList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg-card);color:var(--text);">
               <option value="">الكل</option>
               ${uniqueSchools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
             </select>`;
-          listEl.before(filterBar);
         }
       }
       listEl.innerHTML = students.map(st => {
@@ -1144,15 +1139,44 @@ const App = {
   },
 
   setTab(tab) {
-    document.getElementById('tab-manage').style.display       = tab === 'settings'    ? 'block' : 'none';
-    document.getElementById('tab-supervisors').style.display  = tab === 'supervisors' ? 'block' : 'none';
-    document.getElementById('tab-questions').style.display    = tab === 'questions'   ? 'block' : 'none';
-    document.getElementById('tab-performance').style.display  = tab === 'performance' ? 'block' : 'none';
-    if (tab === 'stats')       { App.renderAdminDashboard(tab); App.renderAdminStats(); return; }
-    if (tab === 'supervisors') { App.renderAdminDashboard(tab); App.loadSupervisors(); return; }
-    if (tab === 'questions')   { App.renderAdminDashboard(tab); App.loadQuestions(); return; }
-    if (tab === 'performance') { App.renderAdminDashboard(tab); App.renderPerformanceTab(); return; }
+    // 'performance' is now merged into 'stats'
+    if (tab === 'performance') tab = 'stats';
+
+    const toolbar    = document.getElementById('admin-students-toolbar');
+    const listEl     = document.getElementById('admin-student-list');
+    const tabStats   = document.getElementById('tab-stats');
+    const tabSup     = document.getElementById('tab-supervisors');
+    const tabQ       = document.getElementById('tab-questions');
+
+    // Show/hide toolbar and student list
+    if (toolbar) toolbar.style.display = tab === 'students' ? 'block' : 'none';
+    if (listEl)  listEl.style.display  = tab === 'students' ? ''      : 'none';
+
+    // Show/hide tab panels
+    if (tabStats) tabStats.style.display = tab === 'stats'       ? 'block' : 'none';
+    if (tabSup)   tabSup.style.display   = tab === 'supervisors' ? 'block' : 'none';
+    if (tabQ)     tabQ.style.display     = tab === 'questions'   ? 'block' : 'none';
+
+    if (tab === 'students') {
+      App.renderAdminDashboard('students');
+      return;
+    }
+    if (tab === 'stats') {
+      App.renderAdminDashboard('stats');
+      App.renderAdminStats();
+      App.renderPerformanceTab();
+      return;
+    }
+    if (tab === 'supervisors') { App.renderAdminDashboard('supervisors'); App.loadSupervisors(); return; }
+    if (tab === 'questions')   { App.renderAdminDashboard('questions');   App.loadQuestions();   return; }
     App.renderAdminDashboard(tab);
+  },
+
+  toggleAddStudentPanel() {
+    const panel = document.getElementById('add-student-panel');
+    if (!panel) return;
+    const isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : 'block';
   },
 
   // ── مؤشر الأداء — Admin view ───────────────────────────────────────────────
@@ -1691,7 +1715,7 @@ const App = {
 
   // ── Statistics Tab ────────────────────────────────────────────────────────
   async renderAdminStats() {
-    const listEl   = document.getElementById('admin-student-list');
+    const listEl   = document.getElementById('admin-stats-kpis');
     const students = DB.students();
     const allPlans = DB.plans();
 
@@ -1842,7 +1866,8 @@ const App = {
     document.getElementById('add-st-name').value = '';
     document.getElementById('add-st-code').value = '';
     showToast('تمت إضافة الطالب ✅');
-    App.renderAdminDashboard('manage');
+    App.toggleAddStudentPanel(); // close the panel
+    App.renderAdminDashboard('students');
   },
 
   // ── Excel: Students ────────────────────────────────────────────────────────
@@ -1978,7 +2003,7 @@ const App = {
       const res = await DB.bulkAddStudents(toAdd.map(r => ({ code: r.code, name: r.name, school: r.school || importSchool })));
       App.closeImportPreview();
       showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'طلاب' : 'طالب'}${res.skipped ? ' (تجاهل ' + res.skipped + ' مكرر)' : ''} ✅`);
-      App.renderAdminDashboard('manage');
+      App.renderAdminDashboard('students');
     } catch (e) {
       errEl.textContent = 'فشلت عملية الإضافة: ' + (e.message || e);
       errEl.style.display = 'block';
@@ -2018,7 +2043,7 @@ const App = {
     try { await DB.deleteStudent(studentId); }
     catch (e) { alert('تعذّر الحذف.'); return; }
     ActivityLog.warn(`🗑 حذف طالب: ${st?.name || studentId}`);
-    App.renderAdminDashboard('manage');
+    App.renderAdminDashboard('students');
     showToast('تم الحذف');
   },
 
@@ -2149,7 +2174,7 @@ const App = {
     try {
       await DB.approvePlan(latest.id, 'OVERRIDE:' + latest.adminNote);
     } catch (e) { alert('فشلت العملية.'); return; }
-    App.renderAdminDashboard('manage');
+    App.renderAdminDashboard('students');
     showToast('تم السماح للطالب بإعادة الاختبار ✅');
   },
 
@@ -3267,7 +3292,7 @@ async function _quickRestoreSession(sess) {
         el.style.display = State.role === 'director' ? '' : 'none';
       });
       await Promise.all([DB.loadAll(), _minDelay]);
-      App.renderAdminDashboard('students');
+      App.setTab('students');
       show('screen-admin');
     }
   } catch (e) {

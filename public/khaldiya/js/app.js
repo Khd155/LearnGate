@@ -253,11 +253,21 @@ const State = {
 };
 
 // ── Screen router ─────────────────────────────────────────────────────────
+const _SCREEN_PATHS = {
+  'screen-student-home': '/',
+  'screen-admin':        '/admin',
+  'screen-history':      '/history',
+  'screen-chat':         '/chat',
+  'screen-intro':        '/capabilities',
+};
+
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
   if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
-  if (id === 'screen-student-home') { history.replaceState(null, '', '/'); }
+  const path = _SCREEN_PATHS[id];
+  if (path) history.replaceState(null, '', path);
+  else if (location.pathname !== '/') history.replaceState(null, '', '/');
 }
 
 // ── Cooldown helpers ─────────────────────────────────────────────────────
@@ -397,15 +407,20 @@ const App = {
     } else {
       localStorage.removeItem('lg_remember');
     }
-    startIdleWatch();
-    App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
-    App.startNotifPolling();
-    App._setTopbarUser(student.name);
-    const _minWait = new Promise(r => setTimeout(r, 1000));
-    try { await Promise.all([DB.loadStudentData(), _minWait]); } catch (e) { await _minWait; }
-    App.renderStudentHome();
-    show('screen-student-home');
-    routeHash();
+    try {
+      startIdleWatch();
+      App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
+      App.startNotifPolling();
+      App._setTopbarUser(student.name);
+      const _minWait = new Promise(r => setTimeout(r, 1000));
+      try { await Promise.all([DB.loadStudentData(), _minWait]); } catch (e) { await _minWait; }
+      App.renderStudentHome();
+      show('screen-student-home');
+      routeHash();
+    } catch(e) {
+      _restoreBtn();
+      showAlert(errEl, 'حدث خطأ غير متوقع أثناء تحميل الصفحة — حاول مرة أخرى.');
+    }
   },
 
   // ── Admin Login ──────────────────────────────────────────────────────────
@@ -473,16 +488,21 @@ const App = {
     } else {
       localStorage.removeItem('lg_remember');
     }
-    startIdleWatch();
-    App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
-    App.startNotifPolling();
-    App._setTopbarUser(adminName);
-    document.querySelectorAll('.director-tab').forEach(el => {
-      el.style.display = State.role === 'director' ? '' : 'none';
-    });
-    await new Promise(r => setTimeout(r, 1000));
-    App.setTab('students');
-    show('screen-admin');
+    try {
+      startIdleWatch();
+      App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
+      App.startNotifPolling();
+      App._setTopbarUser(adminName);
+      document.querySelectorAll('.director-tab').forEach(el => {
+        el.style.display = State.role === 'director' ? '' : 'none';
+      });
+      await new Promise(r => setTimeout(r, 1000));
+      App.setTab('students');
+      show('screen-admin');
+    } catch(e) {
+      _restoreBtn();
+      showAlert(errEl, 'حدث خطأ غير متوقع أثناء تحميل اللوحة — حاول مرة أخرى.');
+    }
   },
 
   // ── Populate all .tb-uname chips with user name ───────────────────────────
@@ -3391,13 +3411,27 @@ function showToast(msg) {
   setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
 }
 
-// ── Hash routing ──────────────────────────────────────────────────────────
+// ── Path/hash routing ─────────────────────────────────────────────────────
 function routeHash() {
   const path = location.pathname;
   const hash = decodeURIComponent(location.hash.replace(/^#/, ''));
+
   if ((path === '/capabilities' || hash === 'capabilities') && State.student) {
     history.replaceState(null, '', '/capabilities');
     App.startCapabilities();
+    return;
+  }
+  if (path === '/admin' && (State.role === 'admin' || State.role === 'director')) {
+    show('screen-admin');
+    return;
+  }
+  if (path === '/history' && State.student) {
+    show('screen-history');
+    return;
+  }
+  if (path === '/chat' && State.student) {
+    show('screen-chat');
+    return;
   }
 }
 
@@ -3449,6 +3483,7 @@ async function _quickRestoreSession(sess) {
       await Promise.all([DB.loadAll(), _minDelay]);
       App.setTab('students');
       show('screen-admin');
+      routeHash();
     }
   } catch (e) {
     _authToken = null;

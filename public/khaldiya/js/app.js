@@ -951,21 +951,35 @@ const App = {
   buildGuideTab(skillId) {
     const g = (typeof SKILL_GUIDES !== 'undefined') ? SKILL_GUIDES[skillId] : null;
     if (!g) return '<p class="tab-empty">المحتوى قريباً.</p>';
-    return `
-      <div class="guide-section">
-        <div class="guide-label">📌 ما هذه المهارة؟</div>
-        <p class="guide-text">${g.what}</p>
-      </div>
-      ${g.warning ? `<div class="guide-warning"><span>⚠️</span><span>${g.warning}</span></div>` : ''}
-      <div class="guide-section">
-        <div class="guide-label">✅ ما الذي تحتاجه لإتقانها؟</div>
-        <ul class="guide-list">${g.needs.map(n => `<li>${n}</li>`).join('')}</ul>
-      </div>
-      <div class="guide-section">
-        <div class="guide-label">⚠️ الأخطاء الشائعة</div>
-        <ul class="guide-list mistakes">${g.mistakes.map(m => `<li>${m}</li>`).join('')}</ul>
-      </div>
-      <div class="guide-tip"><span>💡</span><span>${g.tip}</span></div>`;
+    let html = `<div class="guide-section"><div class="guide-label">📌 ما هذه المهارة؟</div><p class="guide-text">${g.what}</p></div>`;
+    if (g.warning) html += `<div class="guide-warning"><span>⚠️</span><span>${g.warning}</span></div>`;
+    if (g.subskills && g.subskills.length) {
+      html += `<div class="guide-section"><div class="guide-label">🔍 المهارات الفرعية</div>`;
+      g.subskills.forEach(s => {
+        html += `<div class="guide-subskill"><div class="guide-subskill-title">${s.title}</div><div class="guide-subskill-body"><p><strong>التعريف:</strong> ${s.def}</p>`;
+        if (s.errors && s.errors.length) html += `<div class="guide-subskill-err">⚠️ خطأ شائع:<ul>${s.errors.map(e=>`<li>${e}</li>`).join('')}</ul></div>`;
+        if (s.practice && s.practice.length) html += `<div class="guide-subskill-practice">✏️ كيف أتدرب؟<ul>${s.practice.map(p=>`<li>${p}</li>`).join('')}</ul></div>`;
+        if (s.when) html += `<div class="guide-subskill-when">🎯 متى أركز؟ ${s.when}</div>`;
+        html += `</div></div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<div class="guide-section"><div class="guide-label">✅ ما الذي تحتاجه لإتقانها؟</div><ul class="guide-list">${g.needs.map(n=>`<li>${n}</li>`).join('')}</ul></div>`;
+    }
+    if (g.confusions && g.confusions.length) {
+      html += `<div class="guide-section"><div class="guide-label">🔄 العلاقات التي يكثر الخلط بينها</div>`;
+      g.confusions.forEach(c => { html += `<div class="guide-confusion-item"><div class="guide-confusion-title">${c.label}</div><ul class="guide-list">${c.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`; });
+      html += `</div>`;
+    }
+    html += `<div class="guide-section"><div class="guide-label">⚠️ أين يخطئ أغلب الطلاب؟</div><ul class="guide-list mistakes">${g.mistakes.map(m=>`<li>${m}</li>`).join('')}</ul></div>`;
+    if (g.trainingOrder && g.trainingOrder.length) {
+      html += `<div class="guide-section"><div class="guide-label">📋 ترتيب مقترح للتدريب</div><ol class="guide-order">${g.trainingOrder.map(t=>`<li>${t}</li>`).join('')}</ol></div>`;
+    }
+    if (g.mastery && g.mastery.length) {
+      html += `<div class="guide-section guide-mastery-box"><div class="guide-label">🏆 مؤشرات الإتقان</div><ul class="guide-list guide-mastery">${g.mastery.map(m=>`<li>${m}</li>`).join('')}</ul></div>`;
+    }
+    html += `<div class="guide-tip"><span>💡</span><span>${g.tip}</span></div>`;
+    return html;
   },
 
   buildVideosTab(skillId) {

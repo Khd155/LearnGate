@@ -446,7 +446,11 @@ export async function onRequest({ request, env }) {
           const { results } = await DB.prepare(
             'SELECT id, subject, test_type, score, correct, total, answers, created_at FROM test_results WHERE student_id = ? ORDER BY created_at DESC'
           ).bind(claims.sub).all();
-          return ok({ results: results.map(r => ({ ...r, answers: JSON.parse(r.answers || '[]') })) }, 200, CORS);
+          return ok({ results: results.map(r => {
+            let ans = [];
+            try { ans = JSON.parse(r.answers || '[]'); } catch(e) {}
+            return { ...r, answers: ans };
+          }) }, 200, CORS);
         }
 
         if (!['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
@@ -455,7 +459,11 @@ export async function onRequest({ request, env }) {
           const { results } = await DB.prepare(
             'SELECT * FROM test_results WHERE student_id = ? ORDER BY created_at DESC'
           ).bind(studentId).all();
-          return ok({ results: results.map(r => ({ ...r, answers: JSON.parse(r.answers || '[]') })) }, 200, CORS);
+          return ok({ results: results.map(r => {
+            let ans = [];
+            try { ans = JSON.parse(r.answers || '[]'); } catch(e) {}
+            return { ...r, answers: ans };
+          }) }, 200, CORS);
         }
         let q = 'SELECT id, student_id, student_name, school, subject, test_type, score, correct, total, created_at FROM test_results';
         const params = [];

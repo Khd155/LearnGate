@@ -1903,27 +1903,21 @@ const App = {
     const notTested = total - tested;
     const barColor = avg => avg <= 30 ? '#ef4444' : avg <= 49 ? '#f59e0b' : avg <= 70 ? '#3b82f6' : '#22c55e';
 
-    // ── SVG horizontal bar chart for skill averages ──────────────────────────
+    // ── HTML horizontal bar chart for skill averages (SVG breaks Arabic text) ──
     function skillsChart(rows) {
       if (!rows.length) return '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0;">لا توجد بيانات بعد</div>';
-      const rowH = 36, padTop = 8, padBot = 8, padRight = 50;
-      const labelW = 170;
-      const SVG_W = 520;
-      const BAR_X = labelW + 8;
-      const BAR_MAX = SVG_W - BAR_X - padRight;
-      const H = rows.length * rowH + padTop + padBot;
-      const svgRows = rows.map((sk, i) => {
-        const midY = padTop + i * rowH + rowH / 2;
-        const bW = Math.max(2, Math.round(sk.avg / 100 * BAR_MAX));
+      return rows.map(sk => {
         const col = barColor(sk.avg);
         const icon = sk.category === 'verbal' ? '📚' : '🔢';
         return `
-          <text x="${labelW - 4}" y="${midY + 5}" text-anchor="end" font-size="12" fill="#64748b" font-family="Tajawal,sans-serif">${icon} ${sk.name}</text>
-          <rect x="${BAR_X}" y="${midY - 9}" width="${BAR_MAX}" height="18" rx="9" fill="#e2e8f0"/>
-          <rect x="${BAR_X}" y="${midY - 9}" width="${bW}" height="18" rx="9" fill="${col}"/>
-          <text x="${BAR_X + bW + 6}" y="${midY + 5}" font-size="12" font-weight="700" fill="${col}" font-family="Tajawal,sans-serif">${sk.avg}%</text>`;
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="width:160px;min-width:160px;font-size:12.5px;color:#475569;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${icon} ${escapeHtml(sk.name)}</div>
+          <div style="flex:1;height:18px;background:#e2e8f0;border-radius:9px;overflow:hidden;">
+            <div style="height:100%;width:${sk.avg}%;background:${col};border-radius:9px;transition:width .4s;"></div>
+          </div>
+          <div style="width:36px;text-align:left;font-size:12px;font-weight:800;color:${col};">${sk.avg}%</div>
+        </div>`;
       }).join('');
-      return `<svg viewBox="0 0 ${SVG_W} ${H}" style="width:100%;display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">${svgRows}</svg>`;
     }
 
     // ── SVG vertical bar chart for level distribution (5 bars incl. not-tested) ──
@@ -1978,17 +1972,61 @@ const App = {
       </div>`;
     }
 
-    listEl.innerHTML = `
-      <!-- Skills SVG chart -->
-      <div class="stats-section">
-        <div class="stats-section-title">📊 متوسط الأداء بحسب المهارة</div>
-        ${skillsChart(skillRows)}
-      </div>
+    // Top 3 weakest skills
+    const weakest3 = skillRows.slice(0, 3);
 
-      <!-- Level distribution SVG chart (5 bars: not-tested + 4 levels) -->
+    // Category averages
+    const verbal = skillRows.filter(s => s.category === 'verbal');
+    const quant  = skillRows.filter(s => s.category !== 'verbal');
+    const avgOf  = arr => arr.length ? Math.round(arr.reduce((s, r) => s + r.avg, 0) / arr.length) : null;
+    const verbalAvg = avgOf(verbal);
+    const quantAvg  = avgOf(quant);
+
+    listEl.innerHTML = `
+      <!-- Level distribution chart -->
       <div class="stats-section">
         <div class="stats-section-title">📈 توزيع المستويات</div>
         ${levelChart(lvlWeak, lvlBelow, lvlMid, lvlHigh, notTested)}
+      </div>
+
+      <!-- Category averages -->
+      ${(verbalAvg !== null || quantAvg !== null) ? `
+      <div class="stats-section">
+        <div class="stats-section-title">🗂 متوسط أداء كل نوع</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          ${verbalAvg !== null ? `<div class="stats-kpi" style="flex:1;min-width:120px;">
+            <div class="stats-kpi-val" style="color:${barColor(verbalAvg)};">${verbalAvg}%</div>
+            <div class="stats-kpi-lbl">📚 لفظي</div>
+          </div>` : ''}
+          ${quantAvg !== null ? `<div class="stats-kpi" style="flex:1;min-width:120px;">
+            <div class="stats-kpi-val" style="color:${barColor(quantAvg)};">${quantAvg}%</div>
+            <div class="stats-kpi-lbl">🔢 كمي</div>
+          </div>` : ''}
+        </div>
+      </div>` : ''}
+
+      <!-- Weakest skills alert -->
+      ${weakest3.length ? `
+      <div class="stats-section">
+        <div class="stats-section-title">⚠️ المهارات الأكثر ضعفاً</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${weakest3.map((sk, i) => {
+            const col = barColor(sk.avg);
+            const icon = sk.category === 'verbal' ? '📚' : '🔢';
+            const medals = ['🥇','🥈','🥉'];
+            return `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1.5px solid var(--border);border-right:4px solid ${col};border-radius:10px;padding:10px 14px;">
+              <span style="font-size:18px;">${medals[i]}</span>
+              <div style="flex:1;font-size:13px;font-weight:700;color:var(--text);">${icon} ${escapeHtml(sk.name)}</div>
+              <div style="font-size:16px;font-weight:900;color:${col};">${sk.avg}%</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Skills breakdown chart -->
+      <div class="stats-section">
+        <div class="stats-section-title">📊 متوسط الأداء بحسب المهارة</div>
+        ${skillsChart(skillRows)}
       </div>
 
       ${supportHTML}

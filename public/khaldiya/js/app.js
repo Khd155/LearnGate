@@ -1176,7 +1176,43 @@ const App = {
     const panel = document.getElementById('add-student-panel');
     if (!panel) return;
     const isOpen = panel.style.display !== 'none';
-    panel.style.display = isOpen ? 'none' : 'block';
+    if (isOpen) { panel.style.display = 'none'; return; }
+    panel.style.display = 'block';
+    this._showAddStep('choice');
+  },
+
+  _showAddStep(step) {
+    const choice = document.getElementById('add-choice-step');
+    const manual = document.getElementById('add-manual-step');
+    const excel  = document.getElementById('add-excel-step');
+    if (!choice) return;
+    choice.style.display = step === 'choice' ? 'block' : 'none';
+    if (manual) manual.style.display = step === 'manual' ? 'block' : 'none';
+    if (excel)  excel.style.display  = step === 'excel'  ? 'block' : 'none';
+  },
+
+  downloadStudentsTemplate() {
+    try {
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([
+        ['اسم الطالب', 'السجل المدني'],
+        ['محمد أحمد العمري', '1012345678'],
+        ['سارة علي الزهراني', '1098765432'],
+      ]);
+      // Set RTL and column widths
+      ws['!cols'] = [{ wch: 30 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, ws, 'الطلاب');
+      XLSX.writeFile(wb, 'students-template.xlsx');
+    } catch (e) { alert('تعذّر إنشاء القالب: ' + e.message); }
+  },
+
+  async deleteNoSchoolStudents() {
+    if (!confirm('سيتم حذف جميع الطلاب الذين ليس لديهم مدرسة. هل أنت متأكد؟')) return;
+    try {
+      await DB.deleteNoSchoolStudents();
+      App.renderAdminDashboard('students');
+      showToast('تم حذف الطلاب بدون مدرسة ✅');
+    } catch (e) { alert('فشل الحذف: ' + e.message); }
   },
 
   // ── مؤشر الأداء — Admin view ───────────────────────────────────────────────
@@ -1438,6 +1474,19 @@ const App = {
   async loadSupervisors() {
     const listEl = document.getElementById('supervisors-list');
     if (!listEl) return;
+    // Populate school dropdown from students list (directors only)
+    const schoolSel = document.getElementById('add-sup-school');
+    if (schoolSel) {
+      const schools = [...new Set(DB.students().map(s => s.school).filter(Boolean))].sort();
+      const current = schoolSel.value;
+      schoolSel.innerHTML = '<option value="">— اختر المدرسة —</option>' +
+        schools.map(s => `<option value="${escapeHtml(s)}"${s === current ? ' selected' : ''}>${escapeHtml(s)}</option>`).join('');
+      // If admin (not director), only show their school
+      if (State.admin?.school && State.admin.school !== '*') {
+        schoolSel.value = State.admin.school;
+        schoolSel.disabled = true;
+      }
+    }
     listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">جاري التحميل…</div>';
     try {
       const school = encodeURIComponent(State.school || '');
@@ -1465,12 +1514,13 @@ const App = {
   async addSupervisor() {
     const name   = document.getElementById('add-sup-name').value.trim();
     const code   = document.getElementById('add-sup-code').value.trim();
+    const school = State.school || document.getElementById('add-sup-school')?.value || '';
     const errEl  = document.getElementById('add-sup-err');
     errEl.style.display = 'none';
     if (!name) { showAlert(errEl, 'أدخل اسم المشرف'); errEl.style.display=''; return; }
     if (!/^\d{10}$/.test(code)) { showAlert(errEl, 'الرمز يجب أن يكون ١٠ أرقام'); errEl.style.display=''; return; }
+    if (!school) { showAlert(errEl, 'اختر المدرسة أولاً'); errEl.style.display=''; return; }
     try {
-      const school = State.school || '';
       await apiFetch('/director/admins?school=' + encodeURIComponent(school), {
         method: 'POST',
         body: JSON.stringify({ name, code, director_code: State.admin.code })
@@ -3258,7 +3308,13 @@ function routeHash() {
 // Fast path: skip auth API call when token is still valid
 async function _quickRestoreSession(sess) {
   show('screen-loading');
-  const _minDelay = new Promise(r => setTimeout(r, 3000)); // minimum 3s loading screen
+  const _minDelay  = new Promise(r => setTimeout(r, 1500)); // min 1.5s
+  const _maxDelay  = new Promise(r => setTimeout(r, 5000)); // max 5s cap
+  // Shows a "slow connection" hint after 2.5s
+  const _slowHint = setTimeout(() => {
+    const hint = document.querySelector('#screen-loading [data-slow]');
+    if (hint) hint.style.display = 'block';
+  }, 2500);
   try {
     _authToken = sess.token;
     const expiry = Date.now() + 4 * 60 * 60 * 1000;
@@ -3273,7 +3329,8 @@ async function _quickRestoreSession(sess) {
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();
       App._setTopbarUser(sess.name);
-      try { await Promise.all([DB.loadStudentData(), _minDelay]); } catch (e) { await _minDelay; }
+      try { await Promise.race([Promise.all([DB.loadStudentData(), _minDelay]), _maxDelay]); } catch (e) { await _minDelay; }
+      clearTimeout(_slowHint);
       App.renderStudentHome();
       show('screen-student-home');
       routeHash();

@@ -335,6 +335,13 @@ p, span, div, button, input, label, td, th {
 }
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 32px -12px rgba(11,74,138,.6); }
 .btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: .75; cursor: not-allowed; transform: none; }
+.btn-spinner {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff;
+  border-radius: 50%; animation: btn-spin .7s linear infinite; flex-shrink: 0;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
 .btn-success { background: var(--success); color: #fff; box-shadow: 0 10px 24px -10px rgba(5,150,105,.5); }
 .btn-success:hover { filter: brightness(1.05); transform: translateY(-1px); }
 .btn-danger  { background: var(--danger);  color: #fff; }

@@ -337,6 +337,9 @@ const App = {
     if (!/^\d{10}$/.test(code)) {
       showAlert(errEl, 'الرجاء إدخال رقم السجل المدني (١٠ أرقام).'); return;
     }
+    const _btn = document.getElementById('sl-submit-btn');
+    const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.innerHTML = 'دخول ←'; } };
+    if (_btn) { _btn.disabled = true; _btn.innerHTML = '<span class="btn-spinner"></span> جارٍ التحقق…'; }
     let token, student;
     try {
       const data = await apiFetch('/auth/student-login', {
@@ -349,18 +352,18 @@ const App = {
       const msg = e?.message || '';
       const status = e?.status;
       if (status === 404 || msg.includes('غير مسجّل')) {
-        showAlert(errEl, 'السجل المدني غير مسجّل — راجع المشرف لإضافتك في النظام.'); return;
+        _restoreBtn(); showAlert(errEl, 'السجل المدني غير مسجّل — راجع المشرف لإضافتك في النظام.'); return;
       }
       if (status === 429 || msg.includes('Too many') || msg.includes('429')) {
-        showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
+        _restoreBtn(); showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
       }
       if (status === 400 || msg.includes('غير صالح')) {
-        showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
+        _restoreBtn(); showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
       }
       if (!navigator.onLine || msg.includes('NETWORK_ERROR')) {
-        showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
+        _restoreBtn(); showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
       }
-      showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
+      _restoreBtn(); showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
     ActivityLog.success(`🎓 تسجيل دخول طالب: ${student.name} (${code}) — ${student.school || '—'}`);
     serverLog('success', 'login', `تسجيل دخول طالب: ${student.name}`, { user_name: student.name, user_role: 'student', school: student.school || '' });
@@ -394,6 +397,9 @@ const App = {
     if (!/^\d{10}$/.test(code)) {
       showAlert(errEl, 'الرجاء إدخال رقم السجل المدني (١٠ أرقام).'); return;
     }
+    const _btn = document.getElementById('al-submit-btn');
+    const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.innerHTML = 'دخول ←'; } };
+    if (_btn) { _btn.disabled = true; _btn.innerHTML = '<span class="btn-spinner"></span> جارٍ التحقق…'; }
     let token, admin;
     try {
       const data = await apiFetch('/auth/admin-login', {
@@ -406,21 +412,21 @@ const App = {
       const msg = e?.message || '';
       const status = e?.status;
       if (status === 404 || msg.includes('غير مسجّل')) {
-        showAlert(errEl, 'السجل المدني غير مسجّل ضمن المشرفين.'); return;
+        _restoreBtn(); showAlert(errEl, 'السجل المدني غير مسجّل ضمن المشرفين.'); return;
       }
       if (status === 429 || msg.includes('Too many') || msg.includes('429')) {
-        showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
+        _restoreBtn(); showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
       }
       if (status === 403 || msg.includes('غير مصرح')) {
-        showAlert(errEl, 'هذا الرمز غير مصرح له بالدخول على هذه المدرسة.'); return;
+        _restoreBtn(); showAlert(errEl, 'هذا الرمز غير مصرح له بالدخول على هذه المدرسة.'); return;
       }
       if (status === 400 || msg.includes('غير صالح')) {
-        showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
+        _restoreBtn(); showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
       }
       if (!navigator.onLine || msg.includes('NETWORK_ERROR')) {
-        showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
+        _restoreBtn(); showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة.'); return;
       }
-      showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
+      _restoreBtn(); showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
     ActivityLog.success(`👨‍💼 تسجيل دخول مشرف: ${admin.name || code} (${code}) — ${admin.school || '—'} — دور: ${admin.role || 'admin'}`);
     serverLog('success', 'login', `تسجيل دخول مشرف: ${admin.name || code}`, { user_name: admin.name || '', user_role: admin.role || 'admin', school: admin.school || '' });
@@ -432,6 +438,7 @@ const App = {
     try { await DB.loadAll(); }
     catch (e) {
       _authToken = null;
+      _restoreBtn();
       if (!navigator.onLine) { showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة.'); return; }
       if (e?.status === 401) { showAlert(errEl, 'الصلاحيات غير كافية — راجع مدير النظام لضبط دورك في قاعدة البيانات.'); return; }
       showAlert(errEl, 'تم الدخول لكن تعذّر تحميل البيانات — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
@@ -3199,6 +3206,7 @@ function routeHash() {
 // Fast path: skip auth API call when token is still valid
 async function _quickRestoreSession(sess) {
   show('screen-loading');
+  await new Promise(r => setTimeout(r, 0)); // yield so browser paints the loading screen
   try {
     _authToken = sess.token;
     const expiry = Date.now() + 4 * 60 * 60 * 1000;
@@ -3245,7 +3253,6 @@ async function _quickRestoreSession(sess) {
 
 function _autoLogin(role, code, token, school) {
   show('screen-loading');
-  // Restore JWT if we have one stored
   if (token) _authToken = token;
   if (role === 'student') {
     if (school) { State.school = school; App._updateSchoolDisplay(school); }
@@ -3253,14 +3260,17 @@ function _autoLogin(role, code, token, school) {
     const cb    = document.getElementById('sl-remember');
     if (input) input.value = code;
     if (cb)    cb.checked  = true;
-    App.studentLogin().catch(() => { sessionStorage.removeItem('lg_session'); show('screen-landing'); });
   } else {
     const input = document.getElementById('al-code');
     const cb    = document.getElementById('al-remember');
     if (input) input.value = code;
     if (cb)    cb.checked  = true;
-    App.adminLogin().catch(() => { sessionStorage.removeItem('lg_session'); show('screen-landing'); });
   }
+  // setTimeout(0) lets the browser paint screen-loading before starting the API call
+  setTimeout(() => {
+    const login = role === 'student' ? App.studentLogin() : App.adminLogin();
+    login.catch(() => { sessionStorage.removeItem('lg_session'); localStorage.removeItem('lg_xsession'); show('screen-landing'); });
+  }, 0);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

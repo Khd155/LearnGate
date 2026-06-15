@@ -860,18 +860,32 @@ function _saveTestResult(testType, correct, total, answers) {
   try {
     const sess = JSON.parse(sessionStorage.getItem('lg_session') || '{}');
     if (!sess.token || sess.role !== 'student') return;
+    const score = Math.round(correct / total * 100);
     fetch('/api/test-results', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sess.token },
       body: JSON.stringify({
         subject: 'biology-g1',
         testType,
-        score: Math.round(correct / total * 100),
+        score,
         correct,
         total,
         answers: answers.map((a, i) => ({ q: i, a }))
       })
-    }).catch(() => {});
+    })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      // أضف النتيجة محلياً وأظهر البطاقة فوراً
+      const newResult = { subject: 'biology-g1', test_type: testType, score, correct, total, created_at: new Date().toISOString() };
+      if (!window._myBioResults) window._myBioResults = [];
+      window._myBioResults.unshift(newResult);
+      const card  = document.getElementById('my-results-card');
+      const badge = document.getElementById('my-results-badge');
+      if (card)  card.style.display = 'block';
+      if (badge) badge.textContent = window._myBioResults.length + ' ' + (window._myBioResults.length === 1 ? 'اختبار' : 'اختبارات');
+    })
+    .catch(() => {});
   } catch (e) {}
 }
 

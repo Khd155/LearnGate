@@ -186,7 +186,9 @@ export async function onRequest({ request, env }) {
         const { code, school: bodySchool } = body;
         if (!code || !/^\d{10}$/.test(code)) return err('رمز غير صالح', 400, CORS);
         const sc = bodySchool || school;
-        const student = await DB.prepare('SELECT id, code, name, school FROM students WHERE code = ? AND school = ?').bind(code, sc).first();
+        const student = sc
+          ? await DB.prepare('SELECT id, code, name, school FROM students WHERE code = ? AND school = ?').bind(code, sc).first()
+          : await DB.prepare('SELECT id, code, name, school FROM students WHERE code = ?').bind(code).first();
         if (!student) {
           try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'warn','login',`محاولة دخول طالب فاشلة: ${code}`,'','student',sc,ip,new Date().toISOString()).run(); } catch {}
           return err('السجل المدني غير مسجّل', 404, CORS);

@@ -877,7 +877,7 @@ function _saveTestResult(testType, correct, total, answers) {
     .then(data => {
       if (!data) return;
       // أضف النتيجة محلياً وأظهر البطاقة فوراً
-      const newResult = { subject: 'biology-g1', test_type: testType, score, correct, total, created_at: new Date().toISOString() };
+      const newResult = { subject: 'biology-g1', test_type: testType, score, correct, total, answers: answers.map((a, i) => ({ q: i, a })), created_at: new Date().toISOString() };
       if (!window._myBioResults) window._myBioResults = [];
       window._myBioResults.unshift(newResult);
       const card  = document.getElementById('my-results-card');
@@ -1182,42 +1182,154 @@ function showPostResults() {
 })();
 
 function openMyResults() {
-  const modal = document.getElementById('my-results-modal');
-  const body  = document.getElementById('my-results-body');
-  modal.style.display = 'flex';
+  document.getElementById('my-results-modal').style.display = 'flex';
+  _bioShowList();
+}
+
+function closeMyResults() {
+  document.getElementById('my-results-modal').style.display = 'none';
+}
+
+function _bioShowList() {
+  const body    = document.getElementById('my-results-body');
   const results = window._myBioResults || [];
   if (!results.length) {
     body.innerHTML = '<p style="text-align:center;color:#64748b;padding:24px;">لا توجد نتائج محفوظة.</p>';
     return;
   }
-  body.innerHTML = results.map(r => {
-    const isPre   = r.test_type === 'pre';
-    const label   = isPre ? '📋 التشخيص القبلي' : '✅ تقويم تعلم الوحدة';
-    const bgColor = isPre ? '#eff6ff' : '#f0fdf4';
-    const bdColor = isPre ? '#bfdbfe' : '#86efac';
-    const sc      = r.score;
-    const scColor = sc >= 80 ? '#16a34a' : sc >= 50 ? '#d97706' : '#dc2626';
-    const date    = new Date(r.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'long', year:'numeric' });
-    const correctOf = r.correct + ' / ' + r.total;
-    const scLabel = sc >= 80
-      ? (isPre ? 'مستعد للدراسة 🟢' : 'مستوى جيد 🟢')
-      : sc >= 50 ? 'بحاجة لمراجعة 🟡' : 'يحتاج دعم 🔴';
-    return `<div style="background:${bgColor};border:1.5px solid ${bdColor};border-radius:14px;padding:16px;margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <span style="font-weight:800;font-size:14px;color:#0f172a;">${label}</span>
-        <span style="font-size:22px;font-weight:900;color:${scColor};">${sc}%</span>
+
+  const pre  = results.filter(r => r.test_type === 'pre');
+  const post = results.filter(r => r.test_type === 'post');
+
+  function entryCard(r, idx, type) {
+    const allIdx = results.indexOf(r);
+    const num    = arabicNum(idx + 1);
+    const date   = new Date(r.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'long', year:'numeric' });
+    const time   = new Date(r.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
+    const scClr  = r.score >= 80 ? '#16a34a' : r.score >= 50 ? '#d97706' : '#dc2626';
+    const bd     = type === 'pre' ? '#bfdbfe' : '#86efac';
+    return `<div onclick="_bioShowDetail(${allIdx})" style="
+        display:flex;align-items:center;gap:14px;
+        background:#fff;border:1.5px solid ${bd};border-radius:12px;
+        padding:13px 15px;margin-bottom:9px;cursor:pointer;transition:all .15s;
+      " onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)'"
+         onmouseout="this.style.transform='';this.style.boxShadow=''">
+      <div style="font-size:26px;">${type==='pre'?'📋':'✅'}</div>
+      <div style="flex:1;">
+        <div style="font-weight:800;font-size:13.5px;color:#0f172a;">اختبار ${num}</div>
+        <div style="font-size:11.5px;color:#64748b;margin-top:2px;">📅 ${date} · 🕐 ${time}</div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:13px;color:#475569;">
-        <span>✅ ${correctOf} إجابة صحيحة</span>
-        <span>📅 ${date}</span>
+      <div style="text-align:center;flex-shrink:0;">
+        <div style="font-size:20px;font-weight:900;color:${scClr};">${r.score}%</div>
+        <div style="font-size:11px;color:#94a3b8;">${r.correct}/${r.total}</div>
       </div>
-      <div style="margin-top:8px;font-size:13px;font-weight:700;color:${scColor};">${scLabel}</div>
+      <div style="color:#cbd5e1;font-size:14px;">←</div>
     </div>`;
-  }).join('');
+  }
+
+  let html = '';
+
+  html += `<div style="font-size:12.5px;font-weight:800;color:#3F7CB8;margin-bottom:9px;display:flex;align-items:center;gap:6px;">
+    📋 التشخيص القبلي
+    <span style="background:#eff6ff;color:#3F7CB8;border-radius:99px;padding:2px 8px;font-size:11px;">${pre.length} اختبار</span>
+  </div>`;
+  html += pre.length
+    ? pre.map((r, i) => entryCard(r, i, 'pre')).join('')
+    : `<div style="text-align:center;color:#94a3b8;font-size:13px;padding:10px 0 14px;">لم تُجرِ الاختبار القبلي بعد</div>`;
+
+  html += `<div style="font-size:12.5px;font-weight:800;color:#4FA877;margin-top:8px;margin-bottom:9px;display:flex;align-items:center;gap:6px;">
+    ✅ تقويم تعلم الوحدة — بعدي
+    <span style="background:#f0fdf4;color:#4FA877;border-radius:99px;padding:2px 8px;font-size:11px;">${post.length} اختبار</span>
+  </div>`;
+  html += post.length
+    ? post.map((r, i) => entryCard(r, i, 'post')).join('')
+    : `<div style="text-align:center;color:#94a3b8;font-size:13px;padding:10px 0;">لم تُجرِ الاختبار البعدي بعد</div>`;
+
+  body.innerHTML = html;
 }
 
-function closeMyResults() {
-  document.getElementById('my-results-modal').style.display = 'none';
+function _bioShowDetail(idx) {
+  const result = (window._myBioResults || [])[idx];
+  if (!result) return;
+
+  const isPre     = result.test_type === 'pre';
+  const questions = isPre ? PRE_Q : POST_Q;
+  const ansMap    = {};
+  (result.answers || []).forEach(a => { ansMap[a.q] = a.a; });
+
+  const scClr = result.score >= 80 ? '#16a34a' : result.score >= 50 ? '#d97706' : '#dc2626';
+  const date  = new Date(result.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'long', year:'numeric' });
+
+  let html = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <button onclick="_bioShowList()" style="background:#f1f5f9;border:none;border-radius:99px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#475569;flex-shrink:0;">← رجوع</button>
+      <div>
+        <div style="font-weight:800;font-size:14px;color:#0f172a;">${isPre ? '📋 التشخيص القبلي' : '✅ تقويم تعلم الوحدة'}</div>
+        <div style="font-size:11.5px;color:#64748b;">📅 ${date}</div>
+      </div>
+    </div>
+    <div style="background:${isPre?'#eff6ff':'#f0fdf4'};border:1.5px solid ${isPre?'#bfdbfe':'#86efac'};border-radius:12px;padding:14px;margin-bottom:14px;text-align:center;">
+      <div style="font-size:32px;font-weight:900;color:${scClr};">${result.score}%</div>
+      <div style="font-size:13px;color:#475569;">${result.correct} إجابة صحيحة من ${result.total}</div>
+    </div>`;
+
+  // Pre-test: preparation plan based on wrong answers
+  if (isPre) {
+    const weakSkills = questions
+      .filter((q, i) => ansMap[i] !== q.ans)
+      .map(q => q.skill)
+      .filter((v, i, a) => a.indexOf(v) === i);
+    if (weakSkills.length) {
+      html += `<div style="background:#fefce8;border:1.5px solid #fde047;border-radius:12px;padding:13px;margin-bottom:14px;">
+        <div style="font-weight:800;font-size:13px;color:#854d0e;margin-bottom:7px;">📚 مهارات تحتاج مراجعة قبل الدراسة</div>
+        <ul style="margin:0;padding-right:18px;">
+          ${weakSkills.map(s => `<li style="font-size:12.5px;color:#713f12;margin-bottom:3px;">${s}</li>`).join('')}
+        </ul>
+      </div>`;
+    }
+  }
+
+  html += `<div style="font-weight:800;font-size:12.5px;color:#64748b;margin-bottom:9px;">مراجعة الإجابات — ${arabicNum(questions.length)} سؤال</div>`;
+
+  questions.forEach((q, i) => {
+    const userAns  = ansMap[i];
+    const correct  = q.ans;
+    const isDK     = userAns === 'dk';
+    const isSkip   = userAns === null || userAns === undefined;
+    const isRight  = !isDK && !isSkip && userAns === correct;
+    const icon     = isRight ? '✅' : (isDK || isSkip) ? '⚪' : '❌';
+    const cardBg   = isRight ? '#f0fdf4' : (isDK || isSkip) ? '#f8fafc' : '#fff5f5';
+    const cardBd   = isRight ? '#86efac' : (isDK || isSkip) ? '#e2e8f0' : '#fca5a5';
+    const secTag   = !isPre && q.sec !== undefined
+      ? `<span style="font-size:11px;background:#e0e7ff;color:#3730a3;border-radius:99px;padding:2px 8px;margin-bottom:7px;display:inline-block;">${POST_SECTIONS[q.sec]}</span><br>`
+      : '';
+
+    const optsHtml = q.opts.map((opt, oi) => {
+      const isCr = oi === correct;
+      const isUsr = oi === userAns;
+      let bg = '#f8fafc', bd = '#e2e8f0', clr = '#475569', fw = '500', pfx = '';
+      if (isCr)  { bg = '#f0fdf4'; bd = '#22c55e'; clr = '#166534'; fw = '700'; pfx = '✓ '; }
+      if (isUsr && !isCr) { bg = '#fff5f5'; bd = '#ef4444'; clr = '#991b1b'; fw = '700'; pfx = '✗ '; }
+      return `<div style="background:${bg};border:1.5px solid ${bd};border-radius:8px;padding:7px 11px;font-size:12.5px;color:${clr};font-weight:${fw};">${pfx}${opt}</div>`;
+    }).join('');
+
+    html += `<div style="background:${cardBg};border:1.5px solid ${cardBd};border-radius:12px;padding:13px;margin-bottom:10px;">
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:9px;">
+        <span style="font-size:16px;flex-shrink:0;margin-top:1px;">${icon}</span>
+        <div style="flex:1;">
+          ${secTag}
+          <div style="font-size:13px;font-weight:700;color:#0f172a;line-height:1.65;">${arabicNum(i+1)}. ${q.text}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:9px;">${optsHtml}</div>
+      ${isDK ? '<div style="font-size:12px;color:#94a3b8;margin-bottom:7px;">اخترت: لا أعرف</div>' : ''}
+      <div style="background:rgba(63,124,184,.08);border-radius:8px;padding:9px 11px;font-size:12px;color:#475569;line-height:1.65;">
+        <span style="font-weight:800;color:#3F7CB8;">التفسير: </span>${q.exp}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('my-results-body').innerHTML = html;
 }
 </script>
 </body>

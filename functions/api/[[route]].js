@@ -444,9 +444,9 @@ export async function onRequest({ request, env }) {
 
         if (claims.role === 'student') {
           const { results } = await DB.prepare(
-            'SELECT id, subject, test_type, score, correct, total, created_at FROM test_results WHERE student_id = ? ORDER BY created_at DESC'
+            'SELECT id, subject, test_type, score, correct, total, answers, created_at FROM test_results WHERE student_id = ? ORDER BY created_at DESC'
           ).bind(claims.sub).all();
-          return ok({ results }, 200, CORS);
+          return ok({ results: results.map(r => ({ ...r, answers: JSON.parse(r.answers || '[]') })) }, 200, CORS);
         }
 
         if (!['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);

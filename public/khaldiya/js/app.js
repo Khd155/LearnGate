@@ -1339,44 +1339,99 @@ const App = {
     });
   },
 
-  async openStudentTests(studentId, studentName) {
+  openStudentTests(studentId, studentName) {
     const modal = document.getElementById('perf-test-modal');
     if (!modal) return;
     document.getElementById('perf-test-modal-name').textContent = studentName;
-    document.getElementById('perf-test-modal-body').innerHTML = '<div class="empty-state"><p>⏳ جارٍ التحميل...</p></div>';
     modal.style.display = 'flex';
-    try {
-      const { results } = await apiFetch('/test-results?studentId=' + encodeURIComponent(studentId));
-      if (!results || !results.length) {
-        document.getElementById('perf-test-modal-body').innerHTML = '<div class="empty-state"><p>لا توجد نتائج اختبارات مسجّلة لهذا الطالب</p></div>';
-        return;
-      }
-      const skillNames = { v1:'الاستيعاب القرائي', v2:'الخطأ السياقي', v3:'المفردة الشاذة', v4:'التناظر اللفظي', v5:'إكمال الجمل', q1:'الحساب', q2:'الجبر', q3:'الهندسة', q4:'المقارنات', q5:'الإحصاء' };
-      document.getElementById('perf-test-modal-body').innerHTML = results.map(r => {
-        const typeLabel = r.test_type === 'pre' ? '🔵 قبلي' : '🟢 بعدي';
-        const scoreClass = r.score >= 71 ? 'score-high' : r.score >= 50 ? 'score-mid' : 'score-low';
-        const date = new Date(r.created_at).toLocaleDateString('ar-SA');
-        const subjectLabel = r.subject === 'biology-g1' ? '🧬 الأحياء' : r.subject;
-        const answers = Array.isArray(r.answers) ? r.answers : [];
-        const answersHtml = answers.length
-          ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px">إجاباته: ${answers.map(a => `س${a.q+1}:${a.a!==-1?'✓':'⊘'}`).join(' ')}</div>`
-          : '';
-        return `<div style="background:var(--bg-card);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <span style="font-weight:700;font-size:14px">${subjectLabel}</span>
-            <span class="gap-score ${scoreClass}">${r.score}%</span>
-          </div>
-          <div style="font-size:13px;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap;">
-            <span>${typeLabel}</span>
-            <span>✅ ${r.correct}/${r.total}</span>
-            <span>📅 ${date}</span>
-          </div>
-          ${answersHtml}
+
+    const plans = DB.studentPlans(studentId)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    if (!plans.length) {
+      document.getElementById('perf-test-modal-body').innerHTML =
+        '<div class="empty-state"><p>لا توجد محاولات مسجّلة لهذا الطالب</p></div>';
+      return;
+    }
+
+    const pts = plans.map((p, i) => {
+      const avg = p.gaps.length
+        ? Math.round(p.gaps.reduce((s, g) => s + g.pct, 0) / p.gaps.length)
+        : 0;
+      return {
+        n: i + 1,
+        score: avg,
+        date: new Date(p.createdAt).toLocaleDateString('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' }),
+        gaps: p.gaps
+      };
+    });
+
+    // ── SVG line chart ──
+    const W = 340, H = 130, pL = 34, pR = 16, pT = 18, pB = 28;
+    const cW = W - pL - pR, cH = H - pT - pB;
+    const n = pts.length;
+    const xs = i => pL + (n > 1 ? (i / (n - 1)) * cW : cW / 2);
+    const ys = s => pT + cH - (s / 100) * cH;
+
+    const linePts  = pts.map((p, i) => `${xs(i)},${ys(p.score)}`).join(' ');
+    const areaPts  = `${xs(0)},${pT + cH} ${linePts} ${xs(n - 1)},${pT + cH}`;
+    const gridSvg  = [0, 25, 50, 75, 100].map(v => {
+      const y = ys(v);
+      return `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="${v % 50 === 0 ? '' : '3,3'}"/>
+        <text x="${pL - 4}" y="${y + 3.5}" text-anchor="end" font-size="9" fill="#94a3b8">${v}</text>`;
+    }).join('');
+    const dotsSvg  = pts.map((p, i) =>
+      `<circle cx="${xs(i)}" cy="${ys(p.score)}" r="5.5" fill="white" stroke="#3F7CB8" stroke-width="2.5"
+        style="cursor:pointer"
+        onmouseover="_pct(event,${p.n},'${p.date.replace(/'/g, '')}',${p.score})"
+        onmouseout="_pctH()"/>`
+    ).join('');
+    const lblSvg   = pts.map((p, i) =>
+      `<text x="${xs(i)}" y="${H - 4}" text-anchor="middle" font-size="9" fill="#94a3b8">م${p.n}</text>`
+    ).join('');
+
+    const chartHtml = `
+      <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 14px 8px;margin-bottom:16px;">
+        <div style="font-size:11.5px;font-weight:800;color:#64748b;margin-bottom:8px;">📈 تطور الأداء عبر المحاولات</div>
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;">
+          <defs>
+            <linearGradient id="pcg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3F7CB8" stop-opacity=".22"/>
+              <stop offset="100%" stop-color="#3F7CB8" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          ${gridSvg}
+          <polygon points="${areaPts}" fill="url(#pcg)"/>
+          <polyline points="${linePts}" fill="none" stroke="#3F7CB8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+          ${dotsSvg}
+          ${lblSvg}
+        </svg>
+      </div>`;
+
+    // ── Attempts list (newest first) ──
+    const listHtml = [...pts].reverse().map(p => {
+      const cls = p.score >= 71 ? 'score-high' : p.score >= 50 ? 'score-mid' : 'score-low';
+      const skillRows = p.gaps.map(g => {
+        const gc  = g.pct <= 30 ? 'score-low' : g.pct <= 70 ? 'score-mid' : 'score-high';
+        const cat = g.category === 'verbal' ? '📚' : '🔢';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">
+          <span>${cat} ${g.skillName}</span>
+          <span class="gap-score ${gc}" style="padding:2px 8px;font-size:11px;">${g.pct}%</span>
         </div>`;
       }).join('');
-    } catch (e) {
-      document.getElementById('perf-test-modal-body').innerHTML = `<div class="empty-state"><p>❌ تعذّر تحميل النتائج: ${e.message}</p></div>`;
-    }
+      return `<div style="background:var(--bg-card,#fff);border:1.5px solid var(--border,#e2e8f0);border-radius:10px;padding:12px 14px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-weight:700;font-size:14px;">المحاولة ${p.n}</span>
+          <span class="gap-score ${cls}">${p.score}%</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted,#64748b);margin-bottom:${p.gaps.length ? '10px' : '0'};">📅 ${p.date}</div>
+        ${p.gaps.length ? `<div style="border-top:1px solid #f1f5f9;padding-top:8px;">${skillRows}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    document.getElementById('perf-test-modal-body').innerHTML =
+      chartHtml + listHtml +
+      '<div id="perf-chart-tip" style="display:none;position:fixed;background:#0f172a;color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;pointer-events:none;z-index:99999;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.3);"></div>';
   },
 
   closeStudentTests() {
@@ -3431,4 +3486,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   show('screen-landing');
 });
+
+function _pct(e, n, date, score) {
+  const tip = document.getElementById('perf-chart-tip');
+  if (!tip) return;
+  tip.textContent = `محاولة ${n}  ·  ${score}%  ·  ${date}`;
+  tip.style.display = 'block';
+  tip.style.left = (e.clientX + 14) + 'px';
+  tip.style.top  = (e.clientY - 40) + 'px';
+}
+function _pctH() {
+  const t = document.getElementById('perf-chart-tip');
+  if (t) t.style.display = 'none';
+}
 

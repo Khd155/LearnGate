@@ -61,7 +61,7 @@ async function apiFetch(path, opts = {}) {
   return data;
 }
 
-const _mapStudent = r => ({ id: r.id, code: r.code, name: r.name, createdAt: r.created_at });
+const _mapStudent = r => ({ id: r.id, code: r.code, name: r.name, school: r.school || '', createdAt: r.created_at });
 const _mapPlan    = r => {
   let note = r.admin_note || '';
   let retakeOverride = false;
@@ -83,11 +83,11 @@ const DB = {
     const [s, p] = await Promise.all([
       apiFetch('/students' + school),
       apiFetch('/plans'    + school),
+      DB.loadQuestions(),
     ]);
     Cache.students = (s.students || []).map(_mapStudent);
     Cache.plans    = (p.plans    || []).map(_mapPlan);
     Cache.loaded   = true;
-    await DB.loadQuestions();
   },
 
   async loadStudentData() {
@@ -1049,6 +1049,22 @@ const App = {
 
     if (State.tab === 'students') {
       if (!students.length) { listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>لا يوجد طلاب مضافون بعد</p></div>`; return; }
+      // School filter for director
+      if (State.admin?.school === '*') {
+        const uniqueSchools = [...new Set(students.map(s => s.school).filter(Boolean))].sort();
+        const existingFilter = document.getElementById('school-filter-bar');
+        if (!existingFilter && uniqueSchools.length > 1) {
+          const filterBar = document.createElement('div');
+          filterBar.id = 'school-filter-bar';
+          filterBar.style.cssText = 'margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+          filterBar.innerHTML = `<label style="font-size:13px;font-weight:600;color:var(--text);">🏫 المدرسة:</label>
+            <select id="school-filter-select" onchange="App._filterStudentList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg-card);color:var(--text);">
+              <option value="">الكل</option>
+              ${uniqueSchools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+            </select>`;
+          listEl.before(filterBar);
+        }
+      }
       listEl.innerHTML = students.map(st => {
         const plan      = plans.find(p => p.studentId === st.id);
         const actualRem = plan ? actualDaysRemaining(plan) : 0;
@@ -1070,11 +1086,11 @@ const App = {
         const accessDot = plan
           ? '<span title="دخل المنصة" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#16a34a;margin-left:5px;flex-shrink:0;"></span>'
           : '<span title="لم يدخل المنصة بعد" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#94a3b8;margin-left:5px;flex-shrink:0;"></span>';
-        return `<div class="student-row">
+        return `<div class="student-row" data-school="${escapeHtml(st.school || '')}">
           <div class="student-avatar">${escapeHtml(st.name.charAt(0))}</div>
           <div class="student-info" onclick="App.openStudentDetail('${st.id}')" style="cursor:pointer;">
             <div class="student-name" style="display:flex;align-items:center;gap:4px;">${accessDot}${escapeHtml(st.name)}</div>
-            <div class="student-code">رمز: ${escapeHtml(st.code)}</div>
+            <div class="student-code">رمز: ${escapeHtml(st.code)}${st.school && State.admin?.school === '*' ? ` · <span style="color:var(--primary);font-size:11px">🏫 ${escapeHtml(st.school)}</span>` : ''}</div>
           </div>
           ${badge}
           ${scoreChip}
@@ -1089,10 +1105,14 @@ const App = {
 
   _filterStudentList() {
     const q = (document.getElementById('student-search-input')?.value || '').trim().toLowerCase();
+    const schoolFilter = (document.getElementById('school-filter-select')?.value || '').toLowerCase();
     document.querySelectorAll('#admin-student-list .student-row').forEach(row => {
       const name = row.querySelector('.student-name')?.textContent.toLowerCase() || '';
       const code = row.querySelector('.student-code')?.textContent.toLowerCase() || '';
-      row.style.display = (!q || name.includes(q) || code.includes(q)) ? '' : 'none';
+      const school = (row.dataset.school || '').toLowerCase();
+      const matchesSearch = !q || name.includes(q) || code.includes(q);
+      const matchesSchool = !schoolFilter || school === schoolFilter;
+      row.style.display = (matchesSearch && matchesSchool) ? '' : 'none';
     });
   },
 
@@ -1181,7 +1201,7 @@ const App = {
         ? `<div class="perf-attempts">${myPlans.length} ${myPlans.length === 1 ? 'محاولة' : 'محاولات'}</div>`
         : '';
 
-      return `<div class="perf-card ${cls}">
+      return `<div class="perf-card ${cls}" onclick="App.openStudentTests('${st.id}','${escapeHtml(st.name)}')" style="cursor:pointer;" title="انقر لرؤية نتائج الاختبارات">
         ${attemptsChip}
         <div class="perf-ring-wrap">${ring}${ringLabel}</div>
         <div class="perf-name" title="${escapeHtml(st.name)}">${escapeHtml(st.name)}</div>
@@ -1835,7 +1855,7 @@ const App = {
     const errEl = document.getElementById('imp-modal-err');
     errEl.style.display = 'none';
     try {
-      const res = await DB.bulkAddStudents(toAdd.map(r => ({ code: r.code, name: r.name })));
+      const res = await DB.bulkAddStudents(toAdd.map(r => ({ code: r.code, name: r.name, school: r.school || State.school || '' })));
       App.closeImportPreview();
       showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'طلاب' : 'طالب'}${res.skipped ? ' (تجاهل ' + res.skipped + ' مكرر)' : ''} ✅`);
       App.renderAdminDashboard('manage');

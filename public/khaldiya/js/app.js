@@ -1939,6 +1939,58 @@ const App = {
 
     const barColor = avg => avg <= 30 ? '#ef4444' : avg <= 49 ? '#f59e0b' : avg <= 70 ? '#3b82f6' : '#22c55e';
 
+    // ── SVG horizontal bar chart for skill averages ──────────────────────────
+    function skillsChart(rows) {
+      if (!rows.length) return '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0;">لا توجد بيانات بعد</div>';
+      const rowH = 36, pad = { top: 8, bot: 8, left: 8, right: 50 };
+      const labelW = 160;
+      const H = rows.length * rowH + pad.top + pad.bot;
+      const barAreaW = 'calc(100% - ' + (labelW + pad.right + pad.left) + 'px)';
+      // Use a foreignObject-free approach: pure SVG with full viewBox
+      const SVG_W = 500;
+      const BAR_X = labelW + 8;
+      const BAR_MAX = SVG_W - BAR_X - pad.right;
+      const svgRows = rows.map((sk, i) => {
+        const y = pad.top + i * rowH;
+        const bW = Math.max(2, Math.round(sk.avg / 100 * BAR_MAX));
+        const col = barColor(sk.avg);
+        const icon = sk.category === 'verbal' ? '📚' : '🔢';
+        const midY = y + rowH / 2;
+        return `
+          <text x="${labelW - 4}" y="${midY + 5}" text-anchor="end" font-size="12" fill="var(--text-secondary,#94a3b8)" font-family="Tajawal,sans-serif">${icon} ${sk.name}</text>
+          <rect x="${BAR_X}" y="${midY - 9}" width="${BAR_MAX}" height="18" rx="9" fill="rgba(255,255,255,.07)"/>
+          <rect x="${BAR_X}" y="${midY - 9}" width="${bW}" height="18" rx="9" fill="${col}"/>
+          <text x="${BAR_X + bW + 6}" y="${midY + 5}" font-size="12" font-weight="700" fill="${col}" font-family="Tajawal,sans-serif">${sk.avg}%</text>`;
+      }).join('');
+      return `<svg viewBox="0 0 ${SVG_W} ${H}" style="width:100%;display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">${svgRows}</svg>`;
+    }
+
+    // ── SVG vertical bar chart for level distribution ────────────────────────
+    function levelChart(weak, below, mid, high) {
+      const vals  = [weak, below, mid, high];
+      const cols  = ['#ef4444','#f59e0b','#3b82f6','#22c55e'];
+      const lbls  = ['ضعيف\n≤30%','دون المتوسط\n31-49%','متوسط\n50-70%','فوق المتوسط\n>70%'];
+      const maxV  = Math.max(...vals, 1);
+      const W = 400, H = 140, barW = 56, gap = 20;
+      const totalBars = 4;
+      const chartW = totalBars * (barW + gap) - gap;
+      const startX = (W - chartW) / 2;
+      const maxBarH = 80;
+      const baseY = H - 40;
+      const bars = vals.map((v, i) => {
+        const bH = Math.max(4, Math.round(v / maxV * maxBarH));
+        const x = startX + i * (barW + gap);
+        const y = baseY - bH;
+        const lines = lbls[i].split('\n');
+        return `
+          <rect x="${x}" y="${y}" width="${barW}" height="${bH}" rx="6" fill="${cols[i]}"/>
+          <text x="${x + barW/2}" y="${y - 6}" text-anchor="middle" font-size="13" font-weight="800" fill="${cols[i]}" font-family="Tajawal,sans-serif">${v}</text>
+          <text x="${x + barW/2}" y="${baseY + 14}" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="Tajawal,sans-serif">${lines[0]}</text>
+          <text x="${x + barW/2}" y="${baseY + 26}" text-anchor="middle" font-size="10" fill="#64748b" font-family="Tajawal,sans-serif">${lines[1]}</text>`;
+      }).join('');
+      return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:460px;display:block;margin:0 auto;" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
+    }
+
     listEl.innerHTML = `
       <!-- KPIs -->
       <div class="stats-section">
@@ -1946,15 +1998,15 @@ const App = {
         <div class="stats-summary-grid">
           <div class="stats-kpi">
             <div class="stats-kpi-val">${partRate}%</div>
-            <div class="stats-kpi-lbl">نسبة المشاركة في الاختبار</div>
+            <div class="stats-kpi-lbl">نسبة المشاركة</div>
           </div>
           <div class="stats-kpi">
             <div class="stats-kpi-val" style="color:${globalAvg ? barColor(globalAvg) : 'var(--primary)'};">${globalAvg !== null ? globalAvg + '%' : '—'}</div>
-            <div class="stats-kpi-lbl">المتوسط العام للدرجات</div>
+            <div class="stats-kpi-lbl">المتوسط العام</div>
           </div>
           <div class="stats-kpi">
             <div class="stats-kpi-val">${tested}</div>
-            <div class="stats-kpi-lbl">طالب أجرى الاختبار</div>
+            <div class="stats-kpi-lbl">أجروا الاختبار</div>
           </div>
           <div class="stats-kpi">
             <div class="stats-kpi-val">${total - tested}</div>
@@ -1963,48 +2015,22 @@ const App = {
         </div>
       </div>
 
-      <!-- Skill bars -->
+      <!-- Skills SVG chart -->
       <div class="stats-section">
-        <div class="stats-section-title">📊 متوسط الأداء لكل مهارة</div>
-        ${skillRows.length ? skillRows.map(sk => `
-          <div class="skill-bar-row">
-            <div class="skill-bar-label">
-              <span class="skill-bar-name">${sk.category === 'verbal' ? '📚' : '🔢'} ${sk.name}</span>
-              <span class="skill-bar-pct" style="color:${barColor(sk.avg)};">${sk.avg}%</span>
-            </div>
-            <div class="skill-bar-track">
-              <div class="skill-bar-fill" style="width:${sk.avg}%;background:${barColor(sk.avg)};"></div>
-            </div>
-          </div>`).join('')
-          : '<div style="color:var(--muted);font-size:13px;text-align:center;padding:16px 0;">لا توجد بيانات بعد</div>'}
+        <div class="stats-section-title">📊 متوسط الأداء بحسب المهارة</div>
+        ${skillsChart(skillRows)}
       </div>
 
-      <!-- Level distribution -->
+      <!-- Level distribution SVG chart -->
       <div class="stats-section">
-        <div class="stats-section-title">📈 توزيع المستويات (عدد المهارات)</div>
-        <div class="level-dist">
-          <div class="level-chip">
-            <div class="level-chip-val" style="color:#ef4444;">${lvlWeak}</div>
-            <div class="level-chip-lbl">ضعيف (≤30%)</div>
-          </div>
-          <div class="level-chip">
-            <div class="level-chip-val" style="color:#f59e0b;">${lvlBelow}</div>
-            <div class="level-chip-lbl">دون المتوسط (31-49%)</div>
-          </div>
-          <div class="level-chip">
-            <div class="level-chip-val" style="color:#3b82f6;">${lvlMid}</div>
-            <div class="level-chip-lbl">متوسط (50-70%)</div>
-          </div>
-          <div class="level-chip">
-            <div class="level-chip-val" style="color:#22c55e;">${lvlHigh}</div>
-            <div class="level-chip-lbl">فوق المتوسط (>70%)</div>
-          </div>
-        </div>
+        <div class="stats-section-title">📈 توزيع المستويات</div>
+        ${levelChart(lvlWeak, lvlBelow, lvlMid, lvlHigh)}
       </div>
 
       <!-- Support stats -->
+      ${(ticketsOpen + ticketsProgress + ticketsResolved + messagesTotal) ? `
       <div class="stats-section">
-        <div class="stats-section-title">🎫 إحصائيات الدعم والتواصل</div>
+        <div class="stats-section-title">🎫 الدعم والتواصل</div>
         <div class="support-stats-grid">
           <div class="support-stat">
             <div class="support-stat-val" style="color:#1e40af;">${ticketsOpen}</div>
@@ -2018,11 +2044,10 @@ const App = {
             <div class="support-stat-val" style="color:#166534;">${ticketsResolved}</div>
             <div class="support-stat-lbl">تم الحل</div>
           </div>
+          ${messagesTotal ? `<div class="support-stat"><div class="support-stat-val" style="color:var(--primary);">${messagesTotal}</div><div class="support-stat-lbl">رسائل غير مقروءة</div></div>` : ''}
         </div>
-        ${messagesTotal ? `<div style="margin-top:10px;font-size:13px;color:var(--muted);text-align:center;">
-          <span style="font-weight:700;color:var(--primary);">${messagesTotal}</span> رسالة غير مقروءة في الشات
-        </div>` : ''}
-      </div>`;
+      </div>` : ''}
+    `;
   },
 
   // ── Add Student ────────────────────────────────────────────────────────────

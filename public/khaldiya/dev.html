@@ -217,6 +217,7 @@
       <div class="stat-grid" id="total-stats">
         <div class="stat-card"><div class="stat-num" id="tot-schools">—</div><div class="stat-lbl">مدارس</div></div>
         <div class="stat-card"><div class="stat-num" id="tot-students">—</div><div class="stat-lbl">طلاب إجمالي</div></div>
+        <div class="stat-card"><div class="stat-num" id="tot-tested" style="color:#4FA877">—</div><div class="stat-lbl">أجروا الاختبار</div></div>
         <div class="stat-card"><div class="stat-num" id="tot-admins">—</div><div class="stat-lbl">مشرفون</div></div>
         <div class="stat-card"><div class="stat-num" id="tot-questions">—</div><div class="stat-lbl">أسئلة</div></div>
       </div>
@@ -510,25 +511,31 @@ const Dev = {
 
   async loadStats() {
     const { stats, totals } = await apiDev('/dev/stats');
-    document.getElementById('tot-schools').textContent  = totals.schools;
-    document.getElementById('tot-students').textContent = totals.students;
-    document.getElementById('tot-admins').textContent   = totals.admins;
+    document.getElementById('tot-schools').textContent   = totals.schools;
+    document.getElementById('tot-students').textContent  = totals.students;
+    document.getElementById('tot-tested').textContent    = totals.tested ?? '—';
+    document.getElementById('tot-admins').textContent    = totals.admins;
     document.getElementById('tot-questions').textContent = totals.questions;
 
     const listEl = document.getElementById('school-stats-list');
     if (!stats.length) { listEl.innerHTML = '<div class="empty">لا توجد مدارس مضافة</div>'; return; }
-    listEl.innerHTML = stats.map(s => `
-      <div class="school-row-block">
+    listEl.innerHTML = stats.map(s => {
+      const pct = s.students > 0 ? Math.round(s.tested / s.students * 100) : 0;
+      const bar = `<div style="margin-top:10px;background:rgba(255,255,255,.08);border-radius:99px;height:6px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:#4FA877;border-radius:99px;transition:width .4s;"></div></div>`;
+      return `<div class="school-row-block">
         <div class="school-row-header">
           <div class="school-name">🏫 ${s.school}</div>
           <button class="btn btn-danger btn-sm" onclick="Dev.deleteSchool('${s.school}')">حذف المدرسة</button>
         </div>
         <div class="school-stats">
-          <div class="school-stat">طلاب: <strong>${s.students}</strong></div>
-          <div class="school-stat">خطط معلقة: <strong style="color:var(--warn)">${s.pending}</strong></div>
-          <div class="school-stat">خطط نشطة: <strong style="color:var(--success)">${s.active}</strong></div>
+          <div class="school-stat">الطلاب: <strong>${s.students}</strong></div>
+          <div class="school-stat">اختبروا: <strong style="color:#4FA877">${s.tested}</strong></div>
+          <div class="school-stat">المتوسط: <strong style="color:#3F7CB8">${s.avg !== null ? s.avg + '%' : '—'}</strong></div>
         </div>
-      </div>`).join('');
+        ${bar}
+      </div>`;
+    }).join('');
   },
 
   async loadAdmins() {

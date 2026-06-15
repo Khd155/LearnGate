@@ -559,15 +559,16 @@ export async function onRequest({ request, env }) {
         const { results: schools } = await DB.prepare('SELECT name FROM schools ORDER BY name').all();
         const stats = [];
         for (const { name } of schools) {
-          const s = await DB.prepare('SELECT COUNT(*) as c FROM students WHERE school = ?').bind(name).first();
-          const pp = await DB.prepare("SELECT COUNT(*) as c FROM plans WHERE school = ? AND status='pending'").bind(name).first();
-          const ap = await DB.prepare("SELECT COUNT(*) as c FROM plans WHERE school = ? AND status='active'").bind(name).first();
-          stats.push({ school: name, students: s.c, pending: pp.c, active: ap.c });
+          const s   = await DB.prepare('SELECT COUNT(*) as c FROM students WHERE school = ?').bind(name).first();
+          const t   = await DB.prepare('SELECT COUNT(DISTINCT student_id) as c FROM plans WHERE school = ?').bind(name).first();
+          const avg = await DB.prepare("SELECT AVG(CAST(SUBSTR(gaps,0,4) AS INTEGER)) as v FROM plans WHERE school = ? AND gaps != '[]'").bind(name).first().catch(() => ({ v: null }));
+          stats.push({ school: name, students: s.c, tested: t.c, avg: avg?.v ? Math.round(avg.v) : null });
         }
         const tot_s = await DB.prepare('SELECT COUNT(*) as c FROM students').first();
         const tot_a = await DB.prepare('SELECT COUNT(*) as c FROM admins').first();
         const tot_q = await DB.prepare('SELECT COUNT(*) as c FROM questions').first();
-        return ok({ stats, totals: { students: tot_s.c, admins: tot_a.c, questions: tot_q.c, schools: schools.length } }, 200, CORS);
+        const tot_t = await DB.prepare('SELECT COUNT(DISTINCT student_id) as c FROM plans').first();
+        return ok({ stats, totals: { students: tot_s.c, admins: tot_a.c, questions: tot_q.c, schools: schools.length, tested: tot_t.c } }, 200, CORS);
       }
 
       // GET /api/dev/admins — all admins
@@ -1010,7 +1011,9 @@ export async function onRequest({ request, env }) {
 
     // ── TICKETS ──────────────────────────────────────────────────────────────
     if (resource === 'tickets') {
-      const tkClaims = await verifyToken(request, env);
+      // Accept either JWT or X-Dev-Key (for dev panel)
+      const _devAuth = authDev(request, env);
+      const tkClaims = _devAuth ? { role: 'dev', sub: 'dev' } : await verifyToken(request, env);
       if (!tkClaims) return err('غير مصرح', 401, CORS);
       const tkPrivileged = ['admin','director','dev','support'].includes(tkClaims.role);
 

@@ -1211,8 +1211,7 @@ function showPostResults() {
 
 function openMyResults() {
   document.getElementById('my-results-modal').style.display = 'flex';
-  window._bioActiveTab = window._bioActiveTab || 'pre';
-  _bioShowList();
+  _bioSetTab(window._bioActiveTab || 'pre');
 }
 
 function closeMyResults() {

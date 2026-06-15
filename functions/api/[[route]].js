@@ -422,6 +422,8 @@ export async function onRequest({ request, env }) {
           created_at   TEXT NOT NULL DEFAULT (datetime('now'))
         )`).run();
       } catch {}
+      // Migrate: add answers column if table existed before this column was introduced
+      try { await DB.prepare("ALTER TABLE test_results ADD COLUMN answers TEXT NOT NULL DEFAULT '[]'").run(); } catch {}
 
       // POST /api/test-results — student saves their own result
       if (method === 'POST') {
@@ -444,7 +446,7 @@ export async function onRequest({ request, env }) {
 
         if (claims.role === 'student') {
           const { results } = await DB.prepare(
-            'SELECT id, subject, test_type, score, correct, total, answers, created_at FROM test_results WHERE student_id = ? ORDER BY created_at DESC'
+            'SELECT * FROM test_results WHERE student_id = ? ORDER BY created_at DESC'
           ).bind(claims.sub).all();
           return ok({ results: results.map(r => {
             let ans = [];

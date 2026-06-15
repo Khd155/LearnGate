@@ -374,28 +374,28 @@ const App = {
       }
       _restoreBtn(); showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
-    ActivityLog.success(`🎓 تسجيل دخول طالب: ${student.name} (${code}) — ${student.school || '—'}`);
-    serverLog('success', 'login', `تسجيل دخول طالب: ${student.name}`, { user_name: student.name, user_role: 'student', school: student.school || '' });
-    _authToken = token;
-    State.student = student;
-    State.role = 'student';
-    if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
-    const _sess = { role: 'student', id: student.id, code, name: student.name, school: student.school, token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
-    sessionStorage.setItem('lg_session', JSON.stringify(_sess));
-    localStorage.setItem('lg_xsession', JSON.stringify(_sess));
-    const remember = document.getElementById('sl-remember');
-    if (remember && remember.checked) {
-      localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code, name: student.name, school: student.school || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
-    } else {
-      localStorage.removeItem('lg_remember');
-    }
     try {
+      ActivityLog.success(`🎓 تسجيل دخول طالب: ${student.name} (${code}) — ${student.school || '—'}`);
+      serverLog('success', 'login', `تسجيل دخول طالب: ${student.name}`, { user_name: student.name, user_role: 'student', school: student.school || '' });
+      _authToken = token;
+      State.student = student;
+      State.role = 'student';
+      if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
+      const _sess = { role: 'student', id: student.id, code, name: student.name, school: student.school, token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
+      try { sessionStorage.setItem('lg_session', JSON.stringify(_sess)); } catch(_) {}
+      try { localStorage.setItem('lg_xsession', JSON.stringify(_sess)); } catch(_) {}
+      const remember = document.getElementById('sl-remember');
+      if (remember && remember.checked) {
+        try { localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code, name: student.name, school: student.school || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 })); } catch(_) {}
+      } else {
+        try { localStorage.removeItem('lg_remember'); } catch(_) {}
+      }
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();
       App._setTopbarUser(student.name);
       const _minWait = new Promise(r => setTimeout(r, 1000));
-      try { await Promise.all([DB.loadStudentData(), _minWait]); } catch (e) { await _minWait; }
+      try { await Promise.all([DB.loadStudentData(), _minWait]); } catch (_) { await _minWait; }
       App.renderStudentHome();
       show('screen-student-home');
       routeHash();
@@ -446,31 +446,31 @@ const App = {
       }
       _restoreBtn(); showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
-    ActivityLog.success(`👨‍💼 تسجيل دخول مشرف: ${admin.name || code} (${code}) — ${admin.school || '—'} — دور: ${admin.role || 'admin'}`);
-    serverLog('success', 'login', `تسجيل دخول مشرف: ${admin.name || code}`, { user_name: admin.name || '', user_role: admin.role || 'admin', school: admin.school || '' });
-    _authToken = token;
-    State.role  = admin.role === 'director' ? 'director' : 'admin';
-    State.admin = { ...admin, code };
-    if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
-    const adminName = admin.name || '';
-    try { await DB.loadAll(); }
-    catch (e) {
-      _authToken = null;
-      _restoreBtn();
-      if (!navigator.onLine) { showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة.'); return; }
-      if (e?.status === 401) { showAlert(errEl, 'الصلاحيات غير كافية — راجع مدير النظام لضبط دورك في قاعدة البيانات.'); return; }
-      showAlert(errEl, 'تم الدخول لكن تعذّر تحميل البيانات — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
-    }
-    const _sess = { role: State.role, code, name: adminName, school: admin.school || '', token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
-    sessionStorage.setItem('lg_session', JSON.stringify(_sess));
-    localStorage.setItem('lg_xsession', JSON.stringify(_sess));
-    const alRemember = document.getElementById('al-remember');
-    if (alRemember && alRemember.checked) {
-      localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, name: adminName, school: admin.school || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 }));
-    } else {
-      localStorage.removeItem('lg_remember');
-    }
     try {
+      ActivityLog.success(`👨‍💼 تسجيل دخول مشرف: ${admin.name || code} (${code}) — ${admin.school || '—'} — دور: ${admin.role || 'admin'}`);
+      serverLog('success', 'login', `تسجيل دخول مشرف: ${admin.name || code}`, { user_name: admin.name || '', user_role: admin.role || 'admin', school: admin.school || '' });
+      _authToken = token;
+      State.role  = admin.role === 'director' ? 'director' : 'admin';
+      State.admin = { ...admin, code };
+      if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
+      const adminName = admin.name || '';
+      try { await DB.loadAll(); }
+      catch (e) {
+        _authToken = null;
+        _restoreBtn();
+        if (!navigator.onLine) { showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة.'); return; }
+        if (e?.status === 401) { showAlert(errEl, 'الصلاحيات غير كافية — راجع مدير النظام لضبط دورك في قاعدة البيانات.'); return; }
+        showAlert(errEl, 'تم الدخول لكن تعذّر تحميل البيانات — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
+      }
+      const _sess = { role: State.role, code, name: adminName, school: admin.school || '', token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
+      try { sessionStorage.setItem('lg_session', JSON.stringify(_sess)); } catch(_) {}
+      try { localStorage.setItem('lg_xsession', JSON.stringify(_sess)); } catch(_) {}
+      const alRemember = document.getElementById('al-remember');
+      if (alRemember && alRemember.checked) {
+        try { localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, name: adminName, school: admin.school || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 })); } catch(_) {}
+      } else {
+        try { localStorage.removeItem('lg_remember'); } catch(_) {}
+      }
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();

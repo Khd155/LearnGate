@@ -196,12 +196,26 @@ export async function onRequest({ request, env }) {
   const CORS = getCORS(request);
   if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
+  // ── Origin check: reject cross-origin requests from unknown origins ──────
+  const origin = request.headers.get('Origin');
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+    return new Response(JSON.stringify({ error: 'غير مسموح' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ── Content-Type validation for write methods ────────────────────────────
+  const method = request.method;
+  if (['POST', 'PUT', 'PATCH'].includes(method)) {
+    const ct = request.headers.get('Content-Type') || '';
+    if (!ct.includes('application/json')) {
+      return new Response(JSON.stringify({ error: 'Content-Type يجب أن يكون application/json' }), { status: 415, headers: { ...CORS } });
+    }
+  }
+
   const url      = new URL(request.url);
   const parts    = url.pathname.split('/').filter(Boolean);
   const resource = parts[1];   // e.g. 'students', 'plans', 'dev'
   const sub      = parts[2];   // e.g. student id, 'admins'
   const subsub   = parts[3];   // e.g. admin id
-  const method   = request.method;
   const DB       = env.DB;
   const school   = url.searchParams.get('school') || '';
 

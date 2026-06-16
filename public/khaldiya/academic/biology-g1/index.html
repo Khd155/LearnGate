@@ -29,15 +29,17 @@ h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
   box-shadow:0 6px 24px -10px rgba(7,54,105,.55);min-height:64px;
 }
 .topbar-right{display:flex;align-items:center;gap:10px;}
-.topbar-logo{height:30px;opacity:.92;flex-shrink:0;}
-.topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:15px;}
+.topbar-logo{height:34px;opacity:.92;flex-shrink:0;}
+.topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;letter-spacing:-0.01em;}
+.topbar-sub{font-size:12px;opacity:.85;margin-top:2px;font-weight:500;}
 .tb-back{
   background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);
-  color:#fff;border-radius:99px;padding:5px 14px;font-size:13px;
+  color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;
   font-family:inherit;font-weight:700;cursor:pointer;
   display:inline-flex;align-items:center;gap:5px;transition:background .18s;
+  flex-shrink:0; white-space:nowrap;
 }
-.tb-back:hover{background:rgba(255,255,255,.28);}
+.tb-back:hover{background:rgba(255,255,255,.3);}
 .user-chip{
   background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);
   color:#fff;border-radius:99px;padding:5px 14px;font-size:12.5px;
@@ -286,14 +288,17 @@ footer{text-align:center;font-size:12.5px;color:var(--muted);padding:20px 0 36px
 <div class="topbar">
   <div class="topbar-right">
     <img class="topbar-logo" src="../../logo-white.png" alt="">
-    <span class="topbar-title">أحياء — أول ثانوي</span>
+    <div>
+      <div class="topbar-title">أحياء — أول ثانوي</div>
+      <div class="topbar-sub">بوابة دعم التعلم</div>
+    </div>
     <span class="user-chip" id="user-chip" style="display:none;">
       <span class="dot"></span>
       <span id="user-name-label"></span>
     </span>
   </div>
   <div>
-    <button class="tb-back" onclick="handleBack()">رجوع</button>
+    <button class="tb-back" onclick="handleBack()">← رجوع</button>
   </div>
 </div>
 

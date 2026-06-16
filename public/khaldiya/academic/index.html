@@ -249,11 +249,14 @@
     document.getElementById('user-chip').style.display = 'none';
   }
 
-  // Restore grade from URL param (coming back from a subject page)
+  // Restore grade from URL param (supports both slug "g10" and Arabic name)
   try {
     const params = new URLSearchParams(window.location.search);
-    const grade = params.get('grade');
-    if (grade) { setTimeout(() => selectGrade(grade), 0); }
+    const raw = params.get('grade');
+    if (raw) {
+      const grade = SLUG_GRADE[raw] || raw;
+      setTimeout(() => selectGrade(grade), 0);
+    }
   } catch(e) {}
 })();
 
@@ -268,10 +271,15 @@ function navBack() {
   if (onSubjects) { goBack(); } else { window.location.href = '../index.html'; }
 }
 
+const GRADE_SLUG = { 'أول ثانوي':'g10', 'ثاني ثانوي':'g11', 'ثالث ثانوي':'g12' };
+const SLUG_GRADE = { 'g10':'أول ثانوي', 'g11':'ثاني ثانوي', 'g12':'ثالث ثانوي' };
+
 let currentGrade = '';
 
 function selectGrade(name) {
   currentGrade = name;
+  const slug = GRADE_SLUG[name] || name;
+  history.replaceState(null, '', '?grade=' + slug);
   document.getElementById('grade-pill').textContent = name;
   document.getElementById('subjects-hero-title').textContent = 'مواد ' + name;
   document.getElementById('subjects-label').textContent = 'المواد الدراسية — ' + name;

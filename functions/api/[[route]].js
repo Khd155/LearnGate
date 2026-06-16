@@ -215,7 +215,10 @@ export async function onRequest({ request, env }) {
       if (sub === 'student-login' && method === 'POST') {
         if (!await rateLimit(DB, ip, 'student-login', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         if (await isLockedOut(DB, ip, 'student-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
-        const { code, school: bodySchool } = await request.json();
+        const rawBody = await request.json();
+        // Mass assignment guard: only accept known fields
+        const { code, school: bodySchool } = rawBody;
+        if (Object.keys(rawBody).some(k => !['code','school'].includes(k))) return err('حقول غير مسموحة', 400, CORS);
         if (!code || !/^\d{10}$/.test(code)) return err('رمز غير صالح', 400, CORS);
         const sc = bodySchool || school;
         const student = sc
@@ -237,7 +240,9 @@ export async function onRequest({ request, env }) {
       if (sub === 'admin-login' && method === 'POST') {
         if (!await rateLimit(DB, ip, 'admin-login', 5)) return err('طلبات كثيرة', 429, CORS);
         if (await isLockedOut(DB, ip, 'admin-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
-        const { code: adminCode, school: bodySchool } = await request.json();
+        const rawAdminBody = await request.json();
+        if (Object.keys(rawAdminBody).some(k => !['code','school'].includes(k))) return err('حقول غير مسموحة', 400, CORS);
+        const { code: adminCode, school: bodySchool } = rawAdminBody;
         if (!adminCode || !/^\d{10}$/.test(adminCode)) return err('رمز غير صالح', 400, CORS);
         const admin = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(adminCode).first();
         const sc = bodySchool || school;
@@ -560,8 +565,10 @@ export async function onRequest({ request, env }) {
 
     // ── ADMINS ───────────────────────────────────────────────────────────────
 
-    // GET /api/admins?school=X — public list (name+id only, no codes)
+    // GET /api/admins?school=X — list supervisors for chat (requires JWT)
     if (resource === 'admins' && !sub && method === 'GET' && school) {
+      const admClaims = await verifyToken(request, env);
+      if (!admClaims) return err('غير مصرح', 401, CORS);
       const { results } = await DB.prepare(
         "SELECT id, name FROM admins WHERE school = ? AND school != '' ORDER BY name ASC"
       ).bind(school).all();

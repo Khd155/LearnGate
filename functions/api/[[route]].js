@@ -161,6 +161,37 @@ async function rateLimit(DB, ip, action, maxPerMin) {
   } catch { return false; }
 }
 
+// ── Failed Login Lockout (D1-based, 15-minute lockout after 5 failures) ──
+async function recordFailedAttempt(DB, ip, action) {
+  try {
+    const lockKey   = `lock:${action}:${ip}`;
+    const lockUntil = Math.floor(Date.now() / 1000) + 900; // 15 min from now
+    const row = await DB.prepare('SELECT count, window FROM rate_limits WHERE key = ?').bind(lockKey).first();
+    const count = (row && row.window > Math.floor(Date.now() / 1000)) ? (row.count + 1) : 1;
+    if (count >= 5) {
+      await DB.prepare('INSERT OR REPLACE INTO rate_limits (key, count, window) VALUES (?, ?, ?)').bind(lockKey, count, lockUntil).run();
+    } else {
+      await DB.prepare('INSERT OR REPLACE INTO rate_limits (key, count, window) VALUES (?, ?, ?)').bind(lockKey, count, Math.floor(Date.now() / 1000) + 900).run();
+    }
+  } catch {}
+}
+
+async function isLockedOut(DB, ip, action) {
+  try {
+    const lockKey = `lock:${action}:${ip}`;
+    const row = await DB.prepare('SELECT count, window FROM rate_limits WHERE key = ?').bind(lockKey).first();
+    if (row && row.count >= 5 && row.window > Math.floor(Date.now() / 1000)) return true;
+    return false;
+  } catch { return false; }
+}
+
+async function clearFailedAttempts(DB, ip, action) {
+  try {
+    const lockKey = `lock:${action}:${ip}`;
+    await DB.prepare('DELETE FROM rate_limits WHERE key = ?').bind(lockKey).run();
+  } catch {}
+}
+
 export async function onRequest({ request, env }) {
   const CORS = getCORS(request);
   if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
@@ -183,17 +214,19 @@ export async function onRequest({ request, env }) {
       // POST /api/auth/student-login
       if (sub === 'student-login' && method === 'POST') {
         if (!await rateLimit(DB, ip, 'student-login', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
-        const body = await request.json();
-        const { code, school: bodySchool } = body;
+        if (await isLockedOut(DB, ip, 'student-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
+        const { code, school: bodySchool } = await request.json();
         if (!code || !/^\d{10}$/.test(code)) return err('رمز غير صالح', 400, CORS);
         const sc = bodySchool || school;
         const student = sc
           ? await DB.prepare('SELECT id, code, name, school FROM students WHERE code = ? AND school = ?').bind(code, sc).first()
           : await DB.prepare('SELECT id, code, name, school FROM students WHERE code = ?').bind(code).first();
         if (!student) {
+          await recordFailedAttempt(DB, ip, 'student-login');
           try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'warn','login',`محاولة دخول طالب فاشلة: ${code}`,'','student',sc,ip,new Date().toISOString()).run(); } catch {}
           return err('بيانات الدخول غير صحيحة', 401, CORS);
         }
+        await clearFailedAttempts(DB, ip, 'student-login');
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const token = await jwtSign({ sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
         try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'success','login',`تسجيل دخول طالب: ${student.name}`,student.name,'student',student.school||'',ip,new Date().toISOString()).run(); } catch {}
@@ -203,15 +236,17 @@ export async function onRequest({ request, env }) {
       // POST /api/auth/admin-login
       if (sub === 'admin-login' && method === 'POST') {
         if (!await rateLimit(DB, ip, 'admin-login', 5)) return err('طلبات كثيرة', 429, CORS);
+        if (await isLockedOut(DB, ip, 'admin-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
         const { code: adminCode, school: bodySchool } = await request.json();
         if (!adminCode || !/^\d{10}$/.test(adminCode)) return err('رمز غير صالح', 400, CORS);
         const admin = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(adminCode).first();
         const sc = bodySchool || school;
-        if (!admin) {
+        if (!admin || (admin.school !== '*' && sc && admin.school !== sc)) {
+          await recordFailedAttempt(DB, ip, 'admin-login');
           try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'warn','login',`محاولة دخول مشرف فاشلة: ${adminCode}`,'','admin',sc,ip,new Date().toISOString()).run(); } catch {}
           return err('بيانات الدخول غير صحيحة', 401, CORS);
         }
-        if (admin.school !== '*' && sc && admin.school !== sc) return err('بيانات الدخول غير صحيحة', 401, CORS);
+        await clearFailedAttempts(DB, ip, 'admin-login');
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const adminName = admin.admin_name || admin.name || '';
         // Normalize role: only 'director' keeps its value, everything else becomes 'admin'
@@ -361,15 +396,20 @@ export async function onRequest({ request, env }) {
       if (method === 'POST') {
         const claims = await verifyToken(request, env);
         if (!claims || !['student','admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
-        const { studentId, studentName, status, gaps, adminNote, school: bodySchool } = await request.json();
+        const body = await request.json();
+        // Mass assignment guard: only accept allowed fields
+        const { studentId, studentName, gaps, school: bodySchool } = body;
+        // Students cannot set status or adminNote — always start as 'pending'
+        const status    = claims.role === 'student' ? 'pending' : (body.status || 'pending');
+        const adminNote = claims.role === 'student' ? '' : (body.adminNote || '');
         const pid = crypto.randomUUID();
         const now = new Date().toISOString();
         const planSchool = bodySchool || school;
         await DB.prepare(
           `INSERT INTO plans (id, student_id, student_name, status, gaps, admin_note, school, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(pid, studentId, studentName, status, JSON.stringify(gaps), adminNote || '', planSchool, now).run();
-        return ok({ plan: { id: pid, student_id: studentId, student_name: studentName, status, gaps, admin_note: adminNote || '', school: planSchool, created_at: now } }, 201, CORS);
+        ).bind(pid, studentId, studentName, status, JSON.stringify(gaps), adminNote, planSchool, now).run();
+        return ok({ plan: { id: pid, student_id: studentId, student_name: studentName, status, gaps, admin_note: adminNote, school: planSchool, created_at: now } }, 201, CORS);
       }
 
       if (method === 'PATCH' && sub) {

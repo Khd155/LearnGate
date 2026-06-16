@@ -4,7 +4,7 @@
 <script>!function(){try{var s=sessionStorage.getItem("lg_session")||localStorage.getItem("lg_xsession");var d=s?JSON.parse(s):null;if(d&&d.token&&d.role==="student"&&d.expiry&&Date.now()<d.expiry)return;var r=localStorage.getItem("lg_remember");var rd=r?JSON.parse(r):null;if(rd&&rd.code&&rd.role==="student"&&rd.expiry&&Date.now()<rd.expiry)return;}catch(e){}window.location.replace("/");}();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>الاختبارات التدريبية — بوابة دعم التعلم</title>
+<title>الشروحات التعليمية — بوابة دعم التعلم</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
@@ -67,12 +67,12 @@ h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
 .skill-card.quant .skill-icon{background:linear-gradient(135deg,#4FA877,#4A96A0);}
 .skill-name{font-family:'Cairo',sans-serif;font-weight:800;font-size:14.5px;color:var(--text);}
 .skill-desc{font-size:11.5px;color:var(--muted);line-height:1.5;}
-.skill-count{
+.skill-badge{
   position:absolute;top:10px;left:10px;
   background:rgba(63,124,184,.1);color:var(--primary);
   border-radius:99px;padding:2px 9px;font-size:11px;font-weight:700;
 }
-.skill-card.quant .skill-count{background:rgba(79,168,119,.1);color:var(--accent);}
+.skill-card.quant .skill-badge{background:rgba(79,168,119,.1);color:var(--accent);}
 
 .divider{height:1px;background:var(--border);margin:28px 0;}
 footer{text-align:center;font-size:13px;color:var(--muted);padding:20px 0 36px;font-weight:600;}
@@ -93,7 +93,7 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:20px 0 36px;f
   <div class="topbar-right">
     <img class="topbar-logo" src="../logo-white.png" alt="">
     <div class="topbar-title-wrap">
-      <div class="topbar-title">الاختبارات التدريبية</div>
+      <div class="topbar-title">الشروحات التعليمية</div>
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
     <span class="tb-user-chip" id="tb-user-chip"></span>
@@ -102,9 +102,9 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:20px 0 36px;f
 </div>
 
 <div class="hero">
-  <div class="hero-pill">✏️ تدريب وتقويم</div>
-  <h1>الاختبارات التدريبية</h1>
-  <p>اختر المهارة التي تريد التدرب عليها</p>
+  <div class="hero-pill">🎬 مقاطع الشرح</div>
+  <h1>الشروحات التعليمية</h1>
+  <p>اختر المهارة التي تريد مشاهدة شرحها</p>
 </div>
 
 <div class="container">
@@ -115,31 +115,31 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:20px 0 36px;f
   </div>
   <div class="grid">
     <a class="skill-card" href="comprehension/">
-      <span class="skill-count">١٢ اختبار</span>
+      <span class="skill-badge">شروحات</span>
       <div class="skill-icon">📖</div>
       <div class="skill-name">الاستيعاب القرائي</div>
       <div class="skill-desc">فهم النصوص واستيعاب مضامينها</div>
     </a>
-    <a class="skill-card" href="inference/">
-      <span class="skill-count">٨ اختبارات</span>
+    <a class="skill-card" href="contextual/">
+      <span class="skill-badge">شروحات</span>
       <div class="skill-icon">🔍</div>
       <div class="skill-name">الخطأ السياقي</div>
       <div class="skill-desc">تحديد الكلمة التي تُخل بسياق الجملة</div>
     </a>
-    <a class="skill-card" href="contextual/">
-      <span class="skill-count">١٠ اختبارات</span>
+    <a class="skill-card" href="inference/">
+      <span class="skill-badge">شروحات</span>
       <div class="skill-icon">🎯</div>
       <div class="skill-name">المفردة الشاذة</div>
       <div class="skill-desc">تحديد الكلمة التي لا تنتمي للمجموعة</div>
     </a>
     <a class="skill-card" href="analogy/">
-      <span class="skill-count">١٠ اختبارات</span>
+      <span class="skill-badge">شروحات</span>
       <div class="skill-icon">🔗</div>
       <div class="skill-name">التناظر اللفظي</div>
       <div class="skill-desc">إدراك العلاقة بين الكلمات والمفاهيم</div>
     </a>
     <a class="skill-card" href="completion/">
-      <span class="skill-count">١٠ اختبارات</span>
+      <span class="skill-badge">شروحات</span>
       <div class="skill-icon">✏️</div>
       <div class="skill-name">إكمال الجمل</div>
       <div class="skill-desc">اختيار الكلمة المناسبة لإكمال السياق</div>
@@ -152,31 +152,31 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:20px 0 36px;f
   </div>
   <div class="grid">
     <a class="skill-card quant" href="arithmetic/">
-      <span class="skill-count">٢٠ اختبار</span>
+      <span class="skill-badge">شروحات</span>
       <div class="skill-icon">🔢</div>
       <div class="skill-name">الحساب</div>
       <div class="skill-desc">العمليات الحسابية والنسب والمسائل</div>
     </a>
     <a class="skill-card quant" href="algebra/">
-      <span class="skill-count">٨ اختبارات</span>
+      <span class="skill-badge">شروحات</span>
       <div class="skill-icon">📐</div>
       <div class="skill-name">الجبر</div>
       <div class="skill-desc">المعادلات والمتتابعات والمسائل الجبرية</div>
     </a>
     <a class="skill-card quant" href="geometry/">
-      <span class="skill-count">١٦ اختبار</span>
+      <span class="skill-badge">شروحات</span>
       <div class="skill-icon">📏</div>
       <div class="skill-name">الهندسة والقياس</div>
       <div class="skill-desc">الأشكال الهندسية والقياس والمسائل</div>
     </a>
     <a class="skill-card quant" href="comparison/">
-      <span class="skill-count">١٢ اختبار</span>
+      <span class="skill-badge">شروحات</span>
       <div class="skill-icon">⚖️</div>
       <div class="skill-name">المقارنات الكمية</div>
       <div class="skill-desc">مقارنة الكميات وتحديد العلاقة بينها</div>
     </a>
     <a class="skill-card quant" href="statistics/">
-      <span class="skill-count">٩ اختبارات</span>
+      <span class="skill-badge">شروحات</span>
       <div class="skill-icon">📊</div>
       <div class="skill-name">الإحصاء والاحتمالات</div>
       <div class="skill-desc">تحليل البيانات والاحتمالات</div>

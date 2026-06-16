@@ -32,7 +32,8 @@
     min-height:64px;
   }
   .topbar-right{display:flex;align-items:center;gap:10px;}
-  .topbar-logo{height:30px;opacity:.92;flex-shrink:0;}
+  .topbar-logo{height:34px;opacity:.92;flex-shrink:0;}
+  .topbar-sub{font-size:12px;opacity:.85;margin-top:1px;font-weight:500;}
   .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:16px;white-space:nowrap;}
   .topbar-left{display:flex;align-items:center;gap:8px;}
 
@@ -141,7 +142,10 @@
 <div class="topbar">
   <div class="topbar-right">
     <img class="topbar-logo" src="../logo-white.png" alt="">
-    <span class="topbar-title" id="topbar-title">دعم التعلم والتحصيل</span>
+    <div>
+      <span class="topbar-title" id="topbar-title">دعم التعلم والتحصيل</span>
+      <div class="topbar-sub">اختر الصف الدراسي</div>
+    </div>
     <span class="user-chip" id="user-chip" onclick="logout()" title="اضغط للخروج">
       <span class="dot"></span>
       <span id="user-name-label">...</span>

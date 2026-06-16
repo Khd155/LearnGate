@@ -23,7 +23,8 @@
 
   .topbar{background:var(--grad);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);min-height:64px;}
   .topbar-logo-wrap{display:flex;align-items:center;gap:10px;}
-  .topbar-logo-wrap img{height:30px;opacity:.92;flex-shrink:0;}
+  .topbar-logo-wrap img{height:34px;flex-shrink:0;opacity:.92;} .topbar-title-wrap{display:flex;flex-direction:column;} .topbar-sub{font-size:12px;opacity:.85;margin-top:1px;font-weight:500;}
+  
   .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17px;white-space:nowrap;}
   .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .18s;order:1;}
   .topbar-back:hover{background:rgba(255,255,255,.28);}
@@ -68,7 +69,7 @@
 <div class="topbar">
   <div class="topbar-logo-wrap">
     <img src="../../logo-white.png" alt="وزارة التعليم">
-    <span class="topbar-title" id="topbar-title">اختبارات الإحصاء والاحتمالات</span><span class="tb-user-chip" id="tb-user-chip" style="display:none"></span>
+    <div class="topbar-title-wrap"><span class="topbar-title" id="topbar-title">اختبارات الإحصاء والاحتمالات</span><div class="topbar-sub">بوابة دعم التعلم</div></div><span class="tb-user-chip" id="tb-user-chip" style="display:none"></span>
   </div>
   <button class="topbar-back" onclick="location.href='../index.html'">رجوع</button>
 </div>

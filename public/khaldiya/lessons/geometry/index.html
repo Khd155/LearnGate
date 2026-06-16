@@ -73,7 +73,8 @@
     .hero-banner{padding:28px 16px 38px;}
   }
   .topbar-logo-wrap{display:flex;align-items:center;gap:10px;}
-  .topbar-logo-wrap img{height:30px;opacity:.92;flex-shrink:0;}
+  .topbar-logo-wrap img{height:34px;flex-shrink:0;opacity:.92;} .topbar-title-wrap{display:flex;flex-direction:column;} .topbar-sub{font-size:12px;opacity:.85;margin-top:1px;font-weight:500;}
+  
   .tb-user-chip{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;padding:5px 12px;font-size:12px;font-family:inherit;font-weight:700;display:none;align-items:center;gap:5px;max-width:150px;overflow:hidden;white-space:nowrap;}
   .tb-user-chip::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#a3e635;flex-shrink:0;}
 </style>
@@ -90,7 +91,7 @@
 </div>
 
 <div class="topbar">
-  <div class="topbar-logo-wrap"><img src="../../logo-white.png" alt="وزارة التعليم"><span class="topbar-title">شروحات الهندسة والقياس</span><span class="tb-user-chip" id="tb-user-chip" style="display:none"></span></div>
+  <div class="topbar-logo-wrap"><img src="../../logo-white.png" alt="وزارة التعليم"><div class="topbar-title-wrap"><span class="topbar-title">شروحات الهندسة والقياس</span><div class="topbar-sub">بوابة دعم التعلم</div></div><span class="tb-user-chip" id="tb-user-chip" style="display:none"></span></div>
   <button class="topbar-back" onclick="location.href='../index.html'">رجوع</button>
 </div>
 

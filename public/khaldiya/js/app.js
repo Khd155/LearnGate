@@ -635,6 +635,7 @@ const App = {
   startPretest() {
     App.renderQuestion();
     App.startTestTimer();
+    App._saveTestState();
     show('screen-pretest');
   },
 
@@ -643,9 +644,14 @@ const App = {
   startTestTimer() {
     clearInterval(App._testTimer);
     const SECS = 50 * 60;
-    let remaining = SECS;
+    let deadline = Number(sessionStorage.getItem('lg_test_deadline') || 0);
+    if (!deadline || deadline <= Date.now()) {
+      deadline = Date.now() + SECS * 1000;
+    }
+    try { sessionStorage.setItem('lg_test_deadline', String(deadline)); } catch(_) {}
     const el = document.getElementById('test-timer');
     const update = () => {
+      const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
       const m = String(Math.floor(remaining / 60)).padStart(2, '0');
       const s = String(remaining % 60).padStart(2, '0');
       if (el) {
@@ -656,7 +662,6 @@ const App = {
         clearInterval(App._testTimer);
         App.finishTest();
       }
-      remaining--;
     };
     update();
     App._testTimer = setInterval(update, 1000);
@@ -665,6 +670,16 @@ const App = {
   stopTestTimer() {
     clearInterval(App._testTimer);
     App._testTimer = null;
+    try { sessionStorage.removeItem('lg_test_deadline'); sessionStorage.removeItem('lg_test_state'); } catch(_) {}
+  },
+
+  _saveTestState() {
+    try {
+      sessionStorage.setItem('lg_test_state', JSON.stringify({
+        currentQ: State.currentQ,
+        testAnswers: State.testAnswers
+      }));
+    } catch(_) {}
   },
 
   // ── Pre-Test ──────────────────────────────────────────────────────────────
@@ -704,10 +719,11 @@ const App = {
   selectAnswer(idx) {
     State.testAnswers[window.QUESTION_BANK[State.currentQ].id] = idx;
     App.renderQuestion();
+    App._saveTestState();
   },
 
   prevQ() {
-    if (State.currentQ > 0) { State.currentQ--; App.renderQuestion(); }
+    if (State.currentQ > 0) { State.currentQ--; App.renderQuestion(); App._saveTestState(); }
   },
 
   nextQ() {
@@ -717,7 +733,7 @@ const App = {
       showToast('يرجى اختيار إجابة أو "لا أعرف الإجابة" قبل المتابعة');
       return;
     }
-    if (State.currentQ < QBANK.length - 1) { State.currentQ++; App.renderQuestion(); }
+    if (State.currentQ < QBANK.length - 1) { State.currentQ++; App.renderQuestion(); App._saveTestState(); }
     else App.finishTest();
   },
 
@@ -3759,6 +3775,23 @@ async function _quickRestoreSession(sess) {
       App._setTopbarUser(sess.name);
       try { await Promise.race([Promise.all([DB.loadStudentData(), _minDelay]), _maxDelay]); } catch (e) { await _minDelay; }
       if (_slowHint) clearTimeout(_slowHint);
+
+      const _testDeadline = Number(sessionStorage.getItem('lg_test_deadline') || 0);
+      if (_testDeadline && _testDeadline > Date.now()) {
+        try {
+          const _ts = JSON.parse(sessionStorage.getItem('lg_test_state') || '{}');
+          State.currentQ    = _ts.currentQ || 0;
+          State.testAnswers = _ts.testAnswers || {};
+        } catch(_) {}
+        App.renderQuestion();
+        App.startTestTimer();
+        show('screen-pretest');
+        document.documentElement.style.visibility = '';
+        return;
+      } else if (_testDeadline) {
+        App.stopTestTimer();
+      }
+
       App.renderStudentHome();
       show('screen-student-home');
       document.documentElement.style.visibility = '';

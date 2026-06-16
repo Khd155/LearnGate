@@ -55,7 +55,7 @@ async function apiFetch(path, opts = {}) {
   const method = (opts.method || 'GET').toUpperCase();
   ActivityLog.info(`← ${method} /api${path}`);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000); // 15s timeout
+  const timer = setTimeout(() => controller.abort(), opts.timeout || 15000);
   let res;
   try {
     res = await fetch('/api' + path, { headers, signal: controller.signal, ...opts });
@@ -362,6 +362,7 @@ const App = {
       const data = await apiFetch('/auth/student-login', {
         method: 'POST',
         body: JSON.stringify({ code, school: State.school || '' }),
+        timeout: 5000,
       });
       token = data.token;
       student = { id: data.student.id, code, name: data.student.name, school: data.student.school || '' };
@@ -433,6 +434,7 @@ const App = {
       const data = await apiFetch('/auth/admin-login', {
         method: 'POST',
         body: JSON.stringify({ code, school: State.school || '' }),
+        timeout: 5000,
       });
       token = data.token;
       admin = data.admin;

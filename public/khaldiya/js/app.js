@@ -394,7 +394,7 @@ const App = {
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();
       App._setTopbarUser(student.name);
-      const _minWait = new Promise(r => setTimeout(r, 1000));
+      const _minWait = new Promise(r => setTimeout(r, 700));
       try { await Promise.all([DB.loadStudentData(), _minWait]); } catch (_) { await _minWait; }
       App.renderStudentHome();
       show('screen-student-home');
@@ -478,7 +478,7 @@ const App = {
       document.querySelectorAll('.director-tab').forEach(el => {
         el.style.display = State.role === 'director' ? '' : 'none';
       });
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 700));
       App.setTab('students');
       show('screen-admin');
     } catch(e) {
@@ -3574,14 +3574,17 @@ function routeHash() {
 
 // Fast path: skip auth API call when token is still valid
 async function _quickRestoreSession(sess) {
-  show('screen-loading');
-  const _minDelay  = new Promise(r => setTimeout(r, 1500)); // min 1.5s
-  const _maxDelay  = new Promise(r => setTimeout(r, 5000)); // max 5s cap
-  // Shows a "slow connection" hint after 2.5s
-  const _slowHint = setTimeout(() => {
+  // If returning from an academic/lesson/quiz sub-page, skip loading screen entirely
+  const _fromSubPage = /\/(academic|lessons|quizzes)\//.test(document.referrer);
+  if (!_fromSubPage) show('screen-loading');
+
+  const _minDelay = new Promise(r => setTimeout(r, _fromSubPage ? 0 : 700));
+  const _maxDelay = new Promise(r => setTimeout(r, 5000));
+  const _slowHint = _fromSubPage ? null : setTimeout(() => {
     const hint = document.querySelector('#screen-loading [data-slow]');
     if (hint) hint.style.display = 'block';
   }, 2500);
+
   try {
     _authToken = sess.token;
     const expiry = Date.now() + 4 * 60 * 60 * 1000;
@@ -3590,14 +3593,14 @@ async function _quickRestoreSession(sess) {
       State.role = 'student';
       if (sess.school) { State.school = sess.school; App._updateSchoolDisplay(sess.school); }
       const _sess = { ...sess, expiry };
-      sessionStorage.setItem('lg_session', JSON.stringify(_sess));
-      localStorage.setItem('lg_xsession', JSON.stringify(_sess));
+      try { sessionStorage.setItem('lg_session', JSON.stringify(_sess)); } catch(_) {}
+      try { localStorage.setItem('lg_xsession', JSON.stringify(_sess)); } catch(_) {}
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();
       App._setTopbarUser(sess.name);
       try { await Promise.race([Promise.all([DB.loadStudentData(), _minDelay]), _maxDelay]); } catch (e) { await _minDelay; }
-      clearTimeout(_slowHint);
+      if (_slowHint) clearTimeout(_slowHint);
       App.renderStudentHome();
       show('screen-student-home');
       routeHash();
@@ -3606,8 +3609,8 @@ async function _quickRestoreSession(sess) {
       State.admin = { code: sess.code, name: sess.name, school: sess.school || '' };
       if (sess.school && sess.school !== '*') { State.school = sess.school; App._updateSchoolDisplay(sess.school); }
       const _sess = { ...sess, expiry };
-      sessionStorage.setItem('lg_session', JSON.stringify(_sess));
-      localStorage.setItem('lg_xsession', JSON.stringify(_sess));
+      try { sessionStorage.setItem('lg_session', JSON.stringify(_sess)); } catch(_) {}
+      try { localStorage.setItem('lg_xsession', JSON.stringify(_sess)); } catch(_) {}
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();

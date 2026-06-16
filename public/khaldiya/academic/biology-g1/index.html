@@ -298,7 +298,7 @@ footer{text-align:center;font-size:12.5px;color:var(--muted);padding:20px 0 36px
     </span>
   </div>
   <div>
-    <button class="tb-back" onclick="handleBack()">← رجوع</button>
+    <button class="tb-back" onclick="handleBack()">رجوع</button>
   </div>
 </div>
 
@@ -1334,7 +1334,7 @@ function _bioShowList() {
     return;
   }
 
-  const backBtn = `<button onclick="_bioShowChoice()" style="background:#f1f5f9;border:none;border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;color:#475569;margin-bottom:12px;display:block;">← رجوع</button>`;
+  const backBtn = `<button onclick="_bioShowChoice()" style="background:#f1f5f9;border:none;border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;color:#475569;margin-bottom:12px;display:block;">رجوع</button>`;
   body.innerHTML = backBtn + list.map((r, idx) => {
     const allIdx = results.indexOf(r);
     const num    = arabicNum(idx + 1);
@@ -1375,7 +1375,7 @@ function _bioShowDetail(idx) {
 
   let html = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-      <button onclick="_bioSetTab(window._bioActiveTab||'pre')" style="background:#f1f5f9;border:none;border-radius:99px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#475569;flex-shrink:0;">← رجوع</button>
+      <button onclick="_bioSetTab(window._bioActiveTab||'pre')" style="background:#f1f5f9;border:none;border-radius:99px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#475569;flex-shrink:0;">رجوع</button>
       <div>
         <div style="font-weight:800;font-size:14px;color:#0f172a;">${isPre ? '📋 التشخيص القبلي' : '✅ تقويم تعلم الوحدة'}</div>
         <div style="font-size:11.5px;color:#64748b;">📅 ${date}</div>

@@ -138,7 +138,8 @@ function getToken(request) {
 async function verifyToken(request, env) {
   const token = getToken(request);
   if (!token) return null;
-  return jwtVerify(token, env.JWT_SECRET || 'lg-jwt-fallback-2026');
+  if (!env.JWT_SECRET) return null;
+  return jwtVerify(token, env.JWT_SECRET);
 }
 
 // ── Rate Limiting (D1-based, 1-minute windows) ────────────────────────────
@@ -157,7 +158,7 @@ async function rateLimit(DB, ip, action, maxPerMin) {
     if (row.count >= maxPerMin) return false;
     await DB.prepare('UPDATE rate_limits SET count = count + 1 WHERE key = ?').bind(key).run();
     return true;
-  } catch { return true; }
+  } catch { return false; }
 }
 
 export async function onRequest({ request, env }) {
@@ -191,10 +192,10 @@ export async function onRequest({ request, env }) {
           : await DB.prepare('SELECT id, code, name, school FROM students WHERE code = ?').bind(code).first();
         if (!student) {
           try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'warn','login',`محاولة دخول طالب فاشلة: ${code}`,'','student',sc,ip,new Date().toISOString()).run(); } catch {}
-          return err('السجل المدني غير مسجّل', 404, CORS);
+          return err('بيانات الدخول غير صحيحة', 401, CORS);
         }
-        const secret = env.JWT_SECRET || 'lg-jwt-fallback-2026';
-        const token = await jwtSign({ sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, secret);
+        if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
+        const token = await jwtSign({ sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
         try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'success','login',`تسجيل دخول طالب: ${student.name}`,student.name,'student',student.school||'',ip,new Date().toISOString()).run(); } catch {}
         return ok({ token, student: { id: student.id, name: student.name, school: student.school } }, 200, CORS);
       }
@@ -208,14 +209,14 @@ export async function onRequest({ request, env }) {
         const sc = bodySchool || school;
         if (!admin) {
           try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'warn','login',`محاولة دخول مشرف فاشلة: ${adminCode}`,'','admin',sc,ip,new Date().toISOString()).run(); } catch {}
-          return err('السجل المدني غير مسجّل', 404, CORS);
+          return err('بيانات الدخول غير صحيحة', 401, CORS);
         }
-        if (admin.school !== '*' && sc && admin.school !== sc) return err('غير مصرح', 403, CORS);
-        const secret = env.JWT_SECRET || 'lg-jwt-fallback-2026';
+        if (admin.school !== '*' && sc && admin.school !== sc) return err('بيانات الدخول غير صحيحة', 401, CORS);
+        if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const adminName = admin.admin_name || admin.name || '';
         // Normalize role: only 'director' keeps its value, everything else becomes 'admin'
         const adminRole = admin.role === 'director' ? 'director' : 'admin';
-        const token = await jwtSign({ sub: admin.id, role: adminRole, name: adminName, school: admin.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, secret);
+        const token = await jwtSign({ sub: admin.id, role: adminRole, name: adminName, school: admin.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
         try { await DB.prepare('INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'success','login',`تسجيل دخول ${adminRole==='director'?'مدير':'مشرف'}: ${adminName}`,adminName,adminRole,admin.school||'',ip,new Date().toISOString()).run(); } catch {}
         return ok({ token, admin: { id: admin.id, name: adminName, school: admin.school, role: adminRole } }, 200, CORS);
       }
@@ -226,39 +227,9 @@ export async function onRequest({ request, env }) {
         const { key } = await request.json();
         const devKey = env.DEV_KEY;
         if (!devKey || key !== devKey) return err('غير مصرح', 401, CORS);
-        const secret = env.JWT_SECRET || 'lg-jwt-fallback-2026';
-        const token = await jwtSign({ role: 'dev', exp: Math.floor(Date.now() / 1000) + 4 * 3600 }, secret);
+        if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
+        const token = await jwtSign({ role: 'dev', exp: Math.floor(Date.now() / 1000) + 4 * 3600 }, env.JWT_SECRET);
         return ok({ token }, 200, CORS);
-      }
-
-      // GET /api/auth/ping — JWT self-test (no auth required, safe diagnostics only)
-      if (sub === 'ping' && method === 'GET') {
-        const secret = env.JWT_SECRET || 'lg-jwt-fallback-2026';
-        const hasCustomSecret = !!env.JWT_SECRET;
-        const testPayload = { role: 'admin', sub: 'test', exp: Math.floor(Date.now() / 1000) + 60 };
-        let selfTest = false, selfTestErr = null;
-        try {
-          const testToken = await jwtSign(testPayload, secret);
-          const verified  = await jwtVerify(testToken, secret);
-          selfTest = verified && verified.role === 'admin';
-          if (!selfTest) selfTestErr = 'verify returned: ' + JSON.stringify(verified);
-        } catch (e) { selfTestErr = e.message; }
-        // Also try to verify the caller's token if provided
-        let callerClaims = null, callerErr = null;
-        const callerToken = getToken(request);
-        if (callerToken) {
-          try { callerClaims = await jwtVerify(callerToken, secret); }
-          catch (e) { callerErr = e.message; }
-        }
-        return ok({
-          jwtSelfTest: selfTest,
-          jwtSelfTestErr: selfTestErr,
-          hasCustomJwtSecret: hasCustomSecret,
-          callerTokenProvided: !!callerToken,
-          callerTokenValid: !!callerClaims,
-          callerRole: callerClaims?.role || null,
-          callerTokenErr: callerErr,
-        }, 200, CORS);
       }
     }
 
@@ -285,11 +256,13 @@ export async function onRequest({ request, env }) {
       }
 
       if (method === 'POST') {
+        const postClaims = await verifyToken(request, env);
+        if (!postClaims || !['admin','director','dev'].includes(postClaims.role)) return err('غير مصرح', 401, CORS);
         const body = await request.json();
 
         if (Array.isArray(body)) {
           const now = new Date().toISOString();
-          const valid = body.filter(r => r.name && r.code);
+          const valid = body.filter(r => r.name && r.code && typeof r.name === 'string' && /^\d{10}$/.test(r.code) && r.name.length <= 100);
 
           // Fetch existing codes in one query
           const { results: existing } = await DB.prepare('SELECT code FROM students').all();
@@ -344,7 +317,14 @@ export async function onRequest({ request, env }) {
       if (method === 'DELETE' && sub) {
         const claims = await verifyToken(request, env);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
-        await DB.prepare('DELETE FROM students WHERE id = ?').bind(sub).run();
+        if (claims.role === 'dev') {
+          await DB.prepare('DELETE FROM students WHERE id = ?').bind(sub).run();
+        } else {
+          // Non-dev admins can only delete students from their own school
+          const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
+          if (!effectiveSchool) return err('المدرسة مطلوبة', 400, CORS);
+          await DB.prepare('DELETE FROM students WHERE id = ? AND school = ?').bind(sub, effectiveSchool).run();
+        }
         return ok({ ok: true }, 200, CORS);
       }
     }
@@ -394,9 +374,15 @@ export async function onRequest({ request, env }) {
 
       if (method === 'PATCH' && sub) {
         const claims = await verifyToken(request, env);
-        if (!claims || !['admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const { adminNote } = await request.json();
         const now = new Date().toISOString();
+        if (claims.role !== 'dev' && claims.school && claims.school !== '*') {
+          // Verify the plan belongs to this admin's school
+          const existing = await DB.prepare('SELECT school FROM plans WHERE id = ?').bind(sub).first();
+          if (!existing) return err('الخطة غير موجودة', 404, CORS);
+          if (existing.school !== claims.school) return err('غير مصرح', 403, CORS);
+        }
         await DB.prepare(
           'UPDATE plans SET status = ?, admin_note = ?, approved_at = ? WHERE id = ?'
         ).bind('active', adminNote || '', now, sub).run();
@@ -493,6 +479,8 @@ export async function onRequest({ request, env }) {
       }
 
       if (method === 'POST') {
+        const qClaims = await verifyToken(request, env);
+        if (!qClaims || !['admin','director','dev'].includes(qClaims.role)) return err('غير مصرح', 401, CORS);
         const { action = 'append', questions: rows } = await request.json();
         if (action === 'replace') await DB.prepare('DELETE FROM questions').run();
         const { results: existing } = await DB.prepare('SELECT qnum FROM questions').all();
@@ -541,8 +529,11 @@ export async function onRequest({ request, env }) {
     }
 
     if (resource === 'admins' && sub && method === 'GET') {
+      // Requires valid JWT — used by chat to look up admin info
+      const admClaims = await verifyToken(request, env);
+      if (!admClaims) return err('غير مصرح', 401, CORS);
       // sub = admin code, school = selected school
-      const admin = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(sub).first();
+      const admin = await DB.prepare('SELECT id, name, school, role FROM admins WHERE code = ?').bind(sub).first();
       if (!admin) return ok({ admin: null }, 404, CORS);
       // school='*' means superadmin, can access any school
       if (admin.school !== '*' && school && admin.school !== school) {
@@ -798,18 +789,19 @@ export async function onRequest({ request, env }) {
     // ── DIRECTOR ENDPOINTS ───────────────────────────────────────────────────
     if (resource === 'director') {
 
-      // Helper: verify director auth
-      async function authDirector(code, targetSchool) {
-        if (!code) return null;
-        const a = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(code).first();
-        if (!a || a.role !== 'director') return null;
-        if (a.school !== '*' && targetSchool && a.school !== targetSchool) return null;
-        return a;
+      // Verify director via JWT — no sensitive code in URLs
+      async function authDirector(targetSchool) {
+        const claims = await verifyToken(request, env);
+        if (!claims) return null;
+        if (!['director','dev'].includes(claims.role)) return null;
+        if (claims.role === 'dev') return claims;
+        if (claims.school !== '*' && targetSchool && claims.school !== targetSchool) return null;
+        return claims;
       }
 
-      // GET /api/director/admins?school=X&director_code=Y
+      // GET /api/director/admins?school=X
       if (sub === 'admins' && method === 'GET') {
-        const dir = await authDirector(url.searchParams.get('director_code'), school);
+        const dir = await authDirector(school);
         if (!dir) return err('غير مصرح', 401, CORS);
         const { results } = await DB.prepare(
           "SELECT id, name, code, role FROM admins WHERE school = ? ORDER BY name ASC"
@@ -819,9 +811,9 @@ export async function onRequest({ request, env }) {
 
       // POST /api/director/admins — add supervisor
       if (sub === 'admins' && method === 'POST') {
-        const { name, code: newCode, director_code } = await request.json();
-        const dir = await authDirector(director_code, school);
+        const dir = await authDirector(school);
         if (!dir) return err('غير مصرح', 401, CORS);
+        const { name, code: newCode } = await request.json();
         if (!name || !newCode) return err('الاسم والرمز مطلوبان', 400, CORS);
         if (!/^\d{10}$/.test(newCode)) return err('الرمز يجب أن يكون 10 أرقام', 400, CORS);
         const adminSchool = dir.school === '*' ? school : dir.school;
@@ -838,9 +830,9 @@ export async function onRequest({ request, env }) {
         return ok({ admin: { id: aid, name, code: newCode, school: adminSchool, role: 'admin', created_at: now } }, 201, CORS);
       }
 
-      // DELETE /api/director/admins/:id?school=X&director_code=Y
+      // DELETE /api/director/admins/:id?school=X
       if (sub === 'admins' && subsub && method === 'DELETE') {
-        const dir = await authDirector(url.searchParams.get('director_code'), school);
+        const dir = await authDirector(school);
         if (!dir) return err('غير مصرح', 401, CORS);
         const target = await DB.prepare('SELECT * FROM admins WHERE id = ?').bind(subsub).first();
         if (!target) return err('المشرف غير موجود', 404, CORS);
@@ -851,8 +843,7 @@ export async function onRequest({ request, env }) {
 
       // POST /api/director/seed-questions — upsert hardcoded questions (director auth)
       if (sub === 'seed-questions' && method === 'POST') {
-        const body = await request.json();
-        const dir = await authDirector(body.director_code, school);
+        const dir = await authDirector(school);
         if (!dir) return err('غير مصرح', 401, CORS);
         const { results: existing } = await DB.prepare('SELECT qnum FROM questions').all();
         const existingNums = new Set(existing.map(r => r.qnum));
@@ -873,9 +864,9 @@ export async function onRequest({ request, env }) {
         return ok({ added, updated }, 200, CORS);
       }
 
-      // PATCH /api/director/questions/:id?director_code=Y&school=X — edit one question
+      // PATCH /api/director/questions/:id?school=X — edit one question
       if (sub === 'questions' && subsub && method === 'PATCH') {
-        const dir = await authDirector(url.searchParams.get('director_code'), school);
+        const dir = await authDirector(school);
         if (!dir) return err('غير مصرح', 401, CORS);
         const { qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans } = await request.json();
         await DB.prepare(
@@ -884,9 +875,9 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
-      // DELETE /api/director/questions/:id?director_code=Y&school=X — delete one question
+      // DELETE /api/director/questions/:id?school=X — delete one question
       if (sub === 'questions' && subsub && method === 'DELETE') {
-        const dir = await authDirector(url.searchParams.get('director_code'), school);
+        const dir = await authDirector(school);
         if (!dir) return err('غير مصرح', 401, CORS);
         await DB.prepare('DELETE FROM questions WHERE id = ?').bind(subsub).run();
         return ok({ ok: true }, 200, CORS);
@@ -894,8 +885,8 @@ export async function onRequest({ request, env }) {
 
       // POST /api/director/questions — import questions (director auth)
       if (sub === 'questions' && method === 'POST') {
+        const dir = await authDirector(school);
         const body = await request.json();
-        const dir = await authDirector(body.director_code, school);
         if (!dir) return err('غير مصرح', 401, CORS);
         const { action = 'append', questions: rows } = body;
         if (!Array.isArray(rows) || !rows.length) return err('لا توجد أسئلة', 400, CORS);

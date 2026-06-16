@@ -187,8 +187,6 @@ const QUESTIONS = [
     opts:['القيمة الأولى أكبر','القيمة الثانية أكبر','القيمتان متساويتان','المعطيات غير كافية'], ans:0 },
 ];
 
-// Admin credentials (offline simulation)
-const ADMIN = { username: 'admin', password: 'khaldiya2025' };
 
 // ── Skill training guides ─────────────────────────────────────────────────
 const SKILL_GUIDES = {

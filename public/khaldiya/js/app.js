@@ -1594,8 +1594,7 @@ const App = {
     listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">جاري التحميل…</div>';
     try {
       const school = encodeURIComponent(State.school || '');
-      const code   = encodeURIComponent(State.admin.code);
-      const data   = await apiFetch(`/director/admins?school=${school}&director_code=${code}`);
+      const data   = await apiFetch(`/director/admins?school=${school}`);
       const admins = data.admins || [];
       if (!admins.length) {
         listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div><p>لا يوجد مشرفون مضافون بعد</p></div>';
@@ -1627,7 +1626,7 @@ const App = {
     try {
       await apiFetch('/director/admins?school=' + encodeURIComponent(school), {
         method: 'POST',
-        body: JSON.stringify({ name, code, director_code: State.admin.code })
+        body: JSON.stringify({ name, code })
       });
       document.getElementById('add-sup-name').value = '';
       document.getElementById('add-sup-code').value = '';
@@ -1643,8 +1642,7 @@ const App = {
     if (!confirm('هل تريد حذف هذا المشرف؟')) return;
     try {
       const school = encodeURIComponent(State.school || '');
-      const code   = encodeURIComponent(State.admin.code);
-      await apiFetch(`/director/admins/${adminId}?school=${school}&director_code=${code}`, { method: 'DELETE' });
+      await apiFetch(`/director/admins/${adminId}?school=${school}`, { method: 'DELETE' });
       showToast('تم حذف المشرف');
       App.loadSupervisors();
     } catch (e) {
@@ -1666,7 +1664,7 @@ const App = {
       if (!(data.questions || []).length) {
         await apiFetch('/director/seed-questions?school=' + encodeURIComponent(State.school || ''), {
           method: 'POST',
-          body: JSON.stringify({ director_code: State.admin.code })
+          body: JSON.stringify({})
         }).catch(() => {});
         data = await apiFetch('/questions');
       }
@@ -1765,14 +1763,13 @@ const App = {
 
     try {
       const school = encodeURIComponent(State.school || '');
-      const code   = encodeURIComponent(State.admin.code);
       await Promise.all([
-        apiFetch(`/director/questions/${dragId}?school=${school}&director_code=${code}`, {
+        apiFetch(`/director/questions/${dragId}?school=${school}`, {
           method: 'PATCH',
           body: JSON.stringify({ qnum: dropQnum, type: dragQ.type, skill_id: dragQ.skill_id, text: dragQ.text,
             opt1: dragQ.opt1, opt2: dragQ.opt2, opt3: dragQ.opt3, opt4: dragQ.opt4, ans: dragQ.ans })
         }),
-        apiFetch(`/director/questions/${dropId}?school=${school}&director_code=${code}`, {
+        apiFetch(`/director/questions/${dropId}?school=${school}`, {
           method: 'PATCH',
           body: JSON.stringify({ qnum: dragQnum, type: dropQ.type, skill_id: dropQ.skill_id, text: dropQ.text,
             opt1: dropQ.opt1, opt2: dropQ.opt2, opt3: dropQ.opt3, opt4: dropQ.opt4, ans: dropQ.ans })
@@ -1836,8 +1833,7 @@ const App = {
     if (!text || !opt1 || !opt2 || !opt3 || !opt4) { showToast('أكمل جميع الحقول'); return; }
     try {
       const school = encodeURIComponent(State.school || '');
-      const code   = encodeURIComponent(State.admin.code);
-      await apiFetch(`/director/questions/${id}?school=${school}&director_code=${code}`, {
+      await apiFetch(`/director/questions/${id}?school=${school}`, {
         method: 'PATCH',
         body: JSON.stringify({ qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans })
       });
@@ -1856,8 +1852,7 @@ const App = {
     if (!confirm(`هل تريد حذف السؤال رقم ${qnum}؟`)) return;
     try {
       const school = encodeURIComponent(State.school || '');
-      const code   = encodeURIComponent(State.admin.code);
-      await apiFetch(`/director/questions/${id}?school=${school}&director_code=${code}`, { method: 'DELETE' });
+      await apiFetch(`/director/questions/${id}?school=${school}`, { method: 'DELETE' });
       App._allQuestions = App._allQuestions.filter(x => x.id !== id);
       document.getElementById('q-count-badge').textContent = App._allQuestions.length + ' سؤال';
       App.filterQuestions();

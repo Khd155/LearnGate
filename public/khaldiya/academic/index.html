@@ -144,7 +144,7 @@
     <img class="topbar-logo" src="../logo-white.png" alt="">
     <div>
       <span class="topbar-title" id="topbar-title">دعم التعلم والتحصيل</span>
-      <div class="topbar-sub">اختر الصف الدراسي</div>
+      <div class="topbar-sub" id="topbar-sub-label">اختر الصف الدراسي</div>
     </div>
     <span class="user-chip" id="user-chip" onclick="logout()" title="اضغط للخروج">
       <span class="dot"></span>
@@ -288,6 +288,7 @@ function selectGrade(name) {
   document.getElementById('subjects-hero-title').textContent = 'مواد ' + name;
   document.getElementById('subjects-label').textContent = 'المواد الدراسية — ' + name;
   document.getElementById('topbar-title').textContent = name;
+  document.getElementById('topbar-sub-label').textContent = 'اختر المادة الدراسية';
   document.getElementById('screen-grade').classList.remove('active');
   document.getElementById('screen-subjects').classList.add('active');
 
@@ -313,6 +314,7 @@ function goBack() {
   document.getElementById('screen-subjects').classList.remove('active');
   document.getElementById('screen-grade').classList.add('active');
   document.getElementById('topbar-title').textContent = 'دعم التعلم والتحصيل';
+  document.getElementById('topbar-sub-label').textContent = 'اختر الصف الدراسي';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 </script>

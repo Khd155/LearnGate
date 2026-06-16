@@ -1252,6 +1252,82 @@ export async function onRequest({ request, env }) {
       }
     }
 
+    // ── BROADCASTS ───────────────────────────────────────────────────────────
+    if (resource === 'broadcasts') {
+      try {
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS broadcasts (
+          id TEXT PRIMARY KEY, school TEXT NOT NULL, admin_id TEXT NOT NULL,
+          admin_name TEXT NOT NULL, message TEXT NOT NULL, created_at TEXT NOT NULL
+        )`).run();
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS broadcast_dismissals (
+          broadcast_id TEXT NOT NULL, student_id TEXT NOT NULL,
+          PRIMARY KEY (broadcast_id, student_id)
+        )`).run();
+      } catch {}
+
+      // POST /api/broadcasts — admin creates broadcast
+      if (!sub && method === 'POST') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const { message } = await request.json();
+        if (!message || message.trim().length < 3) return err('الرسالة قصيرة جداً', 400, CORS);
+        if (message.length > 500) return err('الرسالة طويلة جداً (الحد 500 حرف)', 400, CORS);
+        const broadcastSchool = (claims.school && claims.school !== '*') ? claims.school : school;
+        if (!broadcastSchool) return err('المدرسة مطلوبة', 400, CORS);
+        const bid = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await DB.prepare('INSERT INTO broadcasts (id, school, admin_id, admin_name, message, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(bid, broadcastSchool, claims.sub || '', claims.name || 'المشرف', message.trim(), now).run();
+        return ok({ broadcast: { id: bid, admin_name: claims.name, message: message.trim(), created_at: now } }, 201, CORS);
+      }
+
+      // GET /api/broadcasts/active?school=X — student gets unseen broadcasts
+      if (sub === 'active' && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims) return err('غير مصرح', 401, CORS);
+        if (claims.role === 'student') {
+          // Students: always use their own school from JWT — never trust URL param
+          const sc = claims.school || '';
+          if (!sc) return ok({ broadcasts: [] }, 200, CORS);
+          const { results } = await DB.prepare(`
+            SELECT b.* FROM broadcasts b
+            WHERE b.school = ? AND NOT EXISTS (
+              SELECT 1 FROM broadcast_dismissals d WHERE d.broadcast_id = b.id AND d.student_id = ?
+            ) ORDER BY b.created_at DESC LIMIT 5
+          `).bind(sc, claims.sub).all();
+          return ok({ broadcasts: results }, 200, CORS);
+        } else {
+          // Admins/directors: scoped to their own school (dev can pass school param)
+          const sc = (claims.school && claims.school !== '*') ? claims.school : (school || '');
+          if (!sc) return ok({ broadcasts: [] }, 200, CORS);
+          const { results } = await DB.prepare('SELECT * FROM broadcasts WHERE school = ? ORDER BY created_at DESC LIMIT 30').bind(sc).all();
+          return ok({ broadcasts: results }, 200, CORS);
+        }
+      }
+
+      // POST /api/broadcasts/:id/dismiss — student dismisses broadcast
+      if (sub && subsub === 'dismiss' && method === 'POST') {
+        const claims = await verifyToken(request, env);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        try { await DB.prepare('INSERT OR IGNORE INTO broadcast_dismissals (broadcast_id, student_id) VALUES (?, ?)').bind(sub, claims.sub).run(); } catch {}
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // DELETE /api/broadcasts/:id — admin deletes broadcast (scoped to own school)
+      if (sub && !subsub && method === 'DELETE') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        if (claims.role === 'dev') {
+          await DB.prepare('DELETE FROM broadcasts WHERE id = ?').bind(sub).run();
+        } else {
+          // Admin/director can only delete broadcasts from their own school
+          const res = await DB.prepare('DELETE FROM broadcasts WHERE id = ? AND school = ?').bind(sub, claims.school).run();
+          if (!res.meta?.changes) return err('غير موجود أو غير مصرح', 404, CORS);
+        }
+        return ok({ ok: true }, 200, CORS);
+      }
+    }
+
     return err('غير موجود', 404, CORS);
 
   } catch (e) {

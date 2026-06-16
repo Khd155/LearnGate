@@ -1166,6 +1166,7 @@ const App = {
     const tabStats   = document.getElementById('tab-stats');
     const tabSup     = document.getElementById('tab-supervisors');
     const tabQ       = document.getElementById('tab-questions');
+    const tabBC      = document.getElementById('tab-broadcast');
 
     // Show/hide toolbar and student list
     if (toolbar) toolbar.style.display = tab === 'students' ? 'block' : 'none';
@@ -1175,6 +1176,7 @@ const App = {
     if (tabStats) tabStats.style.display = tab === 'stats'       ? 'block' : 'none';
     if (tabSup)   tabSup.style.display   = tab === 'supervisors' ? 'block' : 'none';
     if (tabQ)     tabQ.style.display     = tab === 'questions'   ? 'block' : 'none';
+    if (tabBC)    tabBC.style.display    = tab === 'broadcast'   ? 'block' : 'none';
 
     if (tab === 'students') {
       App.renderAdminDashboard('students');
@@ -1188,6 +1190,7 @@ const App = {
     }
     if (tab === 'supervisors') { App.renderAdminDashboard('supervisors'); App.loadSupervisors(); return; }
     if (tab === 'questions')   { App.renderAdminDashboard('questions');   App.loadQuestions();   return; }
+    if (tab === 'broadcast')   { App.renderAdminDashboard('broadcast');   App.renderBroadcastHistory(); return; }
     App.renderAdminDashboard(tab);
   },
 
@@ -3369,6 +3372,94 @@ const App = {
   _notifPrev: { studentMsg: 0, ticket: 0, adminMsg: 0 },
   _notifItems: [],   // [{id, type, title, sub, read, action}]
 
+  // ── Broadcast ──────────────────────────────────────────────────────────
+  _broadcastQueue: [],
+  _broadcastCurrent: null,
+
+  async sendBroadcast() {
+    const ta  = document.getElementById('broadcast-msg');
+    const msg = (ta?.value || '').trim();
+    if (!msg) { showToast('اكتب رسالة أولاً'); return; }
+    if (msg.length > 500) { showToast('الرسالة طويلة جداً (الحد 500 حرف)'); return; }
+    try {
+      await apiFetch('/broadcasts', { method: 'POST', body: JSON.stringify({ message: msg }) });
+      ta.value = '';
+      document.getElementById('broadcast-char').textContent = '0';
+      showToast('✅ تم إرسال الرسالة لجميع الطلاب');
+      App.renderBroadcastHistory();
+    } catch (e) { showToast('تعذّر الإرسال: ' + (e.message || '')); }
+  },
+
+  async renderBroadcastHistory() {
+    const el = document.getElementById('broadcast-history');
+    if (!el) return;
+    try {
+      const sc   = encodeURIComponent(State.school || '');
+      const data = await apiFetch(`/broadcasts/active?school=${sc}`);
+      const list = data.broadcasts || [];
+      if (!list.length) { el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">لا توجد رسائل بعد</div>'; return; }
+      el.innerHTML = list.map(b => `
+        <div style="border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;background:var(--bg);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:12.5px;font-weight:700;color:var(--primary);">📢 ${escapeHtml(b.admin_name)}</span>
+            <span style="font-size:11px;color:var(--muted);">${new Date(b.created_at).toLocaleString('ar-SA',{dateStyle:'short',timeStyle:'short'})}</span>
+          </div>
+          <div style="font-size:14px;line-height:1.7;color:var(--text);margin-bottom:10px;">${escapeHtml(b.message)}</div>
+          <button onclick="App.deleteBroadcast('${b.id}')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-family:inherit;font-weight:700;cursor:pointer;">🗑 حذف</button>
+        </div>`).join('');
+    } catch { el.innerHTML = '<div style="color:var(--muted);padding:12px;font-size:13px;">تعذّر تحميل السجل</div>'; }
+  },
+
+  async deleteBroadcast(id) {
+    if (!confirm('تأكيد حذف الرسالة؟')) return;
+    try {
+      await apiFetch(`/broadcasts/${id}`, { method: 'DELETE' });
+      App.renderBroadcastHistory();
+      showToast('تم الحذف');
+    } catch { showToast('تعذّر الحذف'); }
+  },
+
+  _showNextBroadcast() {
+    if (App._broadcastCurrent) return;
+    if (!App._broadcastQueue.length) return;
+    const b = App._broadcastQueue.shift();
+    App._broadcastCurrent = b.id;
+    const modal = document.getElementById('broadcast-modal');
+    if (!modal) return;
+    document.getElementById('bc-admin-name').textContent = 'رسالة من: ' + (b.admin_name || 'المشرف');
+    document.getElementById('bc-message').textContent    = b.message;
+    document.getElementById('bc-time').textContent       = new Date(b.created_at).toLocaleString('ar-SA',{dateStyle:'medium',timeStyle:'short'});
+    const more = document.getElementById('bc-more-indicator');
+    if (App._broadcastQueue.length > 0) {
+      more.style.display = '';
+      more.textContent   = `يوجد ${App._broadcastQueue.length} رسالة إضافية`;
+    } else { more.style.display = 'none'; }
+    modal.style.display = 'flex';
+  },
+
+  async dismissBroadcast() {
+    const id = App._broadcastCurrent;
+    App._broadcastCurrent = null;
+    document.getElementById('broadcast-modal').style.display = 'none';
+    if (id) {
+      try { await apiFetch(`/broadcasts/${id}/dismiss`, { method: 'POST' }); } catch {}
+    }
+    setTimeout(() => App._showNextBroadcast(), 400);
+  },
+
+  async _checkBroadcasts() {
+    if (State.role !== 'student' || !State.student?.school) return;
+    try {
+      const sc   = encodeURIComponent(State.student.school);
+      const data = await apiFetch(`/broadcasts/active?school=${sc}`);
+      const list = (data.broadcasts || []).filter(b => b.id !== App._broadcastCurrent && !App._broadcastQueue.find(q => q.id === b.id));
+      if (list.length) {
+        App._broadcastQueue.push(...list);
+        App._showNextBroadcast();
+      }
+    } catch {}
+  },
+
   startNotifPolling() {
     App.stopNotifPolling();
     App._checkNotifications();
@@ -3409,6 +3500,7 @@ const App = {
         App._notifPrev.ticket     = tkCount;
         App._notifItems = items;
         App._updateBell('student', msgCount + tkCount);
+        App._checkBroadcasts();
 
       } else if (State.role === 'admin' || State.role === 'director') {
         const school = encodeURIComponent(State.school || '');

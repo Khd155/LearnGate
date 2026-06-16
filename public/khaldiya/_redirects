@@ -1,5 +1,6 @@
-/capabilities  /index.html 200
-/admin         /index.html 200
-/history       /index.html 200
-/chat          /index.html 200
-/login         /index.html 200
+/capabilities/*  /index.html 200
+/capabilities    /index.html 200
+/admin           /index.html 200
+/history         /index.html 200
+/chat            /index.html 200
+/login           /index.html 200

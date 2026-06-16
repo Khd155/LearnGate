@@ -301,8 +301,14 @@ export async function onRequest({ request, env }) {
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         let q = 'SELECT * FROM students';
         const params = [];
-        // Non-director admins: always filter by their own school from JWT
-        const effectiveSchool = (claims.role === 'admin' && claims.school) ? claims.school : school;
+        // Admins are always limited to their own school from JWT — never from URL param
+        // Directors/dev may filter by optional ?school= param
+        let effectiveSchool;
+        if (claims.role === 'admin') {
+          effectiveSchool = claims.school || null;
+        } else {
+          effectiveSchool = school || null; // director/dev may filter or get all
+        }
         if (effectiveSchool) { q += ' WHERE school = ?'; params.push(effectiveSchool); }
         q += ' ORDER BY created_at ASC';
         const { results } = await DB.prepare(q).bind(...params).all();
@@ -395,7 +401,9 @@ export async function onRequest({ request, env }) {
         if (claims.role === 'student' && claims.sub !== studentId) return err('غير مسموح', 403, CORS);
         let q = 'SELECT * FROM plans WHERE student_id = ?';
         const params = [studentId];
-        if (school) { q += ' AND school = ?'; params.push(school); }
+        // Admins: always scope to their JWT school (dev/director may use URL param)
+        const historySchool = claims.role === 'admin' ? (claims.school || null) : (school || null);
+        if (historySchool) { q += ' AND school = ?'; params.push(historySchool); }
         q += ' ORDER BY created_at DESC';
         const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ plans: results.map(r => ({ ...r, gaps: JSON.parse(r.gaps || '[]') })) }, 200, CORS);
@@ -406,7 +414,9 @@ export async function onRequest({ request, env }) {
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         let q = 'SELECT * FROM plans';
         const params = [];
-        if (school) { q += ' WHERE school = ?'; params.push(school); }
+        // Admins: always scope to their JWT school
+        const plansSchool = claims.role === 'admin' ? (claims.school || null) : (school || null);
+        if (plansSchool) { q += ' WHERE school = ?'; params.push(plansSchool); }
         q += ' ORDER BY created_at DESC';
         const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ plans: results.map(r => ({ ...r, gaps: JSON.parse(r.gaps || '[]') })) }, 200, CORS);
@@ -417,13 +427,20 @@ export async function onRequest({ request, env }) {
         if (!claims || !['student','admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const body = await request.json();
         // Mass assignment guard: only accept allowed fields
-        const { studentId, studentName, gaps, school: bodySchool } = body;
+        const { gaps, school: bodySchool } = body;
+        let { studentId, studentName } = body;
+        // Students can only create plans for themselves — never trust body studentId
+        if (claims.role === 'student') {
+          studentId   = claims.sub;
+          studentName = claims.name || '';
+        }
         // Students cannot set status or adminNote — always start as 'pending'
         const status    = claims.role === 'student' ? 'pending' : (body.status || 'pending');
         const adminNote = claims.role === 'student' ? '' : (body.adminNote || '');
         const pid = crypto.randomUUID();
         const now = new Date().toISOString();
-        const planSchool = bodySchool || school;
+        // Admins: school always from JWT; dev/director may pass it
+        const planSchool = claims.role === 'admin' ? (claims.school || '') : (bodySchool || school || '');
         await DB.prepare(
           `INSERT INTO plans (id, student_id, student_name, status, gaps, admin_note, school, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -504,10 +521,14 @@ export async function onRequest({ request, env }) {
 
         if (!['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const studentId = url.searchParams.get('studentId');
+        // Admins scope to their own school from JWT
+        const trSchool = claims.role === 'admin' ? (claims.school || null) : (school || null);
         if (studentId) {
-          const { results } = await DB.prepare(
-            'SELECT * FROM test_results WHERE student_id = ? ORDER BY created_at DESC'
-          ).bind(studentId).all();
+          let q = 'SELECT * FROM test_results WHERE student_id = ?';
+          const params = [studentId];
+          if (trSchool) { q += ' AND school = ?'; params.push(trSchool); }
+          q += ' ORDER BY created_at DESC';
+          const { results } = await DB.prepare(q).bind(...params).all();
           return ok({ results: results.map(r => {
             let ans = [];
             try { ans = JSON.parse(r.answers || '[]'); } catch(e) {}
@@ -516,7 +537,7 @@ export async function onRequest({ request, env }) {
         }
         let q = 'SELECT id, student_id, student_name, school, subject, test_type, score, correct, total, created_at FROM test_results';
         const params = [];
-        if (school) { q += ' WHERE school = ?'; params.push(school); }
+        if (trSchool) { q += ' WHERE school = ?'; params.push(trSchool); }
         q += ' ORDER BY created_at DESC LIMIT 1000';
         const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ results }, 200, CORS);
@@ -583,9 +604,14 @@ export async function onRequest({ request, env }) {
     if (resource === 'admins' && !sub && method === 'GET' && school) {
       const admClaims = await verifyToken(request, env);
       if (!admClaims) return err('غير مصرح', 401, CORS);
+      // Admins can only see admins in their own school; students use JWT school too
+      const targetSchool = (admClaims.role === 'dev') ? school
+        : (admClaims.school && admClaims.school !== '*') ? admClaims.school
+        : school; // director can pass ?school=
+      if (!targetSchool) return ok({ admins: [] }, 200, CORS);
       const { results } = await DB.prepare(
         "SELECT id, name FROM admins WHERE school = ? AND school != '' ORDER BY name ASC"
-      ).bind(school).all();
+      ).bind(targetSchool).all();
       return ok({ admins: results }, 200, CORS);
     }
 
@@ -1049,12 +1075,17 @@ export async function onRequest({ request, env }) {
         return ok({ threads }, 200, CORS);
       }
 
-      // GET /api/messages — students see only their own
+      // GET /api/messages — students see only their own; admins scoped to their school
       if (method === 'GET') {
         const studentId = url.searchParams.get('studentId');
         const adminId   = url.searchParams.get('adminId') || '';
         if (!studentId) return err('معرّف الطالب مطلوب', 400, CORS);
         if (msgClaims.role === 'student' && msgClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
+        // Admins verify the student belongs to their school
+        if (isPrivileged && msgClaims.role !== 'dev' && msgClaims.school && msgClaims.school !== '*') {
+          const msgStudent = await DB.prepare('SELECT school FROM students WHERE id = ?').bind(studentId).first();
+          if (!msgStudent || msgStudent.school !== msgClaims.school) return err('غير مسموح', 403, CORS);
+        }
         let q, params;
         if (adminId) {
           q = 'SELECT * FROM messages WHERE student_id=? AND recipient_admin_id=? ORDER BY created_at ASC';
@@ -1074,17 +1105,25 @@ export async function onRequest({ request, env }) {
         if (msgBody.length > 2000) return err('الرسالة طويلة جداً', 400, CORS);
         let studentId, studentName, senderType;
         if (isPrivileged) {
-          // Admin sending to a student's conversation — studentId identifies the conversation
           if (!targetStudentId) return err('معرّف الطالب مطلوب', 400, CORS);
-          studentId = targetStudentId;
-          studentName = '';
+          // Verify the target student belongs to this admin's school
+          if (msgClaims.role !== 'dev' && msgClaims.school && msgClaims.school !== '*') {
+            const targetSt = await DB.prepare('SELECT school, name FROM students WHERE id = ?').bind(targetStudentId).first();
+            if (!targetSt || targetSt.school !== msgClaims.school) return err('غير مسموح', 403, CORS);
+            studentName = targetSt.name || '';
+          } else {
+            const targetSt = await DB.prepare('SELECT name FROM students WHERE id = ?').bind(targetStudentId).first();
+            studentName = targetSt?.name || '';
+          }
+          studentId  = targetStudentId;
           senderType = 'admin';
         } else {
-          studentId = msgClaims.sub;
+          studentId   = msgClaims.sub;
           studentName = msgClaims.name || '';
-          senderType = 'student';
+          senderType  = 'student';
         }
-        const effectiveSchool = msgClaims.school || school || bodySchool || '';
+        // School always from JWT for known roles; never from user body
+        const effectiveSchool = (msgClaims.school && msgClaims.school !== '*') ? msgClaims.school : (school || bodySchool || '');
         const id  = crypto.randomUUID();
         const now = new Date().toISOString();
         await DB.prepare(
@@ -1097,6 +1136,11 @@ export async function onRequest({ request, env }) {
       if (sub === 'read' && method === 'PATCH') {
         const { studentId, readerType } = await request.json();
         if (msgClaims.role === 'student' && msgClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
+        // Admins can only mark messages read for students in their own school
+        if (isPrivileged && msgClaims.role !== 'dev' && msgClaims.school && msgClaims.school !== '*') {
+          const readSt = await DB.prepare('SELECT school FROM students WHERE id = ?').bind(studentId).first();
+          if (!readSt || readSt.school !== msgClaims.school) return err('غير مسموح', 403, CORS);
+        }
         const senderType = readerType === 'admin' ? 'student' : 'admin';
         await DB.prepare(
           'UPDATE messages SET is_read=1 WHERE student_id=? AND sender_type=? AND is_read=0'
@@ -1159,20 +1203,23 @@ export async function onRequest({ request, env }) {
           params = [studentId];
         } else {
           if (!tkPrivileged) return err('غير مسموح', 403, CORS);
-          q = school
+          // Admins always scoped to their school; directors/dev may filter by ?school=
+          const tkSchool = tkClaims.role === 'admin' ? (tkClaims.school || null) : (school || null);
+          q = tkSchool
             ? 'SELECT * FROM tickets WHERE school=? ORDER BY created_at DESC'
             : 'SELECT * FROM tickets ORDER BY created_at DESC';
-          params = school ? [school] : [];
+          params = tkSchool ? [tkSchool] : [];
         }
         const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ tickets: results }, 200, CORS);
       }
 
-      // GET /api/tickets/:id — students can only see their own
+      // GET /api/tickets/:id — students can only see their own; admins scoped to school
       if (method === 'GET' && sub && !subsub) {
         const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
         if (!ticket) return err('غير موجود', 404, CORS);
         if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('غير مسموح', 403, CORS);
+        if (tkClaims.role === 'admin' && tkClaims.school && ticket.school !== tkClaims.school) return err('غير مسموح', 403, CORS);
         const { results: replies } = await DB.prepare(
           'SELECT * FROM ticket_replies WHERE ticket_id=? ORDER BY created_at ASC'
         ).bind(sub).all();
@@ -1217,6 +1264,7 @@ export async function onRequest({ request, env }) {
         const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
         if (!ticket) return err('غير موجود', 404, CORS);
         if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('غير مسموح', 403, CORS);
+        if (tkClaims.role === 'admin' && tkClaims.school && ticket.school !== tkClaims.school) return err('غير مسموح', 403, CORS);
         const { body: replyBody } = await request.json();
         if (!replyBody) return err('حقول مفقودة', 400, CORS);
         if (replyBody.length > 3000) return err('النص طويل جداً', 400, CORS);

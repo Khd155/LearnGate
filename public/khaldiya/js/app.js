@@ -2971,47 +2971,75 @@ const App = {
 
   async loadStudentTickets() {
     const el = document.getElementById('st-ticket-list');
-    el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جاري التحميل...</div>';
+    el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جارٍ التحميل...</div>';
     try {
       const { tickets } = await apiFetch(`/tickets?studentId=${State.student.id}`);
-      if (!tickets.length) {
-        el.innerHTML = `<div class="chat-empty" style="padding:36px 0;text-align:center;">
-          <div style="font-size:36px;margin-bottom:8px;">🎫</div>
-          <div style="font-weight:700;">لا توجد طلبات دعم بعد</div>
-          <div style="font-size:13px;color:var(--muted);margin-top:4px;">اضغط "طلب دعم جديد" لإرسال طلبك</div>
-        </div>`;
-        // Update notification badge
-        const badge = document.getElementById('ticket-notif-badge');
-        if (badge) { badge.style.display = 'none'; }
-        return;
+
+      // Stats bar
+      const statsBar = document.getElementById('ticket-stats-bar');
+      if (statsBar) {
+        const open     = tickets.filter(t => t.status === 'open').length;
+        const progress = tickets.filter(t => t.status === 'in_progress').length;
+        const resolved = tickets.filter(t => t.status === 'resolved').length;
+        statsBar.style.display = tickets.length ? 'grid' : 'none';
+        statsBar.innerHTML = `
+          <div class="tstat-mini"><div class="tstat-mini-val" style="color:#1e40af;">${open}</div><div class="tstat-mini-lbl">مفتوحة</div></div>
+          <div class="tstat-mini"><div class="tstat-mini-val" style="color:#854d0e;">${progress}</div><div class="tstat-mini-lbl">قيد المعالجة</div></div>
+          <div class="tstat-mini"><div class="tstat-mini-val" style="color:#166534;">${resolved}</div><div class="tstat-mini-lbl">تم الحل</div></div>`;
       }
+
+      // Notification badge
       const totalUnread = tickets.reduce((s, t) => s + (t.unread_count || 0), 0);
       const badge = document.getElementById('ticket-notif-badge');
       if (badge) { badge.style.display = totalUnread ? 'inline' : 'none'; badge.textContent = totalUnread || ''; }
-      el.innerHTML = tickets.map(t => {
-        const statusMap = { open: ['tbadge-open','مفتوح'], in_progress: ['tbadge-progress','قيد المعالجة'], resolved: ['tbadge-resolved','تم الحل'], rejected: ['tbadge-rejected','مرفوض'] };
-        const [badgeCls, badgeTxt] = statusMap[t.status] || ['tbadge-open','مفتوح'];
-        const date = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short' });
-        const prioClass = t.priority === 'عالية' ? 'prio-chip-high' : t.priority === 'منخفضة' ? 'prio-chip-low' : 'prio-chip-med';
-        const prioIcon = t.priority === 'عالية' ? '🚨 ' : t.priority === 'منخفضة' ? '🟢 ' : '🟡 ';
-        const unreadHtml = t.unread_count > 0 ? `<span class="unread-dot">● رد جديد</span>` : '';
-        return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}','student')" style="${t.unread_count > 0 ? 'border-color:var(--primary);' : ''}">
-          <div class="ticket-card-top">
-            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-              <span class="ticket-num-badge">${escapeHtml(t.ticket_num || '—')}</span>
-              <div class="ticket-subject">${escapeHtml(t.subject)}</div>
-            </div>
-            <span class="${badgeCls}" style="flex-shrink:0;">${badgeTxt}</span>
+
+      if (!tickets.length) {
+        el.innerHTML = `<div style="padding:40px 20px;text-align:center;">
+          <div style="font-size:44px;margin-bottom:12px;">🎫</div>
+          <div style="font-weight:700;font-size:15px;">لا توجد طلبات دعم بعد</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.6;">
+            هل تواجه مشكلة أو لديك استفسار؟<br>اضغط الزر أدناه لرفع طلب جديد
           </div>
-          <div class="ticket-card-footer">
-            ${t.category ? `<span class="cat-chip">${escapeHtml(t.category)}</span>` : ''}
-            ${t.priority ? `<span class="${prioClass}">${prioIcon}${escapeHtml(t.priority)}</span>` : ''}
-            ${unreadHtml}
-            <span style="font-size:11px;color:var(--muted);margin-right:auto;">${date}</span>
+        </div>`;
+        return;
+      }
+
+      const catIcons = {
+        'مشكلة تسجيل دخول':'🔐','مشكلة في الاختبار':'📝','خطة التعلم والنتائج':'📋',
+        'خطأ تقني':'⚙️','استفسار عام':'💬','اقتراح أو ملاحظة':'🌟',
+        'تسجيل دخول':'🔐','مشكلة تقنية':'⚙️','حساب وصلاحيات':'👤',
+        'طلب ميزة':'✨','أخرى':'📋',
+      };
+
+      el.innerHTML = tickets.map(t => {
+        const statusMap  = { open:['tbadge-open','مفتوح'], in_progress:['tbadge-progress','قيد المعالجة'], resolved:['tbadge-resolved','تم الحل'], rejected:['tbadge-rejected','مرفوض'] };
+        const [badgeCls, badgeTxt] = statusMap[t.status] || ['tbadge-open','مفتوح'];
+        const date       = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short', year:'numeric' });
+        const catIcon    = catIcons[t.category] || '📋';
+        const unreadBadge = t.unread_count > 0
+          ? `<span style="background:#dc2626;color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:2px 8px;">● رد جديد</span>` : '';
+        const urgentBadge = t.priority === 'عالية'
+          ? `<span style="font-size:10px;font-weight:700;color:#dc2626;">🚨 عاجل</span>` : '';
+        return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}','student')"
+          style="${t.unread_count > 0 ? 'border-color:var(--primary);background:var(--surface);' : ''}">
+          <div class="ticket-card-top">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:5px;">
+                ${t.ticket_num ? `<span class="ticket-num-badge">${escapeHtml(t.ticket_num)}</span>` : ''}
+                ${unreadBadge}
+                ${urgentBadge}
+              </div>
+              <div class="ticket-subject" style="margin-bottom:5px;">${escapeHtml(t.subject)}</div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                ${t.category ? `<span style="font-size:11px;color:var(--muted);">${catIcon} ${escapeHtml(t.category)}</span>` : ''}
+                <span style="font-size:11px;color:var(--muted);">🗓 ${date}</span>
+              </div>
+            </div>
+            <span class="${badgeCls}" style="flex-shrink:0;margin-top:2px;">${badgeTxt}</span>
           </div>
         </div>`;
       }).join('');
-    } catch { el.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;">تعذّر التحميل</div>'; }
+    } catch { el.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;font-size:13px;">تعذّر التحميل</div>'; }
   },
 
   async loadTicketNotifications() {
@@ -3023,17 +3051,33 @@ const App = {
     } catch {}
   },
 
+  _selectedCat: '',
+
+  _selectCat(btn) {
+    document.querySelectorAll('#nt-cat-grid .cat-card').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    App._selectedCat = btn.dataset.cat || '';
+    const hint = btn.dataset.hint || 'اشرح المشكلة بالتفصيل...';
+    document.getElementById('nt-body').placeholder = hint;
+    // Auto-suggest subject if empty
+    const subjectEl = document.getElementById('nt-subject');
+    if (!subjectEl.value.trim()) {
+      subjectEl.placeholder = btn.dataset.icon + ' ' + btn.dataset.cat;
+    }
+  },
+
   openNewTicketModal() {
-    document.getElementById('nt-subject').value  = '';
-    document.getElementById('nt-body').value     = '';
+    document.getElementById('nt-subject').value   = '';
+    document.getElementById('nt-body').value      = '';
     document.getElementById('nt-err').textContent = '';
-    // Preview ticket number
+    const urgentEl = document.getElementById('nt-urgent');
+    if (urgentEl) urgentEl.checked = false;
+    App._selectedCat = '';
+    document.querySelectorAll('#nt-cat-grid .cat-card').forEach(b => b.classList.remove('selected'));
+    document.getElementById('nt-body').placeholder    = 'اشرح المشكلة بالتفصيل...';
+    document.getElementById('nt-subject').placeholder = 'اكتب موضوع طلبك بإيجاز...';
     const num = 'T-' + String(Math.floor(10000 + Math.random() * 90000));
     document.getElementById('nt-ticket-num').textContent = num;
-    // Reset priority
-    const medRadio = document.querySelector('input[name="nt-priority"][value="متوسطة"]');
-    if (medRadio) medRadio.checked = true;
-    document.getElementById('nt-category').selectedIndex = 4;
     document.getElementById('new-ticket-modal').classList.add('open');
   },
 
@@ -3042,20 +3086,28 @@ const App = {
   async submitTicket() {
     const subject  = document.getElementById('nt-subject').value.trim();
     const body     = document.getElementById('nt-body').value.trim();
-    const category = document.getElementById('nt-category').value;
-    const priority = document.querySelector('input[name="nt-priority"]:checked')?.value || 'متوسطة';
+    const category = App._selectedCat || 'استفسار عام';
+    const urgent   = document.getElementById('nt-urgent')?.checked;
+    const priority = urgent ? 'عالية' : 'متوسطة';
     const errEl    = document.getElementById('nt-err');
+    if (!App._selectedCat) { showAlert(errEl, 'اختر نوع الطلب أولاً'); return; }
     if (!subject) { showAlert(errEl, 'أدخل موضوع الطلب'); return; }
-    if (!body)    { showAlert(errEl, 'أدخل تفاصيل المشكلة'); return; }
+    if (!body)    { showAlert(errEl, 'أدخل تفاصيل الطلب'); return; }
+    const btn = document.querySelector('#new-ticket-modal .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ جارٍ الإرسال...'; }
     try {
       await apiFetch('/tickets', {
         method: 'POST',
         body: JSON.stringify({ subject, body, category, priority }),
       });
       App.closeNewTicketModal();
-      showToast('تم إرسال طلب الدعم ✅');
+      showToast('✅ تم إرسال طلبك — سنتواصل معك قريباً');
       App.loadStudentTickets();
-    } catch (e) { showAlert(errEl, e.message || 'فشل الإرسال'); }
+    } catch (e) {
+      showAlert(errEl, e.message || 'فشل الإرسال');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'إرسال الطلب ←'; }
+    }
   },
 
   // ── Ticket Detail (shared student & admin) ────────────────────────────────

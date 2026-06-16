@@ -377,6 +377,15 @@
           <option value="in_progress">🟡 قيد المعالجة</option>
           <option value="resolved">🟢 تم الحل</option>
         </select>
+        <select id="sp-cat-filter" class="form-select" style="width:auto;font-size:13px;padding:7px 12px;" onchange="Dev.loadTickets()">
+          <option value="">كل التصنيفات</option>
+          <option value="مشكلة تسجيل دخول">🔐 مشكلة دخول</option>
+          <option value="مشكلة في الاختبار">📝 مشكلة اختبار</option>
+          <option value="خطة التعلم والنتائج">📋 خطة التعلم</option>
+          <option value="خطأ تقني">⚙️ خطأ تقني</option>
+          <option value="استفسار عام">💬 استفسار</option>
+          <option value="اقتراح أو ملاحظة">🌟 اقتراح</option>
+        </select>
         <button class="btn btn-warn btn-sm" onclick="Dev.loadTickets()">🔄 تحديث</button>
       </div>
       <div id="sp-content"><div class="empty">جارٍ التحميل...</div></div>
@@ -946,10 +955,13 @@ const Dev = {
     try {
       const schoolFilter = document.getElementById('sp-school-filter')?.value || '';
       const statusFilter = document.getElementById('sp-status-filter')?.value || '';
+      const catFilter    = document.getElementById('sp-cat-filter')?.value    || '';
       let url = '/api/tickets';
       if (schoolFilter) url += '?school=' + encodeURIComponent(schoolFilter);
       const { tickets: all } = await fetch(url, { headers: { 'X-Dev-Key': devKey } }).then(r => r.json());
-      const tickets = statusFilter ? all.filter(t => t.status === statusFilter) : all;
+      let tickets = all;
+      if (statusFilter) tickets = tickets.filter(t => t.status === statusFilter);
+      if (catFilter)    tickets = tickets.filter(t => t.category === catFilter);
 
       // Update count badge on tab button
       const open = all.filter(t => t.status === 'open').length;

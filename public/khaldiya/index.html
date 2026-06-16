@@ -1671,15 +1671,24 @@
     <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
       <div class="topbar-title">الدعم الفني</div>
+      <div class="topbar-sub" style="font-size:11px;color:rgba(255,255,255,.65);margin-top:1px;">نتواصل معك في أقرب وقت</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
   </div>
   <div class="page-wrap">
-    <div class="section-heading">طلباتي</div>
+    <!-- Stats summary bar -->
+    <div id="ticket-stats-bar" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;"></div>
+    <!-- Ticket list -->
     <div id="st-ticket-list"></div>
-    <button class="btn btn-primary btn-full" onclick="App.openNewTicketModal()" style="margin-top:16px;">+ طلب دعم جديد</button>
+    <!-- New ticket button -->
+    <button class="btn btn-primary btn-full" onclick="App.openNewTicketModal()"
+      style="margin-top:16px;padding:14px;font-size:15px;border-radius:14px;
+             background:linear-gradient(135deg,var(--primary),#4FA877);border:none;
+             box-shadow:0 4px 16px rgba(63,124,184,.35);">
+      ➕ رفع طلب جديد
+    </button>
   </div>
 </div>
 
@@ -1719,40 +1728,63 @@
      MODAL: NEW TICKET
 ═══════════════════════════════════════════════════════ -->
 <div id="new-ticket-modal" class="modal-overlay" onclick="if(event.target===this)App.closeNewTicketModal()">
-  <div class="modal-box">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div class="modal-title" style="margin:0;">طلب دعم جديد 🎫</div>
-      <span id="nt-ticket-num" style="font-family:monospace;font-size:12px;font-weight:800;background:#f0f4ff;color:var(--primary);padding:3px 12px;border-radius:20px;"></span>
+  <div class="modal-box" style="max-width:500px;">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div>
+        <div class="modal-title" style="margin:0;">رفع طلب دعم</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;">سيتم الرد عليك في أقرب وقت ممكن</div>
+      </div>
+      <span id="nt-ticket-num" style="font-family:monospace;font-size:11px;font-weight:800;background:var(--bg);color:var(--muted);border:1.5px solid var(--border);padding:3px 10px;border-radius:20px;"></span>
     </div>
+
+    <!-- Step 1: Category cards -->
     <div class="form-group">
-      <label class="form-label">تصنيف المشكلة <span style="color:var(--danger)">*</span></label>
-      <select id="nt-category" class="form-input">
-        <option value="تسجيل دخول">🔐 تسجيل دخول</option>
-        <option value="مشكلة تقنية">⚙️ مشكلة تقنية</option>
-        <option value="حساب وصلاحيات">👤 حساب وصلاحيات</option>
-        <option value="طلب ميزة">✨ طلب ميزة</option>
-        <option value="أخرى" selected>📋 أخرى</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">أولوية الطلب</label>
-      <div class="priority-chips">
-        <label class="priority-chip prio-low"><input type="radio" name="nt-priority" value="منخفضة"> منخفضة</label>
-        <label class="priority-chip"><input type="radio" name="nt-priority" value="متوسطة" checked> متوسطة</label>
-        <label class="priority-chip prio-high"><input type="radio" name="nt-priority" value="عالية"> 🚨 عالية</label>
+      <label class="form-label">نوع الطلب <span style="color:var(--danger)">*</span></label>
+      <div id="nt-cat-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;">
+        <button type="button" class="cat-card" data-cat="مشكلة تسجيل دخول" data-icon="🔐" data-hint="اشرح مشكلة الدخول بالتفصيل..." onclick="App._selectCat(this)">
+          <span class="cat-card-icon">🔐</span><span class="cat-card-lbl">دخول للمنصة</span>
+        </button>
+        <button type="button" class="cat-card" data-cat="مشكلة في الاختبار" data-icon="📝" data-hint="صف ما حدث أثناء الاختبار..." onclick="App._selectCat(this)">
+          <span class="cat-card-icon">📝</span><span class="cat-card-lbl">مشكلة اختبار</span>
+        </button>
+        <button type="button" class="cat-card" data-cat="خطة التعلم والنتائج" data-icon="📋" data-hint="صف مشكلتك في الخطة أو النتائج..." onclick="App._selectCat(this)">
+          <span class="cat-card-icon">📋</span><span class="cat-card-lbl">خطة التعلم</span>
+        </button>
+        <button type="button" class="cat-card" data-cat="خطأ تقني" data-icon="⚙️" data-hint="صف الخطأ الذي ظهر لك..." onclick="App._selectCat(this)">
+          <span class="cat-card-icon">⚙️</span><span class="cat-card-lbl">خطأ تقني</span>
+        </button>
+        <button type="button" class="cat-card" data-cat="استفسار عام" data-icon="💬" data-hint="اكتب استفسارك..." onclick="App._selectCat(this)">
+          <span class="cat-card-icon">💬</span><span class="cat-card-lbl">استفسار</span>
+        </button>
+        <button type="button" class="cat-card" data-cat="اقتراح أو ملاحظة" data-icon="🌟" data-hint="شاركنا اقتراحك أو ملاحظتك..." onclick="App._selectCat(this)">
+          <span class="cat-card-icon">🌟</span><span class="cat-card-lbl">اقتراح</span>
+        </button>
       </div>
     </div>
+
+    <!-- Step 2: Subject -->
     <div class="form-group">
       <label class="form-label">الموضوع <span style="color:var(--danger)">*</span></label>
-      <input type="text" id="nt-subject" class="form-input" placeholder="مثال: مشكلة في تسجيل الدخول">
+      <input type="text" id="nt-subject" class="form-input" placeholder="اكتب موضوع طلبك بإيجاز..." maxlength="120">
     </div>
+
+    <!-- Step 3: Details -->
     <div class="form-group">
-      <label class="form-label">تفاصيل المشكلة</label>
-      <textarea id="nt-body" class="form-input" rows="3" placeholder="اشرح المشكلة بالتفصيل..." style="resize:vertical;"></textarea>
+      <label class="form-label">التفاصيل <span style="color:var(--danger)">*</span></label>
+      <textarea id="nt-body" class="form-input" id="nt-body" rows="4"
+        placeholder="اشرح المشكلة بالتفصيل..." style="resize:vertical;"></textarea>
     </div>
+
+    <!-- Urgency toggle -->
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;margin-bottom:14px;user-select:none;">
+      <input type="checkbox" id="nt-urgent" style="width:18px;height:18px;accent-color:#ef4444;cursor:pointer;">
+      <span style="font-size:13px;font-weight:600;color:var(--text);">🚨 هذا الطلب عاجل</span>
+    </label>
+
     <div id="nt-err" class="alert alert-error"></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="App.submitTicket()">إرسال الطلب</button>
+      <button class="btn btn-primary" onclick="App.submitTicket()" style="flex:1;">إرسال الطلب ←</button>
       <button class="btn btn-outline" onclick="App.closeNewTicketModal()">إلغاء</button>
     </div>
   </div>

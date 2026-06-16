@@ -265,16 +265,22 @@ const State = {
 
 // ── Screen router ─────────────────────────────────────────────────────────
 const _SCREEN_PATHS = {
-  'screen-student-home': '/',
-  'screen-admin':        '/admin',
-  'screen-history':      '/history',
-  'screen-chat':         '/chat',
-  'screen-intro':        '/capabilities',
-  'screen-landing':      '/login',
-  'screen-school':       '/login',
-  'screen-identity':     '/login',
-  'screen-student-login':'/login',
-  'screen-admin-login':  '/login',
+  'screen-student-home':  '/',
+  'screen-admin':         '/admin',
+  'screen-history':       '/history',
+  'screen-chat':          '/chat',
+  'screen-intro':         '/capabilities',
+  'screen-cooldown':      '/capabilities/cooldown',
+  'screen-selfdiag':      '/capabilities/self-assessment',
+  'screen-pretest-intro': '/capabilities/test-intro',
+  'screen-pretest':       '/capabilities/test',
+  'screen-processing':    '/capabilities/processing',
+  'screen-level-analysis':'/capabilities/results',
+  'screen-landing':       '/login',
+  'screen-school':        '/login',
+  'screen-identity':      '/login',
+  'screen-student-login': '/login',
+  'screen-admin-login':   '/login',
 };
 
 function show(id) {

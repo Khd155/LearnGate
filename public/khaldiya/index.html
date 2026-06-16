@@ -529,12 +529,17 @@
              style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden;" tabindex="-1" aria-hidden="true">
       <div class="form-group">
         <label class="form-label">رقم السجل المدني</label>
-        <input type="password" id="sl-code" name="password" class="form-input"
-               placeholder="١٠ أرقام — مثال: 1012345678"
-               inputmode="numeric" pattern="[0-9]{10}" maxlength="10"
-               autocomplete="current-password"
-               oninput="this.value=this.value.replace(/[^0-9]/g,'')"
-               onkeydown="if(event.key==='Enter') App.studentLogin()">
+        <div style="position:relative;">
+          <input type="password" id="sl-code" name="password" class="form-input"
+                 placeholder="١٠ أرقام — مثال: 1012345678"
+                 inputmode="numeric" pattern="[0-9]{10}" maxlength="10"
+                 autocomplete="current-password"
+                 oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                 onkeydown="if(event.key==='Enter') App.studentLogin()"
+                 style="padding-left:44px;">
+          <button type="button" onclick="(function(btn){var inp=document.getElementById('sl-code');inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🙈';})(this)"
+                  style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:4px;">👁</button>
+        </div>
       </div>
       <label class="remember-label">
         <input type="checkbox" id="sl-remember">
@@ -567,11 +572,16 @@
              style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden;" tabindex="-1" aria-hidden="true">
       <div class="form-group">
         <label class="form-label">رقم السجل المدني</label>
-        <input type="password" id="al-code" name="password" class="form-input" inputmode="numeric"
-               maxlength="10" placeholder="١٠ أرقام"
-               autocomplete="current-password"
-               oninput="this.value=this.value.replace(/[^0-9]/g,'')"
-               onkeydown="if(event.key==='Enter') App.adminLogin()">
+        <div style="position:relative;">
+          <input type="password" id="al-code" name="password" class="form-input" inputmode="numeric"
+                 maxlength="10" placeholder="١٠ أرقام"
+                 autocomplete="current-password"
+                 oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                 onkeydown="if(event.key==='Enter') App.adminLogin()"
+                 style="padding-left:44px;">
+          <button type="button" onclick="(function(btn){var inp=document.getElementById('al-code');inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🙈';})(this)"
+                  style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:4px;">👁</button>
+        </div>
       </div>
       <label class="remember-label">
         <input type="checkbox" id="al-remember">

@@ -363,8 +363,21 @@
     <!-- ── Support ── -->
     <div id="tab-support" class="tab-pane">
       <div class="sp-sub-tabs">
-        <button class="sp-sub-btn active" id="sp-btn-tickets"  onclick="Dev.setSupportTab('tickets')">🎫 التذاكر</button>
+        <button class="sp-sub-btn active" id="sp-btn-tickets"  onclick="Dev.setSupportTab('tickets')">🎫 التذاكر <span id="sp-ticket-count" style="background:rgba(59,130,246,.25);border-radius:99px;padding:1px 8px;font-size:11px;margin-right:4px;display:none"></span></button>
         <button class="sp-sub-btn"        id="sp-btn-messages" onclick="Dev.setSupportTab('messages')">💬 الرسائل غير المقروءة</button>
+      </div>
+      <!-- Ticket filters row -->
+      <div id="sp-ticket-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+        <select id="sp-school-filter" class="form-select" style="width:auto;font-size:13px;padding:7px 12px;" onchange="Dev.loadTickets()">
+          <option value="">🏫 كل المدارس</option>
+        </select>
+        <select id="sp-status-filter" class="form-select" style="width:auto;font-size:13px;padding:7px 12px;" onchange="Dev.loadTickets()">
+          <option value="">كل الحالات</option>
+          <option value="open">🔴 مفتوح</option>
+          <option value="in_progress">🟡 قيد المعالجة</option>
+          <option value="resolved">🟢 تم الحل</option>
+        </select>
+        <button class="btn btn-warn btn-sm" onclick="Dev.loadTickets()">🔄 تحديث</button>
       </div>
       <div id="sp-content"><div class="empty">جارٍ التحميل...</div></div>
     </div>
@@ -500,7 +513,8 @@ const Dev = {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     document.getElementById('tab-' + tab).classList.add('active');
-    if (tab === 'logs') { Dev.loadLogs(); return; }
+    if (tab === 'logs')    { Dev.loadLogs(); return; }
+    if (tab === 'support') { Dev.setSupportTab('tickets'); return; }
   },
 
   async loadAll() {
@@ -602,6 +616,10 @@ const Dev = {
     // Filter school select
     document.getElementById('filter-school').innerHTML =
       `<option value="">كل المدارس</option>` + schoolOpts;
+
+    // Support ticket school filter
+    document.getElementById('sp-school-filter').innerHTML =
+      `<option value="">🏫 كل المدارس</option>` + schoolOpts;
 
     // Clear school select
     document.getElementById('clear-school-select').innerHTML = schoolOpts;
@@ -916,6 +934,8 @@ const Dev = {
     Dev._spTab = tab;
     document.getElementById('sp-btn-tickets').classList.toggle('active', tab === 'tickets');
     document.getElementById('sp-btn-messages').classList.toggle('active', tab === 'messages');
+    const filtersEl = document.getElementById('sp-ticket-filters');
+    if (filtersEl) filtersEl.style.display = tab === 'tickets' ? 'flex' : 'none';
     if (tab === 'tickets') Dev.loadTickets();
     else Dev.loadUnreadMessages();
   },
@@ -924,32 +944,64 @@ const Dev = {
     const el = document.getElementById('sp-content');
     el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
     try {
-      const { tickets } = await fetch('/api/tickets', { headers: { 'X-Dev-Key': devKey } }).then(r => r.json());
-      if (!tickets.length) { el.innerHTML = '<div class="empty">لا توجد تذاكر دعم</div>'; return; }
-      el.innerHTML = tickets.map(t => {
+      const schoolFilter = document.getElementById('sp-school-filter')?.value || '';
+      const statusFilter = document.getElementById('sp-status-filter')?.value || '';
+      let url = '/api/tickets';
+      if (schoolFilter) url += '?school=' + encodeURIComponent(schoolFilter);
+      const { tickets: all } = await fetch(url, { headers: { 'X-Dev-Key': devKey } }).then(r => r.json());
+      const tickets = statusFilter ? all.filter(t => t.status === statusFilter) : all;
+
+      // Update count badge on tab button
+      const open = all.filter(t => t.status === 'open').length;
+      const countEl = document.getElementById('sp-ticket-count');
+      if (countEl) {
+        countEl.textContent = open > 0 ? open + ' مفتوحة' : '';
+        countEl.style.display = open > 0 ? 'inline' : 'none';
+      }
+
+      if (!tickets.length) { el.innerHTML = '<div class="empty">لا توجد تذاكر' + (schoolFilter ? ' لهذه المدرسة' : '') + '</div>'; return; }
+
+      // Group open tickets at top
+      const sorted = [...tickets].sort((a, b) => {
+        const order = { open: 0, in_progress: 1, resolved: 2 };
+        return (order[a.status] ?? 3) - (order[b.status] ?? 3) || new Date(b.created_at) - new Date(a.created_at);
+      });
+
+      el.innerHTML = `<div style="font-size:13px;color:var(--muted);margin-bottom:12px;">${tickets.length} تذكرة · ${open} مفتوحة</div>` +
+      sorted.map(t => {
         const bc = t.status === 'open' ? 'tbadge-open' : t.status === 'in_progress' ? 'tbadge-progress' : 'tbadge-resolved';
         const bt = t.status === 'open' ? 'مفتوح' : t.status === 'in_progress' ? 'قيد المعالجة' : 'تم الحل';
         const date = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short', year:'numeric' });
+        const priorityColor = t.priority === 'عالية' ? '#ef4444' : t.priority === 'منخفضة' ? '#22c55e' : '#f59e0b';
+        const priorityIcon  = t.priority === 'عالية' ? '🚨' : t.priority === 'منخفضة' ? '🟢' : '🟡';
         return `<div class="ticket-item" id="ti-${t.id}" onclick="Dev.toggleTicket('${t.id}')">
           <div class="ticket-top">
-            <div>
-              <div class="ticket-subject">${t.subject}</div>
-              <div class="ticket-meta-row">${t.student_name} · <span class="badge badge-school">${t.school}</span> · ${date}</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+                ${t.ticket_num ? `<span style="font-size:11px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 7px;border-radius:6px;">${t.ticket_num}</span>` : ''}
+                <div class="ticket-subject">${t.subject}</div>
+              </div>
+              <div class="ticket-meta-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="font-weight:700;color:#e2e8f0;">👤 ${t.student_name}</span>
+                <span class="badge badge-school" style="font-size:11.5px;">🏫 ${t.school || '—'}</span>
+                <span style="font-size:11px;color:${priorityColor};">${priorityIcon} ${t.priority || 'متوسطة'}</span>
+                <span style="font-size:11px;color:var(--muted);">${date}</span>
+              </div>
             </div>
-            <span class="tbadge ${bc}">${bt}</span>
+            <span class="tbadge ${bc}" style="flex-shrink:0;">${bt}</span>
           </div>
           <div class="ticket-body" id="tb-${t.id}">
             <div class="thread-wrap" id="tw-${t.id}"><div class="empty" style="padding:16px">جارٍ التحميل...</div></div>
             ${t.status !== 'resolved' ? `
             <div class="reply-row">
-              <input type="text" id="tr-${t.id}" class="reply-input" placeholder="رد..." onkeydown="if(event.key==='Enter')Dev.replyTicket('${t.id}')">
+              <input type="text" id="tr-${t.id}" class="reply-input" placeholder="رد من الدعم الفني..." onkeydown="if(event.key==='Enter')Dev.replyTicket('${t.id}')">
               <button class="btn btn-primary btn-sm" onclick="Dev.replyTicket('${t.id}')">إرسال</button>
               <button class="btn btn-success btn-sm" onclick="Dev.resolveTicket('${t.id}')">✅ حل</button>
             </div>` : ''}
           </div>
         </div>`;
       }).join('');
-    } catch { el.innerHTML = '<div class="empty" style="color:var(--danger)">تعذّر التحميل</div>'; }
+    } catch (e) { el.innerHTML = '<div class="empty" style="color:var(--danger)">تعذّر التحميل: ' + e.message + '</div>'; }
   },
 
   async toggleTicket(id) {

@@ -1,5 +1,16 @@
 'use strict';
 
+// ── Lazy-load xlsx — only when Excel import/export is used ────────────────
+async function _loadXlsx() {
+  if (window.XLSX) return;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
 // ── Activity Log ──────────────────────────────────────────────────────────
 const ActivityLog = {
   _entries: [],
@@ -1199,8 +1210,9 @@ const App = {
     if (excel)  excel.style.display  = step === 'excel'  ? 'block' : 'none';
   },
 
-  downloadStudentsTemplate() {
+  async downloadStudentsTemplate() {
     try {
+      await _loadXlsx();
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([
         ['اسم الطالب', 'السجل المدني'],
@@ -3506,7 +3518,8 @@ const App = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-function readExcel(file) {
+async function readExcel(file) {
+  await _loadXlsx();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('تعذّر قراءة الملف'));

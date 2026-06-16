@@ -398,9 +398,11 @@ const App = {
       try { await Promise.all([DB.loadStudentData(), _minWait]); } catch (_) { await _minWait; }
       App.renderStudentHome();
       show('screen-student-home');
+      document.documentElement.style.visibility = '';
       routeHash();
     } catch(e) {
       _restoreBtn();
+      document.documentElement.style.visibility = '';
       showAlert(errEl, 'حدث خطأ غير متوقع أثناء تحميل الصفحة — حاول مرة أخرى.');
     }
   },
@@ -481,8 +483,10 @@ const App = {
       await new Promise(r => setTimeout(r, 700));
       App.setTab('students');
       show('screen-admin');
+      document.documentElement.style.visibility = '';
     } catch(e) {
       _restoreBtn();
+      document.documentElement.style.visibility = '';
       showAlert(errEl, 'حدث خطأ غير متوقع أثناء تحميل اللوحة — حاول مرة أخرى.');
     }
   },
@@ -3603,6 +3607,7 @@ async function _quickRestoreSession(sess) {
       if (_slowHint) clearTimeout(_slowHint);
       App.renderStudentHome();
       show('screen-student-home');
+      document.documentElement.style.visibility = '';
       routeHash();
     } else {
       State.role  = sess.role;
@@ -3621,6 +3626,7 @@ async function _quickRestoreSession(sess) {
       await Promise.all([DB.loadAll(), _minDelay]);
       App.setTab('students');
       show('screen-admin');
+      document.documentElement.style.visibility = '';
       routeHash();
     }
   } catch (e) {
@@ -3629,6 +3635,7 @@ async function _quickRestoreSession(sess) {
     localStorage.removeItem('lg_xsession');
     await _minDelay;
     show('screen-landing');
+    document.documentElement.style.visibility = '';
   }
 }
 
@@ -3650,7 +3657,7 @@ function _autoLogin(role, code, token, school) {
   // setTimeout(0) lets the browser paint screen-loading before starting the API call
   setTimeout(() => {
     const login = role === 'student' ? App.studentLogin() : App.adminLogin();
-    login.catch(() => { sessionStorage.removeItem('lg_session'); localStorage.removeItem('lg_xsession'); show('screen-landing'); });
+    login.catch(() => { sessionStorage.removeItem('lg_session'); localStorage.removeItem('lg_xsession'); show('screen-landing'); document.documentElement.style.visibility = ''; });
   }, 0);
 }
 
@@ -3701,6 +3708,7 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (e) { localStorage.removeItem('lg_remember'); }
 
   show('screen-landing');
+  document.documentElement.style.visibility = '';
 });
 
 function _spt(e, date, score) {

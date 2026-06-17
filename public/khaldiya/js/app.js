@@ -2891,6 +2891,22 @@ const App = {
     App.loadChatMessages();
   },
 
+  // Support panel (dev-key login): open a student's full message thread across all admins
+  openSupportMsgThread(studentId, studentName) {
+    show('screen-chat');
+    const sidebar = document.getElementById('wachat-sidebar');
+    const main    = document.getElementById('wachat-main');
+    if (sidebar) sidebar.style.display = 'none';
+    if (main)    main.style.display    = '';
+    State.chatStudentId  = studentId;
+    State.chatStudentName = studentName;
+    State.chatAdminId    = null;
+    App._chatOpenConv(studentName, 'طالب');
+    App._chatMsgCount = 0;
+    App.loadChatMessages();
+    App.startChatPoll();
+  },
+
   _chatOpenConv(name, role) {
     const empty = document.getElementById('wachat-empty');
     const conv  = document.getElementById('wachat-conv');
@@ -2911,7 +2927,9 @@ const App = {
     App._chatTimer = null;
     State.chatAdminId   = null;
     State.chatStudentId = null;
-    const back = State.role === 'admin' ? 'screen-admin' : 'screen-student-home';
+    const back = State.role === 'admin' ? 'screen-admin'
+      : State.role === 'support' ? 'screen-support-admin'
+      : 'screen-student-home';
     show(back);
   },
 
@@ -2923,6 +2941,12 @@ const App = {
     try {
       if (State.role === 'admin' && State.chatStudentId) {
         const data = await apiFetch(`/messages?studentId=${State.chatStudentId}&adminId=${State.admin.id}`);
+        msgs = data.messages || [];
+        if (msgs.some(m => m.sender_type === 'student' && !m.is_read))
+          readPatch = { studentId: State.chatStudentId, readerType: 'admin' };
+      } else if (State.role === 'support' && State.chatStudentId) {
+        // Support (dev-key) panel: full thread across all admins for this student
+        const data = await apiFetch(`/messages?studentId=${State.chatStudentId}`);
         msgs = data.messages || [];
         if (msgs.some(m => m.sender_type === 'student' && !m.is_read))
           readPatch = { studentId: State.chatStudentId, readerType: 'admin' };
@@ -2938,8 +2962,8 @@ const App = {
 
     if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>'; App._chatMsgCount = 0; return; }
     el.innerHTML = msgs.map(m => {
-      const isMine = State.role === 'admin' ? m.sender_type === 'admin' : m.sender_type === 'student';
-      const senderName = isMine ? 'أنت' : (State.role === 'admin' ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(State.chatAdminName || 'المشرف'));
+      const isMine = (State.role === 'admin' || State.role === 'support') ? m.sender_type === 'admin' : m.sender_type === 'student';
+      const senderName = isMine ? 'أنت' : ((State.role === 'admin' || State.role === 'support') ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(State.chatAdminName || 'المشرف'));
       const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
       return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};">
         <div class="chat-bubble ${isMine ? 'sent' : 'received'}">${escapeHtml(m.body)}</div>
@@ -2963,6 +2987,9 @@ const App = {
         if (State.role === 'admin' && State.chatStudentId) {
           const d = await apiFetch(`/messages?studentId=${State.chatStudentId}&adminId=${State.admin.id}`);
           count = (d.messages || []).length;
+        } else if (State.role === 'support' && State.chatStudentId) {
+          const d = await apiFetch(`/messages?studentId=${State.chatStudentId}`);
+          count = (d.messages || []).length;
         } else if (State.chatAdminId && State.student) {
           const d = await apiFetch(`/messages?studentId=${State.student.id}&adminId=${State.chatAdminId}`);
           count = (d.messages || []).length;
@@ -2980,6 +3007,8 @@ const App = {
     try {
       if (State.role === 'admin' && State.chatStudentId) {
         await apiFetch('/messages', { method:'POST', body: JSON.stringify({ studentId: State.chatStudentId, body, recipientAdminId: State.admin.id }) });
+      } else if (State.role === 'support' && State.chatStudentId) {
+        await apiFetch('/messages', { method:'POST', body: JSON.stringify({ studentId: State.chatStudentId, body }) });
       } else if (State.chatAdminId) {
         await apiFetch('/messages', { method:'POST', body: JSON.stringify({ body, recipientAdminId: State.chatAdminId }) });
       }
@@ -3404,7 +3433,7 @@ const App = {
         return;
       }
       listEl.innerHTML = counts.map(c => `
-        <div class="msg-preview-row">
+        <div class="msg-preview-row" onclick="App.openSupportMsgThread('${c.student_id}','${escapeHtml(c.student_name).replace(/'/g,"&#39;")}')">
           <div class="student-avatar">${escapeHtml((c.student_name || '؟').charAt(0))}</div>
           <div class="msg-preview-info">
             <div class="msg-preview-name">${escapeHtml(c.student_name)}</div>

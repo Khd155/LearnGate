@@ -528,19 +528,9 @@ export async function onRequest({ request, env }) {
       // Migrate: add answers column if table existed before this column was introduced
       try { await DB.prepare("ALTER TABLE test_results ADD COLUMN answers TEXT NOT NULL DEFAULT '[]'").run(); } catch {}
 
-      // POST /api/test-results — student saves their own result
-      if (method === 'POST') {
-        const claims = await verifyToken(request, env);
-        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
-        const { subject, testType, score, correct, total, answers } = await request.json();
-        const rid = crypto.randomUUID();
-        const now = new Date().toISOString();
-        await DB.prepare(
-          `INSERT INTO test_results (id, student_id, student_name, school, subject, test_type, score, correct, total, answers, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(rid, claims.sub, claims.name, claims.school || '', subject || 'biology-g1', testType, score, correct, total, JSON.stringify(answers || []), now).run();
-        return ok({ id: rid, created_at: now }, 201, CORS);
-      }
+      // NOTE: there is no POST here anymore — client-submitted scores are never trusted.
+      // The only path that writes to test_results is POST /api/bio/submit, which grades
+      // server-side against bio_questions before inserting.
 
       // GET /api/test-results — student sees own, admin/director sees by school or studentId
       if (method === 'GET') {
@@ -602,6 +592,19 @@ export async function onRequest({ request, env }) {
         ans       INTEGER NOT NULL,
         exp       TEXT NOT NULL DEFAULT ''
       )`).run(); } catch {}
+      // Per-question breakdown, queryable (e.g. "how many students missed question N") —
+      // kept separate from the JSON answers blob on test_results for that reason.
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS test_answers (
+        id             TEXT PRIMARY KEY,
+        result_id      TEXT NOT NULL REFERENCES test_results(id),
+        qnum           INTEGER NOT NULL,
+        student_answer TEXT,
+        correct_answer INTEGER NOT NULL,
+        is_correct     INTEGER NOT NULL,
+        created_at     TEXT NOT NULL
+      )`).run(); } catch {}
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_test_answers_result ON test_answers(result_id)`).run(); } catch {}
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_test_answers_qnum ON test_answers(qnum)`).run(); } catch {}
       // Behavior analytics (speed/guessing/switching tracking) was removed entirely per product
       // decision — only the official score (test_results) and direct cheat-flagging are kept.
       // behavior_logs / attempt_logs are dropped once via POST /api/dev/migrate, not recreated here.
@@ -670,10 +673,21 @@ export async function onRequest({ request, env }) {
 
         const rid = crypto.randomUUID();
         const now = new Date().toISOString();
-        await DB.prepare(
-          `INSERT INTO test_results (id, student_id, student_name, school, subject, test_type, score, correct, total, answers, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(rid, claims.sub, claims.name, claims.school || '', 'biology-g1', testType, finalScore, correct, total, JSON.stringify(storedAnswers), now).run();
+        // `answers` JSON kept temporarily for backward compatibility with older readers;
+        // test_answers is the queryable source going forward. Written atomically via batch().
+        const writeStmts = [
+          DB.prepare(
+            `INSERT INTO test_results (id, student_id, student_name, school, subject, test_type, score, correct, total, answers, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(rid, claims.sub, claims.name, claims.school || '', 'biology-g1', testType, finalScore, correct, total, JSON.stringify(storedAnswers), now),
+          ...storedAnswers.map(a =>
+            DB.prepare(
+              `INSERT INTO test_answers (id, result_id, qnum, student_answer, correct_answer, is_correct, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`
+            ).bind(crypto.randomUUID(), rid, a.q, String(a.a), a.corr, a.a === a.corr ? 1 : 0, now)
+          ),
+        ];
+        await DB.batch(writeStmts);
 
         // ── ANTI-CHEATING — checked in-memory only, never stored, never affects the score above ──
         const avgTime     = times.reduce((s, t) => s + t, 0) / times.length;
@@ -961,6 +975,8 @@ export async function onRequest({ request, env }) {
       // GET /api/dev/logs — get activity logs
       if (sub === 'logs' && method === 'GET') {
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
+        try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category)`).run(); } catch {}
+        try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)`).run(); } catch {}
         const level    = url.searchParams.get('level') || '';
         const category = url.searchParams.get('category') || '';
         const limitN   = Math.min(parseInt(url.searchParams.get('limit') || '200', 10), 500);
@@ -979,6 +995,8 @@ export async function onRequest({ request, env }) {
       // POST /api/dev/logs — write a log entry (also accepts JWT)
       if (sub === 'logs' && method === 'POST') {
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
+        try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category)`).run(); } catch {}
+        try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)`).run(); } catch {}
         const body = await request.json();
         const lid = crypto.randomUUID();
         const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
@@ -1182,6 +1200,20 @@ export async function onRequest({ request, env }) {
 
     // ── MESSAGES ─────────────────────────────────────────────────────────────
     if (resource === 'messages') {
+      // Defensive create — previously this table only existed if POST /api/dev/migrate
+      // had been run once; on a deployment where that never happened, every query here
+      // threw "no such table" and the support-admin messages panel looked permanently blank.
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL,
+        student_name TEXT NOT NULL,
+        school TEXT NOT NULL DEFAULT '',
+        sender_type TEXT NOT NULL,
+        body TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0,
+        recipient_admin_id TEXT DEFAULT '',
+        created_at TEXT NOT NULL
+      )`).run(); } catch {}
       const msgClaims = await verifyToken(request, env);
       if (!msgClaims) return err('غير مصرح', 401, CORS);
       const isPrivileged = ['admin','director','dev','support'].includes(msgClaims.role);

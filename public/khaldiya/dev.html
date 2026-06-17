@@ -990,17 +990,18 @@ const Dev = {
 
       const patternLabels = { fast: '⚡ سريع', normal: '⏱ طبيعي', slow: '🐢 بطيء' };
       const patternColors = { fast: '#f59e0b', normal: '#4FA877', slow: '#3b82f6' };
-      if (!patternDistribution || !patternDistribution.length) {
+      const patternEntries = Object.entries(patternDistribution || {});
+      const totalPattern = patternEntries.reduce((s, [, c]) => s + c, 0);
+      if (!totalPattern) {
         distEl.innerHTML = '<div class="empty">لا توجد بيانات</div>';
       } else {
-        const totalPattern = patternDistribution.reduce((s, p) => s + p.count, 0) || 1;
-        distEl.innerHTML = patternDistribution.map(p => {
-          const pct = Math.round(p.count / totalPattern * 100);
-          const color = patternColors[p.speed_pattern] || '#94a3b8';
+        distEl.innerHTML = patternEntries.map(([key, count]) => {
+          const pct = Math.round(count / totalPattern * 100);
+          const color = patternColors[key] || '#94a3b8';
           return `<div style="margin-bottom:10px">
             <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-              <span>${patternLabels[p.speed_pattern] || p.speed_pattern}</span>
-              <span style="color:var(--muted)">${p.count} (${pct}%)</span>
+              <span>${patternLabels[key] || key}</span>
+              <span style="color:var(--muted)">${count} (${pct}%)</span>
             </div>
             <div style="background:rgba(255,255,255,.08);border-radius:99px;height:6px;overflow:hidden;">
               <div style="width:${pct}%;height:100%;background:${color};border-radius:99px"></div>

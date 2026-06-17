@@ -618,18 +618,14 @@ export async function onRequest({ request, env }) {
         guessing_pattern       INTEGER NOT NULL DEFAULT 0,
         suspicious_flag        INTEGER NOT NULL DEFAULT 0,
         suspicious_reasons     TEXT NOT NULL DEFAULT '[]',
+        attempt_summary        TEXT NOT NULL DEFAULT '[]',
         created_at             TEXT NOT NULL
       )`).run(); } catch {}
-      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS attempt_logs (
-        id                  TEXT PRIMARY KEY,
-        test_result_id      TEXT NOT NULL,
-        student_id          TEXT NOT NULL,
-        question_id         INTEGER NOT NULL,
-        time_spent          REAL NOT NULL DEFAULT 0,
-        answer_changed_count INTEGER NOT NULL DEFAULT 0,
-        is_correct          INTEGER NOT NULL DEFAULT 0,
-        created_at          TEXT NOT NULL
-      )`).run(); } catch {}
+      // Migration for behavior_logs tables created before attempt_summary existed
+      try { await DB.prepare(`ALTER TABLE behavior_logs ADD COLUMN attempt_summary TEXT NOT NULL DEFAULT '[]'`).run(); } catch {}
+      // attempt_logs (one row per question per attempt) is deprecated — per-question detail now
+      // lives inline as JSON in behavior_logs.attempt_summary. The old table is dropped once via
+      // POST /api/dev/migrate, not here, so this hot path never carries that extra round trip.
 
       // Seed the question bank once (idempotent — skipped once rows exist)
       const seedCheck = await DB.prepare('SELECT COUNT(*) as c FROM bio_questions').first();
@@ -676,7 +672,7 @@ export async function onRequest({ request, env }) {
         let correct = 0;
         const breakdown = [];
         const storedAnswers = [];
-        const attemptRows = [];
+        const attemptSummary = []; // per-question detail, kept in-memory only — written once as JSON, never as separate rows
         const times = [];
         let switchingCount = 0;
         let dkCount = 0;
@@ -693,7 +689,7 @@ export async function onRequest({ request, env }) {
           switchingCount += switches;
           breakdown.push({ qnum: q.qnum, sec: q.sec, skill: q.skill, text: q.text, opts: [q.opt1, q.opt2, q.opt3, q.opt4], ans: q.ans, exp: q.exp, selected, correct: isCorrect });
           storedAnswers.push({ q: q.qnum, a: selected, corr: q.ans });
-          attemptRows.push({ qnum: q.qnum, timeSpent, switches, isCorrect });
+          attemptSummary.push({ question_id: q.qnum, time_spent: timeSpent, is_correct: isCorrect ? 1 : 0, answer_changed_count: switches });
         }
         const finalScore = Math.round((correct / total) * 100);
 
@@ -724,19 +720,12 @@ export async function onRequest({ request, env }) {
         if (slowestTime - fastestTime < 200 && total > 3) suspiciousReasons.push('توقيتات متطابقة بشكل غير طبيعي بين الأسئلة');
         const suspiciousFlag = suspiciousReasons.length > 0;
 
+        // Single INSERT carries the full per-question detail as JSON — no row-per-question writes.
         const bid = crypto.randomUUID();
         await DB.prepare(
-          `INSERT INTO behavior_logs (id, test_result_id, student_id, school, exam_id, avg_time_per_question, fastest_time, slowest_time, switching_count, fast_answer_ratio, speed_pattern, confidence_level, guessing_pattern, suspicious_flag, suspicious_reasons, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(bid, rid, claims.sub, claims.school || '', `biology-g1:${testType}`, avgTime, fastestTime, slowestTime, switchingCount, fastRatio, speedPattern, confidenceLevel, guessingPattern ? 1 : 0, suspiciousFlag ? 1 : 0, JSON.stringify(suspiciousReasons), now).run();
-
-        const attemptStmt = DB.prepare(
-          `INSERT INTO attempt_logs (id, test_result_id, student_id, question_id, time_spent, answer_changed_count, is_correct, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        );
-        for (const r of attemptRows) {
-          await attemptStmt.bind(crypto.randomUUID(), rid, claims.sub, r.qnum, r.timeSpent, r.switches, r.isCorrect ? 1 : 0, now).run();
-        }
+          `INSERT INTO behavior_logs (id, test_result_id, student_id, school, exam_id, avg_time_per_question, fastest_time, slowest_time, switching_count, fast_answer_ratio, speed_pattern, confidence_level, guessing_pattern, suspicious_flag, suspicious_reasons, attempt_summary, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(bid, rid, claims.sub, claims.school || '', `biology-g1:${testType}`, avgTime, fastestTime, slowestTime, switchingCount, fastRatio, speedPattern, confidenceLevel, guessingPattern ? 1 : 0, suspiciousFlag ? 1 : 0, JSON.stringify(suspiciousReasons), JSON.stringify(attemptSummary), now).run();
 
         if (suspiciousFlag) {
           try {
@@ -1070,9 +1059,13 @@ export async function onRequest({ request, env }) {
            ORDER BY bl.switching_count DESC LIMIT 10`
         ).all().catch(() => ({ results: [] }));
 
+        // Per-question detail lives as JSON inside behavior_logs.attempt_summary (no attempt_logs table).
+        // json_each unpacks it server-side in SQLite so this stays a single aggregate query, not N rows fetched into JS.
         const mostGuessedQuestions = await DB.prepare(
-          `SELECT question_id, COUNT(*) as guess_count
-           FROM attempt_logs WHERE time_spent > 0 AND time_spent < 3000 AND is_correct = 0
+          `SELECT json_extract(je.value, '$.question_id') as question_id, COUNT(*) as guess_count
+           FROM behavior_logs, json_each(behavior_logs.attempt_summary) je
+           WHERE json_extract(je.value, '$.time_spent') > 0 AND json_extract(je.value, '$.time_spent') < 3000
+             AND json_extract(je.value, '$.is_correct') = 0
            GROUP BY question_id ORDER BY guess_count DESC LIMIT 10`
         ).all().catch(() => ({ results: [] }));
 
@@ -1138,6 +1131,8 @@ export async function onRequest({ request, env }) {
         try { await DB.prepare('ALTER TABLE messages ADD COLUMN recipient_admin_id TEXT DEFAULT ""').run(); } catch {}
         // Add role column to admins if not exists
         try { await DB.prepare('ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT "admin"').run(); } catch {}
+        // One-time cleanup: attempt_logs was replaced by behavior_logs.attempt_summary (JSON)
+        try { await DB.prepare('DROP TABLE IF EXISTS attempt_logs').run(); } catch {}
         return ok({ ok: true, tables: ['messages', 'tickets', 'ticket_replies'] }, 200, CORS);
       }
     }

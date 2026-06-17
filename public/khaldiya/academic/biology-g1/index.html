@@ -766,6 +766,11 @@ let preAnswers = new Array(PRE_Q.length).fill(null);  // null | 0-3 | 'dk'
 let postAnswers = new Array(POST_Q.length).fill(null);
 let preIdx = 0;
 let postIdx = 0;
+// Behavior tracking (timing + answer switching) — sent to the server alongside
+// raw answers so grading + analytics happen in the Worker, never in this page.
+let preMeta = PRE_Q.map(() => ({ timeSpent: 0, switches: 0 }));
+let postMeta = POST_Q.map(() => ({ timeSpent: 0, switches: 0 }));
+let qEnterTime = Date.now();
 
 // ── Helpers ────────────────────────────────────
 function showScreen(id) {
@@ -831,22 +836,27 @@ function startMode(mode) {
   if (mode === 'pre') {
     preIdx = 0;
     preAnswers = new Array(PRE_Q.length).fill(null);
+    preMeta = PRE_Q.map(() => ({ timeSpent: 0, switches: 0 }));
     renderPreQ();
     showScreen('screen-pre');
   } else {
     postIdx = 0;
     postAnswers = new Array(POST_Q.length).fill(null);
+    postMeta = POST_Q.map(() => ({ timeSpent: 0, switches: 0 }));
     renderPostQ();
     showScreen('screen-post');
   }
 }
 
 function renderPreQ() {
+  qEnterTime = Date.now();
   renderQ(PRE_Q, preIdx, 'pre-q-card', 'pre-progress-fill', 'pre-counter', preAnswers, 'selectPreOpt');
   updatePreBtn();
 }
 
 function selectPreOpt(val) {
+  const prev = preAnswers[preIdx];
+  if (prev !== null && prev !== val) preMeta[preIdx].switches++;
   preAnswers[preIdx] = val;
   const card = document.getElementById('pre-q-card');
   card.querySelectorAll('.q-opt').forEach(b => b.classList.remove('selected'));
@@ -868,6 +878,7 @@ function updatePreBtn() {
 
 function preNext() {
   if (preAnswers[preIdx] === null) return;
+  preMeta[preIdx].timeSpent = Date.now() - qEnterTime;
   if (preIdx < PRE_Q.length - 1) {
     preIdx++;
     renderPreQ();
@@ -878,41 +889,57 @@ function preNext() {
 }
 
 // ── Pre results ────────────────────────────────
-function _saveTestResult(testType, correct, total, answers) {
-  const score = Math.round(correct / total * 100);
-  // Show optimistically in memory while saving to server
-  const newResult = { subject: 'biology-g1', test_type: testType, score, correct, total, answers: answers.map((a, i) => ({ q: i, a })), created_at: new Date().toISOString() };
-  if (!window._myBioResults) window._myBioResults = [];
-  window._myBioResults.unshift(newResult);
-  _bioShowCard(window._myBioResults);
-  _bioGetToken().then(token => {
-    if (!token) return;
-    fetch('/api/test-results', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ subject: 'biology-g1', testType, score, correct, total, answers: answers.map((a, i) => ({ q: i, a })) })
-    })
-    .then(r => r.ok ? r.json() : null)
-    .then(() => {
-      // Refresh from server to get the official saved record
-      return fetch('/api/test-results', { headers: { 'Authorization': 'Bearer ' + token } });
-    })
-    .then(r => r && r.ok ? r.json() : null)
-    .then(data => {
-      if (!data) return;
-      const updated = (data.results || []).filter(r => r.subject === 'biology-g1');
-      if (updated.length) { window._myBioResults = updated; _bioShowCard(updated); }
-    })
-    .catch(() => {});
+// Sends raw answers + behavior metadata (timing/switching) to the server, which is the
+// only place the official score is computed. The student only ever sees the returned score.
+async function submitBioTest(testType, answers, meta) {
+  const token = await _bioGetToken();
+  if (!token) throw new Error('no-token');
+  const payload = {
+    testType,
+    answers: answers.map((a, i) => ({ qnum: i, selected: a, timeSpent: meta[i]?.timeSpent || 0, switches: meta[i]?.switches || 0 })),
+  };
+  const res = await fetch('/api/bio/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify(payload),
   });
+  if (!res.ok) throw new Error('submit-failed');
+  return res.json();
 }
 
-function showPreResults() {
+// Local-only grading used as a fallback if the server submit fails (e.g. offline), and for
+// replaying a past attempt from history (where the answers are already known/graded).
+function _gradeLocally(questions, answers) {
   let correct = 0;
-  preAnswers.forEach((a, i) => { if (a === PRE_Q[i].ans) correct++; });
-  const pct = Math.round(correct / PRE_Q.length * 100);
-  if (!window._bioReplay) _saveTestResult('pre', correct, PRE_Q.length, preAnswers);
+  const breakdown = questions.map((q, i) => {
+    const selected = answers[i];
+    const isCorrect = selected === q.ans;
+    if (isCorrect) correct++;
+    return { qnum: i, sec: q.sec, skill: q.skill, text: q.text, opts: q.opts, ans: q.ans, exp: q.exp, selected, correct: isCorrect };
+  });
+  return { correct, total: questions.length, breakdown };
+}
+
+async function showPreResults() {
+  let correct, breakdown;
+  if (!window._bioReplay) {
+    try {
+      const data = await submitBioTest('pre', preAnswers, preMeta);
+      correct = data.correct;
+      breakdown = data.breakdown;
+      if (!window._myBioResults) window._myBioResults = [];
+      window._myBioResults.unshift({ subject: 'biology-g1', test_type: 'pre', score: data.score, correct: data.correct, total: data.total, answers: breakdown.map(b => ({ q: b.qnum, a: b.selected, corr: b.ans })), created_at: data.created_at });
+      _bioShowCard(window._myBioResults);
+    } catch (e) {
+      const local = _gradeLocally(PRE_Q.map((q,i)=>({...q,sec:null})), preAnswers);
+      correct = local.correct; breakdown = local.breakdown;
+    }
+  } else {
+    const local = _gradeLocally(PRE_Q.map((q,i)=>({...q,sec:null})), preAnswers);
+    correct = local.correct; breakdown = local.breakdown;
+  }
   window._bioReplay = false;
+  const pct = Math.round(correct / PRE_Q.length * 100);
 
   document.getElementById('pre-score-num').textContent = arabicNum(correct);
   const circle = document.getElementById('pre-score-circle');
@@ -938,10 +965,9 @@ function showPreResults() {
   // Question-by-question list
   const qList = document.getElementById('pre-q-list');
   qList.innerHTML = '';
-  PRE_Q.forEach((q, i) => {
-    const a = preAnswers[i];
-    const isCorrect = a === q.ans;
-    const isDK = a === 'dk';
+  breakdown.forEach((q, i) => {
+    const isCorrect = q.correct;
+    const isDK = q.selected === 'dk';
     const cls = isCorrect ? 'correct' : isDK ? 'unknown' : 'wrong';
     const corrLabel = `${LETTERS[q.ans]}) ${q.opts[q.ans]}`;
 
@@ -972,7 +998,7 @@ function showPreResults() {
   });
 
   // Support box
-  const needsSupport = PRE_Q.filter((q, i) => preAnswers[i] !== q.ans);
+  const needsSupport = breakdown.filter(q => !q.correct);
   const supportBox = document.getElementById('pre-support-box');
   if (needsSupport.length === 0) {
     supportBox.innerHTML = `
@@ -1009,11 +1035,14 @@ function showPreResults() {
 
 // ── Post-test ──────────────────────────────────
 function renderPostQ() {
+  qEnterTime = Date.now();
   renderQ(POST_Q, postIdx, 'post-q-card', 'post-progress-fill', 'post-counter', postAnswers, 'selectPostOpt');
   updatePostBtn();
 }
 
 function selectPostOpt(val) {
+  const prev = postAnswers[postIdx];
+  if (prev !== null && prev !== val) postMeta[postIdx].switches++;
   postAnswers[postIdx] = val;
   const card = document.getElementById('post-q-card');
   card.querySelectorAll('.q-opt').forEach(b => b.classList.remove('selected'));
@@ -1035,6 +1064,7 @@ function updatePostBtn() {
 
 function postNext() {
   if (postAnswers[postIdx] === null) return;
+  postMeta[postIdx].timeSpent = Date.now() - qEnterTime;
   if (postIdx < POST_Q.length - 1) {
     postIdx++;
     renderPostQ();
@@ -1045,12 +1075,26 @@ function postNext() {
 }
 
 // ── Post results ───────────────────────────────
-function showPostResults() {
-  let correct = 0;
-  postAnswers.forEach((a, i) => { if (a === POST_Q[i].ans) correct++; });
-  const pct = Math.round(correct / POST_Q.length * 100);
-  if (!window._bioReplay) _saveTestResult('post', correct, POST_Q.length, postAnswers);
+async function showPostResults() {
+  let correct, breakdown;
+  if (!window._bioReplay) {
+    try {
+      const data = await submitBioTest('post', postAnswers, postMeta);
+      correct = data.correct;
+      breakdown = data.breakdown;
+      if (!window._myBioResults) window._myBioResults = [];
+      window._myBioResults.unshift({ subject: 'biology-g1', test_type: 'post', score: data.score, correct: data.correct, total: data.total, answers: breakdown.map(b => ({ q: b.qnum, a: b.selected, corr: b.ans })), created_at: data.created_at });
+      _bioShowCard(window._myBioResults);
+    } catch (e) {
+      const local = _gradeLocally(POST_Q, postAnswers);
+      correct = local.correct; breakdown = local.breakdown;
+    }
+  } else {
+    const local = _gradeLocally(POST_Q, postAnswers);
+    correct = local.correct; breakdown = local.breakdown;
+  }
   window._bioReplay = false;
+  const pct = Math.round(correct / POST_Q.length * 100);
 
   document.getElementById('post-score-num').textContent = arabicNum(correct);
   const circle = document.getElementById('post-score-circle');
@@ -1077,11 +1121,8 @@ function showPostResults() {
   const secScores = document.getElementById('post-section-scores');
   secScores.innerHTML = '';
   POST_SECTIONS.forEach((name, si) => {
-    const sQs = POST_Q.filter((q, i) => q.sec === si);
-    const sCorrect = sQs.filter((q, j) => {
-      const globalIdx = POST_Q.indexOf(q);
-      return postAnswers[globalIdx] === q.ans;
-    }).length;
+    const sQs = breakdown.filter(q => q.sec === si);
+    const sCorrect = sQs.filter(q => q.correct).length;
     const sPct = Math.round(sCorrect / sQs.length * 100);
     const barColor = sPct >= 80 ? '#22c55e' : sPct >= 50 ? '#f59e0b' : '#ef4444';
     secScores.innerHTML += `
@@ -1098,8 +1139,8 @@ function showPostResults() {
 
   // Support box
   const weakSections = POST_SECTIONS.filter((name, si) => {
-    const sQs = POST_Q.filter(q => q.sec === si);
-    const sCorrect = sQs.filter(q => postAnswers[POST_Q.indexOf(q)] === q.ans).length;
+    const sQs = breakdown.filter(q => q.sec === si);
+    const sCorrect = sQs.filter(q => q.correct).length;
     return sCorrect / sQs.length < 0.6;
   });
 
@@ -1136,9 +1177,9 @@ function showPostResults() {
 
   // All-questions feedback
   const wrongList = document.getElementById('post-wrong-list');
-  wrongList.innerHTML = POST_Q.map((q, i) => {
-    const a = postAnswers[i];
-    const isCorrect = a === q.ans;
+  wrongList.innerHTML = breakdown.map((q, i) => {
+    const a = q.selected;
+    const isCorrect = q.correct;
     const isDK = a === 'dk';
     const corrLabel = `${LETTERS[q.ans]}) ${q.opts[q.ans]}`;
 

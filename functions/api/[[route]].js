@@ -15,6 +15,45 @@ function getCORS(request) {
 }
 
 
+// Biology G1 — Unit 1 question bank (pre-test = readiness diagnostic, post-test = mastery check)
+// ans is the correct option index (0-3). Stripped before being sent to students; only revealed in
+// the post-grading breakdown returned by POST /api/bio/submit.
+const BIO_QUESTIONS = [
+  // ── PRE (10 questions) ──────────────────────────────────────────────────
+  {testType:'pre',qnum:0,sec:null,skill:'فهم هوية علم الأحياء',text:'ما الفكرة الأساسية التي يدرسها علم الأحياء؟',opt1:'دراسة الصخور والمعادن فقط',opt2:'دراسة المخلوقات الحية وخصائصها وتفاعلاتها',opt3:'دراسة حركة الأجسام فقط',opt4:'دراسة الطقس والمناخ',ans:1,exp:'علم الأحياء يدرس المخلوقات الحية بمجملها — خصائصها وتفاعلاتها ومستوياتها التنظيمية، وليس مجالاً واحداً كالصخور أو الطقس.'},
+  {testType:'pre',qnum:1,sec:null,skill:'تمييز خصائص المخلوقات الحية',text:'أي مما يلي يُعدّ من خصائص المخلوقات الحية؟',opt1:'لها لون محدد',opt2:'تستطيع النمو والتكاثر والاستجابة للمؤثرات',opt3:'تكون دائماً كبيرة الحجم',opt4:'تتحرك من مكان إلى آخر',ans:1,exp:'خصائص الحياة مجموعة صفات مجتمعة — النمو والتكاثر والاستجابة للمؤثرات — وليست صفة شكلية واحدة كاللون أو الحجم.'},
+  {testType:'pre',qnum:2,sec:null,skill:'مستويات التنظيم الحيوي',text:'أي ترتيب صحيح لمستويات التنظيم من الأصغر إلى الأكبر؟',opt1:'جهاز ← عضو ← نسيج ← خلية',opt2:'خلية ← نسيج ← عضو ← جهاز',opt3:'نسيج ← خلية ← جهاز ← عضو',opt4:'عضو ← جهاز ← خلية ← نسيج',ans:1,exp:'الترتيب يبدأ من الأصغر: الخلية تتجمع لتكوّن نسيجاً، والأنسجة تكوّن عضواً، والأعضاء تعمل معاً ضمن جهاز.'},
+  {testType:'pre',qnum:3,sec:null,skill:'مفهوم الخلية',text:'أي عبارة صحيحة عن الخلية؟',opt1:'هي أكبر مستوى في التنظيم الحيوي',opt2:'هي الوحدة الأساسية في بناء المخلوقات الحية',opt3:'توجد فقط في النباتات',opt4:'لا تحتوي على تراكيب داخلية',ans:1,exp:'الخلية هي الوحدة الأساسية للحياة — أصغر وحدة قادرة على أداء وظائف الحياة، وتوجد في جميع المخلوقات الحية.'},
+  {testType:'pre',qnum:4,sec:null,skill:'خطوات المنهج العلمي',text:'باحث لاحظ أن نباتاً ينمو بشكل أفضل عند تعرضه لكمية معينة من الضوء. ما الخطوة العلمية التالية الأكثر مناسبة؟',opt1:'وضع تفسير قابل للاختبار',opt2:'كتابة النتيجة النهائية مباشرة',opt3:'تغيير جميع الظروف مرة واحدة',opt4:'تجاهل الملاحظة',ans:0,exp:'بعد الملاحظة تأتي الفرضية — وضع تفسير أو توقع قابل للاختبار. لا نكتب نتيجة قبل إجراء التجربة الفعلية.'},
+  {testType:'pre',qnum:5,sec:null,skill:'صياغة الأسئلة العلمية',text:'أي مما يلي يمثل سؤالاً علمياً قابلاً للاختبار؟',opt1:'ما أجمل لون للنبات؟',opt2:'هل تؤثر كمية الماء في نمو النبات؟',opt3:'لماذا الطبيعة جميلة؟',opt4:'ما أفضل كائن حي؟',ans:1,exp:'السؤال العلمي يجب أن يكون قابلاً للقياس والاختبار. أسئلة الرأي والجمال لا يمكن قياسها، بينما تأثير الماء يمكن دراسته بتجربة.'},
+  {testType:'pre',qnum:6,sec:null,skill:'فهم طبيعة المعرفة العلمية',text:'النظرية العلمية تعني:',opt1:'رأياً شخصياً',opt2:'فكرة غير مدعومة',opt3:'تفسيراً مدعوماً بأدلة كثيرة',opt4:'تخميناً عشوائياً',ans:2,exp:'النظرية العلمية ليست تخميناً ولا رأياً — بل هي تفسير موثوق مدعوم بأدلة وتجارب متعددة ومتكررة.'},
+  {testType:'pre',qnum:7,sec:null,skill:'أهمية التصنيف',text:'لماذا يصنّف العلماء المخلوقات الحية؟',opt1:'لأن جميعها متشابهة تماماً',opt2:'لتنظيم المعلومات وفهم العلاقات بينها',opt3:'لتغيير صفاتها',opt4:'لمعرفة حجمها فقط',ans:1,exp:'التصنيف يساعد العلماء على تنظيم التنوع الحيوي الضخم وفهم أوجه الشبه والاختلاف والعلاقات بين الكائنات الحية.'},
+  {testType:'pre',qnum:8,sec:null,skill:'الربط بين مستويات التنظيم',text:'أي علاقة صحيحة؟',opt1:'الجهاز يتكون من خلايا فقط دون أعضاء',opt2:'العضو يتكون من أنسجة',opt3:'الخلية تتكون من أجهزة',opt4:'النسيج أكبر من الجهاز',ans:1,exp:'العضو يتكون من مجموعة أنسجة تعمل معاً لأداء وظيفة محددة — هذا هو الربط الصحيح بين مستوى النسيج ومستوى العضو.'},
+  {testType:'pre',qnum:9,sec:null,skill:'مهارات التفكير العلمي',text:'إذا حصل طالب على معلومة علمية جديدة، فما السؤال الأفضل الذي يسأله؟',opt1:'هل أحفظها فقط؟',opt2:'كيف ترتبط بما أعرفه سابقاً؟',opt3:'هل هي طويلة؟',opt4:'هل هي في الاختبار فقط؟',ans:1,exp:'التفكير العلمي يعني ربط المعلومات الجديدة بالسابقة وفهم كيف تترابط مع بعضها — وليس مجرد حفظها.'},
+  // ── POST (20 questions, 4 sections × 5) ─────────────────────────────────
+  {testType:'post',qnum:0,sec:0,skill:null,text:'ما العبارة التي تصف علم الأحياء بصورة صحيحة؟',opt1:'علم يدرس الصخور والمعادن فقط',opt2:'علم يدرس المخلوقات الحية وخصائصها وتفاعلاتها',opt3:'علم يدرس حركة الأجسام والقوى',opt4:'علم يدرس الطقس والمناخ فقط',ans:1,exp:'لأن علم الأحياء هو العلم الذي يدرس المخلوقات الحية وخصائصها وتفاعلاتها وتنظيمها، وليس فرعاً يختص بمجال واحد فقط.'},
+  {testType:'post',qnum:1,sec:0,skill:null,text:'أي مما يلي يُعدّ من خصائص المخلوقات الحية؟',opt1:'امتلاك لون محدد',opt2:'القدرة على النمو والتكاثر والاستجابة للمؤثرات',opt3:'وجودها في مكان معين فقط',opt4:'قدرتها على الحركة فقط',ans:1,exp:'لأن المخلوقات الحية تتميز بمجموعة خصائص مثل النمو والتكاثر والاستجابة للمؤثرات، أما الصفات الشكلية أو الحركة وحدها فلا تكفي.'},
+  {testType:'post',qnum:2,sec:0,skill:null,text:'أي مما يلي يمثل أصغر مستوى من مستويات التنظيم الحيوي؟',opt1:'الجهاز',opt2:'العضو',opt3:'الخلية',opt4:'النسيج',ans:2,exp:'لأن الخلية هي أصغر مستوى من مستويات التنظيم الحيوي، ومنها تبدأ بقية المستويات الأكبر.'},
+  {testType:'post',qnum:3,sec:0,skill:null,text:'لماذا تُعدّ الخلية الوحدة الأساسية للحياة؟',opt1:'لأنها أكبر جزء في المخلوق الحي',opt2:'لأنها موجودة في النباتات فقط',opt3:'لأن جميع المخلوقات الحية تتكون من خلية أو أكثر',opt4:'لأنها لا تحتوي على تراكيب داخلية',ans:2,exp:'لأن جميع المخلوقات الحية تتكون من خلية واحدة أو أكثر، ولذلك تُعدّ الخلية الوحدة الأساسية للحياة.'},
+  {testType:'post',qnum:4,sec:0,skill:null,text:'أي عبارة صحيحة عن الاتزان الداخلي؟',opt1:'قدرة المخلوق الحي على المحافظة على ظروف داخلية مستقرة',opt2:'قدرة الكائن على الانتقال من مكان لآخر',opt3:'قدرة الكائن على تغيير نوعه',opt4:'قدرة الكائن على زيادة حجمه فقط',ans:0,exp:'لأن الاتزان الداخلي يعني قدرة المخلوق الحي على المحافظة على ظروف داخلية مستقرة تساعده على البقاء.'},
+  {testType:'post',qnum:5,sec:1,skill:null,text:'أي ترتيب يمثل مستويات التنظيم الحيوي من الأصغر إلى الأكبر؟',opt1:'خلية ← نسيج ← عضو ← جهاز ← مخلوق حي',opt2:'عضو ← خلية ← نسيج ← جهاز',opt3:'جهاز ← عضو ← نسيج ← خلية',opt4:'نسيج ← جهاز ← خلية ← عضو',ans:0,exp:'لأن الخلايا تتجمع لتكوين أنسجة، والأنسجة تكوّن أعضاء، والأعضاء تعمل معاً في أجهزة داخل المخلوق الحي.'},
+  {testType:'post',qnum:6,sec:1,skill:null,text:'العلاقة الصحيحة بين النسيج والعضو هي:',opt1:'النسيج يتكون من أجهزة',opt2:'العضو يتكون من مجموعة أنسجة تعمل معاً',opt3:'الجهاز يتكون من خلية واحدة',opt4:'العضو أصغر من الخلية',ans:1,exp:'لأن العضو يتكون من مجموعة أنسجة تعمل معاً لأداء وظيفة محددة.'},
+  {testType:'post',qnum:7,sec:1,skill:null,text:'لماذا يحتاج العلماء إلى تصنيف المخلوقات الحية؟',opt1:'لمعرفة لون كل مخلوق فقط',opt2:'لتنظيم التنوع الحيوي وفهم العلاقات بين المخلوقات',opt3:'لتغيير صفات الكائنات',opt4:'لإثبات أن جميع الكائنات متشابهة',ans:1,exp:'لأن التصنيف يساعد العلماء على تنظيم التنوع الحيوي وفهم أوجه التشابه والعلاقات بين المخلوقات الحية.'},
+  {testType:'post',qnum:8,sec:1,skill:null,text:'إذا وجد العلماء تشابهاً كبيراً بين مخلوقين حيين فهذا يساعدهم على:',opt1:'فهم العلاقات بينهما',opt2:'اعتبارهما مخلوقاً واحداً',opt3:'إلغاء التصنيف',opt4:'معرفة عمرهما فقط',ans:0,exp:'لأن التشابه بين المخلوقات يعطي العلماء معلومات تساعدهم على دراسة العلاقات بينها وتصنيفها.'},
+  {testType:'post',qnum:9,sec:1,skill:null,text:'أي علاقة توضح بناء المخلوق الحي؟',opt1:'أجهزة ← أعضاء ← أنسجة ← خلايا',opt2:'خلايا ← أنسجة ← أعضاء ← أجهزة',opt3:'أعضاء ← خلايا ← أجهزة ← أنسجة',opt4:'خلايا ← أعضاء ← أنسجة ← أجهزة',ans:1,exp:'لأن بناء المخلوق الحي يبدأ من الخلية ثم تتجمع الخلايا لتكوين أنسجة ثم أعضاء ثم أجهزة.'},
+  {testType:'post',qnum:10,sec:2,skill:null,text:'شاهد طالب شيئاً يتحرك، فقال: "إذن هو مخلوق حي". ما التقييم الصحيح؟',opt1:'صحيح دائماً',opt2:'خطأ لأن الحركة وحدها لا تكفي لإثبات الحياة',opt3:'صحيح إذا كان سريعاً',opt4:'صحيح إذا كان كبيراً',ans:1,exp:'لأن الحركة ليست دليلاً كافياً على الحياة؛ فبعض الأشياء غير الحية تتحرك، بينما الحياة تعتمد على مجموعة خصائص مترابطة.'},
+  {testType:'post',qnum:11,sec:2,skill:null,text:'لاحظ باحث أن نباتاً معيناً ينمو أكثر عند زيادة الماء. ما السؤال العلمي المناسب؟',opt1:'هل النبات جميل؟',opt2:'هل كمية الماء تؤثر في نمو النبات؟',opt3:'لماذا الطبيعة رائعة؟',opt4:'ما أفضل نبات؟',ans:1,exp:'لأن السؤال العلمي يجب أن يكون قابلاً للاختبار والقياس، وتأثير كمية الماء في النمو يمكن دراسته بتجربة.'},
+  {testType:'post',qnum:12,sec:2,skill:null,text:'إذا أراد الباحث اختبار تأثير الضوء في نمو النبات، فما الذي يجب تغييره؟',opt1:'كمية الضوء',opt2:'جميع العوامل معاً',opt3:'نوع النبات والماء والضوء معاً',opt4:'لا يغير شيئاً',ans:0,exp:'لأن اختبار أثر عامل معين يتطلب تغيير متغير واحد فقط مع تثبيت بقية العوامل لمعرفة السبب الحقيقي للنتيجة.'},
+  {testType:'post',qnum:13,sec:2,skill:null,text:'أي موقف يمثل فرضية علمية؟',opt1:'النبات جميل',opt2:'أعتقد أن زيادة الضوء قد تزيد نمو النبات',opt3:'شاهدت النبات ينمو',opt4:'سجلت النتيجة النهائية',ans:1,exp:'لأن الفرضية هي تفسير أو توقع يمكن اختباره، وليست مجرد ملاحظة أو رأياً عاماً.'},
+  {testType:'post',qnum:14,sec:2,skill:null,text:'بعد إجراء تجربة وجمع البيانات، فإن الخطوة التالية هي:',opt1:'تحليل النتائج واستخلاص الاستنتاج',opt2:'حذف البيانات',opt3:'تغيير الفرضية دون دراسة',opt4:'تجاهل النتائج',ans:0,exp:'لأن تحليل النتائج بعد جمع البيانات يساعد العالم على الوصول إلى استنتاج حول صحة الفرضية.'},
+  {testType:'post',qnum:15,sec:3,skill:null,text:'ما الفرق بين النظرية العلمية والرأي الشخصي؟',opt1:'لا يوجد فرق',opt2:'النظرية العلمية تعتمد على الأدلة والتجارب',opt3:'الرأي أكثر دقة دائماً',opt4:'النظرية مجرد تخمين',ans:1,exp:'لأن النظرية العلمية تفسير مدعوم بأدلة وتجارب كثيرة، وليست رأياً شخصياً أو تخميناً.'},
+  {testType:'post',qnum:16,sec:3,skill:null,text:'أي سؤال يُعدّ سؤالاً علمياً؟',opt1:'ما أجمل مخلوق حي؟',opt2:'هل تؤثر درجة الحرارة في نمو النبات؟',opt3:'ما أفضل لون؟',opt4:'ما الحيوان المفضل؟',ans:1,exp:'لأن السؤال العلمي هو الذي يمكن الإجابة عنه بالملاحظة أو التجربة والقياس.'},
+  {testType:'post',qnum:17,sec:3,skill:null,text:'عندما يكرر العلماء التجربة أكثر من مرة فإن الهدف:',opt1:'زيادة الثقة في النتائج',opt2:'تغيير الحقيقة',opt3:'تقليل المعلومات',opt4:'إلغاء الفرضية',ans:0,exp:'لأن تكرار التجربة يزيد من موثوقية النتائج ويقلل احتمال أن تكون النتيجة بسبب الصدفة.'},
+  {testType:'post',qnum:18,sec:3,skill:null,text:'إذا حصل العلماء على نتائج لا توافق الفرضية، فماذا يفعلون؟',opt1:'يخفون النتائج',opt2:'يراجعون الفرضية أو التجربة',opt3:'يغيرون البيانات',opt4:'يتوقفون عن البحث',ans:1,exp:'لأن النتائج غير المتوافقة مع الفرضية تدفع العلماء إلى مراجعة الفرضية أو طريقة التجربة، وليس تغيير البيانات.'},
+  {testType:'post',qnum:19,sec:3,skill:null,text:'ما أفضل وصف للتعلم العلمي؟',opt1:'حفظ المعلومات فقط',opt2:'فهم الأفكار وربطها واستخدامها في تفسير الظواهر',opt3:'قراءة الكتاب مرة واحدة',opt4:'معرفة المصطلحات دون فهمها',ans:1,exp:'لأن التعلم العلمي الحقيقي يعتمد على فهم الأفكار وربطها واستخدامها في تفسير الظواهر، وليس حفظ المعلومات فقط.'},
+];
+const BIO_SECTIONS = ['فهم المفاهيم الأساسية','ربط المفاهيم','تطبيق المعرفة','التفكير العلمي والتحليل'];
+
 const SEED_QUESTIONS = [
   {qnum:1,type:'verbal',skill_id:'v4',text:'نطفة : علقة — كـ —',opt1:'غصن : شجرة',opt2:'طائرة : مطار',opt3:'زحف : مشي',opt4:'يوم : أسبوع',ans:2},
   {qnum:2,type:'verbal',skill_id:'v4',text:'شبكة : صيد — كـ —',opt1:'قلم : كتابة',opt2:'سيارة : وقود',opt3:'بحر : سمك',opt4:'مفتاح : قفل',ans:0},
@@ -544,6 +583,174 @@ export async function onRequest({ request, env }) {
       }
     }
 
+    // ── BIOLOGY G1 — scoring / behavior analytics / anti-cheating ──────────────
+    // Strict layer separation:
+    //   1) CORE SCORING   — final_score = correct/total*100, nothing else feeds it
+    //   2) BEHAVIOR        — timing/switching analytics, stored separately, never read by scoring
+    //   3) ANTI-CHEATING   — pattern detection over behavior data only, flags for dev review
+    if (resource === 'bio') {
+      const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
+
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS bio_questions (
+        id        TEXT PRIMARY KEY,
+        test_type TEXT NOT NULL,
+        qnum      INTEGER NOT NULL,
+        sec       INTEGER,
+        skill     TEXT,
+        text      TEXT NOT NULL,
+        opt1      TEXT NOT NULL, opt2 TEXT NOT NULL, opt3 TEXT NOT NULL, opt4 TEXT NOT NULL,
+        ans       INTEGER NOT NULL,
+        exp       TEXT NOT NULL DEFAULT ''
+      )`).run(); } catch {}
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS behavior_logs (
+        id                     TEXT PRIMARY KEY,
+        test_result_id         TEXT NOT NULL,
+        student_id             TEXT NOT NULL,
+        school                 TEXT NOT NULL DEFAULT '',
+        exam_id                TEXT NOT NULL,
+        avg_time_per_question  REAL NOT NULL DEFAULT 0,
+        fastest_time           REAL NOT NULL DEFAULT 0,
+        slowest_time           REAL NOT NULL DEFAULT 0,
+        switching_count        INTEGER NOT NULL DEFAULT 0,
+        fast_answer_ratio      REAL NOT NULL DEFAULT 0,
+        speed_pattern          TEXT NOT NULL DEFAULT 'normal',
+        confidence_level       INTEGER NOT NULL DEFAULT 0,
+        guessing_pattern       INTEGER NOT NULL DEFAULT 0,
+        suspicious_flag        INTEGER NOT NULL DEFAULT 0,
+        suspicious_reasons     TEXT NOT NULL DEFAULT '[]',
+        created_at             TEXT NOT NULL
+      )`).run(); } catch {}
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS attempt_logs (
+        id                  TEXT PRIMARY KEY,
+        test_result_id      TEXT NOT NULL,
+        student_id          TEXT NOT NULL,
+        question_id         INTEGER NOT NULL,
+        time_spent          REAL NOT NULL DEFAULT 0,
+        answer_changed_count INTEGER NOT NULL DEFAULT 0,
+        is_correct          INTEGER NOT NULL DEFAULT 0,
+        created_at          TEXT NOT NULL
+      )`).run(); } catch {}
+
+      // Seed the question bank once (idempotent — skipped once rows exist)
+      const seedCheck = await DB.prepare('SELECT COUNT(*) as c FROM bio_questions').first();
+      if (!seedCheck || seedCheck.c === 0) {
+        const stmt = DB.prepare(
+          `INSERT INTO bio_questions (id, test_type, qnum, sec, skill, text, opt1, opt2, opt3, opt4, ans, exp)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        );
+        for (const q of BIO_QUESTIONS) {
+          await stmt.bind(crypto.randomUUID(), q.testType, q.qnum, q.sec, q.skill, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, q.exp).run();
+        }
+      }
+
+      // GET /api/bio/questions?type=pre|post — sanitized for taking the live quiz (no answer key)
+      if (sub === 'questions' && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims) return err('غير مصرح', 401, CORS);
+        const testType = url.searchParams.get('type');
+        if (testType !== 'pre' && testType !== 'post') return err('نوع الاختبار غير صالح', 400, CORS);
+        const { results } = await DB.prepare(
+          'SELECT qnum, sec, skill, text, opt1, opt2, opt3, opt4 FROM bio_questions WHERE test_type = ? ORDER BY qnum ASC'
+        ).bind(testType).all();
+        return ok({ questions: results.map(r => ({
+          qnum: r.qnum, sec: r.sec, skill: r.skill, text: r.text, opts: [r.opt1, r.opt2, r.opt3, r.opt4],
+        })) }, 200, CORS);
+      }
+
+      // POST /api/bio/submit — server grades + records behavior analytics (3 layers, fully separated)
+      if (sub === 'submit' && method === 'POST') {
+        const claims = await verifyToken(request, env);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        const { testType, answers } = await request.json();
+        if (testType !== 'pre' && testType !== 'post') return err('نوع الاختبار غير صالح', 400, CORS);
+        if (!Array.isArray(answers) || answers.length === 0) return err('إجابات مطلوبة', 400, CORS);
+
+        const { results: bank } = await DB.prepare(
+          'SELECT qnum, sec, skill, text, opt1, opt2, opt3, opt4, ans, exp FROM bio_questions WHERE test_type = ? ORDER BY qnum ASC'
+        ).bind(testType).all();
+        if (!bank.length) return err('بنك الأسئلة غير موجود', 500, CORS);
+        const qmap = Object.fromEntries(bank.map(q => [q.qnum, q]));
+
+        // ── 1) CORE SCORING — correct/total only, nothing else may influence this ──
+        const total = bank.length;
+        let correct = 0;
+        const breakdown = [];
+        const storedAnswers = [];
+        const attemptRows = [];
+        const times = [];
+        let switchingCount = 0;
+        let dkCount = 0;
+
+        for (const q of bank) {
+          const a = answers.find(x => Number(x.qnum) === q.qnum) || {};
+          const selected = a.selected === 'dk' ? 'dk' : (Number.isInteger(Number(a.selected)) && a.selected !== null && a.selected !== undefined ? Number(a.selected) : null);
+          const isCorrect = selected === q.ans;
+          if (isCorrect) correct++;
+          if (selected === 'dk') dkCount++;
+          const timeSpent = Math.max(0, Number(a.timeSpent) || 0);
+          const switches = Math.max(0, Number(a.switches) || 0);
+          times.push(timeSpent);
+          switchingCount += switches;
+          breakdown.push({ qnum: q.qnum, sec: q.sec, skill: q.skill, text: q.text, opts: [q.opt1, q.opt2, q.opt3, q.opt4], ans: q.ans, exp: q.exp, selected, correct: isCorrect });
+          storedAnswers.push({ q: q.qnum, a: selected, corr: q.ans });
+          attemptRows.push({ qnum: q.qnum, timeSpent, switches, isCorrect });
+        }
+        const finalScore = Math.round((correct / total) * 100);
+
+        const rid = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await DB.prepare(
+          `INSERT INTO test_results (id, student_id, student_name, school, subject, test_type, score, correct, total, answers, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(rid, claims.sub, claims.name, claims.school || '', 'biology-g1', testType, finalScore, correct, total, JSON.stringify(storedAnswers), now).run();
+
+        // ── 2) BEHAVIOR ANALYTICS — stored separately, never feeds the score above ──
+        const avgTime    = times.reduce((s, t) => s + t, 0) / times.length;
+        const fastestTime = Math.min(...times);
+        const slowestTime = Math.max(...times);
+        const fastCount   = times.filter(t => t > 0 && t < 3000).length;
+        const fastRatio   = fastCount / total;
+        const speedPattern = avgTime < 5000 ? 'fast' : avgTime > 20000 ? 'slow' : 'normal';
+        const confidenceLevel = Math.max(0, Math.min(100, Math.round(
+          100 - (dkCount / total) * 40 - Math.min(switchingCount / total, 1) * 30 - fastRatio * 30
+        )));
+        const guessingPattern = fastRatio > 0.6 && finalScore < 40;
+
+        // ── 3) ANTI-CHEATING — pattern detection over behavior data only, never affects score ──
+        const suspiciousReasons = [];
+        if (avgTime > 0 && avgTime < 2000) suspiciousReasons.push('سرعة استجابة غير منطقية على كل الأسئلة');
+        if (switchingCount > total * 2) suspiciousReasons.push('تغيير مفرط للإجابات');
+        if (fastRatio > 0.8) suspiciousReasons.push('نمط تخمين سريع متكرر');
+        if (slowestTime - fastestTime < 200 && total > 3) suspiciousReasons.push('توقيتات متطابقة بشكل غير طبيعي بين الأسئلة');
+        const suspiciousFlag = suspiciousReasons.length > 0;
+
+        const bid = crypto.randomUUID();
+        await DB.prepare(
+          `INSERT INTO behavior_logs (id, test_result_id, student_id, school, exam_id, avg_time_per_question, fastest_time, slowest_time, switching_count, fast_answer_ratio, speed_pattern, confidence_level, guessing_pattern, suspicious_flag, suspicious_reasons, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(bid, rid, claims.sub, claims.school || '', `biology-g1:${testType}`, avgTime, fastestTime, slowestTime, switchingCount, fastRatio, speedPattern, confidenceLevel, guessingPattern ? 1 : 0, suspiciousFlag ? 1 : 0, JSON.stringify(suspiciousReasons), now).run();
+
+        const attemptStmt = DB.prepare(
+          `INSERT INTO attempt_logs (id, test_result_id, student_id, question_id, time_spent, answer_changed_count, is_correct, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        );
+        for (const r of attemptRows) {
+          await attemptStmt.bind(crypto.randomUUID(), rid, claims.sub, r.qnum, r.timeSpent, r.switches, r.isCorrect ? 1 : 0, now).run();
+        }
+
+        if (suspiciousFlag) {
+          try {
+            await DB.prepare(
+              'INSERT INTO logs (id, level, category, message, user_name, user_role, school, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ).bind(crypto.randomUUID(), 'warn', 'suspicious', `سلوك مشبوه في اختبار الأحياء (${testType}): ${suspiciousReasons.join('، ')}`, claims.name || '', 'student', claims.school || '', ip, now).run();
+          } catch {}
+        }
+
+        // FOR STUDENT: final_score only + the breakdown needed to review answers — no behavior data
+        return ok({ id: rid, created_at: now, score: finalScore, correct, total, breakdown }, 201, CORS);
+      }
+    }
+
     // ── QUESTIONS ────────────────────────────────────────────────────────────
     if (resource === 'questions') {
 
@@ -835,6 +1042,68 @@ export async function onRequest({ request, env }) {
       if (sub === 'logs' && method === 'DELETE') {
         try { await DB.prepare('DELETE FROM logs').run(); } catch {}
         return ok({ ok: true }, 200, CORS);
+      }
+
+      // GET /api/dev/analytics — behavior analytics overview for the dashboard
+      if (sub === 'analytics' && method === 'GET') {
+        const totals = await DB.prepare(
+          `SELECT COUNT(*) as cnt, AVG(score) as avgScore FROM test_results WHERE subject = 'biology-g1'`
+        ).first().catch(() => ({ cnt: 0, avgScore: null }));
+
+        const patternRows = await DB.prepare(
+          `SELECT speed_pattern, COUNT(*) as cnt FROM behavior_logs GROUP BY speed_pattern`
+        ).all().catch(() => ({ results: [] }));
+        const patternDistribution = { fast: 0, normal: 0, slow: 0 };
+        for (const r of (patternRows.results || [])) patternDistribution[r.speed_pattern] = r.cnt;
+
+        const suspiciousCount = await DB.prepare(
+          `SELECT COUNT(*) as cnt FROM behavior_logs WHERE suspicious_flag = 1`
+        ).first().catch(() => ({ cnt: 0 }));
+
+        const guessingCount = await DB.prepare(
+          `SELECT COUNT(*) as cnt FROM behavior_logs WHERE guessing_pattern = 1`
+        ).first().catch(() => ({ cnt: 0 }));
+
+        const topSwitchers = await DB.prepare(
+          `SELECT tr.student_name, tr.school, bl.switching_count, bl.exam_id, bl.created_at
+           FROM behavior_logs bl JOIN test_results tr ON tr.id = bl.test_result_id
+           ORDER BY bl.switching_count DESC LIMIT 10`
+        ).all().catch(() => ({ results: [] }));
+
+        const mostGuessedQuestions = await DB.prepare(
+          `SELECT question_id, COUNT(*) as guess_count
+           FROM attempt_logs WHERE time_spent > 0 AND time_spent < 3000 AND is_correct = 0
+           GROUP BY question_id ORDER BY guess_count DESC LIMIT 10`
+        ).all().catch(() => ({ results: [] }));
+
+        const errorLogs = await DB.prepare(
+          `SELECT * FROM logs WHERE level = 'error' ORDER BY created_at DESC LIMIT 50`
+        ).all().catch(() => ({ results: [] }));
+
+        const suspiciousLogs = await DB.prepare(
+          `SELECT * FROM logs WHERE category = 'suspicious' ORDER BY created_at DESC LIMIT 50`
+        ).all().catch(() => ({ results: [] }));
+
+        return ok({
+          totals: { testsTaken: totals?.cnt || 0, avgScore: totals?.avgScore ? Math.round(totals.avgScore) : null },
+          patternDistribution,
+          suspiciousCount: suspiciousCount?.cnt || 0,
+          guessingCount: guessingCount?.cnt || 0,
+          topSwitchers: topSwitchers.results || [],
+          mostGuessedQuestions: mostGuessedQuestions.results || [],
+          errorLogs: errorLogs.results || [],
+          suspiciousLogs: suspiciousLogs.results || [],
+        }, 200, CORS);
+      }
+
+      // GET /api/dev/analytics/suspicious — full list of flagged attempts
+      if (sub === 'analytics' && subsub === 'suspicious' && method === 'GET') {
+        const { results } = await DB.prepare(
+          `SELECT tr.student_name, tr.school, tr.subject, tr.test_type, tr.score, bl.*
+           FROM behavior_logs bl JOIN test_results tr ON tr.id = bl.test_result_id
+           WHERE bl.suspicious_flag = 1 ORDER BY bl.created_at DESC LIMIT 200`
+        ).all();
+        return ok({ flagged: results.map(r => ({ ...r, suspicious_reasons: JSON.parse(r.suspicious_reasons || '[]') })) }, 200, CORS);
       }
 
       // POST /api/dev/migrate — create chat & ticket tables

@@ -208,6 +208,7 @@
     <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')">⚠️ أدوات</button>
     <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')">🎫 الدعم الفني</button>
     <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')">📋 سجل النشاط</button>
+    <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')">🧠 تحليل السلوك</button>
   </div>
 
   <div class="content">
@@ -445,6 +446,7 @@
               <option value="logout">🚪 خروج</option>
               <option value="plan">📋 خطط</option>
               <option value="error">❌ أخطاء</option>
+              <option value="suspicious">🚨 سلوك مشبوه</option>
               <option value="system">⚙️ النظام</option>
             </select>
             <button class="btn btn-warn btn-sm" onclick="Dev.loadLogs()">🔄 تحديث</button>
@@ -452,6 +454,36 @@
           </div>
         </div>
         <div id="logs-list"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+    </div>
+
+    <!-- ── Behavior Analytics ── -->
+    <div id="tab-analytics" class="tab-pane">
+      <div class="stat-grid" id="analytics-stats">
+        <div class="stat-card"><div class="stat-num" id="an-tests" style="color:#3b82f6">—</div><div class="stat-lbl">اختبارات أحياء</div></div>
+        <div class="stat-card"><div class="stat-num" id="an-avg" style="color:#4FA877">—</div><div class="stat-lbl">متوسط الدرجة</div></div>
+        <div class="stat-card"><div class="stat-num" id="an-suspicious" style="color:#ef4444">—</div><div class="stat-lbl">حالات سلوك مشبوه</div></div>
+        <div class="stat-card"><div class="stat-num" id="an-guessing" style="color:#f59e0b">—</div><div class="stat-lbl">نمط تخمين سريع</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>⚡</span> توزيع أنماط السرعة</div>
+        <div id="an-pattern-dist"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>🔄</span> أكثر الطلاب تغييراً للإجابات</div>
+        <div id="an-top-switchers"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>❓</span> أكثر الأسئلة تسبباً في التخمين</div>
+        <div id="an-guessed-questions"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>🚨</span> سلوك مشبوه — السجلات المُعلَّمة</div>
+        <div id="an-suspicious-list"><div class="empty">جارٍ التحميل...</div></div>
       </div>
     </div>
 
@@ -522,8 +554,9 @@ const Dev = {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     document.getElementById('tab-' + tab).classList.add('active');
-    if (tab === 'logs')    { Dev.loadLogs(); return; }
-    if (tab === 'support') { Dev.setSupportTab('tickets'); return; }
+    if (tab === 'logs')      { Dev.loadLogs(); return; }
+    if (tab === 'support')   { Dev.setSupportTab('tickets'); return; }
+    if (tab === 'analytics') { Dev.loadAnalytics(); return; }
   },
 
   async loadAll() {
@@ -934,6 +967,88 @@ const Dev = {
     await apiDev('/dev/logs', { method: 'DELETE' });
     showToast('تم مسح السجلات ✅');
     Dev.loadLogs();
+  },
+
+  // ── Behavior Analytics Tab ────────────────────────────────────────────
+  async loadAnalytics() {
+    const statsEl = { tests: document.getElementById('an-tests'), avg: document.getElementById('an-avg'),
+      susp: document.getElementById('an-suspicious'), guess: document.getElementById('an-guessing') };
+    const distEl  = document.getElementById('an-pattern-dist');
+    const switchEl = document.getElementById('an-top-switchers');
+    const guessedEl = document.getElementById('an-guessed-questions');
+    const suspEl = document.getElementById('an-suspicious-list');
+    [distEl, switchEl, guessedEl, suspEl].forEach(el => { if (el) el.innerHTML = '<div class="empty">جارٍ التحميل...</div>'; });
+
+    try {
+      const data = await apiDev('/dev/analytics');
+      const { totals, patternDistribution, suspiciousCount, guessingCount, topSwitchers, mostGuessedQuestions } = data;
+
+      statsEl.tests.textContent = totals?.testsTaken ?? '—';
+      statsEl.avg.textContent   = totals?.avgScore != null ? Math.round(totals.avgScore) + '%' : '—';
+      statsEl.susp.textContent  = suspiciousCount ?? '—';
+      statsEl.guess.textContent = guessingCount ?? '—';
+
+      const patternLabels = { fast: '⚡ سريع', normal: '⏱ طبيعي', slow: '🐢 بطيء' };
+      const patternColors = { fast: '#f59e0b', normal: '#4FA877', slow: '#3b82f6' };
+      if (!patternDistribution || !patternDistribution.length) {
+        distEl.innerHTML = '<div class="empty">لا توجد بيانات</div>';
+      } else {
+        const totalPattern = patternDistribution.reduce((s, p) => s + p.count, 0) || 1;
+        distEl.innerHTML = patternDistribution.map(p => {
+          const pct = Math.round(p.count / totalPattern * 100);
+          const color = patternColors[p.speed_pattern] || '#94a3b8';
+          return `<div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+              <span>${patternLabels[p.speed_pattern] || p.speed_pattern}</span>
+              <span style="color:var(--muted)">${p.count} (${pct}%)</span>
+            </div>
+            <div style="background:rgba(255,255,255,.08);border-radius:99px;height:6px;overflow:hidden;">
+              <div style="width:${pct}%;height:100%;background:${color};border-radius:99px"></div>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      if (!topSwitchers || !topSwitchers.length) {
+        switchEl.innerHTML = '<div class="empty">لا توجد بيانات</div>';
+      } else {
+        switchEl.innerHTML = topSwitchers.map(s => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px;">
+          <div><span style="font-weight:600;color:#e2e8f0">${s.student_name}</span> <span style="color:var(--muted);font-size:11px">🏫 ${s.school || '—'}</span></div>
+          <span style="background:#f59e0b22;color:#f59e0b;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700">${s.switching_count} تبديل</span>
+        </div>`).join('');
+      }
+
+      if (!mostGuessedQuestions || !mostGuessedQuestions.length) {
+        guessedEl.innerHTML = '<div class="empty">لا توجد بيانات</div>';
+      } else {
+        guessedEl.innerHTML = mostGuessedQuestions.map(q => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px;">
+          <span style="color:#e2e8f0">سؤال #${q.question_id}</span>
+          <span style="background:#3b82f622;color:#3b82f6;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700">${q.guess_count} تخمين</span>
+        </div>`).join('');
+      }
+    } catch (e) {
+      [distEl, switchEl, guessedEl].forEach(el => { if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل البيانات: ${e.message}</div>`; });
+    }
+
+    try {
+      const { flagged } = await apiDev('/dev/analytics/suspicious');
+      if (!flagged || !flagged.length) { suspEl.innerHTML = '<div class="empty">لا توجد حالات سلوك مشبوه</div>'; return; }
+      suspEl.innerHTML = flagged.map(f => {
+        const time = new Date(f.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+        return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">
+            <span style="font-weight:600;color:#e2e8f0">${f.student_name} <span style="color:var(--muted);font-size:11px">🏫 ${f.school || '—'}</span></span>
+            <span style="color:var(--muted);font-size:11px">${time}</span>
+          </div>
+          <div style="margin-top:4px;color:var(--muted);font-size:12px">الدرجة: ${f.score}% — نوع الاختبار: ${f.test_type === 'pre' ? 'قبلي' : 'بعدي'}</div>
+          <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
+            ${f.suspicious_reasons.map(r => `<span style="background:#ef444422;color:#ef4444;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700">🚨 ${r}</span>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      suspEl.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل السجلات المشبوهة: ${e.message}</div>`;
+    }
   },
 
   // ── Support Tab ────────────────────────────────────────────────────────

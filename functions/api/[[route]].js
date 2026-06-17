@@ -602,30 +602,9 @@ export async function onRequest({ request, env }) {
         ans       INTEGER NOT NULL,
         exp       TEXT NOT NULL DEFAULT ''
       )`).run(); } catch {}
-      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS behavior_logs (
-        id                     TEXT PRIMARY KEY,
-        test_result_id         TEXT NOT NULL,
-        student_id             TEXT NOT NULL,
-        school                 TEXT NOT NULL DEFAULT '',
-        exam_id                TEXT NOT NULL,
-        avg_time_per_question  REAL NOT NULL DEFAULT 0,
-        fastest_time           REAL NOT NULL DEFAULT 0,
-        slowest_time           REAL NOT NULL DEFAULT 0,
-        switching_count        INTEGER NOT NULL DEFAULT 0,
-        fast_answer_ratio      REAL NOT NULL DEFAULT 0,
-        speed_pattern          TEXT NOT NULL DEFAULT 'normal',
-        confidence_level       INTEGER NOT NULL DEFAULT 0,
-        guessing_pattern       INTEGER NOT NULL DEFAULT 0,
-        suspicious_flag        INTEGER NOT NULL DEFAULT 0,
-        suspicious_reasons     TEXT NOT NULL DEFAULT '[]',
-        attempt_summary        TEXT NOT NULL DEFAULT '[]',
-        created_at             TEXT NOT NULL
-      )`).run(); } catch {}
-      // Migration for behavior_logs tables created before attempt_summary existed
-      try { await DB.prepare(`ALTER TABLE behavior_logs ADD COLUMN attempt_summary TEXT NOT NULL DEFAULT '[]'`).run(); } catch {}
-      // attempt_logs (one row per question per attempt) is deprecated — per-question detail now
-      // lives inline as JSON in behavior_logs.attempt_summary. The old table is dropped once via
-      // POST /api/dev/migrate, not here, so this hot path never carries that extra round trip.
+      // Behavior analytics (speed/guessing/switching tracking) was removed entirely per product
+      // decision — only the official score (test_results) and direct cheat-flagging are kept.
+      // behavior_logs / attempt_logs are dropped once via POST /api/dev/migrate, not recreated here.
 
       // Seed the question bank once (idempotent — skipped once rows exist)
       const seedCheck = await DB.prepare('SELECT COUNT(*) as c FROM bio_questions').first();
@@ -667,29 +646,25 @@ export async function onRequest({ request, env }) {
         if (!bank.length) return err('بنك الأسئلة غير موجود', 500, CORS);
         const qmap = Object.fromEntries(bank.map(q => [q.qnum, q]));
 
-        // ── 1) CORE SCORING — correct/total only, nothing else may influence this ──
+        // ── CORE SCORING — correct/total only, nothing else may influence this ──
         const total = bank.length;
         let correct = 0;
         const breakdown = [];
         const storedAnswers = [];
-        const attemptSummary = []; // per-question detail, kept in-memory only — written once as JSON, never as separate rows
         const times = [];
         let switchingCount = 0;
-        let dkCount = 0;
 
         for (const q of bank) {
           const a = answers.find(x => Number(x.qnum) === q.qnum) || {};
           const selected = a.selected === 'dk' ? 'dk' : (Number.isInteger(Number(a.selected)) && a.selected !== null && a.selected !== undefined ? Number(a.selected) : null);
           const isCorrect = selected === q.ans;
           if (isCorrect) correct++;
-          if (selected === 'dk') dkCount++;
           const timeSpent = Math.max(0, Number(a.timeSpent) || 0);
           const switches = Math.max(0, Number(a.switches) || 0);
           times.push(timeSpent);
           switchingCount += switches;
           breakdown.push({ qnum: q.qnum, sec: q.sec, skill: q.skill, text: q.text, opts: [q.opt1, q.opt2, q.opt3, q.opt4], ans: q.ans, exp: q.exp, selected, correct: isCorrect });
           storedAnswers.push({ q: q.qnum, a: selected, corr: q.ans });
-          attemptSummary.push({ question_id: q.qnum, time_spent: timeSpent, is_correct: isCorrect ? 1 : 0, answer_changed_count: switches });
         }
         const finalScore = Math.round((correct / total) * 100);
 
@@ -700,32 +675,18 @@ export async function onRequest({ request, env }) {
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(rid, claims.sub, claims.name, claims.school || '', 'biology-g1', testType, finalScore, correct, total, JSON.stringify(storedAnswers), now).run();
 
-        // ── 2) BEHAVIOR ANALYTICS — stored separately, never feeds the score above ──
-        const avgTime    = times.reduce((s, t) => s + t, 0) / times.length;
+        // ── ANTI-CHEATING — checked in-memory only, never stored, never affects the score above ──
+        const avgTime     = times.reduce((s, t) => s + t, 0) / times.length;
         const fastestTime = Math.min(...times);
         const slowestTime = Math.max(...times);
-        const fastCount   = times.filter(t => t > 0 && t < 3000).length;
-        const fastRatio   = fastCount / total;
-        const speedPattern = avgTime < 5000 ? 'fast' : avgTime > 20000 ? 'slow' : 'normal';
-        const confidenceLevel = Math.max(0, Math.min(100, Math.round(
-          100 - (dkCount / total) * 40 - Math.min(switchingCount / total, 1) * 30 - fastRatio * 30
-        )));
-        const guessingPattern = fastRatio > 0.6 && finalScore < 40;
+        const fastRatio   = times.filter(t => t > 0 && t < 3000).length / total;
 
-        // ── 3) ANTI-CHEATING — pattern detection over behavior data only, never affects score ──
         const suspiciousReasons = [];
         if (avgTime > 0 && avgTime < 2000) suspiciousReasons.push('سرعة استجابة غير منطقية على كل الأسئلة');
         if (switchingCount > total * 2) suspiciousReasons.push('تغيير مفرط للإجابات');
         if (fastRatio > 0.8) suspiciousReasons.push('نمط تخمين سريع متكرر');
         if (slowestTime - fastestTime < 200 && total > 3) suspiciousReasons.push('توقيتات متطابقة بشكل غير طبيعي بين الأسئلة');
         const suspiciousFlag = suspiciousReasons.length > 0;
-
-        // Single INSERT carries the full per-question detail as JSON — no row-per-question writes.
-        const bid = crypto.randomUUID();
-        await DB.prepare(
-          `INSERT INTO behavior_logs (id, test_result_id, student_id, school, exam_id, avg_time_per_question, fastest_time, slowest_time, switching_count, fast_answer_ratio, speed_pattern, confidence_level, guessing_pattern, suspicious_flag, suspicious_reasons, attempt_summary, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(bid, rid, claims.sub, claims.school || '', `biology-g1:${testType}`, avgTime, fastestTime, slowestTime, switchingCount, fastRatio, speedPattern, confidenceLevel, guessingPattern ? 1 : 0, suspiciousFlag ? 1 : 0, JSON.stringify(suspiciousReasons), JSON.stringify(attemptSummary), now).run();
 
         if (suspiciousFlag) {
           try {
@@ -1034,40 +995,16 @@ export async function onRequest({ request, env }) {
       }
 
       // GET /api/dev/analytics — behavior analytics overview for the dashboard
+      // Behavior analytics (speed/guessing/switching) was removed — this now only reports the
+      // official score totals plus direct cheat-flag logs (no behavior_logs table anymore).
       if (sub === 'analytics' && method === 'GET') {
         const totals = await DB.prepare(
           `SELECT COUNT(*) as cnt, AVG(score) as avgScore FROM test_results WHERE subject = 'biology-g1'`
         ).first().catch(() => ({ cnt: 0, avgScore: null }));
 
-        const patternRows = await DB.prepare(
-          `SELECT speed_pattern, COUNT(*) as cnt FROM behavior_logs GROUP BY speed_pattern`
-        ).all().catch(() => ({ results: [] }));
-        const patternDistribution = { fast: 0, normal: 0, slow: 0 };
-        for (const r of (patternRows.results || [])) patternDistribution[r.speed_pattern] = r.cnt;
-
         const suspiciousCount = await DB.prepare(
-          `SELECT COUNT(*) as cnt FROM behavior_logs WHERE suspicious_flag = 1`
+          `SELECT COUNT(*) as cnt FROM logs WHERE category = 'suspicious'`
         ).first().catch(() => ({ cnt: 0 }));
-
-        const guessingCount = await DB.prepare(
-          `SELECT COUNT(*) as cnt FROM behavior_logs WHERE guessing_pattern = 1`
-        ).first().catch(() => ({ cnt: 0 }));
-
-        const topSwitchers = await DB.prepare(
-          `SELECT tr.student_name, tr.school, bl.switching_count, bl.exam_id, bl.created_at
-           FROM behavior_logs bl JOIN test_results tr ON tr.id = bl.test_result_id
-           ORDER BY bl.switching_count DESC LIMIT 10`
-        ).all().catch(() => ({ results: [] }));
-
-        // Per-question detail lives as JSON inside behavior_logs.attempt_summary (no attempt_logs table).
-        // json_each unpacks it server-side in SQLite so this stays a single aggregate query, not N rows fetched into JS.
-        const mostGuessedQuestions = await DB.prepare(
-          `SELECT json_extract(je.value, '$.question_id') as question_id, COUNT(*) as guess_count
-           FROM behavior_logs, json_each(behavior_logs.attempt_summary) je
-           WHERE json_extract(je.value, '$.time_spent') > 0 AND json_extract(je.value, '$.time_spent') < 3000
-             AND json_extract(je.value, '$.is_correct') = 0
-           GROUP BY question_id ORDER BY guess_count DESC LIMIT 10`
-        ).all().catch(() => ({ results: [] }));
 
         const errorLogs = await DB.prepare(
           `SELECT * FROM logs WHERE level = 'error' ORDER BY created_at DESC LIMIT 50`
@@ -1079,24 +1016,10 @@ export async function onRequest({ request, env }) {
 
         return ok({
           totals: { testsTaken: totals?.cnt || 0, avgScore: totals?.avgScore ? Math.round(totals.avgScore) : null },
-          patternDistribution,
           suspiciousCount: suspiciousCount?.cnt || 0,
-          guessingCount: guessingCount?.cnt || 0,
-          topSwitchers: topSwitchers.results || [],
-          mostGuessedQuestions: mostGuessedQuestions.results || [],
           errorLogs: errorLogs.results || [],
           suspiciousLogs: suspiciousLogs.results || [],
         }, 200, CORS);
-      }
-
-      // GET /api/dev/analytics/suspicious — full list of flagged attempts
-      if (sub === 'analytics' && subsub === 'suspicious' && method === 'GET') {
-        const { results } = await DB.prepare(
-          `SELECT tr.student_name, tr.school, tr.subject, tr.test_type, tr.score, bl.*
-           FROM behavior_logs bl JOIN test_results tr ON tr.id = bl.test_result_id
-           WHERE bl.suspicious_flag = 1 ORDER BY bl.created_at DESC LIMIT 200`
-        ).all();
-        return ok({ flagged: results.map(r => ({ ...r, suspicious_reasons: JSON.parse(r.suspicious_reasons || '[]') })) }, 200, CORS);
       }
 
       // POST /api/dev/migrate — create chat & ticket tables
@@ -1131,8 +1054,9 @@ export async function onRequest({ request, env }) {
         try { await DB.prepare('ALTER TABLE messages ADD COLUMN recipient_admin_id TEXT DEFAULT ""').run(); } catch {}
         // Add role column to admins if not exists
         try { await DB.prepare('ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT "admin"').run(); } catch {}
-        // One-time cleanup: attempt_logs was replaced by behavior_logs.attempt_summary (JSON)
+        // One-time cleanup: behavior analytics (speed/guessing/switching) removed entirely
         try { await DB.prepare('DROP TABLE IF EXISTS attempt_logs').run(); } catch {}
+        try { await DB.prepare('DROP TABLE IF EXISTS behavior_logs').run(); } catch {}
         return ok({ ok: true, tables: ['messages', 'tickets', 'ticket_replies'] }, 200, CORS);
       }
     }

@@ -384,6 +384,9 @@ const App = {
       if (status === 400 || msg.includes('غير صالح')) {
         _restoreBtn(); showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
       }
+      if (status === 401 || msg.includes('غير صحيحة')) {
+        _restoreBtn(); showAlert(errEl, 'بيانات الدخول غير صحيحة — تحقق من رقم السجل المدني.'); return;
+      }
       if (msg.includes('TIMEOUT')) {
         _restoreBtn(); showAlert(errEl, 'انتهت مهلة الاتصال — تحقق من الإنترنت وأعد المحاولة.'); return;
       }
@@ -458,6 +461,9 @@ const App = {
       }
       if (status === 400 || msg.includes('غير صالح')) {
         _restoreBtn(); showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
+      }
+      if (status === 401 || msg.includes('غير صحيحة')) {
+        _restoreBtn(); showAlert(errEl, 'بيانات الدخول غير صحيحة — تحقق من رقم السجل المدني.'); return;
       }
       if (msg.includes('TIMEOUT')) {
         _restoreBtn(); showAlert(errEl, 'انتهت مهلة الاتصال — تحقق من الإنترنت وأعد المحاولة.'); return;

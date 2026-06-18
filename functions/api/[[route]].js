@@ -287,13 +287,13 @@ export async function onRequest({ request, env }) {
           : await DB.prepare('SELECT id, code, name, school FROM students WHERE code = ?').bind(code).first();
         if (!student) {
           await recordFailedAttempt(DB, ip, 'student-login');
-          await logEvent(DB, { level: 'warn', category: 'login', message: `محاولة دخول طالب فاشلة: ${code}`, user_role: 'student', school: sc, ip });
+          await logEvent(DB, { level: 'warn', category: 'login', message: 'محاولة دخول طالب فاشلة — بيانات غير صحيحة أو الحساب غير موجود', user_role: 'student', school: sc, ip });
           return err('بيانات الدخول غير صحيحة', 401, CORS);
         }
         await clearFailedAttempts(DB, ip, 'student-login');
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const token = await jwtSign({ sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
-        await logEvent(DB, { level: 'success', category: 'login', message: `تسجيل دخول طالب: ${student.name}`, user_name: student.name, user_role: 'student', school: student.school || '', ip });
+        await logEvent(DB, { level: 'success', category: 'login', message: 'تسجيل دخول طالب', user_name: student.name, user_role: 'student', school: student.school || '', ip });
         return ok({ token, student: { id: student.id, name: student.name, school: student.school } }, 200, CORS);
       }
 
@@ -309,7 +309,7 @@ export async function onRequest({ request, env }) {
         const sc = bodySchool || school;
         if (!admin || (admin.school !== '*' && sc && admin.school !== sc)) {
           await recordFailedAttempt(DB, ip, 'admin-login');
-          await logEvent(DB, { level: 'warn', category: 'login', message: `محاولة دخول مشرف فاشلة: ${adminCode}`, user_role: 'admin', school: sc, ip });
+          await logEvent(DB, { level: 'warn', category: 'login', message: 'محاولة دخول مشرف فاشلة — بيانات غير صحيحة أو الحساب غير موجود', user_role: 'admin', school: sc, ip });
           return err('بيانات الدخول غير صحيحة', 401, CORS);
         }
         await clearFailedAttempts(DB, ip, 'admin-login');
@@ -318,7 +318,7 @@ export async function onRequest({ request, env }) {
         // Normalize role: only 'director' keeps its value, everything else becomes 'admin'
         const adminRole = admin.role === 'director' ? 'director' : 'admin';
         const token = await jwtSign({ sub: admin.id, role: adminRole, name: adminName, school: admin.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
-        await logEvent(DB, { level: 'success', category: 'login', message: `تسجيل دخول ${adminRole==='director'?'مدير':'مشرف'}: ${adminName}`, user_name: adminName, user_role: adminRole, school: admin.school || '', ip });
+        await logEvent(DB, { level: 'success', category: 'login', message: `تسجيل دخول ${adminRole==='director'?'مدير':'مشرف'}`, user_name: adminName, user_role: adminRole, school: admin.school || '', ip });
         return ok({ token, admin: { id: admin.id, name: adminName, school: admin.school, role: adminRole } }, 200, CORS);
       }
 
@@ -403,7 +403,7 @@ export async function onRequest({ request, env }) {
             updated = results.filter(r => r.changes).length;
           }
 
-          await logEvent(DB, { level: 'info', category: 'student', message: `استيراد طلاب جماعي: ${added} مضاف، ${updated} معدّل بواسطة ${postClaims.name || ''}`, user_name: postClaims.name || '', user_role: postClaims.role, school: school || '' });
+          await logEvent(DB, { level: 'info', category: 'student', message: `استيراد طلاب جماعي — ${added} مضاف، ${updated} معدّل`, user_name: postClaims.name || '', user_role: postClaims.role, school: school || '' });
           return ok({ added, updated, skipped: valid.length - added - updated, total: valid.length }, 200, CORS);
         }
 
@@ -419,13 +419,14 @@ export async function onRequest({ request, env }) {
             return err('السجل المدني مسجّل مسبقاً', 409, CORS);
           throw e;
         }
-        await logEvent(DB, { level: 'info', category: 'student', message: `إضافة طالب: ${name} بواسطة ${postClaims.name || ''}`, user_name: postClaims.name || '', user_role: postClaims.role, school: bodySchool || school || '' });
+        await logEvent(DB, { level: 'info', category: 'student', message: `إضافة طالب جديد: ${name}`, user_name: postClaims.name || '', user_role: postClaims.role, school: bodySchool || school || '' });
         return ok({ student: { id: sid, code, name, school: bodySchool || school, created_at: now } }, 201, CORS);
       }
 
       if (method === 'DELETE' && sub) {
         const claims = await verifyToken(request, env);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const delTarget = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(sub).first();
         if (claims.role === 'dev') {
           await DB.prepare('DELETE FROM students WHERE id = ?').bind(sub).run();
         } else {
@@ -434,7 +435,7 @@ export async function onRequest({ request, env }) {
           if (!effectiveSchool) return err('المدرسة مطلوبة', 400, CORS);
           await DB.prepare('DELETE FROM students WHERE id = ? AND school = ?').bind(sub, effectiveSchool).run();
         }
-        await logEvent(DB, { level: 'warn', category: 'student', message: `حذف طالب (${sub}) بواسطة ${claims.name || ''}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || school || '' });
+        await logEvent(DB, { level: 'warn', category: 'student', message: `حذف طالب: ${delTarget?.name || sub}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || delTarget?.school || school || '' });
         return ok({ ok: true }, 200, CORS);
       }
     }
@@ -1374,7 +1375,7 @@ export async function onRequest({ request, env }) {
         await DB.prepare(
           'INSERT INTO messages (id, student_id, student_name, school, sender_type, body, is_read, recipient_admin_id, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)'
         ).bind(id, studentId, studentName, effectiveSchool, senderType, msgBody, recipientAdminId || '', now).run();
-        await logEvent(DB, { level: 'info', category: 'message', message: `رسالة جديدة من ${senderType === 'admin' ? 'المشرف' : 'الطالب'}: ${studentName}`, user_name: senderType === 'admin' ? (msgClaims?.name || '') : studentName, user_role: msgClaims?.role || 'dev', school: effectiveSchool });
+        await logEvent(DB, { level: 'info', category: 'message', message: senderType === 'admin' ? `رد المشرف على الطالب: ${studentName}` : `رسالة جديدة من الطالب: ${studentName}`, user_name: senderType === 'admin' ? (msgClaims?.name || '') : studentName, user_role: msgClaims?.role || 'dev', school: effectiveSchool });
         return ok({ message: { id, student_id: studentId, student_name: studentName, school: effectiveSchool, sender_type: senderType, body: msgBody, is_read: 0, recipient_admin_id: recipientAdminId || '', created_at: now } }, 201, CORS);
       }
 
@@ -1574,7 +1575,7 @@ export async function onRequest({ request, env }) {
         const now = new Date().toISOString();
         await DB.prepare('INSERT INTO broadcasts (id, school, admin_id, admin_name, message, created_at) VALUES (?, ?, ?, ?, ?, ?)')
           .bind(bid, broadcastSchool, claims.sub || '', claims.name || 'المشرف', message.trim(), now).run();
-        await logEvent(DB, { level: 'info', category: 'broadcast', message: `رسالة جماعية جديدة بواسطة ${claims.name || 'المشرف'}`, user_name: claims.name || '', user_role: claims.role, school: broadcastSchool });
+        await logEvent(DB, { level: 'info', category: 'broadcast', message: `رسالة جماعية جديدة: ${message.trim().slice(0, 80)}`, user_name: claims.name || '', user_role: claims.role, school: broadcastSchool });
         return ok({ broadcast: { id: bid, admin_name: claims.name, message: message.trim(), created_at: now } }, 201, CORS);
       }
 
@@ -1621,7 +1622,7 @@ export async function onRequest({ request, env }) {
           const res = await DB.prepare('DELETE FROM broadcasts WHERE id = ? AND school = ?').bind(sub, claims.school).run();
           if (!res.meta?.changes) return err('غير موجود أو غير مصرح', 404, CORS);
         }
-        await logEvent(DB, { level: 'warn', category: 'broadcast', message: `حذف رسالة جماعية بواسطة ${claims.name || ''}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
+        await logEvent(DB, { level: 'warn', category: 'broadcast', message: 'حذف رسالة جماعية', user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
         return ok({ ok: true }, 200, CORS);
       }
     }

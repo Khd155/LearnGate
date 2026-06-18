@@ -1,7 +1,11 @@
 name = "learngate"
 pages_build_output_dir = "./public/khaldiya"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "learngate-db"
-database_id   = "b7fd1279-91c6-45ac-a762-a9eb5e840d42"
+[vars]
+PG_HOST     = "130.94.59.137"
+PG_PORT     = "40015"
+PG_DATABASE = "learngate"
+PG_USERNAME = "admin"
+# PG_PASSWORD must NOT be set here — configure it as a secret instead:
+#   wrangler pages secret put PG_PASSWORD
+# (or via the Cloudflare dashboard: Pages project -> Settings -> Environment variables -> "Secret")

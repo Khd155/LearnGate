@@ -1125,18 +1125,83 @@ const Dev = {
     const el = document.getElementById('sp-content');
     el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
     try {
-      const { counts } = await fetch('/api/messages/unread').then(r => r.json());
+      const { counts } = await fetch('/api/messages/unread', { headers: { 'X-Dev-Key': devKey } }).then(r => r.json());
       if (!counts || !counts.length) { el.innerHTML = '<div class="empty">لا توجد رسائل غير مقروءة</div>'; return; }
       el.innerHTML = counts.map(c => `
-        <div class="msg-row">
-          <div class="msg-avatar">${(c.student_name || '؟').charAt(0)}</div>
-          <div class="msg-info">
-            <div class="msg-name">${c.student_name}</div>
-            <div class="msg-school">🏫 ${c.school || '—'}</div>
+        <div class="ticket-item" id="mi-${c.student_id}" onclick="Dev.toggleMsgThread('${c.student_id}','${(c.student_name||'').replace(/'/g, "\\'")}','${(c.school||'').replace(/'/g, "\\'")}')">
+          <div class="ticket-top">
+            <div class="msg-row" style="flex:1;border:none;padding:0;margin-bottom:0;background:transparent">
+              <div class="msg-avatar">${(c.student_name || '؟').charAt(0)}</div>
+              <div class="msg-info">
+                <div class="msg-name">${c.student_name}</div>
+                <div class="msg-school">🏫 ${c.school || '—'}</div>
+              </div>
+            </div>
+            <span class="msg-cnt">${c.cnt} رسالة</span>
           </div>
-          <span class="msg-cnt">${c.cnt} رسالة</span>
+          <div class="ticket-body" id="mb-${c.student_id}">
+            <div class="thread-wrap" id="mw-${c.student_id}"><div class="empty" style="padding:16px">جارٍ التحميل...</div></div>
+            <div class="reply-row">
+              <input type="text" id="mr-${c.student_id}" class="reply-input" placeholder="رد للطالب..." onkeydown="if(event.key==='Enter'){event.stopPropagation();Dev.replyMsg('${c.student_id}')}" onclick="event.stopPropagation()">
+              <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();Dev.replyMsg('${c.student_id}')">إرسال</button>
+            </div>
+          </div>
         </div>`).join('');
     } catch { el.innerHTML = '<div class="empty" style="color:var(--danger)">تعذّر التحميل</div>'; }
+  },
+
+  async toggleMsgThread(studentId, studentName, school) {
+    const el = document.getElementById('mi-' + studentId);
+    if (el.classList.contains('expanded')) { el.classList.remove('expanded'); return; }
+    document.querySelectorAll('.ticket-item.expanded').forEach(e => e.classList.remove('expanded'));
+    el.classList.add('expanded');
+    el.dataset.name = studentName || '';
+    el.dataset.school = school || '';
+    await Dev.loadMsgThread(studentId);
+    try {
+      await fetch('/api/messages/read', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
+        body: JSON.stringify({ studentId, readerType: 'admin' }),
+      });
+    } catch {}
+  },
+
+  async loadMsgThread(studentId) {
+    const el = document.getElementById('mw-' + studentId);
+    try {
+      const { messages } = await fetch(`/api/messages?studentId=${studentId}`, { headers: { 'X-Dev-Key': devKey } }).then(r => r.json());
+      if (!messages || !messages.length) { el.innerHTML = '<div class="empty" style="padding:12px">لا توجد رسائل بعد</div>'; return; }
+      const itemEl = document.getElementById('mi-' + studentId);
+      const studentName = itemEl?.dataset.name || '';
+      el.innerHTML = messages.map(m => {
+        const time = new Date(m.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+        const who  = m.sender_type === 'student' ? (studentName || '👤 الطالب') : '🔧 الدعم الفني';
+        return `<div class="thread-msg ${m.sender_type}">
+          <div class="thread-who">${who}</div>
+          ${m.body}
+          <div class="thread-time">${time}</div>
+        </div>`;
+      }).join('');
+      el.scrollTop = el.scrollHeight;
+    } catch { el.innerHTML = '<div class="empty" style="padding:12px;color:var(--danger)">تعذّر التحميل</div>'; }
+  },
+
+  async replyMsg(studentId) {
+    const input = document.getElementById('mr-' + studentId);
+    const body = input.value.trim();
+    if (!body) return;
+    const itemEl = document.getElementById('mi-' + studentId);
+    const school = itemEl?.dataset.school || '';
+    input.value = '';
+    try {
+      await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
+        body: JSON.stringify({ targetStudentId: studentId, body, school }),
+      });
+      Dev.loadMsgThread(studentId);
+    } catch { showToast('تعذّر الإرسال', true); input.value = body; }
   },
 };
 

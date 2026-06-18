@@ -1238,13 +1238,14 @@ export async function onRequest({ request, env }) {
         recipient_admin_id TEXT DEFAULT '',
         created_at TEXT NOT NULL
       )`).run(); } catch {}
-      const msgClaims = await verifyToken(request, env);
-      if (!msgClaims) return err('غير مصرح', 401, CORS);
-      const isPrivileged = ['admin','director','dev','support'].includes(msgClaims.role);
+      const isDevKeyMsg = authDev(request, env);
+      const msgClaims = isDevKeyMsg ? null : await verifyToken(request, env);
+      if (!isDevKeyMsg && !msgClaims) return err('غير مصرح', 401, CORS);
+      const isPrivileged = isDevKeyMsg || ['admin','director','dev','support'].includes(msgClaims.role);
 
       // GET /api/messages/unread-student — student checks unread messages from admin
       if (sub === 'unread-student' && method === 'GET') {
-        if (msgClaims.role !== 'student') return err('غير مسموح', 403, CORS);
+        if (msgClaims?.role !== 'student') return err('غير مسموح', 403, CORS);
         const studentId = msgClaims.sub;
         const row = await DB.prepare(
           "SELECT COUNT(*) as count FROM messages WHERE student_id=? AND sender_type='admin' AND is_read=0"
@@ -1324,9 +1325,9 @@ export async function onRequest({ request, env }) {
         const studentId = url.searchParams.get('studentId');
         const adminId   = url.searchParams.get('adminId') || '';
         if (!studentId) return err('معرّف الطالب مطلوب', 400, CORS);
-        if (msgClaims.role === 'student' && msgClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
+        if (msgClaims?.role === 'student' && msgClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
         // Admins verify the student belongs to their school
-        if (isPrivileged && msgClaims.role !== 'dev' && msgClaims.school && msgClaims.school !== '*') {
+        if (isPrivileged && msgClaims?.role !== 'dev' && msgClaims?.school && msgClaims.school !== '*') {
           const msgStudent = await DB.prepare('SELECT school FROM students WHERE id = ?').bind(studentId).first();
           if (!msgStudent || msgStudent.school !== msgClaims.school) return err('غير مسموح', 403, CORS);
         }
@@ -1351,7 +1352,7 @@ export async function onRequest({ request, env }) {
         if (isPrivileged) {
           if (!targetStudentId) return err('معرّف الطالب مطلوب', 400, CORS);
           // Verify the target student belongs to this admin's school
-          if (msgClaims.role !== 'dev' && msgClaims.school && msgClaims.school !== '*') {
+          if (msgClaims?.role !== 'dev' && msgClaims?.school && msgClaims.school !== '*') {
             const targetSt = await DB.prepare('SELECT school, name FROM students WHERE id = ?').bind(targetStudentId).first();
             if (!targetSt || targetSt.school !== msgClaims.school) return err('غير مسموح', 403, CORS);
             studentName = targetSt.name || '';
@@ -1367,22 +1368,22 @@ export async function onRequest({ request, env }) {
           senderType  = 'student';
         }
         // School always from JWT for known roles; never from user body
-        const effectiveSchool = (msgClaims.school && msgClaims.school !== '*') ? msgClaims.school : (school || bodySchool || '');
+        const effectiveSchool = (msgClaims?.school && msgClaims.school !== '*') ? msgClaims.school : (school || bodySchool || '');
         const id  = crypto.randomUUID();
         const now = new Date().toISOString();
         await DB.prepare(
           'INSERT INTO messages (id, student_id, student_name, school, sender_type, body, is_read, recipient_admin_id, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)'
         ).bind(id, studentId, studentName, effectiveSchool, senderType, msgBody, recipientAdminId || '', now).run();
-        await logEvent(DB, { level: 'info', category: 'message', message: `رسالة جديدة من ${senderType === 'admin' ? 'المشرف' : 'الطالب'}: ${studentName}`, user_name: senderType === 'admin' ? (msgClaims.name || '') : studentName, user_role: msgClaims.role, school: effectiveSchool });
+        await logEvent(DB, { level: 'info', category: 'message', message: `رسالة جديدة من ${senderType === 'admin' ? 'المشرف' : 'الطالب'}: ${studentName}`, user_name: senderType === 'admin' ? (msgClaims?.name || '') : studentName, user_role: msgClaims?.role || 'dev', school: effectiveSchool });
         return ok({ message: { id, student_id: studentId, student_name: studentName, school: effectiveSchool, sender_type: senderType, body: msgBody, is_read: 0, recipient_admin_id: recipientAdminId || '', created_at: now } }, 201, CORS);
       }
 
       // PATCH /api/messages/read
       if (sub === 'read' && method === 'PATCH') {
         const { studentId, readerType } = await request.json();
-        if (msgClaims.role === 'student' && msgClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
+        if (msgClaims?.role === 'student' && msgClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
         // Admins can only mark messages read for students in their own school
-        if (isPrivileged && msgClaims.role !== 'dev' && msgClaims.school && msgClaims.school !== '*') {
+        if (isPrivileged && msgClaims?.role !== 'dev' && msgClaims?.school && msgClaims.school !== '*') {
           const readSt = await DB.prepare('SELECT school FROM students WHERE id = ?').bind(studentId).first();
           if (!readSt || readSt.school !== msgClaims.school) return err('غير مسموح', 403, CORS);
         }

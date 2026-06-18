@@ -363,6 +363,8 @@ const App = {
     const _btn = document.getElementById('sl-submit-btn');
     const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.innerHTML = 'دخول ←'; } };
     if (_btn) { _btn.disabled = true; _btn.innerHTML = '<span class="btn-spinner"></span> جارٍ التحقق…'; }
+    // Safety net: if something hangs without ever resolving/rejecting below, don't leave the button stuck forever.
+    setTimeout(_restoreBtn, 8000);
     let token, student;
     try {
       const data = await apiFetch('/auth/student-login', {
@@ -438,6 +440,8 @@ const App = {
     const _btn = document.getElementById('al-submit-btn');
     const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.innerHTML = 'دخول ←'; } };
     if (_btn) { _btn.disabled = true; _btn.innerHTML = '<span class="btn-spinner"></span> جارٍ التحقق…'; }
+    // Safety net: if something hangs without ever resolving/rejecting below, don't leave the button stuck forever.
+    setTimeout(_restoreBtn, 8000);
     let token, admin;
     try {
       const data = await apiFetch('/auth/admin-login', {
@@ -3885,9 +3889,27 @@ function _autoLogin(role, code, token, school) {
   // setTimeout(0) lets the browser paint screen-loading before starting the API call
   setTimeout(() => {
     const login = role === 'student' ? App.studentLogin() : App.adminLogin();
-    login.catch(() => { sessionStorage.removeItem('lg_session'); localStorage.removeItem('lg_xsession'); show('screen-landing'); document.documentElement.style.visibility = ''; });
+    const _bail = () => { sessionStorage.removeItem('lg_session'); localStorage.removeItem('lg_xsession'); show('screen-landing'); document.documentElement.style.visibility = ''; };
+    login
+      .then(() => {
+        // studentLogin/adminLogin swallow their own errors (no throw) and just leave the
+        // button restored without switching screens — if we're still stuck on the loading
+        // screen here, the login actually failed, so fall back instead of leaving it stuck.
+        if (document.getElementById('screen-loading')?.classList.contains('active')) _bail();
+      })
+      .catch(_bail);
   }, 0);
 }
+
+// Browser back/forward (bfcache) restores the page exactly as it was left, including a
+// submit button stuck disabled with the loading spinner from a previous attempt.
+window.addEventListener('pageshow', (e) => {
+  if (!e.persisted) return;
+  [['sl-submit-btn', 'دخول ←'], ['al-submit-btn', 'دخول ←']].forEach(([id, label]) => {
+    const btn = document.getElementById(id);
+    if (btn) { btn.disabled = false; btn.innerHTML = label; }
+  });
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   ActivityLog.info(`🌐 تحميل الصفحة — ${new Date().toLocaleString('ar-SA')} — ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);

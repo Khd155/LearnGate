@@ -3342,24 +3342,31 @@ const App = {
     }
   },
 
-  renderActivityLog() {
+  async renderActivityLog() {
     const el = document.getElementById('sa-log-list');
     if (!el) return;
-    const entries = ActivityLog.entries();
-    if (!entries.length) {
-      el.innerHTML = '<span style="color:#64748b;">لا توجد سجلات في هذه الجلسة بعد.</span>';
-      return;
-    }
     const active = el.dataset.filter || 'all';
-    const filtered = active === 'all' ? entries : entries.filter(e => e.type === active);
-    const colorMap = { success:'#4ade80', info:'#93c5fd', warn:'#fbbf24', error:'#f87171' };
-    el.innerHTML = filtered.map(e =>
-      `<div style="border-bottom:1px solid #1e293b;padding:4px 0;display:flex;gap:10px;">
-        <span style="color:#475569;flex-shrink:0;">${e.ts}</span>
-        <span style="color:${colorMap[e.type]||'#e2e8f0'};flex-shrink:0;font-size:11px;text-transform:uppercase;">[${e.type}]</span>
-        <span style="word-break:break-all;">${escapeHtml(e.msg)}</span>
-      </div>`
-    ).join('');
+    el.innerHTML = '<span style="color:#64748b;">جاري التحميل...</span>';
+    try {
+      const qs = active === 'all' ? '' : `?level=${encodeURIComponent(active)}`;
+      const { logs } = await apiFetch(`/dev/logs${qs}`);
+      if (!logs || !logs.length) {
+        el.innerHTML = '<span style="color:#64748b;">لا توجد سجلات بعد.</span>';
+      } else {
+        const colorMap = { success:'#4ade80', info:'#93c5fd', warn:'#fbbf24', error:'#f87171' };
+        el.innerHTML = logs.map(l => {
+          const ts = new Date(l.created_at).toLocaleString('ar-SA');
+          return `<div style="border-bottom:1px solid #1e293b;padding:4px 0;display:flex;gap:10px;flex-wrap:wrap;">
+            <span style="color:#475569;flex-shrink:0;">${ts}</span>
+            <span style="color:${colorMap[l.level]||'#e2e8f0'};flex-shrink:0;font-size:11px;text-transform:uppercase;">[${l.level}]</span>
+            <span style="color:#64748b;flex-shrink:0;">${escapeHtml(l.category||'')}</span>
+            <span style="word-break:break-all;">${escapeHtml(l.message)}${l.user_name ? ' — ' + escapeHtml(l.user_name) : ''}</span>
+          </div>`;
+        }).join('');
+      }
+    } catch {
+      el.innerHTML = '<span style="color:#f87171;">تعذّر تحميل السجل.</span>';
+    }
     el.dataset.filter = active;
   },
 

@@ -835,6 +835,32 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 201, CORS);
       }
 
+      // GET /api/dev/logs is also reachable with a 'dev'-role JWT (issued via POST /api/auth/dev) —
+      // the support-admin panel only ever holds that JWT, never the raw X-Dev-Key.
+      if (sub === 'logs' && method === 'GET') {
+        const isDevKey = authDev(request, env);
+        if (!isDevKey) {
+          const logClaims = await verifyToken(request, env);
+          if (!logClaims || logClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
+        try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category)`).run(); } catch {}
+        try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)`).run(); } catch {}
+        const level    = url.searchParams.get('level') || '';
+        const category = url.searchParams.get('category') || '';
+        const limitN   = Math.min(parseInt(url.searchParams.get('limit') || '200', 10), 500);
+        let q = 'SELECT * FROM logs';
+        const params = [];
+        const conds = [];
+        if (level)    { conds.push('level = ?');    params.push(level); }
+        if (category) { conds.push('category = ?'); params.push(category); }
+        if (conds.length) q += ' WHERE ' + conds.join(' AND ');
+        q += ' ORDER BY created_at DESC LIMIT ?';
+        params.push(limitN);
+        const { results } = await DB.prepare(q).bind(...params).all();
+        return ok({ logs: results }, 200, CORS);
+      }
+
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
 
       // GET /api/dev/stats — stats per school
@@ -1002,26 +1028,6 @@ export async function onRequest({ request, env }) {
       if (sub === 'questions' && method === 'DELETE') {
         await DB.prepare('DELETE FROM questions').run();
         return ok({ ok: true }, 200, CORS);
-      }
-
-      // GET /api/dev/logs — get activity logs
-      if (sub === 'logs' && method === 'GET') {
-        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
-        try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category)`).run(); } catch {}
-        try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)`).run(); } catch {}
-        const level    = url.searchParams.get('level') || '';
-        const category = url.searchParams.get('category') || '';
-        const limitN   = Math.min(parseInt(url.searchParams.get('limit') || '200', 10), 500);
-        let q = 'SELECT * FROM logs';
-        const params = [];
-        const conds = [];
-        if (level)    { conds.push('level = ?');    params.push(level); }
-        if (category) { conds.push('category = ?'); params.push(category); }
-        if (conds.length) q += ' WHERE ' + conds.join(' AND ');
-        q += ' ORDER BY created_at DESC LIMIT ?';
-        params.push(limitN);
-        const { results } = await DB.prepare(q).bind(...params).all();
-        return ok({ logs: results }, 200, CORS);
       }
 
       // DELETE /api/dev/logs — clear all logs

@@ -1,0 +1,75 @@
+// Standalone Node.js server for hosting on platforms that run a real process
+// listening on a port (e.g. CranL/Railpack), as opposed to Cloudflare Pages'
+// static + edge-Functions model. Reuses the exact same /api logic — only the
+// request/response transport and the env source (process.env) differ.
+import express from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { onRequest } from './functions/api/[[route]].js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PUBLIC_DIR = path.join(__dirname, 'public', 'khaldiya');
+
+const SECURITY_HEADERS = {
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';",
+};
+
+// Mirrors public/khaldiya/_redirects (Cloudflare Pages SPA-style rewrites)
+const SPA_REWRITES = ['/capabilities', '/admin', '/history', '/chat', '/login'];
+
+async function readRawBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
+
+function nodeHeadersToFetchHeaders(nodeHeaders) {
+  const headers = new Headers();
+  for (const [k, v] of Object.entries(nodeHeaders)) {
+    if (v == null) continue;
+    headers.set(k, Array.isArray(v) ? v.join(', ') : String(v));
+  }
+  return headers;
+}
+
+const app = express();
+app.disable('x-powered-by');
+
+app.use((req, res, next) => {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
+  next();
+});
+
+app.use('/api', async (req, res) => {
+  try {
+    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    const headers = nodeHeadersToFetchHeaders(req.headers);
+    const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await readRawBody(req);
+    const request = new Request(url, { method: req.method, headers, body });
+    const response = await onRequest({ request, env: process.env });
+    res.status(response.status);
+    for (const [k, v] of response.headers) res.setHeader(k, v);
+    res.end(Buffer.from(await response.arrayBuffer()));
+  } catch (e) {
+    console.error('[server.js API error]', e);
+    res.status(500).json({ error: 'خطأ في الخادم' });
+  }
+});
+
+for (const route of SPA_REWRITES) {
+  app.get([route, `${route}/*`], (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
+}
+
+app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
+
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(PUBLIC_DIR, '404.html'));
+});
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`LearnGate server listening on port ${port}`));

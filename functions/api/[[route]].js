@@ -2,7 +2,8 @@
 // PostgreSQL (via postgres.js) | Dev key env var: DEV_KEY
 import { getDB } from '../_lib/db.js';
 
-const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'https://learngate.pages.dev', 'http://localhost:8788'];
+const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
+const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'https://learngate.pages.dev', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
 function getCORS(request) {
   const origin = request.headers.get('Origin') || '';
   const allow = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];

@@ -2,7 +2,11 @@
   "name": "learngate",
   "private": true,
   "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
+    "express": "^4.21.2",
     "postgres": "^3.4.5"
   }
 }

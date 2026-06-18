@@ -39,6 +39,11 @@ function nodeHeadersToFetchHeaders(nodeHeaders) {
 
 const app = express();
 app.disable('x-powered-by');
+// CranL terminates TLS at a proxy and forwards plain HTTP; without this,
+// req.protocol is always 'http', so the constructed Request URL's origin
+// mismatches the browser's "https://..." Origin header and every request
+// gets rejected by the same-origin check in functions/api/[[route]].js.
+app.set('trust proxy', true);
 
 app.use((req, res, next) => {
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);

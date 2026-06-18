@@ -948,7 +948,8 @@ const Dev = {
 
   async clearLogs() {
     if (!confirm('مسح جميع السجلات نهائياً؟')) return;
-    await apiDev('/dev/logs', { method: 'DELETE' });
+    if (!confirm('تأكيد أخير — هذا الإجراء لا يمكن التراجع عنه. متأكد؟')) return;
+    await apiDev('/dev/logs?confirm=ERASE_ALL_LOGS', { method: 'DELETE' });
     showToast('تم مسح السجلات ✅');
     Dev.loadLogs();
   },

@@ -1031,8 +1031,13 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
-      // DELETE /api/dev/logs — clear all logs
+      // DELETE /api/dev/logs?confirm=ERASE_ALL_LOGS — clear all logs
+      // Requires an explicit confirm param so a bare DELETE call (e.g. from a script
+      // or curl during testing) can't silently wipe the whole history by mistake.
       if (sub === 'logs' && method === 'DELETE') {
+        if (url.searchParams.get('confirm') !== 'ERASE_ALL_LOGS') {
+          return err('يتطلب تأكيد صريح لمسح كل السجلات', 400, CORS);
+        }
         try { await DB.prepare('DELETE FROM logs').run(); } catch {}
         return ok({ ok: true }, 200, CORS);
       }

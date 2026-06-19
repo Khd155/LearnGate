@@ -1014,21 +1014,6 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
-
-      // POST /api/dev/resync-message-names — one-off fix: resync messages.student_name/school
-      // from the canonical students table for a given student_id (fixes legacy mojibake
-      // in the denormalized columns without touching the source-of-truth student record).
-      if (sub === 'resync-message-names' && method === 'POST') {
-        const body = await request.json().catch(() => ({}));
-        const studentId = body.studentId;
-        if (!studentId) return err('studentId مطلوب', 400, CORS);
-        const student = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(studentId).first();
-        if (!student) return err('الطالب غير موجود', 404, CORS);
-        const res = await DB.prepare('UPDATE messages SET student_name = ?, school = ? WHERE student_id = ?')
-          .bind(student.name, student.school, studentId).run();
-        return ok({ ok: true, updated: res.meta?.changes ?? null, name: student.name, school: student.school }, 200, CORS);
-      }
-
       // POST /api/dev/seed-questions — upsert hardcoded 50 questions
       if (sub === 'seed-questions' && method === 'POST') {
         const SEED = SEED_QUESTIONS;

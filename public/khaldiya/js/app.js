@@ -3173,6 +3173,72 @@ const App = {
     }
   },
 
+  // ── Guest Support (contact support without an account) ────────────────────
+  _guestCat: '',
+
+  openGuestSupport() {
+    document.getElementById('gs-name').value   = '';
+    document.getElementById('gs-phone').value  = '';
+    document.getElementById('gs-school').value = '';
+    document.getElementById('gs-body').value   = '';
+    document.getElementById('gs-err1').textContent = '';
+    document.getElementById('gs-err2').textContent = '';
+    document.getElementById('gs-step1').style.display = '';
+    document.getElementById('gs-step2').style.display = 'none';
+    App._guestCat = '';
+    document.querySelectorAll('#gs-cat-grid .cat-card').forEach(b => b.classList.remove('selected'));
+    document.getElementById('guest-support-modal').classList.add('open');
+  },
+
+  closeGuestSupportModal() { document.getElementById('guest-support-modal').classList.remove('open'); },
+
+  guestSupportNext() {
+    const errEl = document.getElementById('gs-err1');
+    if (!document.getElementById('gs-name').value.trim())   { showAlert(errEl, 'أدخل اسمك الكامل'); return; }
+    if (!document.getElementById('gs-phone').value.trim())  { showAlert(errEl, 'أدخل رقم جوالك'); return; }
+    if (!document.getElementById('gs-school').value.trim()) { showAlert(errEl, 'أدخل اسم مدرستك'); return; }
+    document.getElementById('gs-step1').style.display = 'none';
+    document.getElementById('gs-step2').style.display = '';
+  },
+
+  guestSupportBack() {
+    document.getElementById('gs-step2').style.display = 'none';
+    document.getElementById('gs-step1').style.display = '';
+  },
+
+  _selectGuestCat(btn) {
+    document.querySelectorAll('#gs-cat-grid .cat-card').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    App._guestCat = btn.dataset.cat || '';
+  },
+
+  async submitGuestSupport() {
+    const errEl = document.getElementById('gs-err2');
+    const body  = document.getElementById('gs-body').value.trim();
+    if (!App._guestCat) { showAlert(errEl, 'اختر نوع المشكلة أولاً'); return; }
+    if (!body)          { showAlert(errEl, 'اشرح مشكلتك بالتفصيل'); return; }
+    const btn = document.querySelector('#guest-support-modal #gs-step2 .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ جارٍ الإرسال...'; }
+    try {
+      const { ticket } = await apiFetch('/tickets/guest', {
+        method: 'POST',
+        body: JSON.stringify({
+          name:   document.getElementById('gs-name').value.trim(),
+          phone:  document.getElementById('gs-phone').value.trim(),
+          school: document.getElementById('gs-school').value.trim(),
+          category: App._guestCat,
+          body,
+        }),
+      });
+      App.closeGuestSupportModal();
+      showToast(`✅ تم إرسال طلبك (${ticket?.ticket_num || ''}) — سنتواصل معك على رقم جوالك قريباً`);
+    } catch (e) {
+      showAlert(errEl, e.message || 'فشل الإرسال، حاول مرة أخرى');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'إرسال الطلب ←'; }
+    }
+  },
+
   // ── Ticket Detail (shared student & admin) ────────────────────────────────
   _currentTicketId: null,
   _ticketSenderType: 'student',
@@ -3196,9 +3262,11 @@ const App = {
       const prioIcon = ticket.priority === 'عالية' ? '🚨' : ticket.priority === 'منخفضة' ? '🟢' : '🟡';
       document.getElementById('td-meta-chips').innerHTML = `
         ${ticket.ticket_num ? `<span class="ticket-num-badge">${escapeHtml(ticket.ticket_num)}</span>` : ''}
+        ${String(ticket.student_id || '').startsWith('guest-') ? '<span class="cat-chip" style="background:#fef3c7;color:#92400e;">👤 بدون حساب</span>' : ''}
         ${ticket.category   ? `<span class="cat-chip">${escapeHtml(ticket.category)}</span>` : ''}
         ${ticket.priority   ? `<span style="font-size:11px;">${prioIcon} ${escapeHtml(ticket.priority)}</span>` : ''}
-        <span style="font-size:11px;color:var(--muted);">${escapeHtml(ticket.student_name)} · ${date}</span>`;
+        ${ticket.phone      ? `<span style="font-size:11px;">📱 ${escapeHtml(ticket.phone)}</span>` : ''}
+        <span style="font-size:11px;color:var(--muted);">${escapeHtml(ticket.student_name)} · ${escapeHtml(ticket.school || '')} · ${date}</span>`;
 
       // Chat bubbles
       const thread = document.getElementById('td-thread');
@@ -3426,6 +3494,7 @@ const App = {
         <div class="ticket-card-top">
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
             <span class="ticket-num-badge">${escapeHtml(t.ticket_num || '—')}</span>
+            ${String(t.student_id || '').startsWith('guest-') ? '<span class="cat-chip" style="background:#fef3c7;color:#92400e;">👤 بدون حساب</span>' : ''}
             <div class="ticket-subject">${escapeHtml(t.subject)}</div>
           </div>
           <span class="${badgeCls}" style="flex-shrink:0;">${badgeTxt}</span>
@@ -3433,6 +3502,7 @@ const App = {
         <div class="ticket-card-footer">
           ${t.category ? `<span class="cat-chip">${escapeHtml(t.category)}</span>` : ''}
           ${t.priority ? `<span style="font-size:11px;">${prioIcon}${escapeHtml(t.priority)}</span>` : ''}
+          ${t.phone ? `<span style="font-size:11px;">📱 ${escapeHtml(t.phone)}</span>` : ''}
           <span style="font-size:11px;color:var(--muted);margin-right:auto;">${escapeHtml(t.student_name)} · ${escapeHtml(t.school || '')} · ${date}</span>
         </div>
       </div>`;

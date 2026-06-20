@@ -554,6 +554,10 @@
         <span>تذكرني</span>
       </label>
       <button id="sl-submit-btn" class="btn btn-primary" type="submit">دخول ←</button>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:16px;text-align:center;">
+        تواجه مشكلة ولا تستطيع الدخول؟
+        <a href="#" onclick="App.openGuestSupport();return false;" style="color:var(--primary);font-weight:700;">تواصل مع الدعم الفني</a>
+      </p>
     </form>
   </div>
 </div>
@@ -599,6 +603,10 @@
       <button id="al-submit-btn" class="btn btn-primary" type="submit">دخول ←</button>
       <p style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
         يتم الدخول بالسجل المدني المسجَّل لدى الإدارة.
+      </p>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:10px;text-align:center;">
+        تواجه مشكلة ولا تستطيع الدخول؟
+        <a href="#" onclick="App.openGuestSupport();return false;" style="color:var(--primary);font-weight:700;">تواصل مع الدعم الفني</a>
       </p>
     </form>
   </div>
@@ -1812,6 +1820,74 @@
     <div class="modal-actions">
       <button class="btn btn-primary" onclick="App.submitTicket()" style="flex:1;">إرسال الطلب ←</button>
       <button class="btn btn-outline" onclick="App.closeNewTicketModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: GUEST SUPPORT (contact support without an account)
+═══════════════════════════════════════════════════════ -->
+<div id="guest-support-modal" class="modal-overlay" onclick="if(event.target===this)App.closeGuestSupportModal()">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-title" style="margin-bottom:6px;">تواصل مع الدعم الفني</div>
+    <div class="modal-sub">لمن لا يملك حساباً أو لا يستطيع الدخول إليه</div>
+
+    <!-- Step 1: identity -->
+    <div id="gs-step1">
+      <div class="form-group">
+        <label class="form-label">الاسم الكامل <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="gs-name" class="form-input" placeholder="اكتب اسمك الكامل" maxlength="100">
+      </div>
+      <div class="form-group">
+        <label class="form-label">رقم الجوال <span style="color:var(--danger)">*</span></label>
+        <input type="tel" id="gs-phone" class="form-input" placeholder="05xxxxxxxx" inputmode="numeric" maxlength="15"
+               oninput="this.value=this.value.replace(/[^0-9+]/g,'')">
+      </div>
+      <div class="form-group">
+        <label class="form-label">المدرسة <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="gs-school" class="form-input" placeholder="اكتب اسم مدرستك" maxlength="120">
+      </div>
+      <div id="gs-err1" class="alert alert-error"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="App.guestSupportNext()" style="flex:1;">التالي ←</button>
+        <button class="btn btn-outline" onclick="App.closeGuestSupportModal()">إلغاء</button>
+      </div>
+    </div>
+
+    <!-- Step 2: problem -->
+    <div id="gs-step2" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">نوع المشكلة <span style="color:var(--danger)">*</span></label>
+        <div id="gs-cat-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;">
+          <button type="button" class="cat-card" data-cat="مشكلة تسجيل دخول" onclick="App._selectGuestCat(this)">
+            <span class="cat-card-icon">🔐</span><span class="cat-card-lbl">دخول للمنصة</span>
+          </button>
+          <button type="button" class="cat-card" data-cat="مشكلة في الاختبار" onclick="App._selectGuestCat(this)">
+            <span class="cat-card-icon">📝</span><span class="cat-card-lbl">مشكلة اختبار</span>
+          </button>
+          <button type="button" class="cat-card" data-cat="خطة التعلم والنتائج" onclick="App._selectGuestCat(this)">
+            <span class="cat-card-icon">📋</span><span class="cat-card-lbl">خطة التعلم</span>
+          </button>
+          <button type="button" class="cat-card" data-cat="خطأ تقني" onclick="App._selectGuestCat(this)">
+            <span class="cat-card-icon">⚙️</span><span class="cat-card-lbl">خطأ تقني</span>
+          </button>
+          <button type="button" class="cat-card" data-cat="استفسار عام" onclick="App._selectGuestCat(this)">
+            <span class="cat-card-icon">💬</span><span class="cat-card-lbl">استفسار</span>
+          </button>
+          <button type="button" class="cat-card" data-cat="اقتراح أو ملاحظة" onclick="App._selectGuestCat(this)">
+            <span class="cat-card-icon">🌟</span><span class="cat-card-lbl">اقتراح</span>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">تفاصيل المشكلة <span style="color:var(--danger)">*</span></label>
+        <textarea id="gs-body" class="form-input" rows="4" placeholder="اشرح مشكلتك بالتفصيل..." style="resize:vertical;"></textarea>
+      </div>
+      <div id="gs-err2" class="alert alert-error"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="App.submitGuestSupport()" style="flex:1;">إرسال الطلب ←</button>
+        <button class="btn btn-outline" onclick="App.guestSupportBack()">رجوع</button>
+      </div>
     </div>
   </div>
 </div>

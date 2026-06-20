@@ -1413,6 +1413,32 @@ export async function onRequest({ request, env }) {
 
     // ── TICKETS ──────────────────────────────────────────────────────────────
     if (resource === 'tickets') {
+      // POST /api/tickets/guest — unauthenticated: lets someone without an
+      // account (or who can't log into theirs) reach support directly from
+      // the login screen, since the normal POST /api/tickets requires a JWT.
+      if (sub === 'guest' && method === 'POST') {
+        try { await DB.prepare("ALTER TABLE tickets ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
+        const { name, phone, school: guestSchool, category, body: tkBody } = await request.json().catch(() => ({}));
+        if (!name || !phone || !guestSchool || !tkBody) return err('حقول مفقودة', 400, CORS);
+        if (tkBody.length > 3000) return err('النص طويل جداً', 400, CORS);
+        const studentId = 'guest-' + crypto.randomUUID();
+        const countRow = await DB.prepare('SELECT COUNT(*) as c FROM tickets').first();
+        const ticketNum = 'T-' + String(((countRow?.c) || 0) + 1).padStart(5, '0');
+        const tid = crypto.randomUUID();
+        const rid = crypto.randomUUID();
+        const now = new Date().toISOString();
+        const effectiveCat = category || 'مشكلة تسجيل دخول';
+        const subject = `بدون حساب: ${effectiveCat}`;
+        await DB.prepare(
+          'INSERT INTO tickets (id, student_id, student_name, school, subject, status, category, priority, ticket_num, phone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(tid, studentId, name, guestSchool, subject, 'open', effectiveCat, 'عالية', ticketNum, phone, now).run();
+        await DB.prepare(
+          'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(rid, tid, 'student', tkBody, 1, now).run();
+        await logEvent(DB, { level: 'info', category: 'ticket', message: `تذكرة دعم بدون حساب (${ticketNum})`, user_name: name, user_role: 'guest', school: guestSchool });
+        return ok({ ticket: { id: tid, ticket_num: ticketNum } }, 201, CORS);
+      }
+
       // Accept either JWT or X-Dev-Key (for dev panel)
       const _devAuth = authDev(request, env);
       const tkClaims = _devAuth ? { role: 'dev', sub: 'dev' } : await verifyToken(request, env);
@@ -1423,6 +1449,7 @@ export async function onRequest({ request, env }) {
       try { await DB.prepare("ALTER TABLE tickets ADD COLUMN category TEXT NOT NULL DEFAULT 'أخرى'").run(); } catch {}
       try { await DB.prepare("ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT 'متوسطة'").run(); } catch {}
       try { await DB.prepare("ALTER TABLE tickets ADD COLUMN ticket_num TEXT NOT NULL DEFAULT ''").run(); } catch {}
+      try { await DB.prepare("ALTER TABLE tickets ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
       try { await DB.prepare('ALTER TABLE tickets ADD COLUMN rating INTEGER DEFAULT 0').run(); } catch {}
       try { await DB.prepare('ALTER TABLE ticket_replies ADD COLUMN is_read INTEGER DEFAULT 0').run(); } catch {}
 

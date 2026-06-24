@@ -77,7 +77,7 @@ async function apiFetch(path, opts = {}) {
   return data;
 }
 
-const _mapStudent = r => ({ id: r.id, code: r.code, name: r.name, school: r.school || '', createdAt: r.created_at });
+const _mapStudent = r => ({ id: r.id, code: r.code, name: r.name, school: r.school || '', phone: r.phone || '', createdAt: r.created_at });
 const _mapPlan    = r => {
   let note = r.admin_note || '';
   let retakeOverride = false;
@@ -124,14 +124,20 @@ const DB = {
     }
   },
 
-  async addStudent({ name, code }) {
+  async addStudent({ name, code, phone }) {
     const { student } = await apiFetch('/students', {
       method: 'POST',
-      body: JSON.stringify({ name, code, school: State.school || '' }),
+      body: JSON.stringify({ name, code, phone: phone || '', school: State.school || '' }),
     });
     const s = _mapStudent(student);
     Cache.students.push(s);
     return s;
+  },
+
+  async updateStudentPhone(id, phone) {
+    await apiFetch(`/students/${id}`, { method: 'PATCH', body: JSON.stringify({ phone: phone || '' }) });
+    const s = Cache.students.find(s => s.id === id);
+    if (s) s.phone = phone || '';
   },
 
   async bulkAddStudents(rows) {
@@ -1167,6 +1173,7 @@ const App = {
             <div class="student-name" style="display:flex;align-items:center;gap:4px;">${accessDot}${escapeHtml(st.name)}</div>
             <div class="student-code">رمز: ${escapeHtml(st.code)}${st.school && State.admin?.school === '*' ? ` · <span style="color:var(--primary);font-size:11px">🏫 ${escapeHtml(st.school)}</span>` : ''}</div>
           </div>
+          <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="event.stopPropagation();App.editStudentPhone('${st.id}','${escapeHtml(st.phone || '')}')">${st.phone ? `📱 ${escapeHtml(st.phone)}` : '📱 إضافة جوال'}</button>
           ${badge}
           ${scoreChip}
           ${unlockBtn}
@@ -2085,17 +2092,31 @@ const App = {
   async addStudent() {
     const name  = document.getElementById('add-st-name').value.trim();
     const code  = document.getElementById('add-st-code').value.trim();
+    const phone = document.getElementById('add-st-phone').value.trim();
     const errEl = document.getElementById('add-st-err');
     if (!name) { showAlert(errEl, 'أدخل اسم الطالب.'); return; }
     if (!/^\d{10}$/.test(code)) { showAlert(errEl, 'السجل المدني يجب أن يكون ١٠ أرقام.'); return; }
+    if (phone && !/^\d{9,10}$/.test(phone)) { showAlert(errEl, 'رقم الجوال غير صحيح.'); return; }
     if (DB.students().find(s => s.code === code)) { showAlert(errEl, 'هذا السجل المدني مسجّل مسبقاً.'); return; }
-    try { await DB.addStudent({ name, code }); }
+    try { await DB.addStudent({ name, code, phone }); }
     catch (e) { showAlert(errEl, e.message || 'فشل الحفظ.'); return; }
     ActivityLog.success(`➕ إضافة طالب: ${name} (${code})`);
     document.getElementById('add-st-name').value = '';
     document.getElementById('add-st-code').value = '';
+    document.getElementById('add-st-phone').value = '';
     showToast('تمت إضافة الطالب ✅');
     App.toggleAddStudentPanel(); // close the panel
+    App.renderAdminDashboard('students');
+  },
+
+  async editStudentPhone(id, currentPhone) {
+    const phone = prompt('رقم جوال الطالب:', currentPhone || '');
+    if (phone === null) return;
+    const trimmed = phone.trim();
+    if (trimmed && !/^\d{9,10}$/.test(trimmed)) { showToast('رقم الجوال غير صحيح.'); return; }
+    try { await DB.updateStudentPhone(id, trimmed); }
+    catch (e) { showToast(e.message || 'فشل الحفظ.'); return; }
+    showToast('تم تحديث رقم الجوال ✅');
     App.renderAdminDashboard('students');
   },
 

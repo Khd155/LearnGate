@@ -1513,7 +1513,7 @@ export async function onRequest({ request, env }) {
         // Admins verify the student belongs to their school
         if (isPrivileged && msgClaims?.role !== 'dev' && msgClaims?.school && msgClaims.school !== '*') {
           const msgStudent = await DB.prepare('SELECT school FROM students WHERE id = ?').bind(studentId).first();
-          if (!msgStudent || msgStudent.school !== msgClaims.school) return err('غير مسموح', 403, CORS);
+          if (!msgStudent || (msgStudent.school || '').trim() !== msgClaims.school.trim()) return err('غير مسموح', 403, CORS);
         }
         let q, params;
         if (adminId) {
@@ -1538,7 +1538,7 @@ export async function onRequest({ request, env }) {
           // Verify the target student belongs to this admin's school
           if (msgClaims?.role !== 'dev' && msgClaims?.school && msgClaims.school !== '*') {
             const targetSt = await DB.prepare('SELECT school, name FROM students WHERE id = ?').bind(targetStudentId).first();
-            if (!targetSt || targetSt.school !== msgClaims.school) return err('غير مسموح', 403, CORS);
+            if (!targetSt || (targetSt.school || '').trim() !== msgClaims.school.trim()) return err('غير مسموح', 403, CORS);
             studentName = targetSt.name || '';
           } else {
             const targetSt = await DB.prepare('SELECT name FROM students WHERE id = ?').bind(targetStudentId).first();
@@ -1569,7 +1569,7 @@ export async function onRequest({ request, env }) {
         // Admins can only mark messages read for students in their own school
         if (isPrivileged && msgClaims?.role !== 'dev' && msgClaims?.school && msgClaims.school !== '*') {
           const readSt = await DB.prepare('SELECT school FROM students WHERE id = ?').bind(studentId).first();
-          if (!readSt || readSt.school !== msgClaims.school) return err('غير مسموح', 403, CORS);
+          if (!readSt || (readSt.school || '').trim() !== msgClaims.school.trim()) return err('غير مسموح', 403, CORS);
         }
         const senderType = readerType === 'admin' ? 'student' : 'admin';
         await DB.prepare(

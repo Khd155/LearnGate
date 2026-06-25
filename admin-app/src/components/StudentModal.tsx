@@ -223,7 +223,7 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
             <Dialog.Close asChild>
               <button
                 type="button"
-                className="absolute left-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700"
+                className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700"
                 aria-label="إغلاق"
               >
                 ✕

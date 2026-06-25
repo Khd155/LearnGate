@@ -18,7 +18,7 @@ export default function DashboardLayout() {
   }, [loadCore]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
+    <div className="min-h-screen bg-[#f4f8fb] dark:bg-gradient-to-b dark:from-slate-950 dark:to-slate-900">
       <Header />
       <main className="mx-auto max-w-7xl space-y-6 px-6 py-6">
         <StatsCards />

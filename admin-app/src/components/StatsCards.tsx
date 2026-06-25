@@ -65,7 +65,7 @@ export default function StatsCards() {
         >
           <div
             className={cn(
-              'absolute -left-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br opacity-20 blur-2xl transition-opacity group-hover:opacity-30',
+              'absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br opacity-20 blur-2xl transition-opacity group-hover:opacity-30',
               c.gradient,
             )}
           />

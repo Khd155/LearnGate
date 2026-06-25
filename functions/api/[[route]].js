@@ -473,7 +473,7 @@ export async function onRequest({ request, env }) {
           // Only dev can change the national ID/code — admin & director are
           // restricted to name/phone so the identity used for student login
           // can't be altered from the school-level admin dashboard.
-          if (claims.role !== 'dev') return err('تعديل رقم الهوية متاح فقط من لوحة المطوّر', 403, CORS);
+          if (claims.role !== 'dev') return err('غير مسموح بتعديل رقم الهوية', 403, CORS);
           const code = (body.code || '').trim();
           if (!code) return err('رقم الهوية مطلوب', 400, CORS);
           sets.push('code = ?'); vals.push(code);

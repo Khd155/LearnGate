@@ -1,6 +1,6 @@
-// D1-compatible adapter backed by PostgreSQL (postgres.js), for Cloudflare
-// Pages Functions / Workers (uses the `cloudflare:sockets`-backed TCP support
-// built into the `postgres` npm package — no Node `net` module required).
+// D1-compatible adapter backed by PostgreSQL (postgres.js), preserving the
+// old D1 `prepare().bind().run()/.all()/.first()` call shape so the route
+// handlers in functions/api didn't need to change during the D1 -> Postgres migration.
 import postgres from 'postgres';
 
 let _sql = null;

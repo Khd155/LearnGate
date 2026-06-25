@@ -37,7 +37,7 @@ function serverLog(level, category, message, extra = {}) {
   }).catch(() => {});
 }
 
-// ── Cloudflare D1 data layer (via Pages Functions API) ───────────────────
+// ── Data layer (via /api/* backend) ───────────────────────────────────────
 const Cache = { students: [], plans: [], loaded: false };
 window.QUESTION_BANK = (typeof QUESTIONS !== 'undefined' ? QUESTIONS.slice() : []);
 

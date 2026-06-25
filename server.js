@@ -1,7 +1,6 @@
-// Standalone Node.js server for hosting on platforms that run a real process
-// listening on a port (e.g. CranL/Railpack), as opposed to Cloudflare Pages'
-// static + edge-Functions model. Reuses the exact same /api logic — only the
-// request/response transport and the env source (process.env) differ.
+// Node.js server for hosting on platforms that run a real process listening
+// on a port (CranL/Railpack). Reuses the same /api logic as functions/api —
+// only the request/response transport and the env source (process.env) differ.
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +18,7 @@ const SECURITY_HEADERS = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';",
 };
 
-// Mirrors public/khaldiya/_redirects (Cloudflare Pages SPA-style rewrites).
+// SPA-style rewrites to index.html for client-side routes.
 // '/admin' is intentionally excluded — it's a real static directory
 // (public/khaldiya/admin/, the React admin dashboard), not an SPA route, and
 // must fall through to express.static below instead of being rewritten here.

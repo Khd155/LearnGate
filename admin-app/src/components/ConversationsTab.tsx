@@ -1,0 +1,175 @@
+import { useEffect, useRef, useState } from 'react';
+import { useStore } from '../store/useStore';
+import { cn } from '../lib/cn';
+
+export default function ConversationsTab() {
+  const threads = useStore((s) => s.threads);
+  const threadsLoading = useStore((s) => s.threadsLoading);
+  const loadThreads = useStore((s) => s.loadThreads);
+  const activeThreadStudentId = useStore((s) => s.activeThreadStudentId);
+  const setActiveThreadStudentId = useStore((s) => s.setActiveThreadStudentId);
+  const conversationFocusStudentId = useStore((s) => s.conversationFocusStudentId);
+  const setConversationFocusStudentId = useStore((s) => s.setConversationFocusStudentId);
+  const messagesByStudent = useStore((s) => s.messagesByStudent);
+  const messagesLoading = useStore((s) => s.messagesLoading);
+  const loadMessages = useStore((s) => s.loadMessages);
+  const sendMessage = useStore((s) => s.sendMessage);
+  const students = useStore((s) => s.students);
+
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    loadThreads();
+  }, [loadThreads]);
+
+  useEffect(() => {
+    if (conversationFocusStudentId) {
+      setActiveThreadStudentId(conversationFocusStudentId);
+      setConversationFocusStudentId(null);
+    }
+  }, [conversationFocusStudentId, setActiveThreadStudentId, setConversationFocusStudentId]);
+
+  useEffect(() => {
+    if (activeThreadStudentId) loadMessages(activeThreadStudentId);
+  }, [activeThreadStudentId, loadMessages]);
+
+  const messages = activeThreadStudentId ? messagesByStudent[activeThreadStudentId] || [] : [];
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  const activeStudentName =
+    threads.find((t) => t.student_id === activeThreadStudentId)?.student_name ||
+    students.find((s) => s.id === activeThreadStudentId)?.name ||
+    '';
+
+  const handleSend = async () => {
+    if (!draft.trim() || !activeThreadStudentId) return;
+    setSending(true);
+    try {
+      await sendMessage(activeThreadStudentId, draft.trim());
+      setDraft('');
+    } catch {
+      /* toast already pushed by store */
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="grid h-[600px] grid-cols-1 overflow-hidden rounded-2xl border border-slate-200 bg-white md:grid-cols-[280px_1fr] dark:border-slate-800 dark:bg-slate-900">
+      <div className="overflow-y-auto border-e border-slate-200 dark:border-slate-800">
+        {threadsLoading ? (
+          <div className="space-y-2 p-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="skeleton h-14 rounded-xl" />
+            ))}
+          </div>
+        ) : threads.length === 0 ? (
+          <p className="p-6 text-center text-sm text-slate-400">لا توجد محادثات بعد</p>
+        ) : (
+          threads.map((t) => (
+            <button
+              key={t.student_id}
+              type="button"
+              onClick={() => setActiveThreadStudentId(t.student_id)}
+              className={cn(
+                'flex w-full flex-col items-start gap-0.5 border-b border-slate-100 px-4 py-3 text-start transition dark:border-slate-800',
+                activeThreadStudentId === t.student_id
+                  ? 'bg-indigo-50 dark:bg-indigo-950/40'
+                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/60',
+              )}
+            >
+              <div className="flex w-full items-center justify-between">
+                <span className="font-medium text-slate-800 dark:text-slate-100">{t.student_name}</span>
+                {t.unread > 0 && (
+                  <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {t.unread}
+                  </span>
+                )}
+              </div>
+              <span className="line-clamp-1 text-xs text-slate-400">{t.last_msg}</span>
+            </button>
+          ))
+        )}
+      </div>
+
+      <div className="flex flex-col">
+        {!activeThreadStudentId ? (
+          <div className="flex flex-1 items-center justify-center text-slate-400">اختر محادثة لعرضها</div>
+        ) : (
+          <>
+            <div className="border-b border-slate-200 px-4 py-3 font-bold text-slate-800 dark:border-slate-800 dark:text-white">
+              {activeStudentName}
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {messagesLoading ? (
+                <div className="space-y-2">
+                  <div className="skeleton h-10 w-2/3 rounded-xl" />
+                  <div className="skeleton ms-auto h-10 w-1/2 rounded-xl" />
+                </div>
+              ) : messages.length === 0 ? (
+                <p className="py-10 text-center text-sm text-slate-400">لا توجد رسائل</p>
+              ) : (
+                <div className="space-y-2">
+                  {messages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={cn('flex', m.sender_type === 'admin' ? 'justify-end' : 'justify-start')}
+                    >
+                      <div
+                        className={cn(
+                          'max-w-[70%] rounded-2xl px-4 py-2 text-sm',
+                          m.sender_type === 'admin'
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100',
+                        )}
+                      >
+                        <p>{m.body}</p>
+                        <p
+                          className={cn(
+                            'mt-1 text-[10px] opacity-70',
+                            m.sender_type === 'admin' ? 'text-indigo-100' : 'text-slate-400',
+                          )}
+                        >
+                          {new Date(m.created_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={bottomRef} />
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 border-t border-slate-200 p-3 dark:border-slate-800">
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="اكتب رسالة…"
+                maxLength={2000}
+                className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={sending || !draft.trim()}
+                className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {sending ? '…' : 'إرسال'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

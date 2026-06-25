@@ -3,6 +3,5 @@ npm-debug.log
 .env
 .env.*
 .git
-.wrangler
 .dev.vars
 *.local

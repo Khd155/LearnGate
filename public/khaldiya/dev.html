@@ -682,6 +682,10 @@ function confirmDialog(message, { title = 'تأكيد', okText = 'تأكيد', c
   return new Promise(res => { _modalResolve = res; });
 }
 
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function promptModal(title, defaultValue = '') {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-msg').textContent = '';
@@ -803,17 +807,17 @@ const Dev = {
       <thead><tr><th>الاسم</th><th>رقم السجل</th><th>الدور</th><th>المدرسة</th><th></th></tr></thead>
       <tbody>${admins.map(a => `
         <tr>
-          <td>${a.name}</td>
-          <td style="direction:ltr;text-align:right">${a.code}</td>
+          <td>${escapeHtml(a.name)}</td>
+          <td style="direction:ltr;text-align:right">${escapeHtml(a.code)}</td>
           <td>${a.role === 'director'
             ? '<span class="badge badge-super">👑 مدير</span>'
             : '<span class="badge badge-school">👤 مشرف</span>'}</td>
           <td>${a.school === '*'
             ? '<span class="badge badge-super">⭐ كل المدارس</span>'
             : a.school
-              ? '<span class="badge badge-school">' + a.school + '</span>'
+              ? '<span class="badge badge-school">' + escapeHtml(a.school) + '</span>'
               : '<span class="badge badge-any">—</span>'}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="Dev.deleteAdmin('${a.id}','${a.name}')">حذف</button></td>
+          <td><button class="btn btn-danger btn-sm" onclick="Dev.deleteAdmin('${a.id}','${escapeHtml(a.name).replace(/'/g, "\\'")}')">حذف</button></td>
         </tr>`).join('')}
       </tbody>
     </table>`;
@@ -835,7 +839,7 @@ const Dev = {
       <tbody>${qs.slice(0,20).map(q => `
         <tr>
           <td style="color:var(--muted)">${q.qnum}</td>
-          <td>${q.text.substring(0,60)}${q.text.length>60?'...':''}</td>
+          <td>${escapeHtml(q.text.substring(0,60))}${q.text.length>60?'...':''}</td>
           <td>${q.type === 'verbal' ? '📚 لفظي' : '🔢 كمي'}</td>
           <td style="color:var(--muted)">${q.skill_id}</td>
         </tr>`).join('')}
@@ -888,14 +892,14 @@ const Dev = {
         <tbody>${students.map((s, i) => `
           <tr>
             <td style="color:var(--muted)">${i + 1}</td>
-            <td>${s.name}</td>
-            <td style="direction:ltr;text-align:right">${s.code}</td>
-            <td style="direction:ltr;text-align:right">${s.phone || '—'}</td>
-            <td><span class="badge badge-school">${s.school || '—'}</span></td>
+            <td>${escapeHtml(s.name)}</td>
+            <td style="direction:ltr;text-align:right">${escapeHtml(s.code)}</td>
+            <td style="direction:ltr;text-align:right">${escapeHtml(s.phone) || '—'}</td>
+            <td><span class="badge badge-school">${escapeHtml(s.school) || '—'}</span></td>
             <td>${s.plan_status === 'active' ? '<span class="badge badge-school">نشطة ✅</span>'
               : s.plan_status === 'pending' ? '<span class="badge" style="background:rgba(245,158,11,.15);color:#fbbf24">معلقة ⏳</span>'
               : '<span class="badge" style="background:rgba(148,163,184,.1);color:var(--muted)">لم يبدأ</span>'}</td>
-            <td><button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${s.name}')">حذف</button></td>
+            <td><button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">حذف</button></td>
           </tr>`).join('')}
         </tbody>
       </table>`;
@@ -1171,11 +1175,11 @@ const Dev = {
           <thead><tr><th>الطالب</th><th>المدرسة</th><th>النوع</th><th>الدرجة</th><th>التاريخ</th><th></th></tr></thead>
           <tbody>${results.map(r => {
             const time = new Date(r.created_at).toLocaleString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-            const safeName = (r.student_name || '').replace(/'/g, "\\'");
+            const safeName = escapeHtml(r.student_name || '').replace(/'/g, "\\'");
             return `<tr>
-              <td>${r.student_name || ''}</td>
-              <td>${r.school || ''}</td>
-              <td>${typeLabel[r.test_type] || r.test_type}</td>
+              <td>${escapeHtml(r.student_name)}</td>
+              <td>${escapeHtml(r.school)}</td>
+              <td>${escapeHtml(typeLabel[r.test_type] || r.test_type)}</td>
               <td>${r.score}%</td>
               <td style="font-size:12px;color:var(--muted)">${time}</td>
               <td style="white-space:nowrap">
@@ -1402,10 +1406,10 @@ const Dev = {
       if (!replies.length) { el.innerHTML = '<div class="empty" style="padding:12px">لا توجد ردود بعد</div>'; return; }
       el.innerHTML = replies.map(r => {
         const time = new Date(r.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-        const who  = r.sender_type === 'student' ? ticket.student_name : '🔧 الدعم الفني';
+        const who  = r.sender_type === 'student' ? escapeHtml(ticket.student_name) : '🔧 الدعم الفني';
         return `<div class="thread-msg ${r.sender_type}">
           <div class="thread-who">${who}</div>
-          ${r.body}
+          ${escapeHtml(r.body)}
           <div class="thread-time">${time}</div>
         </div>`;
       }).join('');

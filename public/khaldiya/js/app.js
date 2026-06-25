@@ -1789,7 +1789,7 @@ const App = {
           ${q.qnum}
         </div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13.5px;font-weight:600;margin-bottom:5px;line-height:1.6;">${q.text}</div>
+          <div style="font-size:13.5px;font-weight:600;margin-bottom:5px;line-height:1.6;">${escapeHtml(q.text)}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);">
             <span style="background:#eaf2f9;color:var(--primary);border-radius:99px;padding:2px 10px;font-weight:700;">${skillNames[q.skill_id] || q.skill_id}</span>
             <span style="background:#f1f5f9;border-radius:99px;padding:2px 10px;">${typeLabel[q.type] || q.type}</span>

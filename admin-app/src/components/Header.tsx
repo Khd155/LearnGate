@@ -28,21 +28,22 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-slate-200/80 bg-white/80 px-6 py-4 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/80">
-      <img src="/logo.png" alt="" className="h-10 w-auto shrink-0" />
+    <header
+      className="sticky top-0 z-30 flex items-center gap-4 px-6 py-4 text-white shadow-md"
+      style={{ background: 'linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%)' }}
+    >
+      <img src="/logo-white.png" alt="" className="h-10 w-auto shrink-0" />
 
       <div>
-        <h1 className="text-lg font-bold text-slate-900 dark:text-white">لوحة المشرف</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <h1 className="text-lg font-bold text-white">لوحة المشرف</h1>
+        <p className="text-sm text-white/75">
           {session?.school && session.school !== '*' ? session.school : 'جميع المدارس'}
         </p>
       </div>
 
       <div className="hidden text-end sm:block">
-        <p className="text-sm font-bold text-slate-900 dark:text-white">{session?.name}</p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          {session?.role === 'director' ? 'مدير عام' : 'مشرف'}
-        </p>
+        <p className="text-sm font-bold text-white">{session?.name}</p>
+        <p className="text-xs text-white/75">{session?.role === 'director' ? 'مدير عام' : 'مشرف'}</p>
       </div>
 
       <div className="ms-auto flex items-center gap-3">
@@ -52,13 +53,13 @@ export default function Header() {
               <button
                 type="button"
                 onClick={toggleDark}
-                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-1 py-1 dark:border-slate-700 dark:bg-slate-800"
+                className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-1 py-1"
                 aria-label="تبديل الوضع الليلي"
               >
                 <Switch.Root
                   checked={dark}
                   onCheckedChange={toggleDark}
-                  className="relative h-6 w-11 rounded-full bg-slate-200 outline-none data-[state=checked]:bg-indigo-600 dark:bg-slate-700"
+                  className="relative h-6 w-11 rounded-full bg-white/25 outline-none data-[state=checked]:bg-white/40"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform duration-200 data-[state=checked]:translate-x-[22px]" />
@@ -78,7 +79,7 @@ export default function Header() {
           <DropdownMenu.Trigger asChild>
             <button
               type="button"
-              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/10 text-lg hover:bg-white/20"
               aria-label="الإشعارات"
             >
               🔔
@@ -93,7 +94,7 @@ export default function Header() {
             <DropdownMenu.Content
               align="end"
               sideOffset={8}
-              className="z-50 w-80 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-800"
+              className="z-50 w-80 rounded-xl border border-slate-200 bg-white p-2 text-slate-900 shadow-xl dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             >
               <p className="px-2 py-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400">
                 الرسائل غير المقروءة
@@ -126,7 +127,7 @@ export default function Header() {
         <button
           type="button"
           onClick={logout}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-rose-950/50"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/10 text-lg hover:bg-white/20"
           aria-label="تسجيل الخروج"
         >
           🚪

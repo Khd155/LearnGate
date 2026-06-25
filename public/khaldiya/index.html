@@ -1461,8 +1461,9 @@
       </div>
       <!-- School filter (injected dynamically for directors) -->
       <div id="school-filter-bar"></div>
-      <!-- Step 1: choose method -->
-      <div id="add-student-panel" style="display:none;margin-bottom:8px;">
+      <!-- Step 1: choose method (modal) -->
+      <div id="add-student-panel" class="modal-overlay" onclick="if(event.target===this)App.toggleAddStudentPanel()">
+       <div class="modal-box" style="max-width:520px;width:calc(100% - 24px);padding:0;background:transparent;box-shadow:none;margin-bottom:0;">
         <div id="add-choice-step" class="card" style="margin-bottom:0;border:2px solid var(--primary);border-radius:16px;padding:16px 18px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
             <div style="font-weight:800;font-size:14px;color:var(--primary);">كيف تريد إضافة الطلاب؟</div>
@@ -1558,6 +1559,7 @@
                    onchange="App.importStudents(this)">
           </div>
         </div>
+       </div>
       </div>
     </div>
 

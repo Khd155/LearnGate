@@ -1238,9 +1238,9 @@ const App = {
   toggleAddStudentPanel() {
     const panel = document.getElementById('add-student-panel');
     if (!panel) return;
-    const isOpen = panel.style.display !== 'none';
-    if (isOpen) { panel.style.display = 'none'; return; }
-    panel.style.display = 'block';
+    const isOpen = panel.classList.contains('open');
+    if (isOpen) { panel.classList.remove('open'); return; }
+    panel.classList.add('open');
     this._showAddStep('choice');
   },
 

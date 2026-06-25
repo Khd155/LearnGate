@@ -985,6 +985,28 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
+      // PATCH /api/dev/schools/:id — rename school (cascades to students/admins/plans)
+      if (sub === 'schools' && subsub && method === 'PATCH') {
+        const { name } = await request.json();
+        if (!name || !name.trim()) return err('الاسم مطلوب', 400, CORS);
+        const newName = name.trim();
+        const school = await DB.prepare('SELECT * FROM schools WHERE id = ?').bind(subsub).first();
+        if (!school) return err('المدرسة غير موجودة', 404, CORS);
+        const oldName = school.name;
+        try {
+          await DB.batch([
+            DB.prepare('UPDATE schools SET name = ? WHERE id = ?').bind(newName, subsub),
+            DB.prepare('UPDATE students SET school = ? WHERE school = ?').bind(newName, oldName),
+            DB.prepare('UPDATE admins SET school = ? WHERE school = ?').bind(newName, oldName),
+            DB.prepare('UPDATE plans SET school = ? WHERE school = ?').bind(newName, oldName),
+          ]);
+        } catch (e) {
+          if (e.message && e.message.includes('UNIQUE')) return err('يوجد مدرسة أخرى بهذا الاسم', 409, CORS);
+          throw e;
+        }
+        return ok({ school: { id: subsub, name: newName } }, 200, CORS);
+      }
+
       // GET /api/dev/students — all students (optional ?school=X filter)
       if (sub === 'students' && method === 'GET') {
         const filterSchool = url.searchParams.get('school');

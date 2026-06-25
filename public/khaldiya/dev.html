@@ -32,29 +32,72 @@
 
     /* ── Layout ── */
     #app{display:none}
-    .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
-    .topbar-brand{display:flex;align-items:center;gap:12px}
-    .topbar-icon{font-size:24px}
-    .topbar-name{font-size:17px;font-weight:800;color:#f1f5f9}
-    .topbar-badge{background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:1px}
-    .topbar-logout{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+    .shell{display:flex;min-height:100vh}
+
+    /* ── Sidebar ── */
+    .sidebar{
+      width:260px;flex-shrink:0;background:linear-gradient(180deg,#16213a 0%,#101a30 100%);
+      border-left:1px solid var(--border);min-height:100vh;position:sticky;top:0;
+      display:flex;flex-direction:column;z-index:60;transition:transform .25s ease;
+    }
+    .sidebar-brand{display:flex;align-items:center;gap:12px;padding:24px 22px 20px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .sidebar-icon{font-size:26px}
+    .sidebar-title{font-size:17px;font-weight:800;color:#f1f5f9}
+    .sidebar-sub{font-size:11px;color:var(--muted);margin-top:1px}
+    .sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:16px 14px;flex:1;overflow-y:auto}
+    .sidebar-nav .tab-btn{
+      display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;
+      font-size:14px;font-weight:600;color:var(--muted);border:none;background:transparent;
+      cursor:pointer;font-family:inherit;text-align:right;width:100%;transition:all .15s;
+    }
+    .sidebar-nav .tab-btn .tab-ic{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+    .sidebar-nav .tab-btn:hover:not(.active){background:rgba(255,255,255,.05);color:#e2e8f0}
+    .sidebar-nav .tab-btn.active{background:var(--primary);color:#fff;box-shadow:0 4px 14px rgba(59,130,246,.35)}
+    .sidebar-foot{padding:16px 22px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;color:var(--muted)}
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55}
+
+    /* ── Main / Topbar ── */
+    .main{flex:1;min-width:0;display:flex;flex-direction:column}
+    .topbar{
+      background:rgba(30,41,59,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);
+      padding:16px 28px;display:flex;align-items:center;justify-content:space-between;
+      position:sticky;top:0;z-index:50;
+    }
+    .topbar-left{display:flex;align-items:center;gap:14px}
+    .hamburger{display:none;background:transparent;border:1px solid var(--border2);color:#e2e8f0;border-radius:8px;width:36px;height:36px;font-size:16px;cursor:pointer}
+    .topbar-name{font-size:16px;font-weight:800;color:#f1f5f9}
+    .topbar-right{display:flex;align-items:center;gap:12px}
+    .topbar-badge{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:10px;font-weight:700;padding:4px 10px;border-radius:99px;letter-spacing:1px}
+    .topbar-logout{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s}
     .topbar-logout:hover{background:rgba(239,68,68,.25)}
 
-    /* ── Tabs ── */
-    .tabs-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;display:flex;gap:4px}
-    .tab-btn{padding:14px 20px;font-size:14px;font-weight:600;color:var(--muted);border:none;background:transparent;cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;transition:all .2s}
-    .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
-    .tab-btn:hover:not(.active){color:#e2e8f0}
-
     /* ── Content ── */
-    .content{padding:28px;max-width:1100px;margin:0 auto}
-    .tab-pane{display:none}.tab-pane.active{display:block}
+    .content{padding:28px;max-width:1180px;margin:0 auto;width:100%}
+    .tab-pane{display:none}.tab-pane.active{display:block;animation:fadeIn .25s ease}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
     /* ── Cards ── */
-    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px}
-    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
-    .stat-num{font-size:36px;font-weight:800;color:var(--primary)}
-    .stat-lbl{font-size:13px;color:var(--muted);margin-top:4px}
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;display:flex;align-items:center;gap:14px;text-align:right}
+    .stat-icon-box{width:46px;height:46px;border-radius:12px;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+    .stat-body{flex:1;min-width:0}
+    .stat-num{font-size:30px;font-weight:800;color:var(--primary);line-height:1.1}
+    .stat-lbl{font-size:12.5px;color:var(--muted);margin-top:3px}
+
+    /* ── School Cards ── */
+    .school-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+    .school-card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:16px;padding:18px;transition:transform .15s,box-shadow .15s,border-color .15s}
+    .school-card:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.3);border-color:var(--border2)}
+    .school-card-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+    .school-card-icon{width:38px;height:38px;border-radius:10px;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .school-card-name{font-size:15px;font-weight:800;color:#f1f5f9;line-height:1.3}
+    .school-card-stats{display:flex;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+    .school-card-stat{font-size:12px;color:var(--muted)}
+    .school-card-stat strong{display:block;font-size:16px;color:#e2e8f0;margin-top:1px}
+    .school-progress-track{background:rgba(255,255,255,.08);border-radius:99px;height:7px;overflow:hidden;margin-bottom:14px}
+    .school-progress-fill{height:100%;background:linear-gradient(90deg,#22c55e,#4ade80);border-radius:99px;transition:width .4s}
+    .school-card-actions{display:flex;gap:8px}
+    .school-card-actions .btn{flex:1;justify-content:center;padding:8px 10px}
 
     /* ── Section ── */
     .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px}
@@ -146,29 +189,39 @@
     .danger-box{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:16px;margin-top:12px}
     .danger-box p{font-size:13px;color:#fca5a5;margin-bottom:12px}
 
-    @media(max-width:640px){
-      .content{padding:16px}
-      .tabs-bar{padding:0 16px;overflow-x:auto}
-      .tab-btn{padding:12px 14px;font-size:13px;white-space:nowrap}
-      .topbar{padding:12px 16px}
-      .stat-grid{grid-template-columns:repeat(2,1fr)}
-    }
-
-    /* Better topbar gradient */
-    .topbar {
-      background: linear-gradient(135deg, #1e3a5f 0%, #1e4a3a 100%);
-      border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-
     /* Better stat cards */
     .stat-card {
-      border-left: 3px solid var(--primary);
+      border-right: 3px solid var(--primary);
       transition: transform .15s, box-shadow .15s;
     }
     .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
 
-    /* Logs auto-scroll container */
-    #logs-list { max-height: 600px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); }
+    /* ── Logs timeline ── */
+    #logs-list{max-height:640px;overflow-y:auto;border-radius:12px;border:1px solid var(--border)}
+    .log-item{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;position:relative}
+    .log-item:last-child{border-bottom:none}
+    .log-item:hover{background:rgba(255,255,255,.03)}
+    .log-ic{flex-shrink:0;font-size:15px;width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+    .log-body{flex:1;min-width:0}
+    .log-msg{font-weight:600;color:#e2e8f0;word-break:break-word}
+    .log-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+    .log-meta span{color:var(--muted);font-size:11px}
+    .log-cat{flex-shrink:0;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700}
+
+    /* ── Responsive ── */
+    @media(max-width:900px){
+      .sidebar{position:fixed;right:0;top:0;height:100vh;transform:translateX(100%)}
+      .sidebar.open{transform:translateX(0)}
+      .sidebar.open ~ .sidebar-overlay, .sidebar-overlay.show{display:block}
+      .hamburger{display:flex;align-items:center;justify-content:center}
+      .main{width:100%}
+    }
+    @media(max-width:640px){
+      .content{padding:16px}
+      .topbar{padding:12px 16px}
+      .stat-grid{grid-template-columns:repeat(2,1fr)}
+      .school-grid{grid-template-columns:1fr}
+    }
   </style>
 </head>
 <body>
@@ -189,42 +242,55 @@
 
 <!-- ── App ───────────────────────────────────────────────── -->
 <div id="app">
-  <div class="topbar">
-    <div class="topbar-brand">
-      <div class="topbar-icon">⚙️</div>
-      <div>
-        <div class="topbar-name">LearnGate Dev Panel</div>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-icon">⚙️</div>
+        <div>
+          <div class="sidebar-title">LearnGate</div>
+          <div class="sidebar-sub">Dev Panel</div>
+        </div>
       </div>
-      <div class="topbar-badge">DEVELOPER</div>
-    </div>
-    <button class="topbar-logout" onclick="Dev.logout()">خروج 🔒</button>
-  </div>
+      <nav class="sidebar-nav">
+        <button class="tab-btn active" data-tab="overview"  onclick="Dev.setTab('overview')"><span class="tab-ic">📊</span> نظرة عامة</button>
+        <button class="tab-btn"        data-tab="students"  onclick="Dev.setTab('students')"><span class="tab-ic">👥</span> الطلاب</button>
+        <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')"><span class="tab-ic">🏫</span> المدارس والمشرفون</button>
+        <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')"><span class="tab-ic">📝</span> الأسئلة</button>
+        <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')"><span class="tab-ic">🧰</span> الأدوات</button>
+        <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')"><span class="tab-ic">🎫</span> الدعم الفني</button>
+        <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')"><span class="tab-ic">📋</span> سجل النشاط</button>
+        <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')"><span class="tab-ic">🧠</span> تحليل السلوك</button>
+      </nav>
+      <div class="sidebar-foot">LearnGate v2.0</div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
 
-  <div class="tabs-bar">
-    <button class="tab-btn active" data-tab="overview"  onclick="Dev.setTab('overview')">📊 نظرة عامة</button>
-    <button class="tab-btn"        data-tab="students"  onclick="Dev.setTab('students')">👥 الطلاب</button>
-    <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')">🏫 المدارس والمشرفون</button>
-    <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')">📝 الأسئلة</button>
-    <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')">⚠️ أدوات</button>
-    <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')">🎫 الدعم الفني</button>
-    <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')">📋 سجل النشاط</button>
-    <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')">🧠 تحليل السلوك</button>
-  </div>
+    <div class="main">
+      <div class="topbar">
+        <div class="topbar-left">
+          <button class="hamburger" onclick="toggleSidebar()">☰</button>
+          <div class="topbar-name">LearnGate Dev Panel</div>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-badge">DEVELOPER</div>
+          <button class="topbar-logout" onclick="Dev.logout()">خروج 🔒</button>
+        </div>
+      </div>
 
-  <div class="content">
+      <div class="content">
 
     <!-- ── Overview ── -->
     <div id="tab-overview" class="tab-pane active">
       <div class="stat-grid" id="total-stats">
-        <div class="stat-card"><div class="stat-num" id="tot-schools">—</div><div class="stat-lbl">مدارس</div></div>
-        <div class="stat-card"><div class="stat-num" id="tot-students">—</div><div class="stat-lbl">طلاب إجمالي</div></div>
-        <div class="stat-card"><div class="stat-num" id="tot-tested" style="color:#4FA877">—</div><div class="stat-lbl">أجروا الاختبار</div></div>
-        <div class="stat-card"><div class="stat-num" id="tot-admins">—</div><div class="stat-lbl">مشرفون</div></div>
-        <div class="stat-card"><div class="stat-num" id="tot-questions">—</div><div class="stat-lbl">أسئلة</div></div>
+        <div class="stat-card"><div class="stat-icon-box">🏫</div><div class="stat-body"><div class="stat-num" id="tot-schools">—</div><div class="stat-lbl">مدارس</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box">👥</div><div class="stat-body"><div class="stat-num" id="tot-students">—</div><div class="stat-lbl">طلاب إجمالي</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box" style="background:rgba(34,197,94,.15)">✅</div><div class="stat-body"><div class="stat-num" id="tot-tested" style="color:#4FA877">—</div><div class="stat-lbl">أجروا الاختبار</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box" style="background:rgba(245,158,11,.15)">👤</div><div class="stat-body"><div class="stat-num" id="tot-admins">—</div><div class="stat-lbl">مشرفون</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box" style="background:rgba(168,85,247,.15)">📝</div><div class="stat-body"><div class="stat-num" id="tot-questions">—</div><div class="stat-lbl">أسئلة</div></div></div>
       </div>
       <div class="section">
         <div class="section-title"><span>🏫</span> إحصائيات كل مدرسة</div>
-        <div id="school-stats-list"><div class="empty">جارٍ التحميل...</div></div>
+        <div id="school-stats-list" class="school-grid"><div class="empty">جارٍ التحميل...</div></div>
       </div>
     </div>
 
@@ -346,9 +412,9 @@
       <div class="section">
         <div class="section-title"><span>📝</span> بنك الأسئلة</div>
         <div class="stat-grid" style="margin-bottom:20px">
-          <div class="stat-card"><div class="stat-num" id="q-count">—</div><div class="stat-lbl">سؤال في البنك</div></div>
-          <div class="stat-card"><div class="stat-num" id="q-verbal">—</div><div class="stat-lbl">لفظي</div></div>
-          <div class="stat-card"><div class="stat-num" id="q-quant">—</div><div class="stat-lbl">كمي</div></div>
+          <div class="stat-card"><div class="stat-icon-box">📝</div><div class="stat-body"><div class="stat-num" id="q-count">—</div><div class="stat-lbl">سؤال في البنك</div></div></div>
+          <div class="stat-card"><div class="stat-icon-box">📚</div><div class="stat-body"><div class="stat-num" id="q-verbal">—</div><div class="stat-lbl">لفظي</div></div></div>
+          <div class="stat-card"><div class="stat-icon-box">🔢</div><div class="stat-body"><div class="stat-num" id="q-quant">—</div><div class="stat-lbl">كمي</div></div></div>
         </div>
         <div class="form-row" style="flex-wrap:wrap;gap:12px">
           <label class="btn btn-primary" for="q-import-file">📤 استيراد أسئلة (Excel)</label>
@@ -466,9 +532,9 @@
     <!-- ── Behavior Analytics ── -->
     <div id="tab-analytics" class="tab-pane">
       <div class="stat-grid" id="analytics-stats">
-        <div class="stat-card"><div class="stat-num" id="an-tests" style="color:#3b82f6">—</div><div class="stat-lbl">اختبارات أحياء</div></div>
-        <div class="stat-card"><div class="stat-num" id="an-avg" style="color:#4FA877">—</div><div class="stat-lbl">متوسط الدرجة</div></div>
-        <div class="stat-card"><div class="stat-num" id="an-suspicious" style="color:#ef4444">—</div><div class="stat-lbl">حالات سلوك مشبوه</div></div>
+        <div class="stat-card"><div class="stat-icon-box">🧪</div><div class="stat-body"><div class="stat-num" id="an-tests" style="color:#3b82f6">—</div><div class="stat-lbl">اختبارات أحياء</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box" style="background:rgba(34,197,94,.15)">📈</div><div class="stat-body"><div class="stat-num" id="an-avg" style="color:#4FA877">—</div><div class="stat-lbl">متوسط الدرجة</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box" style="background:rgba(239,68,68,.15)">🚨</div><div class="stat-body"><div class="stat-num" id="an-suspicious" style="color:#ef4444">—</div><div class="stat-lbl">حالات سلوك مشبوه</div></div></div>
       </div>
 
       <div class="section">
@@ -477,7 +543,9 @@
       </div>
     </div>
 
-  </div><!-- /content -->
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /shell -->
 </div><!-- /app -->
 
 <div id="toast"></div>
@@ -544,6 +612,7 @@ const Dev = {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     document.getElementById('tab-' + tab).classList.add('active');
+    closeSidebar();
     if (tab === 'logs')      { Dev.loadLogs(); return; }
     if (tab === 'support')   { Dev.setSupportTab('tickets'); return; }
     if (tab === 'analytics') { Dev.loadAnalytics(); return; }
@@ -567,21 +636,44 @@ const Dev = {
     if (!stats.length) { listEl.innerHTML = '<div class="empty">لا توجد مدارس مضافة</div>'; return; }
     listEl.innerHTML = stats.map(s => {
       const pct = s.students > 0 ? Math.round(s.tested / s.students * 100) : 0;
-      const bar = `<div style="margin-top:10px;background:rgba(255,255,255,.08);border-radius:99px;height:6px;overflow:hidden;">
-        <div style="width:${pct}%;height:100%;background:#4FA877;border-radius:99px;transition:width .4s;"></div></div>`;
-      return `<div class="school-row-block">
-        <div class="school-row-header">
-          <div class="school-name">🏫 ${s.school}</div>
-          <button class="btn btn-danger btn-sm" onclick="Dev.deleteSchool('${s.school}')">حذف المدرسة</button>
+      const safeName = s.school.replace(/'/g, "\\'");
+      return `<div class="school-card">
+        <div class="school-card-head">
+          <div class="school-card-icon">🏫</div>
+          <div class="school-card-name">${s.school}</div>
         </div>
-        <div class="school-stats">
-          <div class="school-stat">الطلاب: <strong>${s.students}</strong></div>
-          <div class="school-stat">اختبروا: <strong style="color:#4FA877">${s.tested}</strong></div>
-          <div class="school-stat">المتوسط: <strong style="color:#3F7CB8">${s.avg !== null ? s.avg + '%' : '—'}</strong></div>
+        <div class="school-card-stats">
+          <div class="school-card-stat">الطلاب<strong>${s.students}</strong></div>
+          <div class="school-card-stat">اختبروا<strong style="color:#4FA877">${s.tested}</strong></div>
+          <div class="school-card-stat">المتوسط<strong style="color:#3b82f6">${s.avg !== null ? s.avg + '%' : '—'}</strong></div>
         </div>
-        ${bar}
+        <div class="school-progress-track"><div class="school-progress-fill" style="width:${pct}%"></div></div>
+        <div class="school-card-actions">
+          <button class="btn btn-primary btn-sm" onclick="Dev.viewSchoolStudents('${safeName}')">👁️ عرض</button>
+          <button class="btn btn-warn btn-sm" onclick="Dev.editSchool('${safeName}')">✏️ تعديل</button>
+          <button class="btn btn-danger btn-sm" onclick="Dev.deleteSchool('${safeName}')">🗑️ حذف</button>
+        </div>
       </div>`;
     }).join('');
+  },
+
+  viewSchoolStudents(name) {
+    Dev.setTab('students');
+    document.getElementById('filter-school').value = name;
+    Dev.loadStudents();
+  },
+
+  async editSchool(oldName) {
+    const newName = prompt('الاسم الجديد للمدرسة:', oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    try {
+      const { schools } = await apiDev('/dev/schools');
+      const school = schools.find(s => s.name === oldName);
+      if (!school) { showToast('تعذّر العثور على المدرسة', true); return; }
+      await apiDev(`/dev/schools/${school.id}`, { method: 'PATCH', body: JSON.stringify({ name: newName.trim() }) });
+      showToast('تم تعديل اسم المدرسة ✅');
+      Dev.loadStats(); Dev.populateSchoolSelects();
+    } catch (e) { showToast('فشل التعديل: ' + e.message, true); }
   },
 
   async loadAdmins() {
@@ -951,23 +1043,23 @@ const Dev = {
       if (!logs || !logs.length) { el.innerHTML = '<div class="empty">لا توجد سجلات</div>'; return; }
       const levelColors = { success: '#22c55e', info: '#3b82f6', warn: '#f59e0b', error: '#ef4444' };
       const levelIcons  = { success: '✅', info: 'ℹ️', warn: '⚠️', error: '❌' };
-      el.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">${logs.length} سجل</div>` +
+      el.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:10px 16px 0">${logs.length} سجل</div>` +
         logs.map(l => {
           const color = levelColors[l.level] || '#94a3b8';
           const icon  = levelIcons[l.level]  || '•';
           const time  = new Date(l.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', second:'2-digit' });
-          return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;">
-            <span style="flex-shrink:0;color:${color};font-size:15px">${icon}</span>
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:600;color:#e2e8f0;word-break:break-word">${l.message}</div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-                ${l.user_name ? `<span style="color:var(--muted);font-size:11px">👤 ${l.user_name}</span>` : ''}
-                ${l.school    ? `<span style="color:var(--muted);font-size:11px">🏫 ${l.school}</span>` : ''}
-                ${l.ip        ? `<span style="color:var(--muted);font-size:11px">🌐 ${l.ip}</span>` : ''}
-                <span style="color:var(--muted);font-size:11px">${time}</span>
+          return `<div class="log-item">
+            <span class="log-ic" style="background:${color}22;color:${color}">${icon}</span>
+            <div class="log-body">
+              <div class="log-msg">${l.message}</div>
+              <div class="log-meta">
+                ${l.user_name ? `<span>👤 ${l.user_name}</span>` : ''}
+                ${l.school    ? `<span>🏫 ${l.school}</span>` : ''}
+                ${l.ip        ? `<span>🌐 ${l.ip}</span>` : ''}
+                <span>${time}</span>
               </div>
             </div>
-            <span style="flex-shrink:0;background:${color}22;color:${color};border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700">${l.category||''}</span>
+            <span class="log-cat" style="background:${color}22;color:${color}">${l.category||''}</span>
           </div>`;
         }).join('');
     } catch (e) {
@@ -1247,6 +1339,15 @@ function readExcel(file) {
     };
     reader.readAsArrayBuffer(file);
   });
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('show');
 }
 
 // Auto-login if key in sessionStorage

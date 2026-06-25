@@ -289,6 +289,7 @@
         <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')"><span class="tab-ic">🏫</span> المدارس والمشرفون</button>
         <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')"><span class="tab-ic">📝</span> الأسئلة</button>
         <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')"><span class="tab-ic">🧰</span> الأدوات</button>
+        <button class="tab-btn"        data-tab="test-mgmt" onclick="Dev.setTab('test-mgmt')"><span class="tab-ic">🧪</span> إدارة الاختبارات</button>
         <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')"><span class="tab-ic">🎫</span> الدعم الفني</button>
         <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')"><span class="tab-ic">📋</span> سجل النشاط</button>
         <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')"><span class="tab-ic">🧠</span> تحليل السلوك</button>
@@ -523,12 +524,45 @@
       <div class="section">
         <div class="section-title"><span>ℹ️</span> معلومات النظام</div>
         <table class="data-table">
-          <tr><td>الإصدار</td><td>LearnGate v2.0 — Cloudflare D1</td></tr>
-          <tr><td>قاعدة البيانات</td><td>Cloudflare D1 (SQLite)</td></tr>
+          <tr><td>الإصدار</td><td>LearnGate v2.0</td></tr>
+          <tr><td>قاعدة البيانات</td><td>PostgreSQL (عبر postgres.js، بواجهة متوافقة مع D1)</td></tr>
           <tr><td>الاستضافة</td><td>Cloudflare Pages</td></tr>
           <tr><td>API</td><td>Pages Functions (/api/*)</td></tr>
           <tr><td>كلمة مرور المطور</td><td><span style="color:var(--warn)">تُعدَّل عبر متغير البيئة DEV_KEY في Pages Settings</span></td></tr>
         </table>
+      </div>
+    </div>
+
+    <!-- ── Test Management (dev-only) ── -->
+    <div id="tab-test-mgmt" class="tab-pane">
+      <div class="section">
+        <div class="section-title">
+          <span>🧪</span> نتائج اختبار الأحياء
+          <select id="tm-school-filter" class="form-select" style="margin-right:auto;width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadTestResults()">
+            <option value="">كل المدارس</option>
+          </select>
+          <button class="btn btn-warn btn-sm" onclick="Dev.loadTestResults()">🔄 تحديث</button>
+        </div>
+        <div id="tm-results-list"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>♻️</span> منح إعادة اختبار (خطة الدراسة)</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.7;">
+          يرفع تجاوز فترة الانتظار (cooldown) عن آخر خطة دراسية لكل طالب في المدرسة المحددة — نفس آلية "السماح بإعادة الاختبار" المتاحة للمشرف، لكن دفعة واحدة لمدرسة كاملة.
+        </p>
+        <div class="form-row">
+          <select id="tm-grant-school" class="form-select" style="flex:1"></select>
+          <button class="btn btn-primary" onclick="Dev.grantRetakeSchool()">♻️ منح المدرسة كاملة</button>
+        </div>
+      </div>
+
+      <div class="danger-box" style="margin-top:16px">
+        <p>🗑️ <strong>إعادة تعيين اختبارات مدرسة كاملة</strong> — حذف دائم لكل نتائج اختبار الأحياء في المدرسة، لا يمكن التراجع عنه</p>
+        <div class="form-row">
+          <select id="tm-reset-school" class="form-select" style="flex:1"></select>
+          <button class="btn btn-danger" onclick="Dev.resetSchoolTests()">🗑️ إعادة تعيين المدرسة</button>
+        </div>
       </div>
     </div>
 
@@ -700,6 +734,7 @@ const Dev = {
     if (tab === 'logs')      { Dev.loadLogs(); return; }
     if (tab === 'support')   { Dev.setSupportTab('tickets'); return; }
     if (tab === 'analytics') { Dev.loadAnalytics(); return; }
+    if (tab === 'test-mgmt') { Dev.loadTestResults(); return; }
   },
 
   async loadAll() {
@@ -831,6 +866,12 @@ const Dev = {
 
     // Clear school select
     document.getElementById('clear-school-select').innerHTML = schoolOpts;
+
+    // Test management school selects
+    document.getElementById('tm-school-filter').innerHTML =
+      `<option value="">كل المدارس</option>` + schoolOpts;
+    document.getElementById('tm-grant-school').innerHTML = schoolOpts;
+    document.getElementById('tm-reset-school').innerHTML = schoolOpts;
   },
 
   async loadStudents() {
@@ -1112,6 +1153,77 @@ const Dev = {
     await apiDev('/dev/questions', { method: 'DELETE' });
     showToast('تم مسح الأسئلة ✅');
     Dev.loadQuestions();
+  },
+
+  // ── Test Management Tab (dev-only) ────────────────────────────────────
+  async loadTestResults() {
+    const el = document.getElementById('tm-results-list');
+    el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
+    try {
+      const school = document.getElementById('tm-school-filter')?.value || '';
+      const url = '/dev/test-results' + (school ? '?school=' + encodeURIComponent(school) : '');
+      const { results } = await apiDev(url);
+      if (!results.length) { el.innerHTML = '<div class="empty">لا توجد نتائج اختبار</div>'; return; }
+      const typeLabel = { pre: '📋 قبلي', post: '🏁 بعدي' };
+      el.innerHTML = `
+        <div style="margin-bottom:10px;font-size:13px;color:var(--muted)">${results.length} نتيجة</div>
+        <table class="data-table">
+          <thead><tr><th>الطالب</th><th>المدرسة</th><th>النوع</th><th>الدرجة</th><th>التاريخ</th><th></th></tr></thead>
+          <tbody>${results.map(r => {
+            const time = new Date(r.created_at).toLocaleString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            const safeName = (r.student_name || '').replace(/'/g, "\\'");
+            return `<tr>
+              <td>${r.student_name || ''}</td>
+              <td>${r.school || ''}</td>
+              <td>${typeLabel[r.test_type] || r.test_type}</td>
+              <td>${r.score}%</td>
+              <td style="font-size:12px;color:var(--muted)">${time}</td>
+              <td style="white-space:nowrap">
+                <button class="btn btn-danger btn-sm" onclick="Dev.deleteTestResult('${r.id}')" title="حذف هذه النتيجة">🗑️</button>
+                <button class="btn btn-warn btn-sm" onclick="Dev.resetStudentTests('${r.student_id}','${safeName}')" title="حذف كل نتائج هذا الطالب">♻️ الطالب</button>
+              </td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>`;
+    } catch (e) {
+      el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل النتائج: ${e.message}</div>`;
+    }
+  },
+
+  async deleteTestResult(id) {
+    if (!await confirmDialog('حذف هذه النتيجة نهائياً؟', { title: 'حذف نتيجة اختبار', okText: 'حذف' })) return;
+    await apiDev('/dev/test-results/' + id, { method: 'DELETE' });
+    showToast('تم الحذف ✅');
+    Dev.loadTestResults();
+  },
+
+  async resetStudentTests(studentId, studentName) {
+    if (!await confirmDialog(`حذف جميع نتائج اختبارات الطالب "${studentName}" نهائياً؟`, { title: 'إعادة تعيين اختبارات طالب', okText: 'حذف' })) return;
+    await apiDev('/dev/test-results?studentId=' + encodeURIComponent(studentId), { method: 'DELETE' });
+    showToast('تم إعادة التعيين ✅');
+    Dev.loadTestResults();
+  },
+
+  async resetSchoolTests() {
+    const school = document.getElementById('tm-reset-school').value;
+    if (!school) return;
+    if (!await confirmDialog(`حذف جميع نتائج اختبارات الأحياء لمدرسة "${school}" نهائياً؟`, { title: 'إعادة تعيين اختبارات مدرسة', okText: 'استمرار' })) return;
+    if (!await confirmDialog('هذا الإجراء لا يمكن التراجع عنه. متأكد؟', { title: 'تأكيد أخير', okText: 'حذف نهائي' })) return;
+    await apiDev('/dev/test-results?school=' + encodeURIComponent(school) + '&confirm=RESET_SCHOOL_TESTS', { method: 'DELETE' });
+    showToast('تم إعادة تعيين اختبارات المدرسة ✅');
+    Dev.loadTestResults();
+  },
+
+  async grantRetakeSchool() {
+    const school = document.getElementById('tm-grant-school').value;
+    if (!school) return;
+    if (!await confirmDialog(`منح إعادة اختبار لجميع طلاب "${school}"؟`, { title: 'منح إعادة اختبار لمدرسة', okText: 'منح' })) return;
+    try {
+      const { updated } = await apiDev('/dev/plans/grant-retake?school=' + encodeURIComponent(school), { method: 'PATCH' });
+      showToast(`تم منح إعادة الاختبار لـ ${updated} خطة ✅`);
+    } catch (e) {
+      showToast('فشل: ' + e.message, true);
+    }
   },
 
   // ── Logs Tab ────────────────────────────────────────────────────────────

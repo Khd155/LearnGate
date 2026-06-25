@@ -1,4 +1,4 @@
-// Cloudflare Pages Function — /api/* handler
+// /api/* request handler — shared by server.js (CranL) and any Pages-style host
 // PostgreSQL (via postgres.js) | Dev key env var: DEV_KEY
 import { getDB } from '../_lib/db.js';
 import { listTestResults, deleteSingleTestResult, resetStudentTestResults, resetSchoolTestResults, grantRetakeForSchool } from '../_lib/test-management.js';
@@ -122,7 +122,7 @@ const ok  = (d, s = 200, h = CORS) => new Response(JSON.stringify(d), { status: 
 const err = (m, s = 400, h = CORS) => new Response(JSON.stringify({ error: m }), { status: s, headers: h });
 
 function getDevKey(env) {
-  return env.DEV_KEY; // REMOVED fallback — must be set in Cloudflare env vars
+  return env.DEV_KEY; // must be set as an env var on the host
 }
 
 function authDev(request, env) {

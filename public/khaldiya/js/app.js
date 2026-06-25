@@ -2958,7 +2958,7 @@ const App = {
     App._chatTimer = null;
     State.chatAdminId   = null;
     State.chatStudentId = null;
-    const back = State.role === 'admin' ? 'screen-admin'
+    const back = (State.role === 'admin' || State.role === 'director') ? 'screen-admin'
       : State.role === 'support' ? 'screen-support-admin'
       : 'screen-student-home';
     show(back);
@@ -2970,7 +2970,7 @@ const App = {
     let msgs = [], readPatch = null;
 
     try {
-      if (State.role === 'admin' && State.chatStudentId) {
+      if ((State.role === 'admin' || State.role === 'director') && State.chatStudentId) {
         const data = await apiFetch(`/messages?studentId=${State.chatStudentId}&adminId=${State.admin.id}`);
         msgs = data.messages || [];
         if (msgs.some(m => m.sender_type === 'student' && !m.is_read))
@@ -2993,8 +2993,8 @@ const App = {
 
     if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>'; App._chatMsgCount = 0; return; }
     el.innerHTML = msgs.map(m => {
-      const isMine = (State.role === 'admin' || State.role === 'support') ? m.sender_type === 'admin' : m.sender_type === 'student';
-      const senderName = isMine ? 'أنت' : ((State.role === 'admin' || State.role === 'support') ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(State.chatAdminName || 'المشرف'));
+      const isMine = (State.role === 'admin' || State.role === 'director' || State.role === 'support') ? m.sender_type === 'admin' : m.sender_type === 'student';
+      const senderName = isMine ? 'أنت' : ((State.role === 'admin' || State.role === 'director' || State.role === 'support') ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(State.chatAdminName || 'المشرف'));
       const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
       return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};">
         <div class="chat-bubble ${isMine ? 'sent' : 'received'}">${escapeHtml(m.body)}</div>
@@ -3015,7 +3015,7 @@ const App = {
       }
       try {
         let count = 0;
-        if (State.role === 'admin' && State.chatStudentId) {
+        if ((State.role === 'admin' || State.role === 'director') && State.chatStudentId) {
           const d = await apiFetch(`/messages?studentId=${State.chatStudentId}&adminId=${State.admin.id}`);
           count = (d.messages || []).length;
         } else if (State.role === 'support' && State.chatStudentId) {
@@ -3036,7 +3036,7 @@ const App = {
     if (!body) return;
     input.value = '';
     try {
-      if (State.role === 'admin' && State.chatStudentId) {
+      if ((State.role === 'admin' || State.role === 'director') && State.chatStudentId) {
         await apiFetch('/messages', { method:'POST', body: JSON.stringify({ studentId: State.chatStudentId, body, recipientAdminId: State.admin.id }) });
       } else if (State.role === 'support' && State.chatStudentId) {
         await apiFetch('/messages', { method:'POST', body: JSON.stringify({ studentId: State.chatStudentId, body }) });

@@ -397,6 +397,12 @@
       <div class="section">
         <div class="section-title"><span>⚠️</span> أدوات النظام</div>
 
+        <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+          <p style="margin-bottom:10px;">💾 <strong>نسخة احتياطية كاملة للموقع</strong> — يحمّل ملف JSON يحتوي كل جداول قاعدة البيانات (الطلاب، الخطط، الأسئلة، المشرفين، الرسائل، التذاكر... إلخ) على جهازك.</p>
+          <button class="btn btn-primary" onclick="Dev.downloadFullBackup()">💾 تحميل نسخة احتياطية</button>
+          <span id="backup-result" style="margin-right:12px;font-size:13px;color:#1d4ed8;"></span>
+        </div>
+
         <div class="danger-box">
           <p>🗑️ <strong>مسح طلاب مدرسة بالكامل</strong> — حذف دائم لا يمكن التراجع عنه</p>
           <div class="form-row">
@@ -874,6 +880,29 @@ const Dev = {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Questions');
     XLSX.writeFile(wb, 'learngate-questions.xlsx');
     showToast('تم التصدير ✅');
+  },
+
+  async downloadFullBackup() {
+    const resultEl = document.getElementById('backup-result');
+    if (resultEl) resultEl.textContent = '... جارٍ التحميل';
+    try {
+      const data = await apiDev('/dev/backup');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const stamp = data.generated_at.slice(0, 19).replace(/[:T]/g, '-');
+      a.href = url;
+      a.download = `learngate-backup-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      if (resultEl) resultEl.textContent = 'تم التحميل ✅';
+      showToast('تم تحميل النسخة الاحتياطية ✅');
+    } catch (e) {
+      if (resultEl) resultEl.textContent = '';
+      showToast('فشل تحميل النسخة الاحتياطية: ' + e.message, true);
+    }
   },
 
   async clearSchoolStudents() {

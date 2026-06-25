@@ -891,6 +891,23 @@ export async function onRequest({ request, env }) {
 
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
 
+      // GET /api/dev/backup — full-site data dump (all tables) for manual download
+      if (sub === 'backup' && method === 'GET') {
+        const BACKUP_TABLES = [
+          'students', 'plans', 'questions', 'admins', 'schools',
+          'test_results', 'bio_questions', 'test_answers', 'logs',
+          'messages', 'tickets', 'ticket_replies', 'broadcasts', 'broadcast_dismissals',
+        ];
+        const tables = {};
+        for (const t of BACKUP_TABLES) {
+          try {
+            const { results } = await DB.prepare(`SELECT * FROM ${t}`).all();
+            tables[t] = results;
+          } catch { tables[t] = []; }
+        }
+        return ok({ generated_at: new Date().toISOString(), tables }, 200, CORS);
+      }
+
       // GET /api/dev/stats — stats per school
       if (sub === 'stats' && method === 'GET') {
         const { results: schools } = await DB.prepare('SELECT name FROM schools ORDER BY name').all();

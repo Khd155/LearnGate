@@ -19,8 +19,11 @@ const SECURITY_HEADERS = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';",
 };
 
-// Mirrors public/khaldiya/_redirects (Cloudflare Pages SPA-style rewrites)
-const SPA_REWRITES = ['/capabilities', '/admin', '/history', '/chat', '/login'];
+// Mirrors public/khaldiya/_redirects (Cloudflare Pages SPA-style rewrites).
+// '/admin' is intentionally excluded — it's a real static directory
+// (public/khaldiya/admin/, the React admin dashboard), not an SPA route, and
+// must fall through to express.static below instead of being rewritten here.
+const SPA_REWRITES = ['/capabilities', '/history', '/chat', '/login'];
 
 async function readRawBody(req) {
   const chunks = [];

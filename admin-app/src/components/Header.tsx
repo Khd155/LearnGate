@@ -5,13 +5,6 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import { useStore } from '../store/useStore';
 import { clearSession } from '../lib/api';
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '؟';
-  if (parts.length === 1) return parts[0].slice(0, 2);
-  return (parts[0][0] || '') + (parts[1][0] || '');
-}
-
 export default function Header() {
   const session = useStore((s) => s.session);
   const dark = useStore((s) => s.dark);
@@ -35,7 +28,9 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/80 px-6 py-4 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/80">
+    <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-slate-200/80 bg-white/80 px-6 py-4 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/80">
+      <img src="/logo.png" alt="" className="h-10 w-auto shrink-0" />
+
       <div>
         <h1 className="text-lg font-bold text-slate-900 dark:text-white">لوحة المشرف</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -43,7 +38,14 @@ export default function Header() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="hidden text-end sm:block">
+        <p className="text-sm font-bold text-slate-900 dark:text-white">{session?.name}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {session?.role === 'director' ? 'مدير عام' : 'مشرف'}
+        </p>
+      </div>
+
+      <div className="ms-auto flex items-center gap-3">
         <Tooltip.Provider delayDuration={300}>
           <Tooltip.Root>
             <Tooltip.Trigger asChild>
@@ -81,7 +83,7 @@ export default function Header() {
             >
               🔔
               {totalUnread > 0 && (
-                <span className="absolute -left-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
                   {totalUnread > 99 ? '99+' : totalUnread}
                 </span>
               )}
@@ -121,38 +123,14 @@ export default function Header() {
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
 
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            <button
-              type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white"
-              aria-label="حساب المستخدم"
-            >
-              {initials(session?.name || '')}
-            </button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              align="end"
-              sideOffset={8}
-              className="z-50 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-800"
-            >
-              <div className="px-2 py-1.5">
-                <p className="text-sm font-bold text-slate-900 dark:text-white">{session?.name}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {session?.role === 'director' ? 'مدير عام' : 'مشرف'}
-                </p>
-              </div>
-              <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
-              <DropdownMenu.Item
-                onSelect={logout}
-                className="cursor-pointer rounded-lg px-2 py-2 text-sm text-rose-600 outline-none hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/50"
-              >
-                🚪 تسجيل الخروج
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+        <button
+          type="button"
+          onClick={logout}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-rose-950/50"
+          aria-label="تسجيل الخروج"
+        >
+          🚪
+        </button>
       </div>
     </header>
   );

@@ -37,7 +37,7 @@ export default function App() {
 
   if (!session) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="flex h-screen items-center justify-center bg-[#f4f8fb] dark:bg-slate-950">
         <div className="flex flex-col items-center gap-3 text-slate-400">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-500" />
           <p>جاري التحقق من الجلسة…</p>

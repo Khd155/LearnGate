@@ -17,7 +17,8 @@ body {
 }
 
 body {
-  @apply bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100;
+  background-color: #f4f8fb;
+  @apply text-slate-800 dark:bg-slate-950 dark:text-slate-100;
 }
 
 @keyframes toast-in {

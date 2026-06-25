@@ -2096,7 +2096,7 @@ const App = {
     const errEl = document.getElementById('add-st-err');
     if (!name) { showAlert(errEl, 'أدخل اسم الطالب.'); return; }
     if (!/^\d{10}$/.test(code)) { showAlert(errEl, 'السجل المدني يجب أن يكون ١٠ أرقام.'); return; }
-    if (phone && !/^\d{9,10}$/.test(phone)) { showAlert(errEl, 'رقم الجوال غير صحيح.'); return; }
+    if (phone && !/^05\d{8}$/.test(phone)) { showAlert(errEl, 'رقم الجوال يجب أن يبدأ بـ 05 ويكون 10 أرقام.'); return; }
     if (DB.students().find(s => s.code === code)) { showAlert(errEl, 'هذا السجل المدني مسجّل مسبقاً.'); return; }
     try { await DB.addStudent({ name, code, phone }); }
     catch (e) { showAlert(errEl, e.message || 'فشل الحفظ.'); return; }
@@ -2113,7 +2113,7 @@ const App = {
     const phone = prompt('رقم جوال الطالب:', currentPhone || '');
     if (phone === null) return;
     const trimmed = phone.trim();
-    if (trimmed && !/^\d{9,10}$/.test(trimmed)) { showToast('رقم الجوال غير صحيح.'); return; }
+    if (trimmed && !/^05\d{8}$/.test(trimmed)) { showToast('رقم الجوال يجب أن يبدأ بـ 05 ويكون 10 أرقام.'); return; }
     try { await DB.updateStudentPhone(id, trimmed); }
     catch (e) { showToast(e.message || 'فشل الحفظ.'); return; }
     showToast('تم تحديث رقم الجوال ✅');
@@ -2142,7 +2142,7 @@ const App = {
       allRows.forEach(r => {
         r.validCode  = /^\d{10}$/.test(r.code);
         r.validName  = r.name.length > 0;
-        r.validPhone = !r.phone || /^\d{9,10}$/.test(r.phone);
+        r.validPhone = !r.phone || /^05\d{8}$/.test(r.phone);
         if (r.validCode) {
           if (codesSeen[r.code] !== undefined) {
             r.dupOf = codesSeen[r.code];
@@ -2213,7 +2213,7 @@ const App = {
         </td>
         <td style="padding:8px 12px;">
           <input type="text" value="${escapeHtml(r.phone || '')}" maxlength="10" inputmode="numeric"
-            onchange="App._importRows[${i}].phone=this.value.trim();App._importRows[${i}].validPhone=!this.value.trim()||/^\\d{9,10}$/.test(this.value.trim());App._renderImportPreview()"
+            onchange="App._importRows[${i}].phone=this.value.trim();App._importRows[${i}].validPhone=!this.value.trim()||/^05\\d{8}$/.test(this.value.trim());App._renderImportPreview()"
             style="width:120px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:monospace;font-size:13px;">
         </td>
         <td style="padding:8px 12px;text-align:center;">${status}</td>

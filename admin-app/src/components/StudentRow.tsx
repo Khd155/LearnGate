@@ -54,6 +54,17 @@ export default function StudentRow({
           {testStatusLabel(status)}
         </span>
       </td>
+      <td className="px-4 py-3 text-center">
+        <button
+          type="button"
+          onClick={() => onOpen(student)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50 dark:border-slate-700 dark:text-indigo-400 dark:hover:bg-indigo-950/50"
+          aria-label="تعديل بيانات الطالب"
+          title="تعديل"
+        >
+          ✏️
+        </button>
+      </td>
       <td className="px-4 py-3 text-end">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
@@ -71,12 +82,6 @@ export default function StudentRow({
               sideOffset={4}
               className="z-50 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800"
             >
-              <DropdownMenu.Item
-                onSelect={() => onOpen(student)}
-                className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
-              >
-                ✏️ تعديل
-              </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={() => onMessage(student)}
                 className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"

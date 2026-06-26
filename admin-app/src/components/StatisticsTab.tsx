@@ -59,28 +59,6 @@ export default function StatisticsTab() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <h3 className="mb-4 font-bold text-slate-800 dark:text-white">توزيع حالة الاختبار</h3>
-        <div className="space-y-4">
-          {bars.map((b) => (
-            <div key={b.label}>
-              <div className="mb-1 flex justify-between text-sm text-slate-600 dark:text-slate-300">
-                <span>{b.label}</span>
-                <span>
-                  {b.count} ({b.pct}%)
-                </span>
-              </div>
-              <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div
-                  className={`h-full ${b.color} rounded-full transition-all duration-500`}
-                  style={{ width: `${b.pct}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div className="grid gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
           <h3 className="mb-3 font-bold text-slate-800 dark:text-white">🏆 الأعلى أداءً</h3>
@@ -111,6 +89,28 @@ export default function StatisticsTab() {
               ))}
             </ul>
           )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+        <h3 className="mb-4 font-bold text-slate-800 dark:text-white">توزيع حالة الاختبار</h3>
+        <div className="space-y-4">
+          {bars.map((b) => (
+            <div key={b.label}>
+              <div className="mb-1 flex justify-between text-sm text-slate-600 dark:text-slate-300">
+                <span>{b.label}</span>
+                <span>
+                  {b.count} ({b.pct}%)
+                </span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                  className={`h-full ${b.color} rounded-full transition-all duration-500`}
+                  style={{ width: `${b.pct}%` }}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

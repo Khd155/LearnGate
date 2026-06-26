@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import * as Switch from '@radix-ui/react-switch';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { useStore } from '../store/useStore';
 import { clearSession } from '../lib/api';
@@ -53,18 +52,10 @@ export default function Header() {
               <button
                 type="button"
                 onClick={toggleDark}
-                className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-1 py-1"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/10 text-lg hover:bg-white/20"
                 aria-label="تبديل الوضع الليلي"
               >
-                <Switch.Root
-                  checked={dark}
-                  onCheckedChange={toggleDark}
-                  className="relative h-6 w-11 rounded-full bg-white/25 outline-none data-[state=checked]:bg-white/40"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform duration-200 data-[state=checked]:translate-x-[22px]" />
-                </Switch.Root>
-                <span className="px-1 text-sm">{dark ? '🌙' : '☀️'}</span>
+                {dark ? '🌙' : '☀️'}
               </button>
             </Tooltip.Trigger>
             <Tooltip.Portal>
@@ -127,10 +118,9 @@ export default function Header() {
         <button
           type="button"
           onClick={logout}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/10 text-lg hover:bg-white/20"
-          aria-label="تسجيل الخروج"
+          className="flex h-10 items-center justify-center rounded-full border border-white/30 bg-white/10 px-4 text-sm font-bold hover:bg-white/20"
         >
-          🚪
+          خروج
         </button>
       </div>
     </header>

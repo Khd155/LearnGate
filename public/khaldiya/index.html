@@ -608,7 +608,7 @@
                  oninput="this.value=this.value.replace(/[^0-9]/g,'')"
                  onkeydown="if(event.key==='Enter') App.studentLogin()"
                  style="padding-left:44px;">
-          <button type="button" onclick="(function(btn){var inp=document.getElementById('sl-code');inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🙈';})(this)"
+          <button type="button" onclick="(function(btn){var inp=document.getElementById('sl-code');inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🔒';})(this)"
                   style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:4px;">👁</button>
         </div>
       </div>
@@ -655,7 +655,7 @@
                  oninput="this.value=this.value.replace(/[^0-9]/g,'')"
                  onkeydown="if(event.key==='Enter') App.adminLogin()"
                  style="padding-left:44px;">
-          <button type="button" onclick="(function(btn){var inp=document.getElementById('al-code');inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🙈';})(this)"
+          <button type="button" onclick="(function(btn){var inp=document.getElementById('al-code');inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🔒';})(this)"
                   style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:4px;">👁</button>
         </div>
       </div>
@@ -2038,6 +2038,14 @@
       <span id="nt-ticket-num" style="font-family:monospace;font-size:11px;font-weight:800;background:var(--bg);color:var(--muted);border:1.5px solid var(--border);padding:3px 10px;border-radius:20px;"></span>
     </div>
 
+    <!-- Phone (only shown if the student has no phone on file yet) -->
+    <div class="form-group" id="nt-phone-group" style="display:none;">
+      <label class="form-label">رقم الجوال <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="nt-phone" class="form-input" placeholder="05XXXXXXXX" inputmode="numeric" maxlength="10"
+        oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+      <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">لا يوجد رقم جوال مسجّل لحسابك — سجّله الآن حتى يتمكن الدعم الفني من التواصل معك.</div>
+    </div>
+
     <!-- Step 1: Category cards -->
     <div class="form-group">
       <label class="form-label">نوع الطلب <span style="color:var(--danger)">*</span></label>
@@ -2096,7 +2104,6 @@
 <div id="guest-support-modal" class="modal-overlay" onclick="if(event.target===this)App.closeGuestSupportModal()">
   <div class="modal-box" style="max-width:480px;">
     <div class="modal-title" style="margin-bottom:6px;">تواصل مع الدعم الفني</div>
-    <div class="modal-sub">لمن لا يملك حساباً أو لا يستطيع الدخول إليه</div>
 
     <!-- Step 1: identity -->
     <div id="gs-step1">

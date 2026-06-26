@@ -564,6 +564,25 @@
           <button class="btn btn-danger" onclick="Dev.resetSchoolTests()">🗑️ إعادة تعيين المدرسة</button>
         </div>
       </div>
+
+      <div class="section" style="margin-top:24px">
+        <div class="section-title">
+          <span>🧠</span> اختبار القدرات
+          <select id="ap-school-filter" class="form-select" style="margin-right:auto;width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadAptitudePlans()">
+            <option value="">كل المدارس</option>
+          </select>
+          <button class="btn btn-warn btn-sm" onclick="Dev.loadAptitudePlans()">🔄 تحديث</button>
+        </div>
+        <div id="ap-plans-list"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+
+      <div class="danger-box" style="margin-top:16px">
+        <p>🗑️ <strong>إعادة تعيين اختبار القدرات لمدرسة كاملة</strong> — حذف دائم لكل نتائج اختبار القدرات (الخطط) في المدرسة، لا يمكن التراجع عنه</p>
+        <div class="form-row">
+          <select id="ap-reset-school" class="form-select" style="flex:1"></select>
+          <button class="btn btn-danger" onclick="Dev.resetSchoolPlans()">🗑️ إعادة تعيين المدرسة</button>
+        </div>
+      </div>
     </div>
 
     <!-- ── Logs ── -->
@@ -746,7 +765,7 @@ const Dev = {
     if (tab === 'logs')      { Dev.loadLogs(); return; }
     if (tab === 'support')   { Dev.setSupportTab('tickets'); return; }
     if (tab === 'analytics') { Dev.loadAnalytics(); return; }
-    if (tab === 'test-mgmt') { Dev.loadTestResults(); return; }
+    if (tab === 'test-mgmt') { Dev.loadTestResults(); Dev.loadAptitudePlans(); return; }
   },
 
   async loadAll() {
@@ -884,6 +903,11 @@ const Dev = {
       `<option value="">كل المدارس</option>` + schoolOpts;
     document.getElementById('tm-grant-school').innerHTML = schoolOpts;
     document.getElementById('tm-reset-school').innerHTML = schoolOpts;
+
+    // Aptitude-test (اختبار القدرات) school selects
+    document.getElementById('ap-school-filter').innerHTML =
+      `<option value="">كل المدارس</option>` + schoolOpts;
+    document.getElementById('ap-reset-school').innerHTML = schoolOpts;
   },
 
   async loadStudents() {
@@ -1236,6 +1260,84 @@ const Dev = {
     } catch (e) {
       showToast('فشل: ' + e.message, true);
     }
+  },
+
+  // ── Aptitude Test Management (اختبار القدرات, dev-only) ──────────────────
+  async loadAptitudePlans() {
+    const el = document.getElementById('ap-plans-list');
+    el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
+    try {
+      const school = document.getElementById('ap-school-filter')?.value || '';
+      const url = '/dev/plans' + (school ? '?school=' + encodeURIComponent(school) : '');
+      const { plans } = await apiDev(url);
+      if (!plans.length) { el.innerHTML = '<div class="empty">لا توجد نتائج اختبار قدرات</div>'; return; }
+      const statusLabel = { pending: '🟡 معلّقة', active: '🟢 معتمدة' };
+      el.innerHTML = `
+        <div style="margin-bottom:10px;font-size:13px;color:var(--muted)">${plans.length} نتيجة</div>
+        <table class="data-table">
+          <thead><tr><th>الطالب</th><th>المدرسة</th><th>الحالة</th><th>المعدل العام</th><th>عدد المهارات</th><th>التاريخ</th><th></th></tr></thead>
+          <tbody>${plans.map(p => {
+            const avg = p.gaps.length ? Math.round(p.gaps.reduce((s, g) => s + (g.pct || 0), 0) / p.gaps.length) : 0;
+            const time = new Date(p.created_at).toLocaleString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            const safeName = escapeHtml(p.student_name || '').replace(/'/g, "\\'");
+            const detail = p.gaps.length
+              ? p.gaps.map(g => {
+                  const color = g.level === 'high' ? '#22c55e' : g.level === 'mid' ? '#f59e0b' : '#ef4444';
+                  return `<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px;">
+                    <span>${escapeHtml(g.skillName || g.skillId || '')}</span>
+                    <span style="color:${color};font-weight:700;">${g.pct}%</span>
+                  </div>`;
+                }).join('')
+              : '<span style="color:var(--muted)">لا توجد تفاصيل</span>';
+            return `<tr style="cursor:pointer" onclick="Dev.toggleAptitudeDetail('${p.id}')">
+                <td>${escapeHtml(p.student_name)}</td>
+                <td>${escapeHtml(p.school)}</td>
+                <td>${statusLabel[p.status] || p.status}</td>
+                <td>${avg}%</td>
+                <td>${p.gaps.length}</td>
+                <td style="font-size:12px;color:var(--muted)">${time}</td>
+                <td style="white-space:nowrap" onclick="event.stopPropagation()">
+                  <button class="btn btn-danger btn-sm" onclick="Dev.deleteAptitudePlan('${p.id}')" title="حذف هذه النتيجة">🗑️</button>
+                  <button class="btn btn-warn btn-sm" onclick="Dev.resetStudentPlans('${p.student_id}','${safeName}')" title="حذف كل نتائج هذا الطالب">♻️ الطالب</button>
+                </td>
+              </tr>
+              <tr id="ap-detail-${p.id}" style="display:none">
+                <td colspan="7" style="background:rgba(255,255,255,.02);padding:10px 14px;">${detail}</td>
+              </tr>`;
+          }).join('')}</tbody>
+        </table>`;
+    } catch (e) {
+      el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل النتائج: ${e.message}</div>`;
+    }
+  },
+
+  toggleAptitudeDetail(id) {
+    const row = document.getElementById('ap-detail-' + id);
+    if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+  },
+
+  async deleteAptitudePlan(id) {
+    if (!await confirmDialog('حذف نتيجة اختبار القدرات هذه نهائياً؟', { title: 'حذف نتيجة اختبار قدرات', okText: 'حذف' })) return;
+    await apiDev('/dev/plans/' + id, { method: 'DELETE' });
+    showToast('تم الحذف ✅');
+    Dev.loadAptitudePlans();
+  },
+
+  async resetStudentPlans(studentId, studentName) {
+    if (!await confirmDialog(`حذف جميع نتائج اختبار القدرات للطالب "${studentName}" نهائياً؟`, { title: 'إعادة تعيين اختبار قدرات طالب', okText: 'حذف' })) return;
+    await apiDev('/dev/plans?studentId=' + encodeURIComponent(studentId), { method: 'DELETE' });
+    showToast('تم إعادة التعيين ✅');
+    Dev.loadAptitudePlans();
+  },
+
+  async resetSchoolPlans() {
+    const school = document.getElementById('ap-reset-school').value;
+    if (!school) return;
+    if (!await confirmDialog(`حذف جميع نتائج اختبار القدرات لمدرسة "${school}" نهائياً؟`, { title: 'إعادة تعيين اختبار قدرات مدرسة', okText: 'استمرار' })) return;
+    if (!await confirmDialog('هذا الإجراء لا يمكن التراجع عنه. متأكد؟', { title: 'تأكيد أخير', okText: 'حذف نهائي' })) return;
+    await apiDev('/dev/plans?school=' + encodeURIComponent(school) + '&confirm=RESET_SCHOOL_PLANS', { method: 'DELETE' });
+    showToast('تم إعادة تعيين اختبار القدرات للمدرسة ✅');
+    Dev.loadAptitudePlans();
   },
 
   // ── Logs Tab ────────────────────────────────────────────────────────────

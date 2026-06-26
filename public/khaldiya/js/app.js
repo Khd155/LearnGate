@@ -491,14 +491,6 @@ const App = {
       State.admin = { ...admin, code };
       if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
       const adminName = admin.name || '';
-      try { await DB.loadAll(); }
-      catch (e) {
-        _authToken = null;
-        _restoreBtn();
-        if (!navigator.onLine) { showAlert(errEl, 'لا يوجد اتصال بالإنترنت — تحقق من الشبكة.'); return; }
-        if (e?.status === 401) { showAlert(errEl, 'الصلاحيات غير كافية — راجع مدير النظام لضبط دورك في قاعدة البيانات.'); return; }
-        showAlert(errEl, 'تم الدخول لكن تعذّر تحميل البيانات — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
-      }
       const _sess = { role: State.role, code, name: adminName, school: admin.school || '', token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
       try { sessionStorage.setItem('lg_session', JSON.stringify(_sess)); } catch(_) {}
       try { localStorage.setItem('lg_xsession', JSON.stringify(_sess)); } catch(_) {}

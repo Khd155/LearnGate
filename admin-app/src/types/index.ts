@@ -97,3 +97,32 @@ export interface Broadcast {
 export interface ApiErrorShape {
   error: string;
 }
+
+export interface StatCardData {
+  value: number;
+  deltaPct: number;
+}
+
+export interface DailyActivity {
+  date: string;
+  logins: number;
+  tests: number;
+  tickets: number;
+}
+
+export interface SkillAverage {
+  skill: string;
+  avgPct: number;
+}
+
+export interface AdminStats {
+  cards: {
+    students: StatCardData;
+    ticketsOpen: StatCardData;
+    plansActive: StatCardData;
+    avgScore: StatCardData;
+  };
+  dailyActivity: DailyActivity[];
+  skillAverages: SkillAverage[];
+  statusDistribution: { finished: number; started: number; notStarted: number };
+}

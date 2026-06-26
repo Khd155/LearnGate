@@ -374,8 +374,10 @@ export async function onRequest({ request, env }) {
         return ok({ students: results }, 200, CORS);
       }
 
-      // POST /api/students/:id/reset-test — admin/director (own school) or dev: wipe a
-      // student's bio test attempts so they can take it again, without needing a dev key.
+      // POST /api/students/:id/reset-test — admin/director (own school) or dev: let a
+      // student take the test again by lifting the cooldown on their latest plan
+      // (the same OVERRIDE convention app.js's grantRetake() uses). Previous test
+      // results and plan history are kept intact — nothing is deleted here.
       if (method === 'POST' && sub && subsub === 'reset-test') {
         const claims = await verifyToken(request, env);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
@@ -385,9 +387,9 @@ export async function onRequest({ request, env }) {
           const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
           if (!effectiveSchool || resetTarget.school !== effectiveSchool) return err('غير مصرح', 401, CORS);
         }
-        const deleted = await resetStudentTestResults(DB, sub);
-        await logEvent(DB, { level: 'warn', category: 'test-management', message: `إعادة تعيين اختبار الطالب: ${resetTarget.name}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || resetTarget.school || '' });
-        return ok({ ok: true, deleted }, 200, CORS);
+        const updated = await grantRetakeForSchool(DB, { studentId: sub });
+        await logEvent(DB, { level: 'success', category: 'test-management', message: `منح إعادة اختبار للطالب: ${resetTarget.name}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || resetTarget.school || '' });
+        return ok({ ok: true, updated }, 200, CORS);
       }
 
       if (method === 'POST' && !sub) {

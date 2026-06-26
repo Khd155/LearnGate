@@ -40,15 +40,15 @@ export default function Header() {
         </p>
       </div>
 
-      <div className="hidden items-center gap-2.5 rounded-full border border-white/25 bg-white/10 py-1.5 ps-3 pe-1.5 sm:flex">
+      <div className="hidden items-center gap-2.5 rounded-full border border-white/25 bg-white/10 py-1.5 ps-1.5 pe-3 sm:flex">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm font-bold text-white">
+          {session?.name?.trim()?.charAt(0) || '؟'}
+        </div>
         <div className="text-end">
           <p className="text-sm font-bold leading-tight text-white">{session?.name}</p>
           <p className="text-[11px] leading-tight text-white/70">
             {session?.role === 'director' ? 'مدير عام' : 'مشرف'}
           </p>
-        </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-sm font-bold text-white">
-          {session?.name?.trim()?.charAt(0) || '؟'}
         </div>
       </div>
 

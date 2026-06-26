@@ -87,7 +87,7 @@ export default function StudentRow({
                 onSelect={() => onResetTest(student)}
                 className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
               >
-                🔁 إعادة الاختبار
+                🔓 سماح بإعادة الاختبار
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
               <DropdownMenu.Item

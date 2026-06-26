@@ -102,8 +102,8 @@ export default function StudentsTable() {
     if (!resetTarget) return;
     setResetting(true);
     try {
-      const res = await resetStudentTest(resetTarget.id);
-      pushToast('success', `تمت إعادة تعيين اختبار ${resetTarget.name} (${res.deleted} سجل)`);
+      await resetStudentTest(resetTarget.id);
+      pushToast('success', `تم السماح لـ ${resetTarget.name} بإعادة الاختبار`);
       setResetTarget(null);
     } catch (e) {
       pushToast('error', e instanceof Error ? e.message : 'فشل إعادة تعيين الاختبار');
@@ -293,9 +293,9 @@ export default function StudentsTable() {
       <ConfirmDialog
         open={!!resetTarget}
         onOpenChange={(o) => !o && setResetTarget(null)}
-        title="إعادة تعيين الاختبار؟"
-        description={`سيتم حذف نتائج اختبار ${resetTarget?.name || ''} السابقة.`}
-        confirmLabel="إعادة التعيين"
+        title="السماح بإعادة الاختبار؟"
+        description={`سيمكن ${resetTarget?.name || ''} من إعادة الاختبار الآن دون حذف نتائجه السابقة.`}
+        confirmLabel="سماح"
         loading={resetting}
         onConfirm={doReset}
       />

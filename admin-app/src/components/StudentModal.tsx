@@ -76,8 +76,8 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
   const doReset = async () => {
     setResetting(true);
     try {
-      const res = await resetStudentTest(student.id);
-      pushToast('success', `تمت إعادة تعيين الاختبار (${res.deleted} سجل)`);
+      await resetStudentTest(student.id);
+      pushToast('success', 'تم السماح للطالب بإعادة الاختبار');
       setResetOpen(false);
     } catch (e) {
       pushToast('error', e instanceof Error ? e.message : 'فشل إعادة تعيين الاختبار');
@@ -162,7 +162,7 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
                 onClick={() => setResetOpen(true)}
                 className="rounded-xl border border-amber-200 px-3 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/50"
               >
-                🔁 إعادة الاختبار
+                🔓 سماح بإعادة الاختبار
               </button>
               <button
                 type="button"
@@ -236,9 +236,9 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
       <ConfirmDialog
         open={resetOpen}
         onOpenChange={setResetOpen}
-        title="إعادة تعيين الاختبار؟"
-        description={`سيتم حذف جميع نتائج اختبار ${student.name} السابقة، ويمكنه إعادة الاختبار من جديد.`}
-        confirmLabel="إعادة التعيين"
+        title="السماح بإعادة الاختبار؟"
+        description={`سيمكن ${student.name} من إعادة الاختبار الآن دون حذف نتائجه السابقة.`}
+        confirmLabel="سماح"
         loading={resetting}
         onConfirm={doReset}
       />

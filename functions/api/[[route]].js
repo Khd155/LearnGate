@@ -1238,6 +1238,50 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true, updated }, 200, CORS);
       }
 
+      // GET /api/dev/plans — list aptitude-test (اختبار القدرات) plans (optional ?school=X&studentId=X)
+      if (sub === 'plans' && !subsub && method === 'GET') {
+        const filterSchool = url.searchParams.get('school');
+        const filterStudent = url.searchParams.get('studentId');
+        let q = 'SELECT * FROM plans';
+        const conds = [];
+        const params = [];
+        if (filterSchool) { conds.push('school = ?'); params.push(filterSchool); }
+        if (filterStudent) { conds.push('student_id = ?'); params.push(filterStudent); }
+        if (conds.length) q += ' WHERE ' + conds.join(' AND ');
+        q += ' ORDER BY created_at DESC';
+        const { results } = await DB.prepare(q).bind(...params).all();
+        return ok({ plans: results.map(r => ({ ...r, gaps: JSON.parse(r.gaps || '[]') })) }, 200, CORS);
+      }
+
+      // DELETE /api/dev/plans/:id — delete a single aptitude-test plan
+      if (sub === 'plans' && subsub && subsub !== 'grant-retake' && method === 'DELETE') {
+        const target = await DB.prepare('SELECT student_name, school FROM plans WHERE id = ?').bind(subsub).first();
+        await DB.prepare('DELETE FROM plans WHERE id = ?').bind(subsub).run();
+        await logEvent(DB, { level: 'warn', category: 'test-management', message: `حذف اختبار قدرات: ${target?.student_name || subsub}`, user_role: 'dev', school: target?.school || '' });
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // DELETE /api/dev/plans?studentId=X — delete all aptitude-test plans for one student
+      // DELETE /api/dev/plans?school=X&confirm=RESET_SCHOOL_PLANS — delete all plans for a whole school
+      if (sub === 'plans' && !subsub && method === 'DELETE') {
+        const targetStudent = url.searchParams.get('studentId');
+        const targetSchool = url.searchParams.get('school');
+        if (targetStudent) {
+          const { meta } = await DB.prepare('DELETE FROM plans WHERE student_id = ?').bind(targetStudent).run();
+          await logEvent(DB, { level: 'warn', category: 'test-management', message: `حذف كل اختبارات القدرات للطالب: ${targetStudent}`, user_role: 'dev' });
+          return ok({ ok: true, deleted: meta?.changes || 0 }, 200, CORS);
+        }
+        if (targetSchool) {
+          if (url.searchParams.get('confirm') !== 'RESET_SCHOOL_PLANS') {
+            return err('يتطلب تأكيد صريح لإعادة تعيين اختبارات القدرات للمدرسة كاملة', 400, CORS);
+          }
+          const { meta } = await DB.prepare('DELETE FROM plans WHERE school = ?').bind(targetSchool).run();
+          await logEvent(DB, { level: 'warn', category: 'test-management', message: `حذف كل اختبارات القدرات لمدرسة: ${targetSchool}`, user_role: 'dev', school: targetSchool });
+          return ok({ ok: true, deleted: meta?.changes || 0 }, 200, CORS);
+        }
+        return err('يلزم تحديد studentId أو school', 400, CORS);
+      }
+
       // GET /api/dev/analytics — behavior analytics overview for the dashboard
       // Behavior analytics (speed/guessing/switching) was removed — this now only reports the
       // official score totals plus direct cheat-flag logs (no behavior_logs table anymore).

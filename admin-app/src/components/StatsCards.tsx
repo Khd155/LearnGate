@@ -67,13 +67,6 @@ export default function StatsCards() {
       deltaPct: apiStats?.cards.avgScore.deltaPct,
     },
     {
-      label: 'تذاكر دعم مفتوحة',
-      value: apiStats?.cards.ticketsOpen.value ?? '—',
-      icon: '🎫',
-      gradient: 'from-rose-500 to-rose-400',
-      deltaPct: apiStats?.cards.ticketsOpen.deltaPct,
-    },
-    {
       label: 'خطط دراسية نشطة',
       value: apiStats?.cards.plansActive.value ?? '—',
       icon: '📋',

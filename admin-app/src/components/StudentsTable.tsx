@@ -234,13 +234,14 @@ export default function StudentsTable() {
               <th className="px-4 py-3 font-medium">رقم الهوية</th>
               <th className="px-4 py-3 font-medium">الجوال</th>
               <th className="px-4 py-3 font-medium">الحالة</th>
+              <th className="px-4 py-3 text-center font-medium">تعديل</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
                   لا يوجد طلاب مطابقون
                 </td>
               </tr>

@@ -8,7 +8,9 @@ import type { DerivedStatus } from '../lib/status';
 import type { Student } from '../types';
 import FiltersBar, { type SortKey } from './FiltersBar';
 import StudentRow from './StudentRow';
+import AddStudentChooser from './AddStudentChooser';
 import AddStudentModal from './AddStudentModal';
+import ImportStudentsModal from './ImportStudentsModal';
 import StudentModal from './StudentModal';
 import ConfirmDialog from './ConfirmDialog';
 
@@ -43,7 +45,9 @@ export default function StudentsTable() {
   const [page, setPage] = useState(1);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [chooserOpen, setChooserOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [openStudent, setOpenStudent] = useState<Student | null>(null);
 
   const [resetTarget, setResetTarget] = useState<Student | null>(null);
@@ -183,7 +187,7 @@ export default function StudentsTable() {
         }}
         sort={sort}
         onSort={setSort}
-        onAdd={() => setAddOpen(true)}
+        onAdd={() => setChooserOpen(true)}
         onExport={() => exportStudentsCsv(filtered, statusOf)}
       />
 
@@ -288,7 +292,14 @@ export default function StudentsTable() {
         </div>
       )}
 
+      <AddStudentChooser
+        open={chooserOpen}
+        onOpenChange={setChooserOpen}
+        onManual={() => setAddOpen(true)}
+        onImport={() => setImportOpen(true)}
+      />
       <AddStudentModal open={addOpen} onOpenChange={setAddOpen} />
+      <ImportStudentsModal open={importOpen} onOpenChange={setImportOpen} />
       <StudentModal student={openStudent} onOpenChange={(o) => !o && setOpenStudent(null)} onMessage={goMessage} />
 
       <ConfirmDialog

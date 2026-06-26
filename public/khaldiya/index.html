@@ -1250,17 +1250,20 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-support-plan" class="screen">
   <div class="topbar no-print">
-    <button class="topbar-back" onclick="show('screen-level-analysis')">رجوع</button>
-    <div style="flex:1;">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
       <div class="topbar-title">خطة الدعم</div>
       <div class="topbar-sub">مخصصة وفق نتائج تشخيصك</div>
     </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
     <button onclick="window.print()"
       style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.45);
              color:#fff;border-radius:10px;padding:8px 16px;font-size:13px;
              font-family:inherit;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
       📄 تصدير PDF
     </button>
+    <button class="topbar-back" onclick="show('screen-level-analysis')">رجوع</button>
   </div>
 
   <!-- Plan navigator (shown when student has multiple plans) -->

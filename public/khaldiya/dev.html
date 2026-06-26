@@ -1360,11 +1360,13 @@ const Dev = {
         const date = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short', year:'numeric' });
         const priorityColor = t.priority === 'عالية' ? '#ef4444' : t.priority === 'منخفضة' ? '#22c55e' : '#f59e0b';
         const priorityIcon  = t.priority === 'عالية' ? '🚨' : t.priority === 'منخفضة' ? '🟢' : '🟡';
+        const isGuest = String(t.student_id || '').startsWith('guest-');
         return `<div class="ticket-item" id="ti-${t.id}" onclick="Dev.toggleTicket('${t.id}')">
           <div class="ticket-top">
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
                 ${t.ticket_num ? `<span style="font-size:11px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 7px;border-radius:6px;">${t.ticket_num}</span>` : ''}
+                ${isGuest ? `<span style="font-size:11px;font-weight:700;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:6px;">👤 بدون حساب</span>` : ''}
                 <div class="ticket-subject">${t.subject}</div>
               </div>
               <div class="ticket-meta-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -1377,11 +1379,21 @@ const Dev = {
             <span class="tbadge ${bc}" style="flex-shrink:0;">${bt}</span>
           </div>
           <div class="ticket-body" id="tb-${t.id}">
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:grid;gap:6px;font-size:13px;">
+              <div><span style="color:var(--muted);">👤 الاسم:</span> <strong style="color:#e2e8f0;">${t.student_name}</strong></div>
+              <div><span style="color:var(--muted);">📞 الجوال:</span> ${t.phone ? `<a href="tel:${t.phone}" onclick="event.stopPropagation()" style="color:var(--primary);font-weight:700;direction:ltr;display:inline-block;">${t.phone}</a>` : '—'}</div>
+              <div><span style="color:var(--muted);">🏫 المدرسة:</span> <strong style="color:#e2e8f0;">${t.school || '—'}</strong></div>
+              <div><span style="color:var(--muted);">📂 نوع المشكلة:</span> <strong style="color:#e2e8f0;">${t.category || '—'}</strong></div>
+              ${isGuest ? `<div style="color:#f59e0b;font-size:12px;margin-top:2px;">⚠️ بدون حساب — لا يمكن الرد عليه داخل المنصة، تواصل معه عبر رقم الجوال أعلاه.</div>` : ''}
+            </div>
             <div class="thread-wrap" id="tw-${t.id}"><div class="empty" style="padding:16px">جارٍ التحميل...</div></div>
-            ${t.status !== 'resolved' ? `
+            ${t.status !== 'resolved' && !isGuest ? `
             <div class="reply-row">
               <input type="text" id="tr-${t.id}" class="reply-input" placeholder="رد من الدعم الفني..." onkeydown="if(event.key==='Enter')Dev.replyTicket('${t.id}')">
               <button class="btn btn-primary btn-sm" onclick="Dev.replyTicket('${t.id}')">إرسال</button>
+              <button class="btn btn-success btn-sm" onclick="Dev.resolveTicket('${t.id}')">✅ حل</button>
+            </div>` : t.status !== 'resolved' ? `
+            <div class="reply-row">
               <button class="btn btn-success btn-sm" onclick="Dev.resolveTicket('${t.id}')">✅ حل</button>
             </div>` : ''}
           </div>

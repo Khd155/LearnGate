@@ -26,8 +26,8 @@ export default function TabsNavigation() {
   }, [tab]);
 
   return (
-    <Tabs.Root value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-      <Tabs.List ref={listRef} className="relative flex gap-1 border-b border-slate-200 dark:border-slate-800">
+    <Tabs.Root dir="rtl" value={tab} onValueChange={(v) => setTab(v as TabKey)}>
+      <Tabs.List ref={listRef} dir="rtl" className="relative flex gap-1 border-b border-slate-200 dark:border-slate-800">
         {TABS.map((t) => (
           <Tabs.Trigger
             key={t.key}

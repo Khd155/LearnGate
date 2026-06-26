@@ -8,6 +8,7 @@ import type {
   MessageThread,
   Message,
   Broadcast,
+  AdminStats,
 } from '../types';
 import { api, readSession } from '../lib/api';
 import type { DerivedStatus } from '../lib/status';
@@ -56,6 +57,11 @@ interface StoreState {
 
   statusOf: (studentId: string) => DerivedStatus;
   latestScoreOf: (studentId: string) => number | null;
+
+  // dashboard stats
+  stats: AdminStats | null;
+  statsLoading: boolean;
+  loadStats: () => Promise<void>;
 
   // messages
   unreadCounts: UnreadCount[];
@@ -152,6 +158,21 @@ export const useStore = create<StoreState>((set, get) => ({
     const hasPlan = plans.some((p) => p.student_id === studentId);
     if (hasPlan) return 'started';
     return 'not_started';
+  },
+
+  stats: null,
+  statsLoading: false,
+  loadStats: async () => {
+    set({ statsLoading: true });
+    try {
+      const session = get().session;
+      const schoolQuery =
+        session && session.school && session.school !== '*' ? `?school=${encodeURIComponent(session.school)}` : '';
+      const res = await api.get<AdminStats>(`/stats${schoolQuery}`);
+      set({ stats: res, statsLoading: false });
+    } catch {
+      set({ statsLoading: false });
+    }
   },
 
   latestScoreOf: (studentId) => {

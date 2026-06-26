@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useStore } from '../store/useStore';
+import ChartsSection from './ChartsSection';
 
 export default function StatisticsTab() {
   const students = useStore((s) => s.students);
@@ -51,15 +52,10 @@ export default function StatisticsTab() {
     );
   }
 
-  const bars = [
-    { label: 'انتهى', pct: data.finishedPct, count: data.finished, color: 'bg-emerald-500' },
-    { label: 'بدأ', pct: data.startedPct, count: data.started, color: 'bg-amber-500' },
-    { label: 'لم يبدأ', pct: data.notStartedPct, count: data.notStarted, color: 'bg-slate-400' },
-  ];
-
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <div className="grid gap-4">
+    <div className="space-y-4">
+      <ChartsSection />
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
           <h3 className="mb-3 font-bold text-slate-800 dark:text-white">🏆 الأعلى أداءً</h3>
           {data.top.length === 0 ? (
@@ -89,28 +85,6 @@ export default function StatisticsTab() {
               ))}
             </ul>
           )}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <h3 className="mb-4 font-bold text-slate-800 dark:text-white">توزيع حالة الاختبار</h3>
-        <div className="space-y-4">
-          {bars.map((b) => (
-            <div key={b.label}>
-              <div className="mb-1 flex justify-between text-sm text-slate-600 dark:text-slate-300">
-                <span>{b.label}</span>
-                <span>
-                  {b.count} ({b.pct}%)
-                </span>
-              </div>
-              <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div
-                  className={`h-full ${b.color} rounded-full transition-all duration-500`}
-                  style={{ width: `${b.pct}%` }}
-                />
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

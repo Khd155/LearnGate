@@ -670,6 +670,107 @@ export async function onRequest({ request, env }) {
       }
     }
 
+    // ── ADMIN DASHBOARD STATS — aggregated cards/charts data for the admin panel ─
+    if (resource === 'stats') {
+      if (method === 'GET' && !sub) {
+        const _devAuth = authDev(request, env);
+        const stClaims = _devAuth ? { role: 'dev', sub: 'dev', school: '*' } : await verifyToken(request, env);
+        if (!stClaims) return err('غير مصرح', 401, CORS);
+        if (!['admin', 'director', 'dev'].includes(stClaims.role)) return err('غير مسموح', 403, CORS);
+        // Admins/directors (not super-director '*') are always scoped to their own school
+        const stSchool = (['admin', 'director'].includes(stClaims.role) && stClaims.school && stClaims.school !== '*')
+          ? stClaims.school : (school || null);
+        const sCond  = stSchool ? ' AND school = ?' : '';
+        const sWhere = stSchool ? ' WHERE school = ?' : '';
+        const sArgs  = stSchool ? [stSchool] : [];
+
+        const pct = (curr, prev) => {
+          if (!prev) return curr > 0 ? 100 : 0;
+          return Math.round(((curr - prev) / prev) * 100);
+        };
+
+        const now = new Date();
+        const iso = (d) => d.toISOString();
+        const since7  = iso(new Date(now.getTime() - 7  * 86400000));
+        const since14 = iso(new Date(now.getTime() - 14 * 86400000));
+
+        const [
+          studentsTotal, studentsLast7, studentsPrev7,
+          ticketsOpen, ticketsLast7, ticketsPrev7,
+          plansActive, plansLast7, plansPrev7,
+          scoreLast7, scorePrev7, scoreOverall,
+          finishedRow, startedRow,
+          logRows, planRows,
+        ] = await Promise.all([
+          DB.prepare(`SELECT COUNT(*) as c FROM students${sWhere}`).bind(...sArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM students WHERE created_at >= ?${sCond}`).bind(since7, ...sArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM students WHERE created_at >= ? AND created_at < ?${sCond}`).bind(since14, since7, ...sArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM tickets WHERE status = 'open'${sCond}`).bind(...sArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM tickets WHERE created_at >= ?${sCond}`).bind(since7, ...sArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM tickets WHERE created_at >= ? AND created_at < ?${sCond}`).bind(since14, since7, ...sArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM plans WHERE status = 'active'${sCond}`).bind(...sArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM plans WHERE created_at >= ?${sCond}`).bind(since7, ...sArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM plans WHERE created_at >= ? AND created_at < ?${sCond}`).bind(since14, since7, ...sArgs).first(),
+          DB.prepare(`SELECT AVG(score) as a FROM test_results WHERE created_at >= ?${sCond}`).bind(since7, ...sArgs).first(),
+          DB.prepare(`SELECT AVG(score) as a FROM test_results WHERE created_at >= ? AND created_at < ?${sCond}`).bind(since14, since7, ...sArgs).first(),
+          DB.prepare(`SELECT AVG(score) as a FROM test_results${sWhere}`).bind(...sArgs).first(),
+          DB.prepare(`SELECT COUNT(DISTINCT student_id) as c FROM test_results WHERE total > 0${sCond}`).bind(...sArgs).first(),
+          DB.prepare(`SELECT COUNT(DISTINCT p.student_id) as c FROM plans p WHERE NOT EXISTS (SELECT 1 FROM test_results t WHERE t.student_id = p.student_id AND t.total > 0)${stSchool ? ' AND p.school = ?' : ''}`).bind(...sArgs).first(),
+          DB.prepare(`SELECT substr(created_at, 1, 10) as day, category, COUNT(*) as c FROM logs WHERE created_at >= ?${sCond} GROUP BY day, category`).bind(since14, ...sArgs).all(),
+          DB.prepare(`SELECT gaps FROM plans${sWhere} ORDER BY created_at DESC LIMIT 2000`).bind(...sArgs).all(),
+        ]);
+
+        // Daily activity — last 14 calendar days, filled in order even for days with no rows
+        const dayBuckets = new Map();
+        for (let i = 13; i >= 0; i--) {
+          const day = iso(new Date(now.getTime() - i * 86400000)).slice(0, 10);
+          dayBuckets.set(day, { date: day, logins: 0, tests: 0, tickets: 0 });
+        }
+        for (const r of (logRows?.results || [])) {
+          const bucket = dayBuckets.get(r.day);
+          if (!bucket) continue;
+          if (r.category === 'login') bucket.logins += r.c;
+          else if (r.category === 'test') bucket.tests += r.c;
+          else if (r.category === 'ticket') bucket.tickets += r.c;
+        }
+
+        // Skill averages — from aptitude-test (plans.gaps) breakdowns
+        const skillTotals = new Map();
+        for (const row of (planRows?.results || [])) {
+          let gaps = [];
+          try { gaps = JSON.parse(row.gaps || '[]'); } catch {}
+          for (const g of gaps) {
+            const key = g.skillName || g.skillId || '';
+            if (!key || typeof g.pct !== 'number') continue;
+            const acc = skillTotals.get(key) || { sum: 0, count: 0 };
+            acc.sum += g.pct;
+            acc.count += 1;
+            skillTotals.set(key, acc);
+          }
+        }
+        const skillAverages = [...skillTotals.entries()]
+          .map(([skill, { sum, count }]) => ({ skill, avgPct: Math.round(sum / count) }))
+          .sort((a, b) => b.avgPct - a.avgPct);
+
+        const finished = finishedRow?.c || 0;
+        const started = startedRow?.c || 0;
+        const totalStudents = studentsTotal?.c || 0;
+        const notStarted = Math.max(0, totalStudents - finished - started);
+
+        return ok({
+          cards: {
+            students:    { value: totalStudents, deltaPct: pct(studentsLast7?.c || 0, studentsPrev7?.c || 0) },
+            ticketsOpen: { value: ticketsOpen?.c || 0, deltaPct: pct(ticketsLast7?.c || 0, ticketsPrev7?.c || 0) },
+            plansActive: { value: plansActive?.c || 0, deltaPct: pct(plansLast7?.c || 0, plansPrev7?.c || 0) },
+            avgScore:    { value: Math.round(scoreLast7?.a ?? scoreOverall?.a ?? 0), deltaPct: pct(Math.round(scoreLast7?.a || 0), Math.round(scorePrev7?.a || 0)) },
+          },
+          dailyActivity: [...dayBuckets.values()],
+          skillAverages,
+          statusDistribution: { finished, started, notStarted },
+        }, 200, CORS);
+      }
+    }
+
     // ── BIOLOGY G1 — scoring / behavior analytics / anti-cheating ──────────────
     // Strict layer separation:
     //   1) CORE SCORING   — final_score = correct/total*100, nothing else feeds it

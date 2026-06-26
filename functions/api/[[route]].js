@@ -138,6 +138,20 @@ async function logEvent(DB, { level = 'info', category = 'system', message, user
   } catch {}
 }
 
+// There are no FK CASCADE constraints in this schema, so deleting a student
+// without this would leave their messages/tickets/plans/etc. as orphaned rows —
+// e.g. a leftover message thread that 403s forever because the by-id school
+// lookup it relies on can never find the (deleted) student again.
+async function cascadeDeleteStudent(DB, studentId) {
+  try { await DB.prepare('DELETE FROM messages WHERE student_id = ?').bind(studentId).run(); } catch {}
+  try { await DB.prepare('DELETE FROM ticket_replies WHERE ticket_id IN (SELECT id FROM tickets WHERE student_id = ?)').bind(studentId).run(); } catch {}
+  try { await DB.prepare('DELETE FROM tickets WHERE student_id = ?').bind(studentId).run(); } catch {}
+  try { await DB.prepare('DELETE FROM plans WHERE student_id = ?').bind(studentId).run(); } catch {}
+  try { await DB.prepare('DELETE FROM test_results WHERE student_id = ?').bind(studentId).run(); } catch {}
+  try { await DB.prepare('DELETE FROM broadcast_dismissals WHERE student_id = ?').bind(studentId).run(); } catch {}
+  try { await DB.prepare('DELETE FROM broadcast_targets WHERE student_id = ?').bind(studentId).run(); } catch {}
+}
+
 // ── JWT (HS256 via WebCrypto) ─────────────────────────────────────────────
 const _jwtAlg = { name: 'HMAC', hash: 'SHA-256' };
 const _b64u = s => {
@@ -495,6 +509,7 @@ export async function onRequest({ request, env }) {
         const claims = await verifyToken(request, env);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const delTarget = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(sub).first();
+        await cascadeDeleteStudent(DB, sub);
         if (claims.role === 'dev') {
           await DB.prepare('DELETE FROM students WHERE id = ?').bind(sub).run();
         } else {
@@ -1100,6 +1115,7 @@ export async function onRequest({ request, env }) {
 
       // DELETE /api/dev/students/:id — delete single student
       if (sub === 'students' && subsub && method === 'DELETE') {
+        await cascadeDeleteStudent(DB, subsub);
         await DB.prepare('DELETE FROM students WHERE id = ?').bind(subsub).run();
         return ok({ ok: true }, 200, CORS);
       }
@@ -1109,11 +1125,15 @@ export async function onRequest({ request, env }) {
       if (sub === 'students' && !subsub && method === 'DELETE') {
         const noSchool = url.searchParams.get('noschool') === '1';
         if (noSchool) {
+          const { results: toDelete } = await DB.prepare("SELECT id FROM students WHERE school = '' OR school IS NULL").all();
+          for (const s of toDelete) await cascadeDeleteStudent(DB, s.id);
           await DB.prepare("DELETE FROM students WHERE school = '' OR school IS NULL").run();
           return ok({ ok: true }, 200, CORS);
         }
         const targetSchool = url.searchParams.get('school');
         if (!targetSchool) return err('رمز المدرسة مطلوب', 400, CORS);
+        const { results: toDelete } = await DB.prepare('SELECT id FROM students WHERE school = ?').bind(targetSchool).all();
+        for (const s of toDelete) await cascadeDeleteStudent(DB, s.id);
         await DB.prepare('DELETE FROM students WHERE school = ?').bind(targetSchool).run();
         return ok({ ok: true }, 200, CORS);
       }
@@ -1441,19 +1461,23 @@ export async function onRequest({ request, env }) {
           ? msgClaims.school : school;
         const adminId = url.searchParams.get('adminId') || '';
         let q, params;
+        // EXISTS guard hides threads left behind by deleted students (no FK cascade in this schema)
         if (adminId) {
           q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
                WHERE sender_type='student' AND is_read=0 AND school=? AND recipient_admin_id=?
+               AND EXISTS (SELECT 1 FROM students s WHERE s.id = messages.student_id)
                GROUP BY student_id, student_name, school`;
           params = [scopedSchool, adminId];
         } else if (scopedSchool) {
           q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
                WHERE sender_type='student' AND is_read=0 AND school=?
+               AND EXISTS (SELECT 1 FROM students s WHERE s.id = messages.student_id)
                GROUP BY student_id, student_name, school`;
           params = [scopedSchool];
         } else {
           q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
                WHERE sender_type='student' AND is_read=0
+               AND EXISTS (SELECT 1 FROM students s WHERE s.id = messages.student_id)
                GROUP BY student_id, student_name, school`;
           params = [];
         }
@@ -1469,12 +1493,14 @@ export async function onRequest({ request, env }) {
           ? msgClaims.school : school;
         const adminId = url.searchParams.get('adminId') || '';
         let q, params;
+        // EXISTS guard hides threads left behind by deleted students (no FK cascade in this schema)
         if (adminId && scopedSchool) {
           q = `SELECT student_id, student_name, school,
                  MAX(created_at) as last_at,
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
                  (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id AND m2.recipient_admin_id=? ORDER BY m2.created_at DESC LIMIT 1) as last_msg
                FROM messages WHERE recipient_admin_id=? AND school=?
+               AND EXISTS (SELECT 1 FROM students s WHERE s.id = messages.student_id)
                GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
           params = [adminId, adminId, scopedSchool];
         } else if (adminId) {
@@ -1483,6 +1509,7 @@ export async function onRequest({ request, env }) {
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
                  (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id AND m2.recipient_admin_id=? ORDER BY m2.created_at DESC LIMIT 1) as last_msg
                FROM messages WHERE recipient_admin_id=?
+               AND EXISTS (SELECT 1 FROM students s WHERE s.id = messages.student_id)
                GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
           params = [adminId, adminId];
         } else if (scopedSchool) {
@@ -1491,6 +1518,7 @@ export async function onRequest({ request, env }) {
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
                  (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id ORDER BY m2.created_at DESC LIMIT 1) as last_msg
                FROM messages WHERE school=?
+               AND EXISTS (SELECT 1 FROM students s WHERE s.id = messages.student_id)
                GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
           params = [scopedSchool];
         } else {
@@ -1499,6 +1527,7 @@ export async function onRequest({ request, env }) {
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
                  (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id ORDER BY m2.created_at DESC LIMIT 1) as last_msg
                FROM messages
+               WHERE EXISTS (SELECT 1 FROM students s WHERE s.id = messages.student_id)
                GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
           params = [];
         }

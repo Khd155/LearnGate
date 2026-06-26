@@ -27,14 +27,18 @@ export default function TabsNavigation() {
 
   return (
     <Tabs.Root dir="rtl" value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-      <Tabs.List ref={listRef} dir="rtl" className="relative flex gap-1 border-b border-slate-200 dark:border-slate-800">
+      <Tabs.List
+        ref={listRef}
+        dir="rtl"
+        className="relative flex gap-1 overflow-x-auto border-b border-slate-200 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:border-slate-800"
+      >
         {TABS.map((t) => (
           <Tabs.Trigger
             key={t.key}
             value={t.key}
             data-tab={t.key}
             className={cn(
-              'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors',
+              'flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors',
               tab === t.key
                 ? 'text-indigo-600 dark:text-indigo-400'
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',

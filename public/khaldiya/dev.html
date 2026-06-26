@@ -1384,9 +1384,13 @@ const Dev = {
               <div><span style="color:var(--muted);">📞 الجوال:</span> ${t.phone ? `<a href="tel:${t.phone}" onclick="event.stopPropagation()" style="color:var(--primary);font-weight:700;direction:ltr;display:inline-block;">${t.phone}</a>` : '—'}</div>
               <div><span style="color:var(--muted);">🏫 المدرسة:</span> <strong style="color:#e2e8f0;">${t.school || '—'}</strong></div>
               <div><span style="color:var(--muted);">📂 نوع المشكلة:</span> <strong style="color:#e2e8f0;">${t.category || '—'}</strong></div>
+              <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px;">
+                <span style="color:var(--muted);">📝 وصف المشكلة:</span><br>
+                <strong id="td-${t.id}" style="color:#e2e8f0;white-space:pre-wrap;">جارٍ التحميل...</strong>
+              </div>
               ${isGuest ? `<div style="color:#f59e0b;font-size:12px;margin-top:2px;">⚠️ بدون حساب — لا يمكن الرد عليه داخل المنصة، تواصل معه عبر رقم الجوال أعلاه.</div>` : ''}
             </div>
-            <div class="thread-wrap" id="tw-${t.id}"><div class="empty" style="padding:16px">جارٍ التحميل...</div></div>
+            <div class="thread-wrap" id="tw-${t.id}"></div>
             ${t.status !== 'resolved' && !isGuest ? `
             <div class="reply-row">
               <input type="text" id="tr-${t.id}" class="reply-input" placeholder="رد من الدعم الفني..." onkeydown="if(event.key==='Enter')Dev.replyTicket('${t.id}')">
@@ -1413,10 +1417,15 @@ const Dev = {
 
   async loadTicketThread(id) {
     const el = document.getElementById('tw-' + id);
+    const descEl = document.getElementById('td-' + id);
     try {
       const { ticket, replies } = await fetch(`/api/tickets/${id}`, { headers: { 'X-Dev-Key': devKey } }).then(r => r.json());
-      if (!replies.length) { el.innerHTML = '<div class="empty" style="padding:12px">لا توجد ردود بعد</div>'; return; }
-      el.innerHTML = replies.map(r => {
+      // The first message is the original problem description, not a chat reply —
+      // show it inside the info card instead of as a chat bubble.
+      const [first, ...rest] = replies;
+      if (descEl) descEl.textContent = first ? first.body : '—';
+      if (!rest.length) { el.innerHTML = ''; return; }
+      el.innerHTML = rest.map(r => {
         const time = new Date(r.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
         const who  = r.sender_type === 'student' ? escapeHtml(ticket.student_name) : '🔧 الدعم الفني';
         return `<div class="thread-msg ${r.sender_type}">
@@ -1426,7 +1435,9 @@ const Dev = {
         </div>`;
       }).join('');
       el.scrollTop = el.scrollHeight;
-    } catch {}
+    } catch {
+      if (descEl) descEl.textContent = '—';
+    }
   },
 
   async replyTicket(id) {

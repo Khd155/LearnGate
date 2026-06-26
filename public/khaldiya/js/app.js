@@ -3220,6 +3220,9 @@ const App = {
     document.getElementById('nt-subject').placeholder = 'اكتب موضوع طلبك بإيجاز...';
     const num = 'T-' + String(Math.floor(10000 + Math.random() * 90000));
     document.getElementById('nt-ticket-num').textContent = num;
+    const phoneGroup = document.getElementById('nt-phone-group');
+    document.getElementById('nt-phone').value = '';
+    phoneGroup.style.display = State.student?.phone ? 'none' : '';
     document.getElementById('new-ticket-modal').classList.add('open');
   },
 
@@ -3235,13 +3238,20 @@ const App = {
     if (!App._selectedCat) { showAlert(errEl, 'اختر نوع الطلب أولاً'); return; }
     if (!subject) { showAlert(errEl, 'أدخل موضوع الطلب'); return; }
     if (!body)    { showAlert(errEl, 'أدخل تفاصيل الطلب'); return; }
+    let phone;
+    const phoneGroup = document.getElementById('nt-phone-group');
+    if (phoneGroup.style.display !== 'none') {
+      phone = document.getElementById('nt-phone').value.trim();
+      if (!/^05\d{8}$/.test(phone)) { showAlert(errEl, 'سجّل رقم جوالك (05XXXXXXXX) قبل رفع طلب الدعم'); return; }
+    }
     const btn = document.querySelector('#new-ticket-modal .btn-primary');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ جارٍ الإرسال...'; }
     try {
       await apiFetch('/tickets', {
         method: 'POST',
-        body: JSON.stringify({ subject, body, category, priority }),
+        body: JSON.stringify({ subject, body, category, priority, phone }),
       });
+      if (phone) State.student.phone = phone;
       App.closeNewTicketModal();
       showToast('✅ تم إرسال طلبك — سنتواصل معك قريباً');
       App.loadStudentTickets();

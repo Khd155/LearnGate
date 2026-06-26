@@ -194,12 +194,22 @@ render();
 <script>
 (function(){
   try {
-    const a = localStorage.getItem('lg_academic_user');
-    const d = a ? JSON.parse(a) : null;
-    if (d && d.name) { var c=document.getElementById('tb-user-chip'); c.textContent=d.name; c.style.display='inline-flex'; return; }
-    const r = localStorage.getItem('lg_remember');
-    const rd = r ? JSON.parse(r) : null;
-    if (rd && rd.name) { var c=document.getElementById('tb-user-chip'); c.textContent=rd.name; c.style.display='inline-flex'; }
+    var c=document.getElementById('tb-user-chip');
+    var name='';
+    var sources=[sessionStorage.getItem('lg_session'), localStorage.getItem('lg_xsession'), localStorage.getItem('lg_remember')];
+    for (var i=0;i<sources.length;i++) {
+      if (!sources[i]) continue;
+      try { var sd=JSON.parse(sources[i]); if (sd && (sd.name||sd.admin_name)) { name=sd.name||sd.admin_name; break; } } catch(e2){}
+    }
+    if (!name) {
+      const a = localStorage.getItem('lg_academic_user');
+      const d = a ? JSON.parse(a) : null;
+      if (d && d.name) name = d.name;
+    }
+    if (name) {
+      c.textContent=name; c.style.display='inline-flex';
+      localStorage.setItem('lg_academic_user', JSON.stringify({ name: name }));
+    }
   } catch(e){}
 })();
 </script>

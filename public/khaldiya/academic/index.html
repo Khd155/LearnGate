@@ -235,19 +235,23 @@
 // ── Load user info ──
 (function() {
   try {
-    const raw = localStorage.getItem('lg_academic_user');
-    const user = raw ? JSON.parse(raw) : null;
     const label = document.getElementById('user-name-label');
-    if (user && user.name) {
-      label.textContent = user.name;
+    let name = '';
+    try {
+      const sess = sessionStorage.getItem('lg_session') || localStorage.getItem('lg_xsession') || localStorage.getItem('lg_remember');
+      const sessData = sess ? JSON.parse(sess) : null;
+      if (sessData && sessData.name) name = sessData.name;
+    } catch(e2) {}
+    if (!name) {
+      const raw = localStorage.getItem('lg_academic_user');
+      const user = raw ? JSON.parse(raw) : null;
+      if (user && user.name) name = user.name;
+    }
+    if (name) {
+      label.textContent = name;
+      localStorage.setItem('lg_academic_user', JSON.stringify({ name }));
     } else {
-      // Try to get name from session/remember
-      try {
-        const sess = sessionStorage.getItem('lg_session') || localStorage.getItem('lg_xsession') || localStorage.getItem('lg_remember');
-        const sessData = sess ? JSON.parse(sess) : null;
-        if (sessData && sessData.name) { label.textContent = sessData.name; }
-        else { document.getElementById('user-chip').style.display = 'none'; }
-      } catch(e2) { document.getElementById('user-chip').style.display = 'none'; }
+      document.getElementById('user-chip').style.display = 'none';
     }
   } catch(e) {
     document.getElementById('user-chip').style.display = 'none';

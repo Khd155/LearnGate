@@ -802,6 +802,7 @@ export async function onRequest({ request, env }) {
         if (suspiciousFlag) {
           await logEvent(DB, { level: 'warn', category: 'suspicious', message: `سلوك مشبوه في اختبار الأحياء (${testType}): ${suspiciousReasons.join('، ')}`, user_name: claims.name || '', user_role: 'student', school: claims.school || '', ip });
         }
+        await logEvent(DB, { level: 'info', category: 'test', message: `إنهاء اختبار الأحياء (${testType === 'pre' ? 'قبلي' : 'بعدي'}) — النتيجة ${finalScore}% (${correct}/${total})`, user_name: claims.name || '', user_role: 'student', school: claims.school || '', ip });
 
         // FOR STUDENT: final_score only + the breakdown needed to review answers — no behavior data
         return ok({ id: rid, created_at: now, score: finalScore, correct, total, breakdown }, 201, CORS);
@@ -838,6 +839,7 @@ export async function onRequest({ request, env }) {
           await stmt.bind(crypto.randomUUID(), q.qnum, q.type, q.skillId, q.text,
             q.opts[0], q.opts[1], q.opts[2], q.opts[3], q.ans, new Date().toISOString()).run();
         }
+        await logEvent(DB, { level: 'info', category: 'questions', message: `استيراد أسئلة (${action === 'replace' ? 'استبدال' : 'إضافة'}) — ${fresh.length} مضافة`, user_name: qClaims.name || '', user_role: qClaims.role, school: qClaims.school || '' });
         return ok({ added: fresh.length, skipped: rows.length - fresh.length }, 200, CORS);
       }
     }
@@ -1344,6 +1346,7 @@ export async function onRequest({ request, env }) {
           if (e.message && e.message.includes('UNIQUE')) return err('الرمز مسجّل مسبقاً', 409, CORS);
           throw e;
         }
+        await logEvent(DB, { level: 'info', category: 'admin', message: `إضافة مشرف جديد: ${name}`, user_name: dir.name || '', user_role: dir.role, school: adminSchool });
         return ok({ admin: { id: aid, name, code: newCode, school: adminSchool, role: 'admin', created_at: now } }, 201, CORS);
       }
 
@@ -1355,6 +1358,7 @@ export async function onRequest({ request, env }) {
         if (!target) return err('المشرف غير موجود', 404, CORS);
         if (target.role === 'director') return err('لا يمكن حذف مدير', 403, CORS);
         await DB.prepare('DELETE FROM admins WHERE id = ?').bind(subsub).run();
+        await logEvent(DB, { level: 'warn', category: 'admin', message: `حذف مشرف: ${target.name}`, user_name: dir.name || '', user_role: dir.role, school: target.school || '' });
         return ok({ ok: true }, 200, CORS);
       }
 
@@ -1389,6 +1393,7 @@ export async function onRequest({ request, env }) {
         await DB.prepare(
           'UPDATE questions SET qnum=?,type=?,skill_id=?,text=?,opt1=?,opt2=?,opt3=?,opt4=?,ans=? WHERE id=?'
         ).bind(qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans, subsub).run();
+        await logEvent(DB, { level: 'info', category: 'questions', message: `تعديل سؤال رقم ${qnum}`, user_name: dir.name || '', user_role: dir.role, school: school || '' });
         return ok({ ok: true }, 200, CORS);
       }
 
@@ -1397,6 +1402,7 @@ export async function onRequest({ request, env }) {
         const dir = await authDirector(school);
         if (!dir) return err('غير مصرح', 401, CORS);
         await DB.prepare('DELETE FROM questions WHERE id = ?').bind(subsub).run();
+        await logEvent(DB, { level: 'warn', category: 'questions', message: `حذف سؤال`, user_name: dir.name || '', user_role: dir.role, school: school || '' });
         return ok({ ok: true }, 200, CORS);
       }
 
@@ -1418,6 +1424,7 @@ export async function onRequest({ request, env }) {
             'INSERT INTO questions (id,qnum,type,skill_id,text,opt1,opt2,opt3,opt4,ans,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
           ).bind(qid, q.qnum, q.type, q.skillId, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, now).run();
         }
+        await logEvent(DB, { level: 'info', category: 'questions', message: `استيراد أسئلة (${action === 'replace' ? 'استبدال' : 'إضافة'}) — ${fresh.length} مضافة`, user_name: dir.name || '', user_role: dir.role, school: school || '' });
         return ok({ added: fresh.length, skipped: rows.length - fresh.length }, 200, CORS);
       }
     }
@@ -1721,20 +1728,36 @@ export async function onRequest({ request, env }) {
 
       // POST /api/tickets — use JWT claims for student identity
       if (method === 'POST' && !sub) {
-        const { subject, body: tkBody, school: bodySchool, category, priority } = await request.json();
+        const { subject, body: tkBody, school: bodySchool, category, priority, phone: bodyPhone } = await request.json();
         if (!subject || !tkBody) return err('حقول مفقودة', 400, CORS);
         if (tkBody.length > 3000) return err('النص طويل جداً', 400, CORS);
         const studentId = tkClaims.sub;
         const studentName = tkClaims.name || '';
         const effectiveSchool = tkClaims.school || school || bodySchool || '';
+
+        // A student with no phone on file must register one before they can
+        // raise a support ticket — otherwise support has no way to reach them
+        // outside the platform if their account access itself is the problem.
+        let phone = '';
+        if (tkClaims.role === 'student') {
+          const stu = await DB.prepare('SELECT phone FROM students WHERE id = ?').bind(studentId).first();
+          phone = stu?.phone || '';
+          if (!phone) {
+            const candidate = String(bodyPhone || '').trim();
+            if (!/^05\d{8}$/.test(candidate)) return err('يجب تسجيل رقم جوالك أولاً (05XXXXXXXX) قبل رفع طلب دعم', 400, CORS);
+            phone = candidate;
+            await DB.prepare('UPDATE students SET phone = ? WHERE id = ?').bind(phone, studentId).run();
+          }
+        }
+
         const countRow = await DB.prepare('SELECT COUNT(*) as c FROM tickets').first();
         const ticketNum = 'T-' + String(((countRow?.c) || 0) + 1).padStart(5, '0');
         const tid = crypto.randomUUID();
         const rid = crypto.randomUUID();
         const now = new Date().toISOString();
         await DB.prepare(
-          'INSERT INTO tickets (id, student_id, student_name, school, subject, status, category, priority, ticket_num, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ).bind(tid, studentId, studentName, effectiveSchool, subject, 'open', category||'أخرى', priority||'متوسطة', ticketNum, now).run();
+          'INSERT INTO tickets (id, student_id, student_name, school, subject, status, category, priority, ticket_num, phone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(tid, studentId, studentName, effectiveSchool, subject, 'open', category||'أخرى', priority||'متوسطة', ticketNum, phone, now).run();
         await DB.prepare(
           'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?)'
         ).bind(rid, tid, 'student', tkBody, 1, now).run();

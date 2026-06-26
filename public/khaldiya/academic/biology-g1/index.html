@@ -743,18 +743,20 @@ const POST_Q = [
 (function() {
   try {
     const sources = [
-      localStorage.getItem('lg_academic_user'),
       sessionStorage.getItem('lg_session'),
       localStorage.getItem('lg_xsession'),
-      localStorage.getItem('lg_remember')
+      localStorage.getItem('lg_remember'),
+      localStorage.getItem('lg_academic_user')
     ];
     for (const src of sources) {
       if (!src) continue;
-      const d = JSON.parse(src);
+      let d;
+      try { d = JSON.parse(src); } catch(e2) { continue; }
       const name = d.name || d.admin_name;
       if (name) {
         document.getElementById('user-name-label').textContent = name;
         document.getElementById('user-chip').style.display = 'inline-flex';
+        localStorage.setItem('lg_academic_user', JSON.stringify({ name }));
         break;
       }
     }

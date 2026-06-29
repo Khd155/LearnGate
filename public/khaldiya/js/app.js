@@ -769,6 +769,10 @@ const App = {
     State.testAnswers[window.QUESTION_BANK[State.currentQ].id] = idx;
     App.renderQuestion();
     App._saveTestState();
+    // Auto-advance to next question after a brief pause so the selection is visible.
+    // On the last question leave it to the student to press "إنهاء الاختبار".
+    const isLast = State.currentQ === window.QUESTION_BANK.length - 1;
+    if (!isLast) setTimeout(() => App.nextQ(), 320);
   },
 
   prevQ() {
@@ -872,6 +876,9 @@ const App = {
     const { questions, idx } = State.gt;
     State.gt.answers[questions[idx].qnum] = i;
     App.renderGTQuestion();
+    // Auto-advance; on the last question the student presses "إنهاء الاختبار" manually.
+    const isLast = idx === questions.length - 1;
+    if (!isLast) setTimeout(() => App.gtNext(), 320);
   },
 
   gtPrev() {

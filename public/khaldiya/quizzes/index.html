@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<script>!function(){try{var s=sessionStorage.getItem("lg_session")||localStorage.getItem("lg_xsession");var d=s?JSON.parse(s):null;if(d&&d.token&&d.role==="student"&&d.expiry&&Date.now()<d.expiry)return;var r=localStorage.getItem("lg_remember");var rd=r?JSON.parse(r):null;if(rd&&rd.code&&rd.role==="student"&&rd.expiry&&Date.now()<rd.expiry)return;}catch(e){}window.location.replace("/");}();</script>
+<script>!function(){try{var s=sessionStorage.getItem("lg_session_student")||localStorage.getItem("lg_xsession_student");var d=s?JSON.parse(s):null;if(d&&d.token&&d.role==="student"&&d.expiry&&Date.now()<d.expiry)return;var r=localStorage.getItem("lg_remember_student");var rd=r?JSON.parse(r):null;if(rd&&rd.code&&rd.role==="student"&&rd.expiry&&Date.now()<rd.expiry)return;}catch(e){}window.location.replace("/");}();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>الاختبارات التدريبية — بوابة دعم التعلم</title>
@@ -190,10 +190,10 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:20px 0 36px;f
 <script>
 (function(){
   try {
-    const s = sessionStorage.getItem('lg_session') || localStorage.getItem('lg_xsession');
+    const s = sessionStorage.getItem('lg_session_student') || localStorage.getItem('lg_xsession_student');
     const d = s ? JSON.parse(s) : null;
     if (d && d.name) { var c=document.getElementById('tb-user-chip'); c.textContent=d.name; c.style.display='inline-flex'; return; }
-    const r = localStorage.getItem('lg_remember');
+    const r = localStorage.getItem('lg_remember_student');
     const rd = r ? JSON.parse(r) : null;
     if (rd && rd.name) { var c=document.getElementById('tb-user-chip'); c.textContent=rd.name; c.style.display='inline-flex'; }
   } catch(e){}

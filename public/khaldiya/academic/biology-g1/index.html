@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<script>!function(){try{var s=sessionStorage.getItem("lg_session")||localStorage.getItem("lg_xsession");var d=s?JSON.parse(s):null;if(d&&d.token&&d.role==="student"&&d.expiry&&Date.now()<d.expiry)return;var r=localStorage.getItem("lg_remember");var rd=r?JSON.parse(r):null;if(rd&&rd.code&&rd.role==="student"&&rd.expiry&&Date.now()<rd.expiry)return;}catch(e){}window.location.replace("/");}();</script>
+<script>!function(){try{var s=sessionStorage.getItem("lg_session_student")||localStorage.getItem("lg_xsession_student");var d=s?JSON.parse(s):null;if(d&&d.token&&d.role==="student"&&d.expiry&&Date.now()<d.expiry)return;var r=localStorage.getItem("lg_remember_student");var rd=r?JSON.parse(r):null;if(rd&&rd.code&&rd.role==="student"&&rd.expiry&&Date.now()<rd.expiry)return;}catch(e){}window.location.replace("/");}();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>أحياء — أول ثانوي — بوابة دعم التعلم</title>
@@ -743,9 +743,9 @@ const POST_Q = [
 (function() {
   try {
     const sources = [
-      sessionStorage.getItem('lg_session'),
-      localStorage.getItem('lg_xsession'),
-      localStorage.getItem('lg_remember'),
+      sessionStorage.getItem('lg_session_student'),
+      localStorage.getItem('lg_xsession_student'),
+      localStorage.getItem('lg_remember_student'),
       localStorage.getItem('lg_academic_user')
     ];
     for (const src of sources) {
@@ -1233,14 +1233,14 @@ function _bioShowCard(results) {
 
 function _bioSaveCache(_results) { /* localStorage removed — server is the source of truth */ }
 
-// Returns Promise<token|null> — tries session, then silent re-auth via lg_remember
+// Returns Promise<token|null> — tries session, then silent re-auth via lg_remember_student
 function _bioGetToken() {
   try {
-    const sess = JSON.parse(sessionStorage.getItem('lg_session') || localStorage.getItem('lg_xsession') || '{}');
+    const sess = JSON.parse(sessionStorage.getItem('lg_session_student') || localStorage.getItem('lg_xsession_student') || '{}');
     if (sess.token && sess.role === 'student') return Promise.resolve(sess.token);
   } catch(e) {}
   try {
-    const rem = JSON.parse(localStorage.getItem('lg_remember') || '{}');
+    const rem = JSON.parse(localStorage.getItem('lg_remember_student') || '{}');
     if (rem.code && rem.role === 'student' && rem.expiry && Date.now() < rem.expiry) {
       return fetch('/api/auth/student-login', {
         method: 'POST',
@@ -1251,8 +1251,8 @@ function _bioGetToken() {
       .then(data => {
         if (!data || !data.token) return null;
         const _s = { role: 'student', id: data.student.id, code: rem.code, name: data.student.name, school: data.student.school, token: data.token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
-        try { sessionStorage.setItem('lg_session', JSON.stringify(_s)); } catch(e) {}
-        try { localStorage.setItem('lg_xsession', JSON.stringify(_s)); } catch(e) {}
+        try { sessionStorage.setItem('lg_session_student', JSON.stringify(_s)); } catch(e) {}
+        try { localStorage.setItem('lg_xsession_student', JSON.stringify(_s)); } catch(e) {}
         return data.token;
       })
       .catch(() => null);

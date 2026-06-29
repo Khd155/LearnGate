@@ -357,6 +357,25 @@ export async function onRequest({ request, env }) {
         const token = await jwtSign({ role: 'dev', exp: Math.floor(Date.now() / 1000) + 4 * 3600 }, env.JWT_SECRET);
         return ok({ token }, 200, CORS);
       }
+
+      // POST /api/auth/impersonate — admin/director mints a synthetic trial-student JWT so
+      // they can preview the student experience ("عرض كطالب") without a real student account.
+      // Attempts taken under this token are flagged is_trial=1 in general_test_results.
+      if (sub === 'impersonate' && method === 'POST') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
+        const trialId     = 'trial-' + crypto.randomUUID();
+        const trialName   = 'زائر تجريبي';
+        const trialSchool = claims.school && claims.school !== '*' ? claims.school : (school || '');
+        const token = await jwtSign({
+          sub: trialId, role: 'student', name: trialName, school: trialSchool,
+          trial: true, adminSub: claims.sub, adminName: claims.name || '',
+          exp: Math.floor(Date.now() / 1000) + 30 * 60,
+        }, env.JWT_SECRET);
+        await logEvent(DB, { level: 'info', category: 'login', message: `بدء وضع "عرض كطالب" — ${claims.role === 'director' ? 'مدير' : 'مشرف'}: ${claims.name || ''}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '', ip });
+        return ok({ token, student: { id: trialId, name: trialName, school: trialSchool }, trial: true }, 200, CORS);
+      }
     }
 
     // ── SCHOOLS ─────────────────────────────────────────────────────────────
@@ -2061,6 +2080,167 @@ export async function onRequest({ request, env }) {
         }
         await logEvent(DB, { level: 'warn', category: 'broadcast', message: 'حذف رسالة جماعية', user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
         return ok({ ok: true }, 200, CORS);
+      }
+    }
+
+    // ── GENERAL TESTS (6 stand-alone skill tests, taken from the support-plan screen) ──
+    if (resource === 'general-tests') {
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS general_test_meta (
+        test_num   INTEGER PRIMARY KEY,
+        skill_id   TEXT NOT NULL DEFAULT '',
+        skill_name TEXT NOT NULL DEFAULT '',
+        title      TEXT NOT NULL DEFAULT ''
+      )`).run(); } catch {}
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS general_tests (
+        id         TEXT PRIMARY KEY,
+        test_num   INTEGER NOT NULL,
+        qnum       INTEGER NOT NULL,
+        text       TEXT NOT NULL,
+        opt1       TEXT NOT NULL, opt2 TEXT NOT NULL, opt3 TEXT NOT NULL, opt4 TEXT NOT NULL,
+        ans        INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (now()::text)
+      )`).run(); } catch {}
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS general_test_results (
+        id           TEXT PRIMARY KEY,
+        student_id   TEXT NOT NULL,
+        student_name TEXT NOT NULL,
+        school       TEXT NOT NULL DEFAULT '',
+        test_num     INTEGER NOT NULL,
+        score        INTEGER NOT NULL,
+        correct      INTEGER NOT NULL,
+        total        INTEGER NOT NULL,
+        is_trial     INTEGER NOT NULL DEFAULT 0,
+        answers      TEXT NOT NULL DEFAULT '[]',
+        created_at   TEXT NOT NULL DEFAULT (now()::text)
+      )`).run(); } catch {}
+
+      // Seed the 6 placeholder test slots once — real skill linkage/title/questions are
+      // filled in later via PATCH .../:num and POST .../:num/questions.
+      const gtMetaCheck = await DB.prepare('SELECT COUNT(*) as c FROM general_test_meta').first();
+      if (!gtMetaCheck || gtMetaCheck.c === 0) {
+        const seedStmt = DB.prepare('INSERT INTO general_test_meta (test_num, skill_id, skill_name, title) VALUES (?, ?, ?, ?) ON CONFLICT (test_num) DO NOTHING');
+        for (let n = 1; n <= 6; n++) await seedStmt.bind(n, '', '', `اختبار عام رقم ${n}`).run();
+      }
+
+      // GET /api/general-tests — list of the 6 tests (+ student's latest result per test)
+      if (!sub && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims) return err('غير مصرح', 401, CORS);
+        const { results: metas }  = await DB.prepare('SELECT * FROM general_test_meta ORDER BY test_num ASC').all();
+        const { results: counts } = await DB.prepare('SELECT test_num, COUNT(*) as c FROM general_tests GROUP BY test_num').all();
+        const countMap = Object.fromEntries(counts.map(r => [r.test_num, Number(r.c)]));
+        const myLatest = {};
+        if (claims.role === 'student') {
+          const { results: rows } = await DB.prepare(
+            'SELECT test_num, score, correct, total, created_at FROM general_test_results WHERE student_id = ? ORDER BY created_at DESC'
+          ).bind(claims.sub).all();
+          for (const r of rows) { if (!(r.test_num in myLatest)) myLatest[r.test_num] = r; }
+        }
+        return ok({ tests: metas.map(m => ({
+          test_num: m.test_num, title: m.title, skill_id: m.skill_id, skill_name: m.skill_name,
+          question_count: countMap[m.test_num] || 0,
+          my_result: myLatest[m.test_num] || null,
+        })) }, 200, CORS);
+      }
+
+      // GET /api/general-tests/results?studentId=... — admin/director/dev: every attempt for one student
+      if (sub === 'results' && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const studentId = url.searchParams.get('studentId');
+        if (!studentId) return err('studentId مطلوب', 400, CORS);
+        const { results } = await DB.prepare(
+          'SELECT * FROM general_test_results WHERE student_id = ? ORDER BY test_num ASC, created_at ASC'
+        ).bind(studentId).all();
+        return ok({ results: results.map(r => {
+          let ans = []; try { ans = JSON.parse(r.answers || '[]'); } catch (e) {}
+          return { ...r, answers: ans };
+        }) }, 200, CORS);
+      }
+
+      const testNum = Number(sub);
+      if (sub && Number.isInteger(testNum) && testNum >= 1 && testNum <= 6) {
+
+        // GET /api/general-tests/:num/questions — sanitized (no answer key)
+        if (subsub === 'questions' && method === 'GET') {
+          const claims = await verifyToken(request, env);
+          if (!claims) return err('غير مصرح', 401, CORS);
+          const { results } = await DB.prepare(
+            'SELECT qnum, text, opt1, opt2, opt3, opt4 FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
+          ).bind(testNum).all();
+          if (!results.length) return err('الاختبار غير متوفر بعد', 404, CORS);
+          return ok({ questions: results.map(r => ({ qnum: r.qnum, text: r.text, opts: [r.opt1, r.opt2, r.opt3, r.opt4] })) }, 200, CORS);
+        }
+
+        // POST /api/general-tests/:num/questions — admin upload {action:'replace'|'append', questions:[...]}
+        if (subsub === 'questions' && method === 'POST') {
+          const claims = await verifyToken(request, env);
+          if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+          const { action = 'append', questions: rows } = await request.json();
+          if (action === 'replace') await DB.prepare('DELETE FROM general_tests WHERE test_num = ?').bind(testNum).run();
+          const { results: existing } = await DB.prepare('SELECT qnum FROM general_tests WHERE test_num = ?').bind(testNum).all();
+          const existingNums = new Set(existing.map(r => r.qnum));
+          const fresh = (rows || []).filter(r => !existingNums.has(r.qnum));
+          const stmt = DB.prepare(
+            `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          );
+          for (const q of fresh) {
+            await stmt.bind(crypto.randomUUID(), testNum, q.qnum, q.text, q.opts[0], q.opts[1], q.opts[2], q.opts[3], q.ans, new Date().toISOString()).run();
+          }
+          await logEvent(DB, { level: 'info', category: 'general-tests', message: `استيراد أسئلة الاختبار العام رقم ${testNum} (${action === 'replace' ? 'استبدال' : 'إضافة'}) — ${fresh.length} مضافة`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
+          return ok({ added: fresh.length, skipped: (rows || []).length - fresh.length }, 200, CORS);
+        }
+
+        // PATCH /api/general-tests/:num — admin edits meta (skill linkage / display title)
+        if (!subsub && method === 'PATCH') {
+          const claims = await verifyToken(request, env);
+          if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+          const body = await request.json();
+          const sets = [], vals = [];
+          if ('skill_id'   in body) { sets.push('skill_id = ?');   vals.push(body.skill_id   || ''); }
+          if ('skill_name' in body) { sets.push('skill_name = ?'); vals.push(body.skill_name || ''); }
+          if ('title'      in body) { sets.push('title = ?');      vals.push(body.title      || ''); }
+          if (!sets.length) return err('لا توجد بيانات للتحديث', 400, CORS);
+          await DB.prepare(`UPDATE general_test_meta SET ${sets.join(', ')} WHERE test_num = ?`).bind(...vals, testNum).run();
+          return ok({ ok: true }, 200, CORS);
+        }
+
+        // POST /api/general-tests/:num/submit — server-side grading (student/trial-student only)
+        if (subsub === 'submit' && method === 'POST') {
+          const claims = await verifyToken(request, env);
+          if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+          const { answers } = await request.json();
+          if (!Array.isArray(answers) || !answers.length) return err('إجابات مطلوبة', 400, CORS);
+
+          const { results: bank } = await DB.prepare(
+            'SELECT qnum, ans FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
+          ).bind(testNum).all();
+          if (!bank.length) return err('بنك الأسئلة غير موجود', 500, CORS);
+
+          const total = bank.length;
+          let correct = 0;
+          const storedAnswers = [];
+          for (const q of bank) {
+            const a = answers.find(x => Number(x.qnum) === q.qnum) || {};
+            const selected = Number.isInteger(Number(a.selected)) && a.selected !== null && a.selected !== undefined ? Number(a.selected) : null;
+            const isCorrect = selected === q.ans;
+            if (isCorrect) correct++;
+            storedAnswers.push({ q: q.qnum, a: selected, corr: q.ans });
+          }
+          const finalScore = Math.round((correct / total) * 100);
+          const rid = crypto.randomUUID();
+          const now = new Date().toISOString();
+          const isTrial = claims.trial ? 1 : 0;
+
+          await DB.prepare(
+            `INSERT INTO general_test_results (id, student_id, student_name, school, test_num, score, correct, total, is_trial, answers, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(rid, claims.sub, claims.name, claims.school || '', testNum, finalScore, correct, total, isTrial, JSON.stringify(storedAnswers), now).run();
+
+          await logEvent(DB, { level: 'info', category: 'test', message: `إنهاء الاختبار العام رقم ${testNum}${isTrial ? ' (تجريبي)' : ''} — النتيجة ${finalScore}% (${correct}/${total})`, user_name: claims.name || '', user_role: 'student', school: claims.school || '' });
+          return ok({ id: rid, created_at: now, score: finalScore, correct, total }, 201, CORS);
+        }
       }
     }
 

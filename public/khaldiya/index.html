@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<script>!function(){try{var s=sessionStorage.getItem("lg_session")||localStorage.getItem("lg_xsession");var d=s?JSON.parse(s):null;if(d&&d.token&&d.expiry&&Date.now()<d.expiry){document.documentElement.style.visibility="hidden";}}catch(e){}}();</script>
+<script>!function(){try{var s=sessionStorage.getItem("lg_session_student")||localStorage.getItem("lg_xsession_student")||sessionStorage.getItem("lg_session_admin")||localStorage.getItem("lg_xsession_admin");var d=s?JSON.parse(s):null;if(d&&d.token&&d.expiry&&Date.now()<d.expiry){document.documentElement.style.visibility="hidden";}}catch(e){}}();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>بوابة دعم التعلم — ثانوية الخالدية</title>
@@ -413,6 +413,20 @@
 <body>
 
 <button class="theme-toggle-btn no-print" id="theme-toggle-btn" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
+
+<!-- ═══════════════════════════════════════════════════════
+     TRIAL/IMPERSONATION BANNER ("عرض كطالب")
+═══════════════════════════════════════════════════════ -->
+<div id="trial-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;
+     background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);color:#fff;
+     padding:9px 16px;align-items:center;justify-content:center;gap:10px;
+     font-family:'Tajawal',sans-serif;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.15);">
+  <span>🧪 وضع المعاينة — أنت تستعرض المنصة كطالب تجريبي (الجلسة مؤقتة)</span>
+  <button id="trial-banner-exit" type="button" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);
+     color:#fff;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;">
+    العودة إلى لوحة المشرف
+  </button>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════
      SCREEN LOADING (auto-login fast path)
@@ -1493,6 +1507,79 @@
         الرئيسية
       </button>
     </div>
+    <div class="no-print" style="margin-top:12px;">
+      <button class="btn btn-primary" style="width:100%;" onclick="App.openGeneralTests()">
+        📝 الانتقال إلى الاختبارات
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: GENERAL TESTS — list
+═══════════════════════════════════════════════════════ -->
+<div id="screen-general-tests" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">الاختبارات العامة</div>
+      <div class="topbar-sub">6 اختبارات قصيرة لقياس مهاراتك</div>
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-support-plan')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div id="gt-list" style="display:flex;flex-direction:column;gap:12px;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: GENERAL TESTS — taking a test
+═══════════════════════════════════════════════════════ -->
+<div id="screen-general-test-take" class="screen" oncopy="return false" oncontextmenu="return false" onselectstart="return false" oncut="return false" style="-webkit-user-select:none;user-select:none;">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title" id="gt-take-title">اختبار عام</div>
+      <div class="topbar-sub">بوابة دعم التعلم</div>
+    </div>
+  </div>
+  <div class="page-wrap">
+    <div class="test-progress-bar-wrap">
+      <div class="test-progress-bar" id="gt-progress-bar" style="width:0%"></div>
+    </div>
+    <div class="test-progress-label" id="gt-progress-label">السؤال 1 من 1</div>
+
+    <div class="q-card">
+      <div class="q-num" id="gt-q-num">سؤال 1</div>
+      <div class="q-text" id="gt-q-text"></div>
+      <div class="q-options" id="gt-q-opts"></div>
+    </div>
+
+    <div class="test-nav">
+      <button class="btn btn-outline" id="gt-btn-prev" onclick="App.gtPrev()">السابق →</button>
+      <button class="btn btn-primary" id="gt-btn-next" onclick="App.gtNext()">← التالي</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: GENERAL TESTS — result
+═══════════════════════════════════════════════════════ -->
+<div id="screen-general-test-result" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">نتيجة الاختبار</div>
+      <div class="topbar-sub">بوابة دعم التعلم</div>
+    </div>
+  </div>
+  <div class="page-wrap" style="text-align:center;">
+    <div id="gt-result-score" style="font-size:48px;font-weight:900;color:var(--primary);margin:24px 0 8px;"></div>
+    <div id="gt-result-detail" style="font-size:15px;color:var(--muted);margin-bottom:28px;"></div>
+    <button class="btn btn-primary" style="width:100%;" onclick="App.openGeneralTests()">
+      ← العودة إلى قائمة الاختبارات
+    </button>
   </div>
 </div>
 

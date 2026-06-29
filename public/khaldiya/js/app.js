@@ -77,6 +77,39 @@ function escapeHtml(s) {
 // JWT token — set on login, restored from session storage on page load
 let _authToken = null;
 
+// ── Session storage keys — namespaced by role ──────────────────────────────
+// Student and admin/director sessions used to share the same lg_session/lg_xsession/
+// lg_remember keys, so one person switching between their own student and admin
+// accounts in the same browser would silently overwrite/blow away the other role's
+// session, producing a stuck restore/redirect loop. Each role now gets its own keys;
+// `lg_active_role` records whichever was written most recently so a fresh tab restore
+// knows which namespace to prefer when both are present.
+function _roleNS(role) { return role === 'student' ? 'student' : 'admin'; }
+function _skey(base, role) { return `${base}_${_roleNS(role)}`; }
+function _setActiveRole(role) { try { localStorage.setItem('lg_active_role', _roleNS(role)); } catch(_) {} }
+function _roleNSOrder() {
+  let hint = null;
+  try { hint = localStorage.getItem('lg_active_role'); } catch(_) {}
+  return hint === 'admin' ? ['admin', 'student'] : ['student', 'admin'];
+}
+
+// "عرض كطالب" (impersonation) support — admins land here via a synthetic trial-student
+// JWT minted by /api/auth/impersonate. The banner lets them jump straight back to /admin/.
+function _showTrialBanner() {
+  const el = document.getElementById('trial-banner');
+  if (el) el.style.display = 'flex';
+}
+function _exitTrialMode() {
+  try { sessionStorage.removeItem(_skey('lg_session', 'student')); } catch(_) {}
+  try { localStorage.removeItem(_skey('lg_xsession', 'student')); } catch(_) {}
+  try { localStorage.removeItem(_skey('lg_remember', 'student')); } catch(_) {}
+  window.location.href = '/admin/';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('trial-banner-exit');
+  if (btn) btn.addEventListener('click', _exitTrialMode);
+});
+
 // Base API call helper
 async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
@@ -440,13 +473,14 @@ const App = {
       State.role = 'student';
       if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
       const _sess = { role: 'student', id: student.id, code, name: student.name, school: student.school, token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
-      try { sessionStorage.setItem('lg_session', JSON.stringify(_sess)); } catch(_) {}
-      try { localStorage.setItem('lg_xsession', JSON.stringify(_sess)); } catch(_) {}
+      try { sessionStorage.setItem(_skey('lg_session', 'student'), JSON.stringify(_sess)); } catch(_) {}
+      try { localStorage.setItem(_skey('lg_xsession', 'student'), JSON.stringify(_sess)); } catch(_) {}
+      _setActiveRole('student');
       const remember = document.getElementById('sl-remember');
       if (remember && remember.checked) {
-        try { localStorage.setItem('lg_remember', JSON.stringify({ role: 'student', code, name: student.name, school: student.school || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 })); } catch(_) {}
+        try { localStorage.setItem(_skey('lg_remember', 'student'), JSON.stringify({ role: 'student', code, name: student.name, school: student.school || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 })); } catch(_) {}
       } else {
-        try { localStorage.removeItem('lg_remember'); } catch(_) {}
+        try { localStorage.removeItem(_skey('lg_remember', 'student')); } catch(_) {}
       }
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
@@ -521,13 +555,14 @@ const App = {
       if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
       const adminName = admin.name || '';
       const _sess = { role: State.role, code, name: adminName, school: admin.school || '', token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
-      try { sessionStorage.setItem('lg_session', JSON.stringify(_sess)); } catch(_) {}
-      try { localStorage.setItem('lg_xsession', JSON.stringify(_sess)); } catch(_) {}
+      try { sessionStorage.setItem(_skey('lg_session', 'admin'), JSON.stringify(_sess)); } catch(_) {}
+      try { localStorage.setItem(_skey('lg_xsession', 'admin'), JSON.stringify(_sess)); } catch(_) {}
+      _setActiveRole('admin');
       const alRemember = document.getElementById('al-remember');
       if (alRemember && alRemember.checked) {
-        try { localStorage.setItem('lg_remember', JSON.stringify({ role: 'admin', code, name: adminName, school: admin.school || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 })); } catch(_) {}
+        try { localStorage.setItem(_skey('lg_remember', 'admin'), JSON.stringify({ role: 'admin', code, name: adminName, school: admin.school || '', expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 })); } catch(_) {}
       } else {
-        try { localStorage.removeItem('lg_remember'); } catch(_) {}
+        try { localStorage.removeItem(_skey('lg_remember', 'admin')); } catch(_) {}
       }
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
@@ -537,7 +572,7 @@ const App = {
         el.style.display = State.role === 'director' ? '' : 'none';
       });
       // New admin dashboard (React) lives at /admin/ — redirect there now that the
-      // session is persisted to localStorage.lg_xsession. The old in-SPA admin
+      // session is persisted to localStorage.lg_xsession_admin. The old in-SPA admin
       // screen is no longer shown after a successful admin login.
       window.location.href = '/admin/';
     } catch(e) {
@@ -830,6 +865,115 @@ const App = {
     App.stopTestTimer();
     show('screen-processing');
     setTimeout(() => App.processResults(), 2800);
+  },
+
+  // ── General Tests (6 stand-alone skill tests, reached from the support-plan screen) ──
+  async openGeneralTests() {
+    show('screen-general-tests');
+    const list = document.getElementById('gt-list');
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;">جاري التحميل…</div>';
+    try {
+      const { tests } = await apiFetch('/general-tests');
+      App.renderGeneralTestsList(tests);
+    } catch (e) {
+      list.innerHTML = '<div style="text-align:center;color:#dc2626;padding:24px;">تعذّر تحميل الاختبارات</div>';
+    }
+  },
+
+  renderGeneralTestsList(tests) {
+    const list = document.getElementById('gt-list');
+    list.innerHTML = tests.map(t => {
+      const has = t.question_count > 0;
+      const result = t.my_result;
+      const resultHtml = result
+        ? `<div style="font-size:13px;color:var(--accent);font-weight:700;margin-top:4px;">آخر نتيجة: ${result.score}% (${result.correct}/${result.total})</div>`
+        : '';
+      return `
+        <div class="skill-card" style="padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-weight:800;font-size:15px;">${t.title}</div>
+              ${t.skill_name ? `<div style="font-size:12.5px;color:var(--muted);margin-top:2px;">${t.skill_name}</div>` : ''}
+              ${resultHtml}
+            </div>
+            <button class="btn ${has ? 'btn-primary' : 'btn-outline'}" style="white-space:nowrap;" ${has ? '' : 'disabled'}
+                    onclick="App.startGeneralTest(${t.test_num})">
+              ${has ? (result ? 'إعادة الاختبار' : 'بدء الاختبار') : 'قريباً'}
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  },
+
+  async startGeneralTest(num) {
+    show('screen-loading');
+    try {
+      const { questions } = await apiFetch(`/general-tests/${num}/questions`);
+      State.gt = { num, questions, idx: 0, answers: {} };
+      document.getElementById('gt-take-title').textContent = `اختبار عام رقم ${num}`;
+      show('screen-general-test-take');
+      App.renderGTQuestion();
+    } catch (e) {
+      showToast('تعذّر تحميل الاختبار');
+      show('screen-general-tests');
+    }
+  },
+
+  renderGTQuestion() {
+    const { questions, idx, answers } = State.gt;
+    const q = questions[idx];
+    const total = questions.length;
+    const pct = Math.round((idx / total) * 100);
+
+    document.getElementById('gt-progress-bar').style.width = pct + '%';
+    document.getElementById('gt-progress-label').textContent = `السؤال ${idx + 1} من ${total}`;
+    document.getElementById('gt-q-num').textContent = `سؤال ${idx + 1}`;
+    document.getElementById('gt-q-text').textContent = q.text;
+
+    const selected = answers[q.qnum];
+    document.getElementById('gt-q-opts').innerHTML = q.opts.map((opt, i) => `
+      <div class="q-opt${selected === i ? ' selected' : ''}" onclick="App.gtSelect(${i})">
+        <div class="opt-circle"></div><span>${opt}</span>
+      </div>`).join('');
+
+    document.getElementById('gt-btn-prev').disabled = idx === 0;
+    const isLast = idx === total - 1;
+    const nextBtn = document.getElementById('gt-btn-next');
+    nextBtn.textContent = isLast ? 'إنهاء الاختبار' : 'التالي';
+    nextBtn.className = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
+  },
+
+  gtSelect(i) {
+    const { questions, idx } = State.gt;
+    State.gt.answers[questions[idx].qnum] = i;
+    App.renderGTQuestion();
+  },
+
+  gtPrev() {
+    if (State.gt.idx > 0) { State.gt.idx--; App.renderGTQuestion(); }
+  },
+
+  async gtNext() {
+    const { questions, idx, answers } = State.gt;
+    if (answers[questions[idx].qnum] === undefined) {
+      showToast('يرجى اختيار إجابة قبل المتابعة');
+      return;
+    }
+    if (idx < questions.length - 1) { State.gt.idx++; App.renderGTQuestion(); return; }
+
+    show('screen-loading');
+    try {
+      const payload = questions.map(q => ({ qnum: q.qnum, selected: answers[q.qnum] }));
+      const res = await apiFetch(`/general-tests/${State.gt.num}/submit`, {
+        method: 'POST', body: JSON.stringify({ answers: payload }),
+      });
+      document.getElementById('gt-result-score').textContent = res.score + '%';
+      document.getElementById('gt-result-detail').textContent = `${res.correct} إجابة صحيحة من ${res.total}`;
+      show('screen-general-test-result');
+    } catch (e) {
+      showToast('تعذّر إرسال الاختبار');
+      show('screen-general-test-take');
+    }
   },
 
   // ── Gap Analysis ──────────────────────────────────────────────────────────
@@ -3693,6 +3837,7 @@ const App = {
 
   logout() {
     const who = State.student?.name || State.admin?.name || '—';
+    const _exitingRole = State.role || 'student';
     ActivityLog.warn(`🚪 تسجيل خروج: ${who}`);
     serverLog('info', 'logout', `تسجيل خروج: ${who}`, { user_name: who });
     App.stopCooldownTimer();
@@ -3707,9 +3852,14 @@ const App = {
     document.getElementById('sl-code').value = '';
     const alCode = document.getElementById('al-code');
     if (alCode) alCode.value = '';
-    sessionStorage.removeItem('lg_session');
-    localStorage.removeItem('lg_xsession');
-    localStorage.removeItem('lg_remember');
+    // Only clear THIS role's session keys — the other role (if the same person is
+    // also logged in elsewhere/another tab as admin/student) must stay intact.
+    sessionStorage.removeItem(_skey('lg_session', _exitingRole));
+    localStorage.removeItem(_skey('lg_xsession', _exitingRole));
+    localStorage.removeItem(_skey('lg_remember', _exitingRole));
+    try {
+      if (localStorage.getItem('lg_active_role') === _roleNS(_exitingRole)) localStorage.removeItem('lg_active_role');
+    } catch(_) {}
     App.stopNotifPolling();
     App.closeNotifPanel();
     show('screen-school');
@@ -4043,12 +4193,14 @@ async function _quickRestoreSession(sess) {
     _authToken = sess.token;
     const expiry = Date.now() + 4 * 60 * 60 * 1000;
     if (sess.role === 'student') {
-      State.student = { id: sess.id, code: sess.code, name: sess.name, school: sess.school || '' };
+      State.student = { id: sess.id, code: sess.code, name: sess.name, school: sess.school || '', trial: !!sess.trial };
       State.role = 'student';
       if (sess.school) { State.school = sess.school; App._updateSchoolDisplay(sess.school); }
+      if (sess.trial) _showTrialBanner();
       const _sess = { ...sess, expiry };
-      try { sessionStorage.setItem('lg_session', JSON.stringify(_sess)); } catch(_) {}
-      try { localStorage.setItem('lg_xsession', JSON.stringify(_sess)); } catch(_) {}
+      try { sessionStorage.setItem(_skey('lg_session', 'student'), JSON.stringify(_sess)); } catch(_) {}
+      try { localStorage.setItem(_skey('lg_xsession', 'student'), JSON.stringify(_sess)); } catch(_) {}
+      _setActiveRole('student');
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();
@@ -4081,8 +4233,9 @@ async function _quickRestoreSession(sess) {
       State.admin = { code: sess.code, name: sess.name, school: sess.school || '' };
       if (sess.school && sess.school !== '*') { State.school = sess.school; App._updateSchoolDisplay(sess.school); }
       const _sess = { ...sess, expiry };
-      try { sessionStorage.setItem('lg_session', JSON.stringify(_sess)); } catch(_) {}
-      try { localStorage.setItem('lg_xsession', JSON.stringify(_sess)); } catch(_) {}
+      try { sessionStorage.setItem(_skey('lg_session', 'admin'), JSON.stringify(_sess)); } catch(_) {}
+      try { localStorage.setItem(_skey('lg_xsession', 'admin'), JSON.stringify(_sess)); } catch(_) {}
+      _setActiveRole('admin');
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();
@@ -4097,8 +4250,9 @@ async function _quickRestoreSession(sess) {
     }
   } catch (e) {
     _authToken = null;
-    sessionStorage.removeItem('lg_session');
-    localStorage.removeItem('lg_xsession');
+    const _failRole = sess && sess.role === 'student' ? 'student' : 'admin';
+    sessionStorage.removeItem(_skey('lg_session', _failRole));
+    localStorage.removeItem(_skey('lg_xsession', _failRole));
     await _minDelay;
     show('screen-landing');
     document.documentElement.style.visibility = '';
@@ -4123,7 +4277,7 @@ function _autoLogin(role, code, token, school) {
   // setTimeout(0) lets the browser paint screen-loading before starting the API call
   setTimeout(() => {
     const login = role === 'student' ? App.studentLogin() : App.adminLogin();
-    const _bail = () => { sessionStorage.removeItem('lg_session'); localStorage.removeItem('lg_xsession'); show('screen-landing'); document.documentElement.style.visibility = ''; };
+    const _bail = () => { sessionStorage.removeItem(_skey('lg_session', role)); localStorage.removeItem(_skey('lg_xsession', role)); show('screen-landing'); document.documentElement.style.visibility = ''; };
     login
       .then(() => {
         // studentLogin/adminLogin swallow their own errors (no throw) and just leave the
@@ -4156,40 +4310,54 @@ document.addEventListener('DOMContentLoaded', () => {
     s.token && s.expiry && Date.now() < s.expiry &&
     (s.role !== 'student' || s.id); // student needs stored id
 
+  // Student and admin/director sessions live in separate, role-namespaced keys (see
+  // _skey above), so each of the 3 restore tiers below must check both namespaces —
+  // in the priority order given by lg_active_role — instead of a single hardcoded key.
+  const _nsOrder = _roleNSOrder();
+
   // 1) Same-tab refresh
-  try {
-    const raw = sessionStorage.getItem('lg_session');
-    if (raw) {
-      const s = JSON.parse(raw);
-      if (s.role && s.code) {
-        if (_canFastRestore(s)) { _quickRestoreSession(s); return; }
-        _autoLogin(s.role, s.code, s.token, s.school); return;
+  for (const _ns of _nsOrder) {
+    try {
+      const _k = _skey('lg_session', _ns);
+      const raw = sessionStorage.getItem(_k);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s.role && s.code) {
+          if (_canFastRestore(s)) { _quickRestoreSession(s); return; }
+          _autoLogin(s.role, s.code, s.token, s.school); return;
+        }
       }
-    }
-  } catch (e) { sessionStorage.removeItem('lg_session'); }
+    } catch (e) { sessionStorage.removeItem(_skey('lg_session', _ns)); }
+  }
 
   // 2) Cross-tab session (new tab from lesson/quiz pages, 4h expiry)
-  try {
-    const raw = localStorage.getItem('lg_xsession');
-    if (raw) {
-      const s = JSON.parse(raw);
-      if (s.expiry && Date.now() > s.expiry) { localStorage.removeItem('lg_xsession'); }
-      else if (s.role && s.code) {
-        if (_canFastRestore(s)) { _quickRestoreSession(s); return; }
-        _autoLogin(s.role, s.code, s.token, s.school); return;
+  for (const _ns of _nsOrder) {
+    try {
+      const _k = _skey('lg_xsession', _ns);
+      const raw = localStorage.getItem(_k);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s.expiry && Date.now() > s.expiry) { localStorage.removeItem(_k); }
+        else if (s.role && s.code) {
+          if (_canFastRestore(s)) { _quickRestoreSession(s); return; }
+          _autoLogin(s.role, s.code, s.token, s.school); return;
+        }
       }
-    }
-  } catch (e) { localStorage.removeItem('lg_xsession'); }
+    } catch (e) { localStorage.removeItem(_skey('lg_xsession', _ns)); }
+  }
 
   // 3) Long-term remember-me (2 days, no JWT — must re-auth but show loading screen)
-  try {
-    const raw = localStorage.getItem('lg_remember');
-    if (raw) {
-      const s = JSON.parse(raw);
-      if (s.expiry && Date.now() > s.expiry) { localStorage.removeItem('lg_remember'); }
-      else if (s.role && s.code) { _autoLogin(s.role, s.code, null, s.school); return; }
-    }
-  } catch (e) { localStorage.removeItem('lg_remember'); }
+  for (const _ns of _nsOrder) {
+    try {
+      const _k = _skey('lg_remember', _ns);
+      const raw = localStorage.getItem(_k);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s.expiry && Date.now() > s.expiry) { localStorage.removeItem(_k); }
+        else if (s.role && s.code) { _autoLogin(s.role, s.code, null, s.school); return; }
+      }
+    } catch (e) { localStorage.removeItem(_skey('lg_remember', _ns)); }
+  }
 
   show('screen-landing');
   document.documentElement.style.visibility = '';

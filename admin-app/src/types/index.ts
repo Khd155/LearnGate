@@ -94,6 +94,18 @@ export interface Broadcast {
   targetCount?: number;
 }
 
+export interface GeneralTestResult {
+  id: string;
+  student_id: string;
+  test_num: number;
+  score: number;
+  correct: number;
+  total: number;
+  is_trial?: number;
+  created_at: string;
+  [key: string]: unknown;
+}
+
 export interface ApiErrorShape {
   error: string;
 }

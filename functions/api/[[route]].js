@@ -1135,6 +1135,42 @@ export async function onRequest({ request, env }) {
         return ok({ generated_at: new Date().toISOString(), tables }, 200, CORS);
       }
 
+      // GET /api/dev/test-grading — simulate grading with all-correct answers to verify scoring logic
+      if (sub === 'test-grading' && method === 'GET') {
+        const { results: questions } = await DB.prepare('SELECT qnum, skill_id, ans FROM questions ORDER BY qnum ASC').all();
+        if (!questions.length) return ok({ error: 'لا توجد أسئلة في قاعدة البيانات' }, 200, CORS);
+        // Build all-correct answers
+        const allCorrect = {};
+        const allWrong   = {};
+        for (const q of questions) {
+          allCorrect[q.qnum] = Number(q.ans);
+          allWrong[q.qnum]   = (Number(q.ans) + 1) % 4;
+        }
+        // Grade both sets
+        const grade = (answers) => {
+          const scores = {};
+          for (const q of questions) {
+            if (!scores[q.skill_id]) scores[q.skill_id] = { correct: 0, total: 0 };
+            scores[q.skill_id].total++;
+            const selected = answers[q.qnum];
+            if (selected !== undefined && selected !== null && Number(selected) === Number(q.ans)) {
+              scores[q.skill_id].correct++;
+            }
+          }
+          return Object.entries(scores).map(([skillId, s]) => ({
+            skillId, correct: s.correct, total: s.total,
+            pct: s.total ? Math.round((s.correct / s.total) * 100) : 0,
+          }));
+        };
+        return ok({
+          questions_count: questions.length,
+          skills_found: [...new Set(questions.map(q => q.skill_id))],
+          all_correct_result: grade(allCorrect),
+          all_wrong_result:   grade(allWrong),
+          sample_question: questions[0],
+        }, 200, CORS);
+      }
+
       // GET /api/dev/stats — stats per school
       if (sub === 'stats' && method === 'GET') {
         const { results: schools } = await DB.prepare('SELECT name FROM schools ORDER BY name').all();

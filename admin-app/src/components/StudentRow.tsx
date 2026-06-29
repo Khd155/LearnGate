@@ -27,7 +27,7 @@ export default function StudentRow({
 }: Props) {
   const colors = testStatusColor(status);
   return (
-    <tr className="group border-b border-slate-100 last:border-0 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-800/50">
+    <tr className="animate-row-in group border-b border-slate-100 last:border-0 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-800/50" style={{ transition: 'background-color 150ms ease' }}>
       <td className="w-10 px-4 py-3">
         <Checkbox.Root
           checked={selected}

@@ -35,7 +35,7 @@ export default function DashboardLayout() {
       <main className="mx-auto max-w-7xl space-y-6 px-6 py-6">
         <StatsCards />
         <TabsNavigation />
-        <div className="animate-fade-in">
+        <div key={tab} className="animate-tab-enter">
           {tab === 'students' && <StudentsTable />}
           {tab === 'stats' && <StatisticsTab />}
           {tab === 'conversations' && <ConversationsTab />}

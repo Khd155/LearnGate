@@ -15,7 +15,7 @@ export default function StatCard({ label, value, icon, gradient, deltaPct }: Sta
   return (
     <div
       className={cn(
-        'group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900',
+        'card-hover group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900',
       )}
     >
       <div

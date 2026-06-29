@@ -16,29 +16,129 @@ body {
   scrollbar-width: thin;
 }
 
+/* ─── Dark-mode colour transition ─────────────────────────────────────────── */
+/* Applied to every element so switching dark/light fades smoothly.            */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 220ms;
+}
+
+/* Exclude transitions from animated elements so animations aren't sluggish */
+[class*="animate-"], [class*="skeleton"] {
+  transition: none !important;
+}
+
 body {
   background-color: #f4f8fb;
   @apply text-slate-800 dark:bg-slate-950 dark:text-slate-100;
 }
 
-@keyframes toast-in {
-  from { opacity: 0; transform: translateY(-8px) scale(.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+/* ─── Scroll behaviour ────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
 }
-.animate-toast-in { animation: toast-in .18s ease-out; }
+
+/* ─── Keyframes ───────────────────────────────────────────────────────────── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-10px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+.animate-toast-in { animation: toast-in .2s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
 @keyframes fade-in {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
-.animate-fade-in { animation: fade-in .2s ease-out; }
+.animate-fade-in { animation: fade-in .25s ease-out; }
 
+/* Tab content: fades in and slides up a few pixels */
+@keyframes tab-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+.animate-tab-enter { animation: tab-enter .28s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Modal / dialog scale-in */
+@keyframes scale-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(.95); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1);   }
+}
+.animate-scale-in { animation: scale-in .22s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Overlay fade */
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-overlay-in { animation: overlay-in .2s ease-out; }
+
+/* Card entrance (stagger-ready) */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(14px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+.animate-card-in { animation: card-in .35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Stagger delays for lists of cards */
+.stagger-1 { animation-delay:  40ms; }
+.stagger-2 { animation-delay:  90ms; }
+.stagger-3 { animation-delay: 140ms; }
+.stagger-4 { animation-delay: 190ms; }
+.stagger-5 { animation-delay: 240ms; }
+
+/* Row slide-in for table rows */
+@keyframes row-in {
+  from { opacity: 0; transform: translateX(6px); }
+  to   { opacity: 1; transform: translateX(0);   }
+}
+.animate-row-in { animation: row-in .22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Shimmer skeleton */
 @keyframes shimmer {
-  0% { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
 }
 .skeleton {
   background: linear-gradient(90deg, rgba(148,163,184,.15) 25%, rgba(148,163,184,.3) 37%, rgba(148,163,184,.15) 63%);
   background-size: 400px 100%;
   animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Pulse dot for live indicators */
+@keyframes pulse-ring {
+  0%   { transform: scale(.95); box-shadow: 0 0 0 0 rgba(79,168,119,.5); }
+  70%  { transform: scale(1);   box-shadow: 0 0 0 7px rgba(79,168,119,0); }
+  100% { transform: scale(.95); box-shadow: 0 0 0 0 rgba(79,168,119,0);  }
+}
+.animate-pulse-ring { animation: pulse-ring 2s ease-out infinite; }
+
+/* ─── Interactive element base enhancements ──────────────────────────────── */
+button, [role="button"] {
+  cursor: pointer;
+}
+
+/* Subtle press effect on all buttons */
+button:not(:disabled):active {
+  transform: scale(0.97);
+  transition-duration: 80ms;
+}
+
+/* Card hover lift */
+.card-hover {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 220ms ease,
+              border-color 220ms ease !important;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(63, 124, 184, 0.14);
+}
+
+/* ─── Focus ring polish ───────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #3F7CB8;
+  outline-offset: 2px;
+  border-radius: 6px;
 }

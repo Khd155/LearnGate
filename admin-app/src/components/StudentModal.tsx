@@ -155,8 +155,8 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
     <>
       <Dialog.Root open={!!student} onOpenChange={onOpenChange}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/40 animate-fade-in" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-[61] max-h-[90vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl animate-fade-in dark:bg-slate-800">
+          <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/40 animate-overlay-in" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[61] max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl animate-scale-in dark:bg-slate-800">
             <Dialog.Title className="text-lg font-bold text-slate-900 dark:text-white">بيانات الطالب</Dialog.Title>
 
             <div className="mt-5 space-y-4">

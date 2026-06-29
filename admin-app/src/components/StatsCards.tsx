@@ -77,8 +77,10 @@ export default function StatsCards() {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {cards.map((c) => (
-        <StatCard key={c.label} label={c.label} value={c.value} icon={c.icon} gradient={c.gradient} deltaPct={c.deltaPct} />
+      {cards.map((c, i) => (
+        <div key={c.label} className={`animate-card-in stagger-${Math.min(i + 1, 5) as 1 | 2 | 3 | 4 | 5}`}>
+          <StatCard label={c.label} value={c.value} icon={c.icon} gradient={c.gradient} deltaPct={c.deltaPct} />
+        </div>
       ))}
     </div>
   );

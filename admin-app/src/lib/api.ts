@@ -74,14 +74,17 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };
 
+// The student-facing SPA namespaces login session keys by role (lg_xsession_admin vs
+// lg_xsession_student) so a student and admin/director session in the same browser
+// don't overwrite each other. This dashboard only ever holds admin/director sessions.
 export function readSession(): Session | null {
   try {
-    const raw = localStorage.getItem('lg_xsession');
+    const raw = localStorage.getItem('lg_xsession_admin');
     if (!raw) return null;
     const s = JSON.parse(raw) as Session;
     if (!s?.token || !s?.expiry) return null;
     if (Date.now() >= s.expiry) {
-      localStorage.removeItem('lg_xsession');
+      localStorage.removeItem('lg_xsession_admin');
       return null;
     }
     return s;
@@ -92,8 +95,11 @@ export function readSession(): Session | null {
 
 export function clearSession() {
   try {
-    localStorage.removeItem('lg_xsession');
-    sessionStorage.removeItem('lg_session');
+    localStorage.removeItem('lg_xsession_admin');
+    sessionStorage.removeItem('lg_session_admin');
+    if (localStorage.getItem('lg_active_role') === 'admin') {
+      localStorage.removeItem('lg_active_role');
+    }
   } catch {
     /* noop */
   }

@@ -1,7 +1,7 @@
 ﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<script>!function(){try{var s=sessionStorage.getItem("lg_session")||localStorage.getItem("lg_xsession");var d=s?JSON.parse(s):null;if(d&&d.token&&d.role==="student"&&d.expiry&&Date.now()<d.expiry)return;var r=localStorage.getItem("lg_remember");var rd=r?JSON.parse(r):null;if(rd&&rd.code&&rd.role==="student"&&rd.expiry&&Date.now()<rd.expiry)return;}catch(e){}window.location.replace("/");}();</script>
+<script>!function(){try{var s=sessionStorage.getItem("lg_session_student")||localStorage.getItem("lg_xsession_student");var d=s?JSON.parse(s):null;if(d&&d.token&&d.role==="student"&&d.expiry&&Date.now()<d.expiry)return;var r=localStorage.getItem("lg_remember_student");var rd=r?JSON.parse(r):null;if(rd&&rd.code&&rd.role==="student"&&rd.expiry&&Date.now()<rd.expiry)return;}catch(e){}window.location.replace("/");}();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>شروحات الهندسة والقياس — بوابة دعم التعلم</title>
@@ -196,7 +196,7 @@ render();
   try {
     var c=document.getElementById('tb-user-chip');
     var name='';
-    var sources=[sessionStorage.getItem('lg_session'), localStorage.getItem('lg_xsession'), localStorage.getItem('lg_remember')];
+    var sources=[sessionStorage.getItem('lg_session_student'), localStorage.getItem('lg_xsession_student'), localStorage.getItem('lg_remember_student')];
     for (var i=0;i<sources.length;i++) {
       if (!sources[i]) continue;
       try { var sd=JSON.parse(sources[i]); if (sd && (sd.name||sd.admin_name)) { name=sd.name||sd.admin_name; break; } } catch(e2){}

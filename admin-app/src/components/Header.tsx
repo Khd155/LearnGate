@@ -1,8 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { useStore } from '../store/useStore';
-import { clearSession } from '../lib/api';
+import { api, ApiError, clearSession } from '../lib/api';
+
+interface ImpersonateResponse {
+  token: string;
+  student: { id: string; name: string; school: string };
+  trial: boolean;
+}
 
 export default function Header() {
   const session = useStore((s) => s.session);
@@ -12,6 +18,8 @@ export default function Header() {
   const loadUnreadCounts = useStore((s) => s.loadUnreadCounts);
   const setTab = useStore((s) => s.setTab);
   const setConversationFocusStudentId = useStore((s) => s.setConversationFocusStudentId);
+  const pushToast = useStore((s) => s.pushToast);
+  const [impersonating, setImpersonating] = useState(false);
 
   useEffect(() => {
     loadUnreadCounts();
@@ -24,6 +32,34 @@ export default function Header() {
   const logout = () => {
     clearSession();
     window.location.href = '/';
+  };
+
+  // "عرض كطالب": mints a synthetic trial-student JWT, stores it in the same
+  // role-namespaced session keys the student SPA reads on load (lg_*session_student),
+  // then navigates there. The admin's own lg_xsession_admin is untouched, so
+  // "العودة إلى لوحة المشرف" in the student-side banner returns to a still-valid session.
+  const impersonate = async () => {
+    setImpersonating(true);
+    try {
+      const res = await api.post<ImpersonateResponse>('/auth/impersonate');
+      const sess = {
+        role: 'student',
+        id: res.student.id,
+        code: 'trial',
+        name: res.student.name,
+        school: res.student.school || '',
+        token: res.token,
+        expiry: Date.now() + 25 * 60 * 1000,
+        trial: true,
+      };
+      localStorage.setItem('lg_xsession_student', JSON.stringify(sess));
+      sessionStorage.setItem('lg_session_student', JSON.stringify(sess));
+      localStorage.setItem('lg_active_role', 'student');
+      window.location.href = '/';
+    } catch (e) {
+      pushToast('error', e instanceof ApiError ? e.message : 'فشل بدء وضع المعاينة');
+      setImpersonating(false);
+    }
   };
 
   return (
@@ -121,6 +157,15 @@ export default function Header() {
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
+
+        <button
+          type="button"
+          onClick={impersonate}
+          disabled={impersonating}
+          className="flex h-10 items-center justify-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-4 text-sm font-bold hover:bg-white/20 disabled:opacity-60"
+        >
+          🧪 {impersonating ? 'جارٍ التحضير…' : 'عرض كطالب'}
+        </button>
 
         <button
           type="button"

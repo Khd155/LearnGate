@@ -12,13 +12,6 @@ function planScore(p: Plan): number | null {
   return gaps.length ? Math.round(gaps.reduce((s, g) => s + g.pct, 0) / gaps.length) : null;
 }
 
-function levelLabel(pct: number | null): string {
-  if (pct === null) return '—';
-  if (pct <= 30) return 'ضعيف';
-  if (pct <= 49) return 'دون المتوسط';
-  if (pct <= 70) return 'متوسط';
-  return 'مرتفع';
-}
 
 function levelColor(pct: number | null): string {
   if (pct === null) return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
@@ -50,6 +43,7 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
 
   const [history, setHistory] = useState<Plan[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedPlanIds, setExpandedPlanIds] = useState<Set<string>>(new Set());
 
   const [gtResults, setGtResults] = useState<GeneralTestResult[] | null>(null);
   const [gtTitles, setGtTitles] = useState<Record<number, string>>({});
@@ -60,6 +54,7 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
       setName(student.name);
       setCode(student.code);
       setPhone(student.phone || '');
+      setExpandedPlanIds(new Set());
       setHistory(null);
       setHistoryLoading(true);
       api
@@ -253,41 +248,135 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
                       </ResponsiveContainer>
                     </div>
                   )}
-                  <div className="max-h-56 space-y-2 overflow-y-auto">
+                  <div className="max-h-72 space-y-2 overflow-y-auto">
                     {history.map((p, idx) => {
                       const gaps = Array.isArray(p.gaps) ? p.gaps : [];
                       const score = planScore(p);
                       const attemptNumber = history.length - idx;
+                      const isExpanded = expandedPlanIds.has(p.id);
+                      const verbalGaps = gaps.filter((g) => g.category === 'verbal');
+                      const quantGaps = gaps.filter((g) => g.category === 'quantitative');
+                      const weakGaps = gaps.filter((g) => g.pct <= 49);
                       return (
                         <div
                           key={p.id}
-                          className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                          className="rounded-lg border border-slate-100 bg-slate-50 text-sm dark:border-slate-700 dark:bg-slate-900"
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-slate-700 dark:text-slate-200">
-                              قدرات {attemptNumber} — {p.status === 'active' ? 'خطة معتمدة' : 'خطة بانتظار الاعتماد'}
+                          <div className="flex items-center gap-2 px-3 py-2">
+                            <span className="flex-1 font-medium text-slate-700 dark:text-slate-200">
+                              قدرات {attemptNumber}
                             </span>
-                            <span className="text-xs text-slate-400">
-                              {new Date(p.created_at).toLocaleDateString('ar-SA')}
-                            </span>
-                          </div>
-                          {score !== null && (
-                            <div className="mt-1 flex items-center gap-2">
+                            {score !== null ? (
                               <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${levelColor(score)}`}>
                                 {score}%
                               </span>
-                              <span className="text-xs text-slate-500 dark:text-slate-400">{levelLabel(score)}</span>
-                            </div>
-                          )}
-                          {gaps.length > 0 && (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {gaps.slice(0, 6).map((g, i) => (
-                                <span
-                                  key={i}
-                                  className="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                                >
-                                  {g.skillName} ({g.pct}%)
-                                </span>
+                            ) : (
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-400 dark:bg-slate-800">
+                                لم يكتمل
+                              </span>
+                            )}
+                            <span className="text-xs text-slate-400">
+                              {new Date(p.created_at).toLocaleDateString('ar-SA')}
+                            </span>
+                            {gaps.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedPlanIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(p.id)) next.delete(p.id);
+                                    else next.add(p.id);
+                                    return next;
+                                  })
+                                }
+                                className="rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-500 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+                              >
+                                {isExpanded ? '▲ إخفاء' : '👁 عرض'}
+                              </button>
+                            )}
+                          </div>
+
+                          {isExpanded && gaps.length > 0 && (
+                            <div className="border-t border-slate-100 px-3 pb-3 pt-2 dark:border-slate-700">
+                              {weakGaps.length > 0 && (
+                                <div className="mb-2 rounded-md bg-rose-50 px-2 py-1.5 dark:bg-rose-950/30">
+                                  <p className="mb-1 text-xs font-bold text-rose-600 dark:text-rose-400">⚠️ مهارات تحتاج تحسين</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {weakGaps.map((g, i) => (
+                                      <span
+                                        key={i}
+                                        className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-900 dark:text-rose-300"
+                                      >
+                                        {g.skillName} — {g.pct}%
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {verbalGaps.length > 0 && (
+                                <div className="mb-2">
+                                  <p className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">لفظي</p>
+                                  <div className="space-y-1">
+                                    {verbalGaps.map((g, i) => (
+                                      <div key={i} className="flex items-center gap-2">
+                                        <span className="w-28 shrink-0 truncate text-xs text-slate-600 dark:text-slate-300">
+                                          {g.skillName}
+                                        </span>
+                                        <div className="flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" style={{ height: 6 }}>
+                                          <div
+                                            className={`h-full rounded-full ${g.pct <= 30 ? 'bg-rose-500' : g.pct <= 49 ? 'bg-amber-400' : g.pct <= 70 ? 'bg-sky-400' : 'bg-emerald-500'}`}
+                                            style={{ width: `${g.pct}%` }}
+                                          />
+                                        </div>
+                                        <span className={`w-9 text-right text-xs font-bold ${g.pct <= 49 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                          {g.pct}%
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {quantGaps.length > 0 && (
+                                <div>
+                                  <p className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">كمي</p>
+                                  <div className="space-y-1">
+                                    {quantGaps.map((g, i) => (
+                                      <div key={i} className="flex items-center gap-2">
+                                        <span className="w-28 shrink-0 truncate text-xs text-slate-600 dark:text-slate-300">
+                                          {g.skillName}
+                                        </span>
+                                        <div className="flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" style={{ height: 6 }}>
+                                          <div
+                                            className={`h-full rounded-full ${g.pct <= 30 ? 'bg-rose-500' : g.pct <= 49 ? 'bg-amber-400' : g.pct <= 70 ? 'bg-sky-400' : 'bg-emerald-500'}`}
+                                            style={{ width: `${g.pct}%` }}
+                                          />
+                                        </div>
+                                        <span className={`w-9 text-right text-xs font-bold ${g.pct <= 49 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                          {g.pct}%
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {verbalGaps.length === 0 && quantGaps.length === 0 && gaps.map((g, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                  <span className="w-28 shrink-0 truncate text-xs text-slate-600 dark:text-slate-300">
+                                    {g.skillName}
+                                  </span>
+                                  <div className="flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" style={{ height: 6 }}>
+                                    <div
+                                      className={`h-full rounded-full ${g.pct <= 30 ? 'bg-rose-500' : g.pct <= 49 ? 'bg-amber-400' : g.pct <= 70 ? 'bg-sky-400' : 'bg-emerald-500'}`}
+                                      style={{ width: `${g.pct}%` }}
+                                    />
+                                  </div>
+                                  <span className={`w-9 text-right text-xs font-bold ${g.pct <= 49 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                    {g.pct}%
+                                  </span>
+                                </div>
                               ))}
                             </div>
                           )}

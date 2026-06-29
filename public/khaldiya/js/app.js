@@ -903,43 +903,33 @@ const App = {
 
   // ── Gap Analysis ──────────────────────────────────────────────────────────
   async processResults() {
-    const scores = {};
-    SKILLS.forEach(sk => { scores[sk.id] = { correct: 0, total: 0 }; });
-    window.QUESTION_BANK.forEach(q => {
-      scores[q.skillId].total++;
-      if (State.testAnswers[q.id] === q.ans) scores[q.skillId].correct++;
-    });
-
-    const gaps = SKILLS.map(sk => {
-      const s    = scores[sk.id];
-      const pct  = s.total ? Math.round((s.correct / s.total) * 100) : 0;
-      const self = State.selfDiag[sk.id] || 'need';
-      const level = pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low';
-      const overconfident = self === 'mastered' && level === 'low';
-      const rec = overconfident
-        ? 'مهارة تحتاج مراجعة عاجلة — أجبت أنك متقن لها لكن أداءك كان ضعيفاً.'
-        : level === 'low'  ? 'مهارة ضعيفة — تحتاج تدريباً مكثفاً وأساسيات.'
-        : level === 'mid'  ? 'مهارة متوسطة — تحتاج تعزيزاً وتدريباً إضافياً.'
-        : 'مهارة جيدة — الاستمرار في التطوير مستحسن.';
-      return { skillId: sk.id, skillName: sk.name, category: sk.category, pct, level, selfAssess: self, recommendation: rec, overconfident };
-    }).sort((a, b) => a.pct - b.pct);
-
-    App._pendingGaps = gaps;
-    const _loadEl = document.getElementById('processing-loading');
-    const _errEl  = document.getElementById('processing-error');
-    if (_loadEl) _loadEl.style.display = '';
-    if (_errEl)  _errEl.style.display  = 'none';
-    await App._submitPlan(gaps);
+    App._pendingAnswers  = State.testAnswers;
+    App._pendingSelfDiag = State.selfDiag;
+    const loadEl = document.getElementById('processing-loading');
+    const errEl  = document.getElementById('processing-error');
+    if (loadEl) loadEl.style.display = '';
+    if (errEl)  errEl.style.display  = 'none';
+    await App._submitPlan();
   },
 
-  async _submitPlan(gaps) {
+  async _submitPlan() {
     const loadEl = document.getElementById('processing-loading');
     const errEl  = document.getElementById('processing-error');
     if (loadEl) loadEl.style.display = '';
     if (errEl)  errEl.style.display  = 'none';
     let plan;
     try {
-      plan = await DB.addAttempt({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, adminNote: '' });
+      // Send raw answers to the server — it grades them against the stored answer key.
+      // The GET /questions endpoint strips `ans` from students so client-side scoring
+      // always produced 0%; server-side grading fixes that.
+      plan = await DB.addAttempt({
+        studentId:   State.student.id,
+        studentName: State.student.name,
+        status:      'active',
+        answers:     App._pendingAnswers  || {},
+        selfDiag:    App._pendingSelfDiag || {},
+        adminNote:   '',
+      });
     } catch (e) {
       ActivityLog.error('✗ حفظ الخطة فشل: ' + (e?.message || e));
       serverLog('error', 'plan', '✗ حفظ الخطة فشل: ' + (e?.message || e));
@@ -952,10 +942,11 @@ const App = {
     show('screen-level-analysis');
   },
 
-  _pendingGaps: null,
+  _pendingAnswers:  null,
+  _pendingSelfDiag: null,
 
   async retryProcessResults() {
-    if (App._pendingGaps) await App._submitPlan(App._pendingGaps);
+    if (App._pendingAnswers) await App._submitPlan();
   },
 
   // ── Level Analysis ───────────────────────────────────────────────────────

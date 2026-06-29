@@ -580,13 +580,61 @@ export async function onRequest({ request, env }) {
         if (!claims || !['student','admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const body = await request.json();
         // Mass assignment guard: only accept allowed fields
-        const { gaps, school: bodySchool } = body;
+        const { gaps: clientGaps, answers, selfDiag, school: bodySchool } = body;
         let { studentId, studentName } = body;
         // Students can only create plans for themselves — never trust body studentId
         if (claims.role === 'student') {
           studentId   = claims.sub;
           studentName = claims.name || '';
         }
+
+        let gaps;
+        if (answers && typeof answers === 'object' && claims.role === 'student') {
+          // Grade server-side: the GET /questions endpoint strips `ans` from students,
+          // so client-side scoring always produces 0%. We compute gaps here where we
+          // have the full question bank including correct answers.
+          const SKILL_META = {
+            v1: { name: 'الاستيعاب القرائي',   category: 'verbal' },
+            v2: { name: 'الخطأ السياقي',        category: 'verbal' },
+            v3: { name: 'المفردة الشاذة',       category: 'verbal' },
+            v4: { name: 'التناظر اللفظي',       category: 'verbal' },
+            v5: { name: 'إكمال الجمل',          category: 'verbal' },
+            q1: { name: 'الحساب',               category: 'quantitative' },
+            q2: { name: 'الجبر',                category: 'quantitative' },
+            q3: { name: 'الهندسة والقياس',      category: 'quantitative' },
+            q4: { name: 'المقارنات الكمية',     category: 'quantitative' },
+            q5: { name: 'الإحصاء والاحتمالات',  category: 'quantitative' },
+          };
+          const { results: questions } = await DB.prepare(
+            'SELECT qnum, skill_id, ans FROM questions ORDER BY qnum ASC'
+          ).all();
+          const scores = {};
+          for (const q of questions) {
+            if (!scores[q.skill_id]) scores[q.skill_id] = { correct: 0, total: 0 };
+            scores[q.skill_id].total++;
+            const selected = answers[q.qnum];
+            if (selected !== undefined && selected !== null && selected !== 'dk' && Number(selected) === q.ans) {
+              scores[q.skill_id].correct++;
+            }
+          }
+          const sd = (selfDiag && typeof selfDiag === 'object') ? selfDiag : {};
+          gaps = Object.entries(scores).map(([skillId, s]) => {
+            const pct   = s.total ? Math.round((s.correct / s.total) * 100) : 0;
+            const meta  = SKILL_META[skillId] || { name: skillId, category: 'verbal' };
+            const self  = sd[skillId] || 'need';
+            const level = pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low';
+            const overconfident = self === 'mastered' && level === 'low';
+            const rec = overconfident
+              ? 'مهارة تحتاج مراجعة عاجلة — أجبت أنك متقن لها لكن أداءك كان ضعيفاً.'
+              : level === 'low'  ? 'مهارة ضعيفة — تحتاج تدريباً مكثفاً وأساسيات.'
+              : level === 'mid'  ? 'مهارة متوسطة — تحتاج تعزيزاً وتدريباً إضافياً.'
+              : 'مهارة جيدة — الاستمرار في التطوير مستحسن.';
+            return { skillId, skillName: meta.name, category: meta.category, pct, level, selfAssess: self, recommendation: rec, overconfident };
+          }).sort((a, b) => a.pct - b.pct);
+        } else {
+          gaps = Array.isArray(clientGaps) ? clientGaps : [];
+        }
+
         // Plans are auto-approved on creation — there is no admin review step.
         const status    = 'active';
         const adminNote = claims.role === 'student' ? '' : (body.adminNote || '');

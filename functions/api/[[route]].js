@@ -1137,6 +1137,9 @@ export async function onRequest({ request, env }) {
 
       // GET /api/dev/test-grading — simulate grading with all-correct answers to verify scoring logic
       if (sub === 'test-grading' && method === 'GET') {
+        const tgDev = authDev(request, env);
+        const tgClaims = tgDev ? { role: 'dev' } : await verifyToken(request, env);
+        if (!tgClaims || !['admin','director','dev'].includes(tgClaims.role)) return err('غير مصرح', 401, CORS);
         const { results: questions } = await DB.prepare('SELECT qnum, skill_id, ans FROM questions ORDER BY qnum ASC').all();
         if (!questions.length) return ok({ error: 'لا توجد أسئلة في قاعدة البيانات' }, 200, CORS);
         // Build all-correct answers

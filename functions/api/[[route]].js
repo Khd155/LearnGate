@@ -613,7 +613,7 @@ export async function onRequest({ request, env }) {
             if (!scores[q.skill_id]) scores[q.skill_id] = { correct: 0, total: 0 };
             scores[q.skill_id].total++;
             const selected = answers[q.qnum];
-            if (selected !== undefined && selected !== null && selected !== 'dk' && Number(selected) === q.ans) {
+            if (selected !== undefined && selected !== null && selected !== 'dk' && Number(selected) === Number(q.ans)) {
               scores[q.skill_id].correct++;
             }
           }

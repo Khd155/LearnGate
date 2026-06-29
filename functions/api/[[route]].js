@@ -587,17 +587,17 @@ export async function onRequest({ request, env }) {
           studentId   = claims.sub;
           studentName = claims.name || '';
         }
-        // Students cannot set status or adminNote — always start as 'pending'
-        const status    = claims.role === 'student' ? 'pending' : (body.status || 'pending');
+        // Plans are auto-approved on creation — there is no admin review step.
+        const status    = 'active';
         const adminNote = claims.role === 'student' ? '' : (body.adminNote || '');
         const pid = crypto.randomUUID();
         const now = new Date().toISOString();
         // Admins: school always from JWT; dev/director may pass it
         const planSchool = claims.role === 'admin' ? (claims.school || '') : (bodySchool || school || '');
         await DB.prepare(
-          `INSERT INTO plans (id, student_id, student_name, status, gaps, admin_note, school, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(pid, studentId, studentName, status, JSON.stringify(gaps), adminNote, planSchool, now).run();
+          `INSERT INTO plans (id, student_id, student_name, status, gaps, admin_note, school, created_at, approved_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(pid, studentId, studentName, status, JSON.stringify(gaps), adminNote, planSchool, now, now).run();
         await logEvent(DB, { level: 'info', category: 'plan', message: `إنشاء خطة دراسية للطالب: ${studentName}`, user_name: claims.name || studentName, user_role: claims.role, school: planSchool });
         return ok({ plan: { id: pid, student_id: studentId, student_name: studentName, status, gaps, admin_note: adminNote, school: planSchool, created_at: now } }, 201, CORS);
       }
@@ -2120,6 +2120,33 @@ export async function onRequest({ request, env }) {
       if (!gtMetaCheck || gtMetaCheck.c === 0) {
         const seedStmt = DB.prepare('INSERT INTO general_test_meta (test_num, skill_id, skill_name, title) VALUES (?, ?, ?, ?) ON CONFLICT (test_num) DO NOTHING');
         for (let n = 1; n <= 6; n++) await seedStmt.bind(n, '', '', `اختبار عام رقم ${n}`).run();
+      }
+
+      // Provisional content for test #1 ("مبدئيا") — real question sets for tests 2-6
+      // are pending; until uploaded their question_count stays 0, which already makes
+      // the student-facing list show them disabled with "قريباً" automatically.
+      await DB.prepare(
+        "UPDATE general_test_meta SET skill_id = 'v1', skill_name = 'الاستيعاب القرائي', title = 'اختبار الاستيعاب القرائي' WHERE test_num = 1"
+      ).run();
+      const gt1Check = await DB.prepare('SELECT COUNT(*) as c FROM general_tests WHERE test_num = 1').first();
+      if (!gt1Check || gt1Check.c === 0) {
+        const GT1_SEED = [
+          {qnum:1,text:'اقرأ: "يُعتبر الأمن المائي من الركائز الأساسية لاستقرار المجتمعات وتنميتها المستدامة في القرن الحادي والعشرين. وتواجه دول المنطقة العربية تحديات جسيمة في هذا المجال نظراً لوقوع معظم أراضيها في مناطق جافة وشبه جافة، حيث لا تتجاوز حصتها من المياه المتجددة 1% من الإجمالي العالمي، في حين أنها تضم نحو 5% من سكان العالم." — ماذا يُمثّل امتلاك المنطقة العربية 1% من المياه مع 5% من سكان العالم؟',opt1:'توازناً دقيقاً بين الموارد والسكان',opt2:'فجوة كبيرة بين الاحتياج والوفرة',opt3:'فائضاً مائياً يخدم التنمية المستدامة',opt4:'انخفاضاً طفيفاً لا يشكل خطورة مستقبليّة',ans:1},
+          {qnum:2,text:'وفقاً للفقرة السابقة (الأمن المائي العربي)، ما العامل الطبيعي الخارجي الذي يُفاقم أزمة المياه؟',opt1:'النمو السكاني المتسارع في المنطقة',opt2:'زيادة الاستهلاك في القطاعات الاقتصادية',opt3:'عدم إعادة تدوير مياه الصرف الصحي',opt4:'التغيرات المناخية وتذبذب معدلات الأمطار',ans:3},
+          {qnum:3,text:'اقرأ: "إن مواجهة هذه الأزمة تتطلب التحول من الإدارة التقليدية للموارد المائية القائمة على زيادة الإمدادات، إلى إدارة متكاملة تركز على ترشيد الاستهلاك، وتطوير تقنيات تحلية مياه البحر باستخدام الطاقة المتجددة." — الفكرة الرئيسية لهذه الفقرة:',opt1:'الحلول والاستراتيجيات المقترحة لمواجهة الأزمة المائية',opt2:'أهمية زيادة إمدادات المياه عبر الوسائل التقليدية',opt3:'دور التغيرات المناخية في جفاف المنطقة العربية',opt4:'التوزيع الديموغرافي والنمو السكاني لسكان الوطن العربي',ans:0},
+          {qnum:4,text:'وفقاً للفقرة السابقة (الحلول المائية)، كلمة "المقيدة" في سياق الزراعة تعني:',opt1:'المستحيلة والممنوعة رسمياً',opt2:'المفتوحة والحرّة دون شروط',opt3:'المشروطة بضوابط بيئية وصحية محددة',opt4:'التقليدية القديمة المعتمدة على الأمطار',ans:2},
+          {qnum:5,text:'وفقاً للفقرة السابقة (الحلول المائية)، التحول المطلوب في إدارة الموارد المائية يتطلب أساساً:',opt1:'زيادة الإمدادات التقليدية وحفر الآبار الارتوازية فقط',opt2:'التركيز على ترشيد الاستهلاك والاستدامة للموارد المتاحة',opt3:'إلغاء المشاريع الزراعية بالكامل لتقنين الهدر',opt4:'الاعتماد الكلي على مياه الأمطار كمصدر وحيد',ans:1},
+          {qnum:6,text:'في فقرة الأمن المائي، علاقة جملة "نظراً لوقوع معظم أراضيها في مناطق جافة" بما قبلها هي:',opt1:'نتيجة مترتبة عليها',opt2:'تضاد وتعارض في المعنى',opt3:'تفصيل بعد إجمال',opt4:'تعليل وبيان للسبب',ans:3},
+          {qnum:7,text:'نص عن الأمن المائي العربي يستعرض شُحّ المياه (1% من العالمية) وتحديات النمو السكاني والمناخ، ثم يقترح الترشيد وتحلية المياه وإعادة تدوير الصرف ونشر الوعي البيئي. أنسب عنوان لهذا النص:',opt1:'الأمن المائي العربي: التحديات والحلول الاستراتيجية',opt2:'التوزيع السكاني والديموغرافي في الوطن العربي',opt3:'تقنيات تحلية مياه البحر بالطاقة الشمسية الحديثة',opt4:'تاريخ الجفاف في العصور الجيولوجية الحديثة',ans:0},
+        ];
+        const gt1Stmt = DB.prepare(
+          `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, created_at)
+           VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`
+        );
+        const gt1Now = new Date().toISOString();
+        for (const q of GT1_SEED) {
+          await gt1Stmt.bind(crypto.randomUUID(), q.qnum, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, gt1Now).run();
+        }
       }
 
       // GET /api/general-tests — list of the 6 tests (+ student's latest result per test)

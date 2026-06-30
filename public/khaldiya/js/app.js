@@ -803,7 +803,7 @@ const App = {
     const list = document.getElementById('gt-list');
     list.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;padding:4px 0;';
     list.innerHTML = tests.map(t => {
-      const ready = t.question_count > 0;
+      const ready = false; // الاختبارات المحاكية قريباً — تُفعَّل لاحقاً
       const done  = t.my_result;
       const badge = done
         ? `<div style="display:inline-block;background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${done.score}%</div>`

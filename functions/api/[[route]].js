@@ -2187,6 +2187,7 @@ export async function onRequest({ request, env }) {
         ans        INTEGER NOT NULL,
         created_at TEXT NOT NULL DEFAULT (now()::text)
       )`).run(); } catch {}
+      try { await DB.prepare("ALTER TABLE general_tests ADD COLUMN img_url TEXT DEFAULT ''").run(); } catch {}
       try { await DB.prepare(`CREATE TABLE IF NOT EXISTS general_test_results (
         id           TEXT PRIMARY KEY,
         student_id   TEXT NOT NULL,
@@ -2204,7 +2205,7 @@ export async function onRequest({ request, env }) {
       // Seed the 6 placeholder test slots once — real skill linkage/title/questions are
       // filled in later via PATCH .../:num and POST .../:num/questions.
       const gtMetaCheck = await DB.prepare('SELECT COUNT(*) as c FROM general_test_meta').first();
-      if (!gtMetaCheck || gtMetaCheck.c === 0) {
+      if (!gtMetaCheck || Number(gtMetaCheck.c) === 0) {
         const seedStmt = DB.prepare('INSERT INTO general_test_meta (test_num, skill_id, skill_name, title) VALUES (?, ?, ?, ?) ON CONFLICT (test_num) DO NOTHING');
         for (let n = 1; n <= 6; n++) await seedStmt.bind(n, '', '', `اختبار عام رقم ${n}`).run();
       }
@@ -2213,26 +2214,79 @@ export async function onRequest({ request, env }) {
       // are pending; until uploaded their question_count stays 0, which already makes
       // the student-facing list show them disabled with "قريباً" automatically.
       await DB.prepare(
-        "UPDATE general_test_meta SET skill_id = 'v1', skill_name = 'الاستيعاب القرائي', title = 'اختبار الاستيعاب القرائي' WHERE test_num = 1"
+        "UPDATE general_test_meta SET skill_id = 'mix1', skill_name = 'لفظي وكمي', title = 'اختبار محاكي رقم 1' WHERE test_num = 1"
       ).run();
       const gt1Check = await DB.prepare('SELECT COUNT(*) as c FROM general_tests WHERE test_num = 1').first();
-      if (!gt1Check || gt1Check.c === 0) {
+      if (!gt1Check || Number(gt1Check.c) !== 48) {
+        await DB.prepare('DELETE FROM general_tests WHERE test_num = 1').run();
         const GT1_SEED = [
-          {qnum:1,text:'اقرأ: "يُعتبر الأمن المائي من الركائز الأساسية لاستقرار المجتمعات وتنميتها المستدامة في القرن الحادي والعشرين. وتواجه دول المنطقة العربية تحديات جسيمة في هذا المجال نظراً لوقوع معظم أراضيها في مناطق جافة وشبه جافة، حيث لا تتجاوز حصتها من المياه المتجددة 1% من الإجمالي العالمي، في حين أنها تضم نحو 5% من سكان العالم." — ماذا يُمثّل امتلاك المنطقة العربية 1% من المياه مع 5% من سكان العالم؟',opt1:'توازناً دقيقاً بين الموارد والسكان',opt2:'فجوة كبيرة بين الاحتياج والوفرة',opt3:'فائضاً مائياً يخدم التنمية المستدامة',opt4:'انخفاضاً طفيفاً لا يشكل خطورة مستقبليّة',ans:1},
-          {qnum:2,text:'وفقاً للفقرة السابقة (الأمن المائي العربي)، ما العامل الطبيعي الخارجي الذي يُفاقم أزمة المياه؟',opt1:'النمو السكاني المتسارع في المنطقة',opt2:'زيادة الاستهلاك في القطاعات الاقتصادية',opt3:'عدم إعادة تدوير مياه الصرف الصحي',opt4:'التغيرات المناخية وتذبذب معدلات الأمطار',ans:3},
-          {qnum:3,text:'اقرأ: "إن مواجهة هذه الأزمة تتطلب التحول من الإدارة التقليدية للموارد المائية القائمة على زيادة الإمدادات، إلى إدارة متكاملة تركز على ترشيد الاستهلاك، وتطوير تقنيات تحلية مياه البحر باستخدام الطاقة المتجددة." — الفكرة الرئيسية لهذه الفقرة:',opt1:'الحلول والاستراتيجيات المقترحة لمواجهة الأزمة المائية',opt2:'أهمية زيادة إمدادات المياه عبر الوسائل التقليدية',opt3:'دور التغيرات المناخية في جفاف المنطقة العربية',opt4:'التوزيع الديموغرافي والنمو السكاني لسكان الوطن العربي',ans:0},
-          {qnum:4,text:'وفقاً للفقرة السابقة (الحلول المائية)، كلمة "المقيدة" في سياق الزراعة تعني:',opt1:'المستحيلة والممنوعة رسمياً',opt2:'المفتوحة والحرّة دون شروط',opt3:'المشروطة بضوابط بيئية وصحية محددة',opt4:'التقليدية القديمة المعتمدة على الأمطار',ans:2},
-          {qnum:5,text:'وفقاً للفقرة السابقة (الحلول المائية)، التحول المطلوب في إدارة الموارد المائية يتطلب أساساً:',opt1:'زيادة الإمدادات التقليدية وحفر الآبار الارتوازية فقط',opt2:'التركيز على ترشيد الاستهلاك والاستدامة للموارد المتاحة',opt3:'إلغاء المشاريع الزراعية بالكامل لتقنين الهدر',opt4:'الاعتماد الكلي على مياه الأمطار كمصدر وحيد',ans:1},
-          {qnum:6,text:'في فقرة الأمن المائي، علاقة جملة "نظراً لوقوع معظم أراضيها في مناطق جافة" بما قبلها هي:',opt1:'نتيجة مترتبة عليها',opt2:'تضاد وتعارض في المعنى',opt3:'تفصيل بعد إجمال',opt4:'تعليل وبيان للسبب',ans:3},
-          {qnum:7,text:'نص عن الأمن المائي العربي يستعرض شُحّ المياه (1% من العالمية) وتحديات النمو السكاني والمناخ، ثم يقترح الترشيد وتحلية المياه وإعادة تدوير الصرف ونشر الوعي البيئي. أنسب عنوان لهذا النص:',opt1:'الأمن المائي العربي: التحديات والحلول الاستراتيجية',opt2:'التوزيع السكاني والديموغرافي في الوطن العربي',opt3:'تقنيات تحلية مياه البحر بالطاقة الشمسية الحديثة',opt4:'تاريخ الجفاف في العصور الجيولوجية الحديثة',ans:0},
+          // ── تشبيه ──
+          {qnum:1,text:'الكعبة : المطاف',opt1:'الحجر الأسود : المقام',opt2:'الملابس : القماش',opt3:'البيت : السور',opt4:'الوردة : البستان',ans:2},
+          {qnum:2,text:'ضجيج : محرك',opt1:'مصباح : ضوء',opt2:'ماء : سراب',opt3:'سراب : صحراء',opt4:'مطر : سحاب',ans:0},
+          {qnum:3,text:'مال : بنون',opt1:'إقليم : مكان',opt2:'كحل : حناء',opt3:'قيادة : قانون',opt4:'فجر : ظلام',ans:1},
+          {qnum:4,text:'شرى : باع',opt1:'رطب : تمر',opt2:'غاب : حضر',opt3:'فرح : سرور',opt4:'قدم : ذهب',ans:1},
+          {qnum:5,text:'جريمة : سرقة',opt1:'تمساح : برمائي',opt2:'دودة : حشرة',opt3:'كلمة : فعل',opt4:'غصن : شجرة',ans:0},
+          // ── إكمال ──
+          {qnum:6,text:'إن الله إذا أراد بقوم ....... جعل فيهم الجدل ومنع عنهم .......',opt1:'سوءاً - العمل',opt2:'خيراً - العمل',opt3:'حباً - التفاؤل',opt4:'كرهاً - الغبن',ans:0},
+          {qnum:7,text:'عثرة ....... أسلم من زلة .......',opt1:'العلم - العقل',opt2:'القدم - اللسان',opt3:'الماضي - الحاضر',opt4:'الصديق - العدو',ans:1},
+          {qnum:8,text:'إياك وفضول الكلام فإنه يظهر من عيوبك ما ....... ويحرك عليك من أعدائك ما .......',opt1:'بطن - سكن',opt2:'ظهر - وقع',opt3:'خفي - علم',opt4:'شهد - وضح',ans:2},
+          {qnum:9,text:'إن طول ....... في أي مهنة يقتل روح المبادرة ويرسخ .......',opt1:'العمل - الموهبة',opt2:'الموضوع - التكرار',opt3:'الممارسة - النمطية',opt4:'المسافة - التبعية',ans:2},
+          {qnum:10,text:'إذا أردت أن ....... المودة عليك أن ....... الطرف عن الزلات',opt1:'تستمر - تحفظ',opt2:'تدوم - تغض',opt3:'تتزايد - تترك',opt4:'تبقى - تبعد',ans:1},
+          // ── استيعاب: القائد الفذ ──
+          {qnum:11,text:'اقرأ: "ما يميز القائد الفذ إلهام الآخرين لعمل الأفضل وللوصول إلى الأحلام والآمال ومساعدتهم على فعل ذلك، لذلك تراه يتحلى بالشجاعة والإقدام حينما يجبن الآخرون." يمكن أن نستبدل كلمة "الفذ" بكل الكلمات ما عدا:',opt1:'المميز',opt2:'الملهم',opt3:'الخامل',opt4:'الفريد',ans:2},
+          {qnum:12,text:'من النص السابق (القائد الفذ)، يمكن أن نبدأ النص ب:',opt1:'لكن',opt2:'لعل',opt3:'حيث',opt4:'ليت',ans:2},
+          // ── استيعاب: العدل والظلم ──
+          {qnum:13,text:'اقرأ: "يوم العدل على الظالم أشد من يوم الجور على المظلوم." من النص السابق، ما فائدة التضاد بين الظالم والمظلوم؟',opt1:'تفسير المعنى',opt2:'تحليل المعنى',opt3:'بيان المعنى',opt4:'تقوية المعنى',ans:3},
+          {qnum:14,text:'من النص السابق (العدل والظلم)، يميل النص إلى:',opt1:'المقارنة',opt2:'المصارحة',opt3:'التكرار',opt4:'التحليل',ans:0},
+          // ── استيعاب: صقل المواهب ──
+          {qnum:15,text:'اقرأ: "إن معرفة صقل المواهب يحتاج إلى أن نعرف أكثر عن مجالاتها وإجراء التجارب والاستعانة بأهل الخبرة والدراية واستشارتهم لتقويم التجربة وتحسين الموهبة." الترتيب الصحيح لتنمية الموهبة:',opt1:'معرفة / تجربة / استعانة (تقويم) / تحسين',opt2:'تجربة / استعانة / تحسين / معرفة',opt3:'استعانة / معرفة / تحسين / اطلاع',opt4:'تحسين / معرفة / تجربة / استعانة',ans:0},
+          // ── كلمة تخل بالسياق ──
+          {qnum:16,text:'العواصف الرخوة تحطم الأشجار الضخمة لكنها لا تؤثر في العيدان الخضراء التي تنحني لها',opt1:'الرخوة',opt2:'الأشجار',opt3:'تؤثر',opt4:'العيدان',ans:0},
+          {qnum:17,text:'إياك أن تكثر الطلبات الشخصية من أصدقائك فيكرهون غيابك',opt1:'تكثر',opt2:'فيكرهون',opt3:'الشخصية',opt4:'غيابك',ans:3},
+          {qnum:18,text:'من عوّد نفسه على البذل زاد شغفه للمال وقلّ إحسانه للناس',opt1:'البذل',opt2:'زاد',opt3:'قلّ',opt4:'إحسانه',ans:1},
+          {qnum:19,text:'إن كنت تريد النجاح فاذهب مع من يحبون الفوز، وإن لم تستطع فاذهب مع من يرغبون الهزيمة',opt1:'النجاح',opt2:'يحبون',opt3:'الفوز',opt4:'يرغبون',ans:3},
+          {qnum:20,text:'الجمال الحقيقي هو الذي لا يرى ولكن يظهر في تقاسيم الوجه وفلتات اللسان وما تخفيه تصرفاتك',opt1:'الحقيقي',opt2:'الوجه',opt3:'اللسان',opt4:'تخفيه',ans:3},
+          // ── الكلمة الشاذة ──
+          {qnum:21,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'ترح',opt2:'سرور',opt3:'حبور',opt4:'سعادة',ans:0},
+          {qnum:22,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'الغيبة',opt2:'النميمة',opt3:'الخذلان',opt4:'البهتان',ans:2},
+          {qnum:23,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'قراءة',opt2:'نسخ',opt3:'كتابة',opt4:'رسم',ans:0},
+          {qnum:24,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'تلفاز',opt2:'جوال',opt3:'كاميرا',opt4:'حاسوب',ans:2},
+          {qnum:25,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'سكر',opt2:'نعناع',opt3:'جرجير',opt4:'زنجبيل',ans:0},
+          // ── كمي: حساب وجبر ──
+          {qnum:26,text:'(999)² − 1 = .......',opt1:'999²',opt2:'998²',opt3:'998000',opt4:'999000',ans:2},
+          {qnum:27,text:'قيمة العبارة في الصورة المرفقة =',opt1:'16',opt2:'1',opt3:'36',opt4:'56',ans:0,img:'/img/gt1/q27.png'},
+          {qnum:28,text:'(212)² − (213)² = .......',opt1:'446',opt2:'410',opt3:'-425',opt4:'415',ans:2},
+          {qnum:29,text:'إذا وزع مبلغ 1800 ريال بين 3 أشخاص بنسبة 3:2:1، فإن نصيب الأكبر يساوي:',opt1:'860',opt2:'960',opt3:'900',opt4:'1000',ans:2},
+          {qnum:30,text:'حل المعادلة في الصورة المرفقة، ثم أوجد قيمة 6أ + 4ل =',opt1:'5',opt2:'10',opt3:'12',opt4:'20',ans:1,img:'/img/gt1/q30.png'},
+          {qnum:31,text:'إذا كان 4س + 5ص = 24، فأي الآتي يجب أن يكون صحيحاً (انظر الصورة)؟',opt1:'ص زوجية',opt2:'ص فردية',opt3:'س فردية',opt4:'س زوجية',ans:0,img:'/img/gt1/q31.png'},
+          {qnum:32,text:'إذا كان: س − ص = 5، س × ص = 10، فإن: س² + ص² = .......',opt1:'25',opt2:'45',opt3:'50',opt4:'100',ans:1},
+          {qnum:33,text:'إذا كان: س + ص = 16، س − ص = 10، فإن: 3س + 5ص = .......',opt1:'54',opt2:'45',opt3:'46',opt4:'48',ans:0},
+          {qnum:34,text:'إذا كانت: س + ص = 12، فإن أكبر قيمة للمقدار س × ص = .......',opt1:'16',opt2:'24',opt3:'36',opt4:'40',ans:2},
+          // ── كمي: هندسة ──
+          {qnum:35,text:'كم عدد المثلثات في الشكل؟',opt1:'6',opt2:'8',opt3:'12',opt4:'24',ans:0,img:'/img/gt1/q35.png'},
+          {qnum:36,text:'في الشكل المقابل ضلعا المربع مماسان للدائرة التي مساحتها 25 ط، فإن مساحة المربع =',opt1:'25',opt2:'50',opt3:'75',opt4:'100',ans:3,img:'/img/gt1/q36.png'},
+          {qnum:37,text:'في الشكل المجاور ما قيمة س + ص + م + ز؟',opt1:'300',opt2:'240',opt3:'120',opt4:'180',ans:1,img:'/img/gt1/q37.png'},
+          {qnum:38,text:'أوجد محيط المربع جدهو في الشكل المرفق',opt1:'6 سم',opt2:'9 سم',opt3:'12 سم',opt4:'15 سم',ans:2,img:'/img/gt1/q38.png'},
+          {qnum:39,text:'من الرسم، إذا كان طول ضلع المربع 4 سم فإن مساحة الجزء المظلل تساوي:',opt1:'4ط − 20',opt2:'4ط² − 16',opt3:'16 − 2ط²',opt4:'4ط − 16',ans:3,img:'/img/gt1/q39.png'},
+          // ── كمي: مقارنات ──
+          {qnum:40,text:'قارن بين: القيمة الأولى = 5/7، القيمة الثانية = 3/5',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:0},
+          {qnum:41,text:'قارن بين القيمتين في الشكل المرفق (س مقابل 59)',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:2,img:'/img/gt1/q41.png'},
+          {qnum:42,text:'قارن بين: القيمة الأولى = أكبر عدد أولي من 50 إلى 64، القيمة الثانية = 63',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:1},
+          {qnum:43,text:'قارن بين: القيمة الأولى = 2/125، القيمة الثانية = 2/25',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:1},
+          // ── كمي: إحصاء ──
+          {qnum:44,text:'حسب الرسم البياني المرفق، في أي شهر كانت مبيعات النساء أكثر ما يمكن؟',opt1:'محرم',opt2:'صفر',opt3:'ربيع أول',opt4:'ربيع ثاني',ans:0,img:'/img/gt1/q44.png'},
+          {qnum:45,text:'حسب الرسم الدائري المرفق، كم النسبة المئوية للحاصلين على تقدير ممتاز؟',opt1:'25%',opt2:'30%',opt3:'75%',opt4:'50%',ans:3,img:'/img/gt1/q45.png'},
+          {qnum:46,text:'إذا كان متوسط الإنتاج اليومي للفواكه 1000، والمانجو تمثل 12% منه، والإنتاج المتوقع غداً 1500، فكم كمية المانجو غداً؟',opt1:'180',opt2:'120',opt3:'250',opt4:'360',ans:0},
+          {qnum:47,text:'أوجد المتوسط الحسابي للأعداد المرفقة في الصورة',opt1:'1225',opt2:'1250',opt3:'1400',opt4:'1500',ans:1,img:'/img/gt1/q47.png'},
+          {qnum:48,text:'قارن بين القيمتين في الصورة المرفقة',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:0,img:'/img/gt1/q48.png'},
         ];
         const gt1Stmt = DB.prepare(
-          `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, created_at)
-           VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, img_url, created_at)
+           VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
         const gt1Now = new Date().toISOString();
         for (const q of GT1_SEED) {
-          await gt1Stmt.bind(crypto.randomUUID(), q.qnum, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, gt1Now).run();
+          await gt1Stmt.bind(crypto.randomUUID(), q.qnum, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, q.img || '', gt1Now).run();
         }
       }
 
@@ -2257,15 +2311,20 @@ export async function onRequest({ request, env }) {
         })) }, 200, CORS);
       }
 
-      // GET /api/general-tests/results?studentId=... — admin/director/dev: every attempt for one student
+      // GET /api/general-tests/results?studentId=...&testNum=N — admin: per-student or all results
       if (sub === 'results' && method === 'GET') {
         const claims = await verifyToken(request, env);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const studentId = url.searchParams.get('studentId');
-        if (!studentId) return err('studentId مطلوب', 400, CORS);
-        const { results } = await DB.prepare(
-          'SELECT * FROM general_test_results WHERE student_id = ? ORDER BY test_num ASC, created_at ASC'
-        ).bind(studentId).all();
+        const filterTest = url.searchParams.get('testNum');
+        let query = 'SELECT * FROM general_test_results WHERE is_trial = 0';
+        const params = [];
+        if (studentId) { query += ' AND student_id = ?'; params.push(studentId); }
+        if (filterTest) { query += ' AND test_num = ?'; params.push(Number(filterTest)); }
+        query += ' ORDER BY created_at DESC LIMIT 200';
+        const stmt = DB.prepare(query);
+        const bound = params.length ? stmt.bind(...params) : stmt;
+        const { results } = await bound.all();
         return ok({ results: results.map(r => {
           let ans = []; try { ans = JSON.parse(r.answers || '[]'); } catch (e) {}
           return { ...r, answers: ans };
@@ -2280,10 +2339,10 @@ export async function onRequest({ request, env }) {
           const claims = await verifyToken(request, env);
           if (!claims) return err('غير مصرح', 401, CORS);
           const { results } = await DB.prepare(
-            'SELECT qnum, text, opt1, opt2, opt3, opt4 FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
+            'SELECT qnum, text, opt1, opt2, opt3, opt4, img_url FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
           ).bind(testNum).all();
           if (!results.length) return err('الاختبار غير متوفر بعد', 404, CORS);
-          return ok({ questions: results.map(r => ({ qnum: r.qnum, text: r.text, opts: [r.opt1, r.opt2, r.opt3, r.opt4] })) }, 200, CORS);
+          return ok({ questions: results.map(r => ({ qnum: r.qnum, text: r.text, opts: [r.opt1, r.opt2, r.opt3, r.opt4], img: r.img_url || null })) }, 200, CORS);
         }
 
         // POST /api/general-tests/:num/questions — admin upload {action:'replace'|'append', questions:[...]}
@@ -2296,11 +2355,11 @@ export async function onRequest({ request, env }) {
           const existingNums = new Set(existing.map(r => r.qnum));
           const fresh = (rows || []).filter(r => !existingNums.has(r.qnum));
           const stmt = DB.prepare(
-            `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, img_url, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           );
           for (const q of fresh) {
-            await stmt.bind(crypto.randomUUID(), testNum, q.qnum, q.text, q.opts[0], q.opts[1], q.opts[2], q.opts[3], q.ans, new Date().toISOString()).run();
+            await stmt.bind(crypto.randomUUID(), testNum, q.qnum, q.text, q.opts[0], q.opts[1], q.opts[2], q.opts[3], q.ans, q.img || '', new Date().toISOString()).run();
           }
           await logEvent(DB, { level: 'info', category: 'general-tests', message: `استيراد أسئلة الاختبار العام رقم ${testNum} (${action === 'replace' ? 'استبدال' : 'إضافة'}) — ${fresh.length} مضافة`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
           return ok({ added: fresh.length, skipped: (rows || []).length - fresh.length }, 200, CORS);
@@ -2353,7 +2412,7 @@ export async function onRequest({ request, env }) {
           ).bind(rid, claims.sub, claims.name, claims.school || '', testNum, finalScore, correct, total, isTrial, JSON.stringify(storedAnswers), now).run();
 
           await logEvent(DB, { level: 'info', category: 'test', message: `إنهاء الاختبار العام رقم ${testNum}${isTrial ? ' (تجريبي)' : ''} — النتيجة ${finalScore}% (${correct}/${total})`, user_name: claims.name || '', user_role: 'student', school: claims.school || '' });
-          return ok({ id: rid, created_at: now, score: finalScore, correct, total }, 201, CORS);
+          return ok({ id: rid, created_at: now, score: finalScore, correct, total, detail: storedAnswers }, 201, CORS);
         }
       }
     }

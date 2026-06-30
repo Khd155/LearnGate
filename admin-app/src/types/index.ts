@@ -94,6 +94,12 @@ export interface Broadcast {
   targetCount?: number;
 }
 
+export interface GTAnswer {
+  q: number;
+  a: number | null;
+  corr: number;
+}
+
 export interface GeneralTestResult {
   id: string;
   student_id: string;
@@ -102,6 +108,7 @@ export interface GeneralTestResult {
   correct: number;
   total: number;
   is_trial?: number;
+  answers?: GTAnswer[];
   created_at: string;
   [key: string]: unknown;
 }

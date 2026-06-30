@@ -1338,22 +1338,24 @@
   <div class="topbar">
     <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
-      <div class="topbar-title" id="gt-take-title">اختبار عام</div>
+      <div class="topbar-title" id="gt-take-title">اختبار محاكي</div>
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <div id="gt-timer" style="font-size:15px;font-weight:800;color:#fff;background:rgba(255,255,255,.18);border-radius:10px;padding:6px 14px;letter-spacing:1px;flex-shrink:0;">⏱ 50:00</div>
   </div>
   <div class="page-wrap">
     <div class="test-progress-bar-wrap">
       <div class="test-progress-bar" id="gt-progress-bar" style="width:0%"></div>
     </div>
     <div class="test-progress-label" id="gt-progress-label">السؤال 1 من 1</div>
-
+    <div id="gt-section-badge" class="test-section-badge badge-verbal">📚 القسم اللفظي</div>
     <div class="q-card">
       <div class="q-num" id="gt-q-num">سؤال 1</div>
       <div class="q-text" id="gt-q-text"></div>
+      <img id="gt-q-img" style="display:none;max-width:100%;border-radius:12px;margin:10px 0;border:1px solid #e5e7eb;" alt="" />
       <div class="q-options" id="gt-q-opts"></div>
     </div>
-
     <div class="test-nav">
       <button class="btn btn-outline" id="gt-btn-prev" onclick="App.gtPrev()">السابق →</button>
       <button class="btn btn-primary" id="gt-btn-next" onclick="App.gtNext()">← التالي</button>
@@ -1372,9 +1374,13 @@
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
   </div>
-  <div class="page-wrap" style="text-align:center;">
-    <div id="gt-result-score" style="font-size:48px;font-weight:900;color:var(--primary);margin:24px 0 8px;"></div>
-    <div id="gt-result-detail" style="font-size:15px;color:var(--muted);margin-bottom:28px;"></div>
+  <div class="page-wrap">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div id="gt-result-score" style="font-size:64px;font-weight:900;color:var(--primary);line-height:1;margin-bottom:6px;"></div>
+      <div id="gt-result-detail" style="font-size:15px;color:var(--muted);"></div>
+    </div>
+    <div id="gt-result-breakdown" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;"></div>
+    <div id="gt-result-review" style="margin-bottom:24px;"></div>
     <button class="btn btn-primary" style="width:100%;" onclick="App.openGeneralTests()">
       ← العودة إلى قائمة الاختبارات
     </button>
@@ -1428,6 +1434,7 @@
       <button class="tab-btn director-tab" data-tab="supervisors" onclick="App.setTab('supervisors')" style="display:none;">👨‍💼 المشرفون</button>
       <button class="tab-btn director-tab" data-tab="questions"   onclick="App.setTab('questions')"   style="display:none;">📝 الأسئلة</button>
       <button class="tab-btn" data-tab="broadcast" onclick="App.setTab('broadcast')">📢 رسالة جماعية</button>
+      <button class="tab-btn" data-tab="gt-results" onclick="App.setTab('gt-results')">🏆 الاختبارات العامة</button>
     </div>
 
     <!-- ── Tab: Stats + Performance ───────────────── -->
@@ -2103,20 +2110,15 @@
         </div>
       </div>
       <div id="sdm-status-banner" class="sdm-status-banner"></div>
-      <div class="sdm-section">📊 تفصيل المهارات — آخر اختبار</div>
+      <div class="sdm-section">📝 اختبار القدرات</div>
       <div class="table-scroll">
         <table class="sdm-table">
-          <thead><tr><th>المهارة</th><th>القسم</th><th>الدرجة</th><th>المستوى</th></tr></thead>
-          <tbody id="sdm-skills-body"></tbody>
-        </table>
-      </div>
-      <div class="sdm-section">📋 سجل المحاولات</div>
-      <div class="table-scroll">
-        <table class="sdm-table">
-          <thead><tr><th>المحاولة</th><th>التاريخ</th><th>متوسط الدرجة</th></tr></thead>
+          <thead><tr><th>#</th><th>التاريخ</th><th>الدرجة</th><th></th></tr></thead>
           <tbody id="sdm-history-body"></tbody>
         </table>
       </div>
+      <div class="sdm-section">🏆 الاختبارات العامة</div>
+      <div id="sdm-gt-content" style="color:var(--muted);font-size:13px;text-align:center;padding:12px 0;">جاري التحميل…</div>
       <div class="sdm-section">💬 المحادثة</div>
       <div class="chat-modal-messages" id="sdm-chat-messages">
         <div class="chat-empty">لا توجد رسائل</div>
@@ -2232,6 +2234,6 @@
 <div id="notif-overlay" class="notif-overlay" onclick="App.closeNotifPanel()"></div>
 
 <script src="js/data.js?v=a1b2c3d" defer></script>
-<script src="js/app.js?v=a1b2c3d" defer></script>
+<script src="js/app.js?v=r8s9t0" defer></script>
 </body>
 </html>

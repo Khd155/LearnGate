@@ -3,7 +3,7 @@ import { useStore } from './store/useStore';
 import { configureApi, clearSession } from './lib/api';
 import DashboardLayout from './components/DashboardLayout';
 
-const SITE_ROOT = '/';
+const SITE_ROOT = import.meta.env.VITE_SITE_ROOT ?? '/';
 
 export default function App() {
   const session = useStore((s) => s.session);

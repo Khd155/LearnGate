@@ -315,6 +315,7 @@ const _SCREEN_PATHS = {
   'screen-pretest':       '/capabilities/diagnostic',
   'screen-processing':    '/capabilities/processing',
   'screen-level-analysis':'/capabilities/results',
+  'screen-general-tests': '/quiz',
   'screen-landing':       '/login',
   'screen-school':        '/login',
   'screen-identity':      '/login',
@@ -797,51 +798,66 @@ const App = {
   },
 
   // ── General Tests (6 stand-alone skill tests, reached from the support-plan screen) ──
-  async openGeneralTests() {
-    show('screen-general-tests');
-    const list = document.getElementById('gt-list');
-    list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;">جاري التحميل…</div>';
-    try {
-      const { tests } = await apiFetch('/general-tests');
-      App.renderGeneralTestsList(tests);
-    } catch (e) {
-      list.innerHTML = '<div style="text-align:center;color:#dc2626;padding:24px;">تعذّر تحميل الاختبارات</div>';
-    }
-  },
 
   renderGeneralTestsList(tests) {
     const list = document.getElementById('gt-list');
+    list.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;padding:4px 0;';
     list.innerHTML = tests.map(t => {
-      const has = t.question_count > 0;
-      const result = t.my_result;
-      const resultHtml = result
-        ? `<div style="font-size:13px;color:var(--accent);font-weight:700;margin-top:4px;">آخر نتيجة: ${result.score}% (${result.correct}/${result.total})</div>`
-        : '';
+      const ready = t.question_count > 0;
+      const done  = t.my_result;
+      const badge = done
+        ? `<div style="display:inline-block;background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${done.score}%</div>`
+        : ready
+          ? `<div style="display:inline-block;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${t.question_count} سؤال</div>`
+          : `<div style="display:inline-block;background:#f1f5f9;color:#94a3b8;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">قريباً</div>`;
       return `
-        <div class="skill-card" style="padding:16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-            <div>
-              <div style="font-weight:800;font-size:15px;">${t.title}</div>
-              ${t.skill_name ? `<div style="font-size:12.5px;color:var(--muted);margin-top:2px;">${t.skill_name}</div>` : ''}
-              ${resultHtml}
-            </div>
-            <button class="btn ${has ? 'btn-primary' : 'btn-outline'}" style="white-space:nowrap;" ${has ? '' : 'disabled'}
-                    onclick="App.startGeneralTest(${t.test_num})">
-              ${has ? (result ? 'إعادة الاختبار' : 'بدء الاختبار') : 'قريباً'}
-            </button>
-          </div>
+        <div onclick="${ready ? `App.startGeneralTest(${t.test_num})` : ''}"
+             style="border-radius:16px;background:var(--card-bg,#fff);border:1.5px ${ready ? 'solid #2563eb' : 'dashed #d1d5db'};padding:28px 12px;text-align:center;cursor:${ready ? 'pointer' : 'default'};opacity:${ready ? '1' : '0.65'};transition:transform .15s,box-shadow .15s;"
+             ${ready ? 'onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 16px rgba(37,99,235,.15)\'" onmouseleave="this.style.transform=\'\';this.style.boxShadow=\'\'"' : ''}>
+          <div style="font-weight:800;font-size:13px;color:var(--text-main,#1e293b);margin-bottom:10px;">${t.title}</div>
+          ${badge}
         </div>`;
     }).join('');
+  },
+
+  // ── General Test Timer ────────────────────────────────────────────────────
+  _gtTimer: null,
+  startGTTimer(totalSecs) {
+    clearInterval(App._gtTimer);
+    const deadline = Date.now() + totalSecs * 1000;
+    const el = document.getElementById('gt-timer');
+    const update = () => {
+      const rem = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+      const m = String(Math.floor(rem / 60)).padStart(2, '0');
+      const s = String(rem % 60).padStart(2, '0');
+      if (el) { el.textContent = `⏱ ${m}:${s}`; el.style.color = rem <= 300 ? '#ef4444' : '#fff'; }
+      if (rem <= 0) { clearInterval(App._gtTimer); App._gtSubmit(); }
+    };
+    update();
+    App._gtTimer = setInterval(update, 1000);
+  },
+  stopGTTimer() { clearInterval(App._gtTimer); App._gtTimer = null; },
+
+  async openGeneralTests() {
+    show('screen-loading');
+    try {
+      const { tests } = await apiFetch('/general-tests');
+      App._gtTests = tests;
+      show('screen-general-tests');
+      App.renderGeneralTestsList(tests);
+    } catch (e) { showToast('تعذّر تحميل الاختبارات'); show('screen-support-plan'); }
   },
 
   async startGeneralTest(num) {
     show('screen-loading');
     try {
       const { questions } = await apiFetch(`/general-tests/${num}/questions`);
+      const meta = (App._gtTests || []).find(t => t.test_num === num);
       State.gt = { num, questions, idx: 0, answers: {} };
-      document.getElementById('gt-take-title').textContent = `اختبار عام رقم ${num}`;
+      document.getElementById('gt-take-title').textContent = meta ? meta.title : `اختبار محاكي رقم ${num}`;
       show('screen-general-test-take');
       App.renderGTQuestion();
+      App.startGTTimer(50 * 60);
     } catch (e) {
       showToast('تعذّر تحميل الاختبار');
       show('screen-general-tests');
@@ -852,12 +868,25 @@ const App = {
     const { questions, idx, answers } = State.gt;
     const q = questions[idx];
     const total = questions.length;
-    const pct = Math.round((idx / total) * 100);
+    const pct = Math.round(((idx + 1) / total) * 100);
+    const isVerbal = q.qnum <= 25;
 
     document.getElementById('gt-progress-bar').style.width = pct + '%';
     document.getElementById('gt-progress-label').textContent = `السؤال ${idx + 1} من ${total}`;
+
+    const badge = document.getElementById('gt-section-badge');
+    if (isVerbal) {
+      badge.textContent = '📚 القسم اللفظي';
+      badge.className = 'test-section-badge badge-verbal';
+    } else {
+      badge.textContent = '🔢 القسم الكمي';
+      badge.className = 'test-section-badge badge-quant';
+    }
+
     document.getElementById('gt-q-num').textContent = `سؤال ${idx + 1}`;
     document.getElementById('gt-q-text').textContent = q.text;
+    const imgEl = document.getElementById('gt-q-img');
+    if (q.img) { imgEl.src = q.img; imgEl.style.display = ''; } else { imgEl.removeAttribute('src'); imgEl.style.display = 'none'; }
 
     const selected = answers[q.qnum];
     document.getElementById('gt-q-opts').innerHTML = q.opts.map((opt, i) => `
@@ -876,7 +905,6 @@ const App = {
     const { questions, idx } = State.gt;
     State.gt.answers[questions[idx].qnum] = i;
     App.renderGTQuestion();
-    // Auto-advance; on the last question the student presses "إنهاء الاختبار" manually.
     const isLast = idx === questions.length - 1;
     if (!isLast) setTimeout(() => App.gtNext(), 320);
   },
@@ -892,19 +920,84 @@ const App = {
       return;
     }
     if (idx < questions.length - 1) { State.gt.idx++; App.renderGTQuestion(); return; }
+    await App._gtSubmit();
+  },
 
+  async _gtSubmit() {
+    App.stopGTTimer();
+    const { questions, answers } = State.gt;
     show('screen-loading');
     try {
-      const payload = questions.map(q => ({ qnum: q.qnum, selected: answers[q.qnum] }));
+      const payload = questions.map(q => ({ qnum: q.qnum, selected: answers[q.qnum] ?? null }));
       const res = await apiFetch(`/general-tests/${State.gt.num}/submit`, {
         method: 'POST', body: JSON.stringify({ answers: payload }),
       });
-      document.getElementById('gt-result-score').textContent = res.score + '%';
-      document.getElementById('gt-result-detail').textContent = `${res.correct} إجابة صحيحة من ${res.total}`;
+      App._renderGTResult(res, questions);
       show('screen-general-test-result');
     } catch (e) {
       showToast('تعذّر إرسال الاختبار');
       show('screen-general-test-take');
+    }
+  },
+
+  _renderGTResult(res, questions) {
+    const scoreColor = res.score >= 70 ? '#16a34a' : res.score >= 50 ? '#d97706' : '#dc2626';
+    document.getElementById('gt-result-score').innerHTML =
+      `<span style="color:${scoreColor}">${res.score}%</span>`;
+    document.getElementById('gt-result-detail').textContent =
+      `${res.correct} إجابة صحيحة من ${res.total}`;
+
+    // Verbal vs Quant breakdown
+    const detail = res.detail || [];
+    const vRight = detail.filter(d => d.q <= 25 && d.a === d.corr).length;
+    const vTotal = detail.filter(d => d.q <= 25).length;
+    const qRight = detail.filter(d => d.q > 25 && d.a === d.corr).length;
+    const qTotal = detail.filter(d => d.q > 25).length;
+    const card = (label, badge, right, total) => {
+      const pct = total ? Math.round(right/total*100) : 0;
+      const col = pct >= 70 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+      return `<div style="background:#fff;border-radius:16px;padding:18px;border:1.5px solid #e5e7eb;text-align:center;">
+        <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;">${badge} ${label}</div>
+        <div style="font-size:32px;font-weight:900;color:${col};">${pct}%</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px;">${right} من ${total}</div>
+      </div>`;
+    };
+    document.getElementById('gt-result-breakdown').innerHTML =
+      card('القسم اللفظي','📚', vRight, vTotal) +
+      card('القسم الكمي','🔢', qRight, qTotal);
+
+    // Wrong answers review list
+    const wrong = detail.filter(d => d.a !== d.corr);
+    if (wrong.length) {
+      const labels = ['أ','ب','ج','د'];
+      const rows = wrong.map(d => {
+        const q = questions.find(q => q.qnum === d.q);
+        const section = d.q <= 25 ? 'لفظي' : 'كمي';
+        const yourAns = d.a !== null && d.a !== undefined ? labels[d.a] : '—';
+        const corrAns = labels[d.corr];
+        return `<tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:8px 6px;font-size:12px;color:#64748b;text-align:center;">${d.q}</td>
+          <td style="padding:8px 6px;font-size:11px;color:#64748b;text-align:center;">${section}</td>
+          <td style="padding:8px 6px;font-size:13px;color:#dc2626;font-weight:700;text-align:center;">${yourAns}</td>
+          <td style="padding:8px 6px;font-size:13px;color:#16a34a;font-weight:700;text-align:center;">${corrAns}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('gt-result-review').innerHTML = `
+        <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">الأسئلة الخاطئة (${wrong.length})</div>
+        <div style="overflow:auto;border-radius:12px;border:1.5px solid #e5e7eb;">
+          <table style="width:100%;border-collapse:collapse;direction:rtl;">
+            <thead><tr style="background:#f8fafc;">
+              <th style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:700;">رقم</th>
+              <th style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:700;">القسم</th>
+              <th style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:700;">إجابتك</th>
+              <th style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:700;">الصحيحة</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    } else {
+      document.getElementById('gt-result-review').innerHTML =
+        `<div style="text-align:center;padding:20px;background:#f0fdf4;border-radius:16px;color:#16a34a;font-weight:700;">🎉 أجبت على جميع الأسئلة بشكل صحيح!</div>`;
     }
   },
 
@@ -1342,6 +1435,13 @@ const App = {
     const tabSup     = document.getElementById('tab-supervisors');
     const tabQ       = document.getElementById('tab-questions');
     const tabBC      = document.getElementById('tab-broadcast');
+    let   tabGT      = document.getElementById('tab-gt-results');
+    if (!tabGT) {
+      tabGT = document.createElement('div');
+      tabGT.id = 'tab-gt-results';
+      tabGT.style.cssText = 'display:none;';
+      document.getElementById('admin-student-list')?.parentNode?.appendChild(tabGT);
+    }
 
     // Show/hide toolbar and student list
     if (toolbar) toolbar.style.display = tab === 'students' ? 'block' : 'none';
@@ -1352,21 +1452,121 @@ const App = {
     if (tabSup)   tabSup.style.display   = tab === 'supervisors' ? 'block' : 'none';
     if (tabQ)     tabQ.style.display     = tab === 'questions'   ? 'block' : 'none';
     if (tabBC)    tabBC.style.display    = tab === 'broadcast'   ? 'block' : 'none';
+    if (tabGT)    tabGT.style.display    = tab === 'gt-results'  ? 'block' : 'none';
 
-    if (tab === 'students') {
-      App.renderAdminDashboard('students');
-      return;
-    }
-    if (tab === 'stats') {
-      App.renderAdminDashboard('stats');
-      App.renderAdminStats();
-      App.renderPerformanceTab();
-      return;
-    }
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+
+    if (tab === 'students') { App.renderAdminDashboard('students'); return; }
+    if (tab === 'stats')    { App.renderAdminDashboard('stats'); App.renderAdminStats(); App.renderPerformanceTab(); return; }
     if (tab === 'supervisors') { App.renderAdminDashboard('supervisors'); App.loadSupervisors(); return; }
     if (tab === 'questions')   { App.renderAdminDashboard('questions');   App.loadQuestions();   return; }
     if (tab === 'broadcast')   { App.renderAdminDashboard('broadcast');   App.renderBroadcastHistory(); return; }
+    if (tab === 'gt-results')  { App.loadGTResults(tabGT); return; }
     App.renderAdminDashboard(tab);
+  },
+
+  async loadGTResults(container) {
+    container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);">جاري التحميل…</div>';
+    try {
+      const { results } = await apiFetch('/general-tests/results');
+      if (!results.length) {
+        container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);">لا توجد نتائج بعد</div>';
+        return;
+      }
+      // Group by student
+      const byStudent = {};
+      for (const r of results) {
+        if (!byStudent[r.student_id]) byStudent[r.student_id] = { name: r.student_name, school: r.school, attempts: [] };
+        byStudent[r.student_id].attempts.push(r);
+      }
+      // Filter by testNum selector
+      const testNums = [...new Set(results.map(r => r.test_num))].sort((a,b) => a-b);
+      const filterOpts = `<option value="">كل الاختبارات</option>` + testNums.map(n => `<option value="${n}">اختبار رقم ${n}</option>`).join('');
+
+      const rows = Object.entries(byStudent).map(([sid, data]) => {
+        const best = data.attempts.reduce((b, a) => a.score > b.score ? a : b, data.attempts[0]);
+        const attempts = data.attempts.map(a => {
+          const ansArr = Array.isArray(a.answers) ? a.answers : [];
+          const verbal = ansArr.filter(d => d.q <= 25);
+          const quant  = ansArr.filter(d => d.q > 25);
+          const vRight = verbal.filter(d => d.a === d.corr).length;
+          const qRight = quant.filter(d => d.a === d.corr).length;
+          return `<div style="background:#f8fafc;border-radius:8px;padding:8px 12px;margin-top:6px;display:flex;gap:12px;align-items:center;font-size:12px;flex-wrap:wrap;">
+            <span style="font-weight:700;color:${a.score>=70?'#16a34a':a.score>=50?'#d97706':'#dc2626'}">${a.score}%</span>
+            <span style="color:#64748b;">اختبار ${a.test_num}</span>
+            <span style="color:#64748b;">📚 ${vRight}/${verbal.length}</span>
+            <span style="color:#64748b;">🔢 ${qRight}/${quant.length}</span>
+            <span style="color:#94a3b8;font-size:11px;">${new Date(a.created_at).toLocaleDateString('ar-SA')}</span>
+          </div>`;
+        }).join('');
+        return `<div style="background:#fff;border-radius:16px;border:1.5px solid #e5e7eb;padding:16px;margin-bottom:10px;" data-school="${escapeHtml(data.school||'')}">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:120px;">
+              <div style="font-weight:700;font-size:14px;">${escapeHtml(data.name||'—')}</div>
+              <div style="font-size:12px;color:#64748b;">${escapeHtml(data.school||'')}</div>
+            </div>
+            <span style="background:${best.score>=70?'#dcfce7':best.score>=50?'#fef3c7':'#fee2e2'};color:${best.score>=70?'#16a34a':best.score>=50?'#92400e':'#dc2626'};padding:4px 12px;border-radius:20px;font-weight:800;font-size:14px;">${best.score}%</span>
+            <span style="font-size:11px;color:#94a3b8;">${data.attempts.length} محاولة</span>
+          </div>
+          ${attempts}
+        </div>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+          <select onchange="App._filterGTResults(this.value)" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;">
+            ${filterOpts}
+          </select>
+          <span style="font-size:13px;color:#64748b;">${Object.keys(byStudent).length} طالب</span>
+        </div>
+        <div id="gt-results-list">${rows}</div>`;
+      container.dataset.raw = JSON.stringify(results);
+    } catch(e) {
+      container.innerHTML = `<div style="padding:24px;color:#dc2626;">فشل التحميل: ${e.message}</div>`;
+    }
+  },
+
+  _filterGTResults(testNum) {
+    const container = document.getElementById('tab-gt-results');
+    if (!container || !container.dataset.raw) return;
+    const results = JSON.parse(container.dataset.raw);
+    const filtered = testNum ? results.filter(r => String(r.test_num) === testNum) : results;
+    const byStudent = {};
+    for (const r of filtered) {
+      if (!byStudent[r.student_id]) byStudent[r.student_id] = { name: r.student_name, school: r.school, attempts: [] };
+      byStudent[r.student_id].attempts.push(r);
+    }
+    const listEl = document.getElementById('gt-results-list');
+    if (!listEl) return;
+    if (!Object.keys(byStudent).length) { listEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">لا توجد نتائج</div>'; return; }
+    listEl.innerHTML = Object.entries(byStudent).map(([sid, data]) => {
+      const best = data.attempts.reduce((b, a) => a.score > b.score ? a : b, data.attempts[0]);
+      const attempts = data.attempts.map(a => {
+        const ansArr = Array.isArray(a.answers) ? a.answers : [];
+        const verbal = ansArr.filter(d => d.q <= 25);
+        const quant  = ansArr.filter(d => d.q > 25);
+        const vRight = verbal.filter(d => d.a === d.corr).length;
+        const qRight = quant.filter(d => d.a === d.corr).length;
+        return `<div style="background:#f8fafc;border-radius:8px;padding:8px 12px;margin-top:6px;display:flex;gap:12px;align-items:center;font-size:12px;flex-wrap:wrap;">
+          <span style="font-weight:700;color:${a.score>=70?'#16a34a':a.score>=50?'#d97706':'#dc2626'}">${a.score}%</span>
+          <span style="color:#64748b;">اختبار ${a.test_num}</span>
+          <span style="color:#64748b;">📚 ${vRight}/${verbal.length}</span>
+          <span style="color:#64748b;">🔢 ${qRight}/${quant.length}</span>
+          <span style="color:#94a3b8;font-size:11px;">${new Date(a.created_at).toLocaleDateString('ar-SA')}</span>
+        </div>`;
+      }).join('');
+      return `<div style="background:#fff;border-radius:16px;border:1.5px solid #e5e7eb;padding:16px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;">
+            <div style="font-weight:700;font-size:14px;">${escapeHtml(data.name||'—')}</div>
+            <div style="font-size:12px;color:#64748b;">${escapeHtml(data.school||'')}</div>
+          </div>
+          <span style="background:${best.score>=70?'#dcfce7':best.score>=50?'#fef3c7':'#fee2e2'};color:${best.score>=70?'#16a34a':best.score>=50?'#92400e':'#dc2626'};padding:4px 12px;border-radius:20px;font-weight:800;font-size:14px;">${best.score}%</span>
+          <span style="font-size:11px;color:#94a3b8;">${data.attempts.length} محاولة</span>
+        </div>
+        ${attempts}
+      </div>`;
+    }).join('');
   },
 
   toggleAddStudentPanel() {
@@ -2686,27 +2886,101 @@ const App = {
       skillsBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px;">لا توجد بيانات</td></tr>';
     }
 
-    // History table
+    // History table — expandable rows showing skill breakdown
     const histBody = document.getElementById('sdm-history-body');
     if (allPlans.length) {
       histBody.innerHTML = allPlans.map((p, i) => {
         const avg = p.gaps.length ? Math.round(p.gaps.reduce((s,g)=>s+g.pct,0)/p.gaps.length) : 0;
         const cls = avg >= 71 ? 'score-high' : avg >= 50 ? 'score-mid' : 'score-low';
         const date = new Date(p.createdAt).toLocaleDateString('ar-SA', { year:'numeric', month:'short', day:'numeric' });
-        return `<tr>
-          <td style="text-align:center;font-weight:700;">${allPlans.length - i}</td>
+        const detailRows = p.gaps.map(g => {
+          const gcls = g.pct >= 71 ? 'score-high' : g.pct >= 50 ? 'score-mid' : 'score-low';
+          const cat = g.category === 'verbal' ? '📚' : '🔢';
+          return `<tr style="background:#f8fafc;">
+            <td style="padding:5px 8px;font-size:12px;color:#64748b;" colspan="2">${cat} ${escapeHtml(g.skillName)}</td>
+            <td style="text-align:center;"><span class="gap-score ${gcls}" style="font-size:11px;padding:2px 8px;">${g.pct}%</span></td>
+            <td></td>
+          </tr>`;
+        }).join('');
+        const idx = allPlans.length - i;
+        return `<tr style="cursor:pointer;" onclick="App._togglePlanDetail('pd-${i}')">
+          <td style="text-align:center;font-weight:700;">${idx}</td>
           <td>${date}</td>
           <td style="text-align:center;"><span class="gap-score ${cls}">${avg}%</span></td>
-        </tr>`;
+          <td style="text-align:center;font-size:12px;color:#2563eb;">عرض ▾</td>
+        </tr>
+        <tr id="pd-${i}" style="display:none;"><td colspan="4" style="padding:0;">
+          <table style="width:100%;border-collapse:collapse;">${detailRows}</table>
+        </td></tr>`;
       }).join('');
     } else {
-      histBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">لا توجد محاولات</td></tr>';
+      histBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px;">لا توجد محاولات</td></tr>';
     }
 
     document.getElementById('student-detail-modal').classList.add('open');
     State.detailStudentId = studentId;
-    // Load chat messages for this student ↔ this admin
     App.loadDetailChatMessages(studentId);
+
+    // Load General Test results async
+    const gtEl = document.getElementById('sdm-gt-content');
+    if (gtEl) {
+      gtEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);">جاري التحميل…</div>';
+      apiFetch(`/general-tests/results?studentId=${encodeURIComponent(studentId)}`).then(({ results }) => {
+        if (!results.length) { gtEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);">لا توجد نتائج</div>'; return; }
+        const labels = ['أ','ب','ج','د'];
+        gtEl.innerHTML = results.map((r, ri) => {
+          const ans = Array.isArray(r.answers) ? r.answers : [];
+          const verbal = ans.filter(d => d.q <= 25);
+          const quant  = ans.filter(d => d.q > 25);
+          const vRight = verbal.filter(d => d.a === d.corr).length;
+          const qRight = quant.filter(d => d.a === d.corr).length;
+          const cls = r.score >= 70 ? 'score-high' : r.score >= 50 ? 'score-mid' : 'score-low';
+          const date = new Date(r.created_at).toLocaleDateString('ar-SA', { year:'numeric', month:'short', day:'numeric' });
+          const wrongRows = ans.filter(d => d.a !== d.corr).map(d =>
+            `<tr style="background:#fff8f8;">
+              <td style="padding:4px 8px;font-size:12px;color:#64748b;text-align:center;">${d.q}</td>
+              <td style="padding:4px 8px;font-size:12px;color:#64748b;text-align:center;">${d.q<=25?'📚':'🔢'}</td>
+              <td style="padding:4px 8px;font-size:12px;color:#dc2626;font-weight:700;text-align:center;">${d.a!==null&&d.a!==undefined?labels[d.a]:'—'}</td>
+              <td style="padding:4px 8px;font-size:12px;color:#16a34a;font-weight:700;text-align:center;">${labels[d.corr]}</td>
+            </tr>`).join('');
+          const detailHtml = `<div style="padding:8px 0 4px;">
+            <div style="display:flex;gap:12px;margin-bottom:6px;font-size:12px;">
+              <span style="color:#64748b;">📚 لفظي: <b>${vRight}/${verbal.length}</b></span>
+              <span style="color:#64748b;">🔢 كمي: <b>${qRight}/${quant.length}</b></span>
+            </div>
+            ${wrongRows ? `<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:4px;">الأخطاء:</div>
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr style="background:#f1f5f9;">
+                <th style="padding:4px 6px;font-size:11px;color:#64748b;">رقم</th>
+                <th style="padding:4px 6px;font-size:11px;color:#64748b;">قسم</th>
+                <th style="padding:4px 6px;font-size:11px;color:#64748b;">إجابته</th>
+                <th style="padding:4px 6px;font-size:11px;color:#64748b;">الصحيحة</th>
+              </tr></thead>
+              <tbody>${wrongRows}</tbody>
+            </table>` : '<div style="color:#16a34a;font-size:12px;">✅ جميع الإجابات صحيحة</div>'}
+          </div>`;
+          return `<div style="background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:12px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="App._toggleGTDetail('gtd-${ri}')">
+              <span style="font-weight:700;font-size:13px;">اختبار رقم ${r.test_num}</span>
+              <span style="color:#64748b;font-size:12px;">${date}</span>
+              <span class="gap-score ${cls}" style="margin-right:auto;">${r.score}%</span>
+              <span style="font-size:11px;color:#2563eb;">عرض ▾</span>
+            </div>
+            <div id="gtd-${ri}" style="display:none;border-top:1px solid #f1f5f9;margin-top:8px;padding-top:8px;">${detailHtml}</div>
+          </div>`;
+        }).join('');
+      }).catch(() => { gtEl.innerHTML = '<div style="text-align:center;padding:12px;color:#dc2626;">فشل التحميل</div>'; });
+    }
+  },
+
+  _togglePlanDetail(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+  },
+
+  _toggleGTDetail(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
   },
 
   closeStudentDetail() {
@@ -4280,8 +4554,13 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { localStorage.removeItem(_skey('lg_remember', _ns)); }
   }
 
-  show('screen-landing');
-  document.documentElement.style.visibility = '';
+  if (location.pathname === '/quiz') {
+    App.openGeneralTests();
+    document.documentElement.style.visibility = '';
+  } else {
+    show('screen-landing');
+    document.documentElement.style.visibility = '';
+  }
 });
 
 function _spt(e, date, score) {

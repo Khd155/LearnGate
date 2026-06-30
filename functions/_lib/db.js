@@ -14,7 +14,8 @@ function getSqlClient(env) {
     username: env.PG_USERNAME,
     password: env.PG_PASSWORD,
     ssl: env.PG_SSL === 'false' ? false : (env.PG_SSL || 'prefer'),
-    max: 1, // one connection per Worker invocation
+    max: 1,
+    onnotice: () => {},
   });
   return _sql;
 }

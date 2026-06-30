@@ -1397,11 +1397,14 @@ export async function onRequest({ request, env }) {
         const body = await request.json();
         const fields = [];
         const vals   = [];
-        if (body.text  !== undefined) { fields.push('text = ?');    vals.push(body.text); }
-        if (body.ans   !== undefined) { fields.push('ans = ?');     vals.push(String(body.ans)); }
-        if (body.type  !== undefined) { fields.push('type = ?');    vals.push(body.type); }
+        if (body.text     !== undefined) { fields.push('text = ?');     vals.push(body.text); }
+        if (body.ans      !== undefined) { fields.push('ans = ?');      vals.push(String(body.ans)); }
+        if (body.type     !== undefined) { fields.push('type = ?');     vals.push(body.type); }
         if (body.skill_id !== undefined) { fields.push('skill_id = ?'); vals.push(body.skill_id); }
-        if (body.choices  !== undefined) { fields.push('choices = ?');  vals.push(JSON.stringify(body.choices)); }
+        if (body.opt1     !== undefined) { fields.push('opt1 = ?');     vals.push(body.opt1); }
+        if (body.opt2     !== undefined) { fields.push('opt2 = ?');     vals.push(body.opt2); }
+        if (body.opt3     !== undefined) { fields.push('opt3 = ?');     vals.push(body.opt3); }
+        if (body.opt4     !== undefined) { fields.push('opt4 = ?');     vals.push(body.opt4); }
         if (!fields.length) return err('لا يوجد شيء للتعديل', 400, CORS);
         vals.push(subsub);
         await DB.prepare(`UPDATE questions SET ${fields.join(', ')} WHERE id = ?`).bind(...vals).run();

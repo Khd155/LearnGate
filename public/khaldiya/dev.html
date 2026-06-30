@@ -868,31 +868,63 @@ const Dev = {
     Dev.renderQTable(qs);
   },
 
+  _SKILL_NAMES: {
+    v1:'الاستيعاب القرائي', v2:'الخطأ السياقي', v3:'المفردة الشاذة', v4:'التناظر اللفظي', v5:'إكمال الجمل',
+    q1:'الحساب', q2:'الجبر', q3:'الهندسة والقياس', q4:'المقارنات الكمية', q5:'الإحصاء والاحتمالات',
+  },
+  _activeSkillFilter: '',
+
   renderQTable(qs) {
     const wrap = document.getElementById('q-table-wrap');
-    if (!qs.length) { wrap.innerHTML = '<div class="empty">لا توجد أسئلة في البنك حالياً — يتم استخدام الأسئلة الافتراضية</div>'; return; }
+    if (!qs.length) { wrap.innerHTML = '<div class="empty">لا توجد أسئلة في البنك حالياً</div>'; return; }
+
+    // Build skill counts from ALL questions (not filtered subset)
+    const all = Dev._allQuestions;
+    const skillCount = {};
+    all.forEach(q => { skillCount[q.skill_id] = (skillCount[q.skill_id]||0)+1; });
+
+    const skillChips = Object.entries(Dev._SKILL_NAMES).map(([sid, name]) => {
+      const cnt = skillCount[sid] || 0;
+      const active = Dev._activeSkillFilter === sid;
+      const color = sid.startsWith('v') ? '#3b82f6' : '#a855f7';
+      return `<button onclick="Dev.setSkillFilter('${sid}')"
+        style="border:1.5px solid ${active?color:'var(--border2)'};background:${active?color+'22':'transparent'};color:${active?color:'var(--muted)'};border-radius:8px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap">
+        ${sid.toUpperCase()} ${name} <span style="background:rgba(255,255,255,.12);border-radius:99px;padding:1px 6px;font-weight:700">${cnt}</span>
+      </button>`;
+    }).join('');
+
     wrap.innerHTML = `
-      <div style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <input id="q-search" class="search-input" placeholder="🔍 بحث في الأسئلة..." oninput="Dev.filterQuestions()" style="max-width:300px">
-        <select id="q-type-filter" class="form-select" style="width:auto;padding:8px 12px;font-size:13px" onchange="Dev.filterQuestions()">
+      <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input id="q-search" class="search-input" placeholder="🔍 بحث..." oninput="Dev.filterQuestions()" style="max-width:220px;padding:7px 12px">
+        <select id="q-type-filter" class="form-select" style="width:auto;padding:7px 12px;font-size:13px" onchange="Dev.filterQuestions()">
           <option value="">كل الأنواع</option>
           <option value="verbal">📚 لفظي</option>
           <option value="quantitative">🔢 كمي</option>
         </select>
-        <span style="font-size:12px;color:var(--muted)">${qs.length} سؤال — اضغط على أي صف للتعديل</span>
+        <span style="font-size:12px;color:var(--muted)">${qs.length} سؤال — اضغط لتعديل</span>
       </div>
-      <div style="max-height:600px;overflow-y:auto;border-radius:10px;border:1px solid var(--border)">
+      <div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap">${skillChips}</div>
+      <div style="max-height:540px;overflow-y:auto;border-radius:10px;border:1px solid var(--border)">
       <table class="data-table" id="q-table">
-        <thead style="position:sticky;top:0;z-index:5"><tr><th style="background:var(--surface2)">#</th><th style="background:var(--surface2)">السؤال</th><th style="background:var(--surface2)">الإجابة</th><th style="background:var(--surface2)">النوع</th><th style="background:var(--surface2)">المهارة</th></tr></thead>
+        <thead style="position:sticky;top:0;z-index:5">
+          <tr>
+            <th style="background:var(--surface2)">#</th>
+            <th style="background:var(--surface2)">السؤال</th>
+            <th style="background:var(--surface2)">الإجابة الصحيحة</th>
+            <th style="background:var(--surface2)">النوع</th>
+            <th style="background:var(--surface2)">المهارة</th>
+          </tr>
+        </thead>
         <tbody>${qs.map(q => {
-          const choices = (() => { try { return JSON.parse(q.choices||'[]'); } catch { return []; } })();
-          const ansText = choices[Number(q.ans)] ?? q.ans;
+          const opts = [q.opt1, q.opt2, q.opt3, q.opt4];
+          const ansText = opts[Number(q.ans)] ?? '—';
+          const skillName = Dev._SKILL_NAMES[q.skill_id] || q.skill_id || '—';
           return `<tr style="cursor:pointer" onclick="Dev.openEditQuestion('${q.id}')" title="اضغط للتعديل">
             <td style="color:var(--muted);white-space:nowrap">${q.qnum}</td>
-            <td style="max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(q.text)}</td>
-            <td style="color:#86efac;font-size:12px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(String(ansText))}</td>
+            <td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(q.text)}</td>
+            <td style="color:#86efac;font-size:12px;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(String(ansText))}">${escapeHtml(String(ansText))}</td>
             <td style="white-space:nowrap">${q.type === 'verbal' ? '📚 لفظي' : '🔢 كمي'}</td>
-            <td style="color:var(--muted);font-size:12px">${q.skill_id}</td>
+            <td style="font-size:12px"><span style="color:var(--muted)">${q.skill_id}</span> <span style="color:#94a3b8;font-size:11px">${skillName}</span></td>
           </tr>`;
         }).join('')}
         </tbody>
@@ -900,12 +932,19 @@ const Dev = {
       </div>`;
   },
 
+  setSkillFilter(sid) {
+    Dev._activeSkillFilter = Dev._activeSkillFilter === sid ? '' : sid;
+    Dev.filterQuestions();
+  },
+
   filterQuestions() {
-    const term = (document.getElementById('q-search')?.value || '').toLowerCase();
-    const type = document.getElementById('q-type-filter')?.value || '';
+    const term  = (document.getElementById('q-search')?.value || '').toLowerCase();
+    const type  = document.getElementById('q-type-filter')?.value || '';
+    const skill = Dev._activeSkillFilter;
     const filtered = Dev._allQuestions.filter(q =>
-      (!term || q.text.toLowerCase().includes(term) || String(q.qnum).includes(term)) &&
-      (!type || q.type === type)
+      (!term  || q.text.toLowerCase().includes(term) || String(q.qnum).includes(term)) &&
+      (!type  || q.type === type) &&
+      (!skill || q.skill_id === skill)
     );
     Dev.renderQTable(filtered);
   },
@@ -913,86 +952,95 @@ const Dev = {
   async openEditQuestion(id) {
     const q = Dev._allQuestions.find(q => q.id === id);
     if (!q) return;
-    let choices = [];
-    try { choices = JSON.parse(q.choices || '[]'); } catch {}
+    const opts = [q.opt1||'', q.opt2||'', q.opt3||'', q.opt4||''];
+    const ansIdx = Number(q.ans);
 
-    // Build choices inputs
-    const choiceInputs = choices.map((c, i) => `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="font-size:13px;color:var(--muted);width:20px">${i+1}.</span>
-        <input id="q-choice-${i}" class="form-input" style="flex:1;padding:7px 10px;font-size:13px" value="${escapeHtml(c)}">
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);cursor:pointer">
-          <input type="radio" name="q-ans" value="${i}" ${Number(q.ans)===i?'checked':''}> إجابة
+    const choiceInputs = opts.map((c, i) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;background:${i===ansIdx?'rgba(34,197,94,.1)':'rgba(255,255,255,.03)'};border:1.5px solid ${i===ansIdx?'#22c55e':'var(--border2)'};border-radius:8px;padding:8px 12px;transition:all .15s" id="q-opt-lbl-${i}">
+          <input type="radio" name="q-ans-radio" value="${i}" ${i===ansIdx?'checked':''} onchange="Dev._updateOptHighlight()">
+          <span style="font-size:12px;color:var(--muted);min-width:16px">${i+1}.</span>
+          <input id="q-opt-${i}" value="${escapeHtml(c)}" style="flex:1;background:transparent;border:none;color:#f1f5f9;font-size:13px;font-family:inherit;outline:none">
         </label>
       </div>`).join('');
 
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.id = 'q-edit-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px';
     overlay.innerHTML = `
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,.5)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:26px;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.6)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
           <div style="font-size:15px;font-weight:800;color:#f1f5f9">✏️ تعديل السؤال #${q.qnum}</div>
-          <button onclick="this.closest('div[style*=fixed]').remove()" style="background:var(--surface2);border:none;border-radius:8px;padding:6px 12px;color:#e2e8f0;cursor:pointer;font-size:13px">✕ إغلاق</button>
+          <button onclick="document.getElementById('q-edit-overlay').remove()" style="background:var(--surface2);border:none;border-radius:8px;padding:6px 14px;color:#e2e8f0;cursor:pointer;font-size:13px">✕</button>
         </div>
-        <div style="margin-bottom:12px">
+        <div style="margin-bottom:14px">
           <div class="form-label" style="margin-bottom:6px">نص السؤال</div>
           <textarea id="q-edit-text" style="width:100%;background:var(--bg);border:1.5px solid var(--border2);color:#f1f5f9;border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;min-height:80px;resize:vertical">${escapeHtml(q.text)}</textarea>
         </div>
-        ${choices.length ? `<div style="margin-bottom:12px"><div class="form-label" style="margin-bottom:8px">الخيارات (حدّد الإجابة الصحيحة)</div>${choiceInputs}</div>` : `
-        <div style="margin-bottom:12px">
-          <div class="form-label" style="margin-bottom:6px">الإجابة الصحيحة</div>
-          <input id="q-edit-ans" class="form-input" value="${escapeHtml(String(q.ans))}">
-        </div>`}
-        <div style="display:flex;gap:10px">
-          <select id="q-edit-type" class="form-select" style="flex:1">
-            <option value="verbal" ${q.type==='verbal'?'selected':''}>📚 لفظي</option>
-            <option value="quantitative" ${q.type==='quantitative'?'selected':''}>🔢 كمي</option>
-          </select>
-          <input id="q-edit-skill" class="form-input" style="flex:1" value="${escapeHtml(q.skill_id)}" placeholder="skill_id">
+        <div style="margin-bottom:14px">
+          <div class="form-label" style="margin-bottom:8px">الخيارات — حدّد الإجابة الصحيحة بالضغط على الزر بجانبها</div>
+          ${choiceInputs}
         </div>
-        <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
-          <button onclick="this.closest('div[style*=fixed]').remove()" class="btn" style="background:var(--surface2);color:#e2e8f0">إلغاء</button>
-          <button onclick="Dev.saveEditQuestion('${id}', this)" class="btn btn-primary">💾 حفظ التعديل</button>
+        <div style="display:flex;gap:10px;margin-bottom:16px">
+          <div style="flex:1">
+            <div class="form-label" style="margin-bottom:5px">النوع</div>
+            <select id="q-edit-type" class="form-select">
+              <option value="verbal" ${q.type==='verbal'?'selected':''}>📚 لفظي</option>
+              <option value="quantitative" ${q.type==='quantitative'?'selected':''}>🔢 كمي</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <div class="form-label" style="margin-bottom:5px">رمز المهارة</div>
+            <select id="q-edit-skill" class="form-select">
+              ${Object.entries(Dev._SKILL_NAMES).map(([sid,name])=>`<option value="${sid}" ${q.skill_id===sid?'selected':''}>${sid} — ${name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button onclick="document.getElementById('q-edit-overlay').remove()" class="btn" style="background:var(--surface2);color:#e2e8f0">إلغاء</button>
+          <button onclick="Dev.saveEditQuestion('${id}', this)" class="btn btn-primary">💾 حفظ</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
     overlay.addEventListener('mousedown', e => { if (e.target === overlay) overlay.remove(); });
   },
 
+  _updateOptHighlight() {
+    [0,1,2,3].forEach(i => {
+      const lbl = document.getElementById('q-opt-lbl-'+i);
+      const radio = document.querySelector(`input[name="q-ans-radio"][value="${i}"]`);
+      if (!lbl || !radio) return;
+      const checked = radio.checked;
+      lbl.style.background = checked ? 'rgba(34,197,94,.1)' : 'rgba(255,255,255,.03)';
+      lbl.style.borderColor = checked ? '#22c55e' : 'var(--border2)';
+    });
+  },
+
   async saveEditQuestion(id, btn) {
     const q = Dev._allQuestions.find(q => q.id === id);
     if (!q) return;
-    let choices = [];
-    try { choices = JSON.parse(q.choices || '[]'); } catch {}
-
     const text     = document.getElementById('q-edit-text')?.value.trim();
     const type     = document.getElementById('q-edit-type')?.value;
-    const skill_id = document.getElementById('q-edit-skill')?.value.trim();
+    const skill_id = document.getElementById('q-edit-skill')?.value;
+    const checked  = document.querySelector('input[name="q-ans-radio"]:checked');
+    const ans      = checked ? String(checked.value) : String(q.ans);
+    const opt1 = document.getElementById('q-opt-0')?.value.trim();
+    const opt2 = document.getElementById('q-opt-1')?.value.trim();
+    const opt3 = document.getElementById('q-opt-2')?.value.trim();
+    const opt4 = document.getElementById('q-opt-3')?.value.trim();
 
-    let ans;
-    if (choices.length) {
-      const checked = document.querySelector('input[name="q-ans"]:checked');
-      ans = checked ? String(checked.value) : q.ans;
-      choices = choices.map((_, i) => document.getElementById('q-choice-'+i)?.value || _);
-    } else {
-      ans = document.getElementById('q-edit-ans')?.value.trim();
-    }
-
-    btn.disabled = true;
-    btn.textContent = '⏳';
+    btn.disabled = true; btn.textContent = '⏳';
     try {
       await apiDev(`/dev/questions/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ text, ans, type, skill_id, choices: choices.length ? choices : undefined }),
+        body: JSON.stringify({ text, ans, type, skill_id, opt1, opt2, opt3, opt4 }),
       });
-      // Update local cache
-      Object.assign(q, { text, ans, type, skill_id, choices: choices.length ? JSON.stringify(choices) : q.choices });
+      Object.assign(q, { text, ans, type, skill_id, opt1, opt2, opt3, opt4 });
       Dev.renderQTable(Dev._allQuestions);
-      btn.closest('div[style*="fixed"]')?.remove();
+      document.getElementById('q-edit-overlay')?.remove();
       showToast('تم حفظ السؤال ✅');
     } catch (e) {
-      btn.disabled = false;
-      btn.textContent = '💾 حفظ التعديل';
+      btn.disabled = false; btn.textContent = '💾 حفظ';
       showToast('فشل الحفظ: ' + e.message, true);
     }
   },

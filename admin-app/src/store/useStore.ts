@@ -13,7 +13,7 @@ import type {
 import { api, readSession } from '../lib/api';
 import type { DerivedStatus } from '../lib/status';
 
-export type TabKey = 'students' | 'stats' | 'conversations' | 'broadcast' | 'questions';
+export type TabKey = 'students' | 'stats' | 'conversations' | 'broadcast' | 'questions' | 'diff';
 
 export interface Toast {
   id: string;

@@ -6,6 +6,7 @@ import { cn } from '../lib/cn';
 const BASE_TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'students', label: 'الطلاب', icon: '👥' },
   { key: 'stats', label: 'الإحصائيات', icon: '📊' },
+  { key: 'diff', label: 'مقارنة الإجابات', icon: '🔍' },
   { key: 'conversations', label: 'المحادثات', icon: '💬' },
   { key: 'broadcast', label: 'رسالة جماعية', icon: '📢' },
 ];

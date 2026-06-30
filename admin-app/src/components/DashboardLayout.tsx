@@ -8,6 +8,7 @@ import StatisticsTab from './StatisticsTab';
 import ConversationsTab from './ConversationsTab';
 import BroadcastTab from './BroadcastTab';
 import QuestionsTab from './QuestionsTab';
+import DiffTab from './DiffTab';
 import ToastSystem from './ToastSystem';
 
 const STATS_POLL_MS = 45000;
@@ -42,6 +43,7 @@ export default function DashboardLayout() {
           {tab === 'conversations' && <ConversationsTab />}
           {tab === 'broadcast' && <BroadcastTab />}
           {tab === 'questions' && <QuestionsTab />}
+          {tab === 'diff' && <DiffTab />}
         </div>
       </main>
       <ToastSystem />

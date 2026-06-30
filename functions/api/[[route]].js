@@ -747,12 +747,21 @@ export async function onRequest({ request, env }) {
             return { ...r, answers: ans };
           }) }, 200, CORS);
         }
-        let q = 'SELECT id, student_id, student_name, school, subject, test_type, score, correct, total, created_at FROM test_results';
+        const withAnswers = url.searchParams.get('withAnswers') === '1';
+        const cols = withAnswers
+          ? 'id, student_id, student_name, school, subject, test_type, score, correct, total, answers, created_at'
+          : 'id, student_id, student_name, school, subject, test_type, score, correct, total, created_at';
+        let q = `SELECT ${cols} FROM test_results`;
         const params = [];
         if (trSchool) { q += ' WHERE school = ?'; params.push(trSchool); }
         q += ' ORDER BY created_at DESC LIMIT 1000';
         const { results } = await DB.prepare(q).bind(...params).all();
-        return ok({ results }, 200, CORS);
+        const mapped = withAnswers ? results.map(r => {
+          let ans = [];
+          try { ans = JSON.parse(r.answers || '[]'); } catch {}
+          return { ...r, answers: ans };
+        }) : results;
+        return ok({ results: mapped }, 200, CORS);
       }
     }
 

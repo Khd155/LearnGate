@@ -4094,15 +4094,30 @@ const App = {
       const data = await apiFetch(`/broadcasts/active?school=${sc}`);
       const list = data.broadcasts || [];
       if (!list.length) { el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">لا توجد رسائل بعد</div>'; return; }
-      el.innerHTML = list.map(b => `
+      el.innerHTML = list.map(b => {
+        const seen  = b.seen_count  || 0;
+        const total = b.total_students || 0;
+        const pct   = total ? Math.round(seen / total * 100) : 0;
+        const barColor = pct >= 70 ? '#4FA877' : pct >= 30 ? '#f59e0b' : '#ef4444';
+        return `
         <div style="border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;background:var(--bg);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span style="font-size:12.5px;font-weight:700;color:var(--primary);">📢 ${escapeHtml(b.admin_name)}</span>
             <span style="font-size:11px;color:var(--muted);">${new Date(b.created_at).toLocaleString('ar-SA',{dateStyle:'short',timeStyle:'short'})}</span>
           </div>
-          <div style="font-size:14px;line-height:1.7;color:var(--text);margin-bottom:10px;">${escapeHtml(b.message)}</div>
+          <div style="font-size:14px;line-height:1.7;color:var(--text);margin-bottom:12px;">${escapeHtml(b.message)}</div>
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:12px;font-weight:600;color:var(--text);">👁 شاهد الرسالة</span>
+              <span style="font-size:12px;font-weight:700;color:${barColor};">${seen} / ${total} طالب (${pct}%)</span>
+            </div>
+            <div style="height:6px;border-radius:99px;background:var(--border);overflow:hidden;">
+              <div style="height:100%;border-radius:99px;background:${barColor};width:${pct}%;transition:width .4s;"></div>
+            </div>
+          </div>
           <button onclick="App.deleteBroadcast('${b.id}')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-family:inherit;font-weight:700;cursor:pointer;">🗑 حذف</button>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     } catch { el.innerHTML = '<div style="color:var(--muted);padding:12px;font-size:13px;">تعذّر تحميل السجل</div>'; }
   },
 

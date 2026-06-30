@@ -2156,7 +2156,14 @@ export async function onRequest({ request, env }) {
           // Admins/directors: scoped to their own school (dev can pass school param)
           const sc = (claims.school && claims.school !== '*') ? claims.school : (school || '');
           if (!sc) return ok({ broadcasts: [] }, 200, CORS);
-          const { results } = await DB.prepare('SELECT * FROM broadcasts WHERE school = ? ORDER BY created_at DESC LIMIT 30').bind(sc).all();
+          const { results } = await DB.prepare(`
+            SELECT b.*,
+              (SELECT COUNT(*) FROM broadcast_dismissals d WHERE d.broadcast_id = b.id) AS seen_count,
+              (SELECT COUNT(*) FROM students s WHERE s.school = b.school) AS total_students
+            FROM broadcasts b
+            WHERE b.school = ?
+            ORDER BY b.created_at DESC LIMIT 30
+          `).bind(sc).all();
           return ok({ broadcasts: results }, 200, CORS);
         }
       }

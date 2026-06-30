@@ -4123,7 +4123,7 @@ const App = {
     const modal = document.getElementById('broadcast-modal');
     if (!modal) return;
     document.getElementById('bc-message').textContent    = b.message;
-    document.getElementById('bc-time').textContent       = new Date(b.created_at).toLocaleString('ar-SA',{dateStyle:'medium',timeStyle:'short'});
+    document.getElementById('bc-time').textContent       = new Date(b.created_at).toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
     const more = document.getElementById('bc-more-indicator');
     if (App._broadcastQueue.length > 0) {
       more.style.display = '';

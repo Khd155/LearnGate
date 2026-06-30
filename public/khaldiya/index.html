@@ -2218,14 +2218,23 @@
 </div>
 
 <!-- ── Broadcast Modal (student) ─────────────────────────────────────────── -->
-<div id="broadcast-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
-  <div style="background:#fff;border-radius:24px;max-width:460px;width:100%;padding:36px 32px 28px;box-shadow:0 32px 80px -20px rgba(7,54,105,.45);text-align:center;animation:bcIn .3s ease;">
-    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#3F7CB8,#4FA877);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px;">📢</div>
-    <div id="bc-message" style="font-size:15px;font-weight:500;line-height:2;color:var(--text);margin-bottom:16px;text-align:right;white-space:pre-line;"></div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:24px;" id="bc-time"></div>
-    <button onclick="App.dismissBroadcast()" style="background:var(--primary);color:#fff;border:none;border-radius:99px;padding:13px 36px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;width:100%;">حسناً ✓</button>
+<div id="broadcast-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(15,23,42,.65);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:24px;max-width:460px;width:100%;padding:36px 32px 28px;box-shadow:0 40px 80px -20px rgba(7,54,105,.5);text-align:center;animation:bcIn .3s ease;">
+    <!-- أيقونة -->
+    <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#3F7CB8,#4FA877);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 16px;box-shadow:0 8px 24px rgba(63,124,184,.35);">📢</div>
+    <!-- عنوان -->
+    <div style="font-size:13px;font-weight:700;letter-spacing:.5px;color:#3F7CB8;margin-bottom:20px;text-transform:uppercase;">إشعار من الإدارة</div>
+    <!-- نص الرسالة -->
+    <div id="bc-message" style="font-size:15px;font-weight:500;line-height:2;color:var(--text);margin-bottom:20px;text-align:right;white-space:pre-line;border-right:3px solid #3F7CB8;padding-right:14px;"></div>
+    <!-- التاريخ -->
+    <div style="font-size:12px;color:var(--muted);margin-bottom:24px;display:flex;align-items:center;justify-content:center;gap:6px;">
+      <span>🕐</span><span id="bc-time"></span>
+    </div>
+    <!-- زر -->
+    <button onclick="App.dismissBroadcast()" style="background:linear-gradient(135deg,#3F7CB8,#4FA877);color:#fff;border:none;border-radius:99px;padding:13px 36px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;width:100%;box-shadow:0 4px 16px rgba(63,124,184,.35);transition:opacity .15s;" onmouseenter="this.style.opacity='.9'" onmouseleave="this.style.opacity='1'">حسناً ✓</button>
     <div id="bc-more-indicator" style="margin-top:10px;font-size:12px;color:var(--muted);display:none;"></div>
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;font-size:12px;color:var(--muted);">بوابة دعم التعلم</div>
+    <!-- فوتر -->
+    <div style="margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9;font-size:11px;color:#94a3b8;letter-spacing:.3px;">بوابة دعم التعلم</div>
   </div>
 </div>
 

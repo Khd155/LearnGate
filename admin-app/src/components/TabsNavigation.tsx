@@ -6,10 +6,15 @@ import { cn } from '../lib/cn';
 const BASE_TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'students', label: 'الطلاب', icon: '👥' },
   { key: 'stats', label: 'الإحصائيات', icon: '📊' },
-  { key: 'diff', label: 'مقارنة الإجابات', icon: '🔍' },
   { key: 'conversations', label: 'المحادثات', icon: '💬' },
   { key: 'broadcast', label: 'رسالة جماعية', icon: '📢' },
 ];
+
+const DIFF_TAB: { key: TabKey; label: string; icon: string } = {
+  key: 'diff',
+  label: 'مقارنة الإجابات',
+  icon: '🔍',
+};
 
 const QUESTIONS_TAB: { key: TabKey; label: string; icon: string } = {
   key: 'questions',
@@ -24,9 +29,15 @@ export default function TabsNavigation() {
   const listRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState({ left: 0, width: 0 });
 
+  const canViewDiff =
+    session?.role === 'director' || session?.role === 'dev' || !!session?.permissions?.includes('view_diff');
   const canEditQuestions =
     session?.role === 'director' || session?.role === 'dev' || !!session?.permissions?.includes('edit_questions');
-  const TABS = canEditQuestions ? [...BASE_TABS, QUESTIONS_TAB] : BASE_TABS;
+  const TABS = [
+    ...BASE_TABS,
+    ...(canViewDiff ? [DIFF_TAB] : []),
+    ...(canEditQuestions ? [QUESTIONS_TAB] : []),
+  ];
 
   useEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`);

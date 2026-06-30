@@ -917,17 +917,22 @@ const Dev = {
     const eligible = admins.filter(a => a.role !== 'director');
     if (!eligible.length) { el.innerHTML = '<div class="empty">لا يوجد مشرفون</div>'; return; }
     el.innerHTML = `<table class="data-table">
-      <thead><tr><th>الاسم</th><th>المدرسة</th><th>تعديل الأسئلة</th></tr></thead>
+      <thead><tr><th>الاسم</th><th>المدرسة</th><th>تعديل الأسئلة</th><th>مقارنة الإجابات</th></tr></thead>
       <tbody>${eligible.map(a => {
         let perms = [];
         try { perms = JSON.parse(a.permissions || '[]'); } catch {}
-        const checked = perms.includes('edit_questions') ? 'checked' : '';
+        const chkQ    = perms.includes('edit_questions') ? 'checked' : '';
+        const chkDiff = perms.includes('view_diff')      ? 'checked' : '';
         return `<tr>
           <td>${escapeHtml(a.name)}</td>
           <td>${a.school === '*' ? '<span class="badge badge-super">⭐ كل المدارس</span>' : escapeHtml(a.school || '—')}</td>
           <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-            <input type="checkbox" ${checked} onchange="Dev.togglePermission('${a.id}','edit_questions',this.checked)">
+            <input type="checkbox" ${chkQ} onchange="Dev.togglePermission('${a.id}','edit_questions',this.checked)">
             <span style="font-size:13px;color:var(--muted)">يمكنه إضافة/تعديل/حذف الأسئلة</span>
+          </label></td>
+          <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" ${chkDiff} onchange="Dev.togglePermission('${a.id}','view_diff',this.checked)">
+            <span style="font-size:13px;color:var(--muted)">يمكنه رؤية مقارنة إجابات الطلاب</span>
           </label></td>
         </tr>`;
       }).join('')}</tbody>

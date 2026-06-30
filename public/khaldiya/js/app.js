@@ -464,6 +464,7 @@ const App = {
       show('screen-student-home');
       document.documentElement.style.visibility = '';
       routeHash();
+      setTimeout(() => App._checkBroadcasts(), 1500);
     } catch(e) {
       _restoreBtn();
       document.documentElement.style.visibility = '';
@@ -4121,7 +4122,6 @@ const App = {
     App._broadcastCurrent = b.id;
     const modal = document.getElementById('broadcast-modal');
     if (!modal) return;
-    document.getElementById('bc-admin-name').textContent = 'رسالة من: ' + (b.admin_name || 'المشرف');
     document.getElementById('bc-message').textContent    = b.message;
     document.getElementById('bc-time').textContent       = new Date(b.created_at).toLocaleString('ar-SA',{dateStyle:'medium',timeStyle:'short'});
     const more = document.getElementById('bc-more-indicator');

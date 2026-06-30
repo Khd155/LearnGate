@@ -4099,26 +4099,61 @@ const App = {
         const total = b.total_students || 0;
         const pct   = total ? Math.round(seen / total * 100) : 0;
         const barColor = pct >= 70 ? '#4FA877' : pct >= 30 ? '#f59e0b' : '#ef4444';
+        const badgeBg  = pct >= 70 ? '#dcfce7' : pct >= 30 ? '#fef3c7' : '#fee2e2';
         return `
         <div style="border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;background:var(--bg);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span style="font-size:12.5px;font-weight:700;color:var(--primary);">📢 ${escapeHtml(b.admin_name)}</span>
             <span style="font-size:11px;color:var(--muted);">${new Date(b.created_at).toLocaleString('ar-SA',{dateStyle:'short',timeStyle:'short'})}</span>
           </div>
-          <div style="font-size:14px;line-height:1.7;color:var(--text);margin-bottom:12px;">${escapeHtml(b.message)}</div>
-          <div style="margin-bottom:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-              <span style="font-size:12px;font-weight:600;color:var(--text);">👁 شاهد الرسالة</span>
-              <span style="font-size:12px;font-weight:700;color:${barColor};">${seen} / ${total} طالب (${pct}%)</span>
+          <div style="font-size:14px;line-height:1.7;color:var(--text);margin-bottom:12px;white-space:pre-line;">${escapeHtml(b.message)}</div>
+          <!-- عداد المشاهدات -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 14px;background:${badgeBg};border-radius:10px;cursor:pointer;" onclick="App.openBcViewers('${b.id}',${seen},${total})">
+            <span style="font-size:22px;font-weight:800;color:${barColor};">${seen}</span>
+            <div style="flex:1;">
+              <div style="font-size:12px;color:#64748b;">من <b>${total}</b> طالب شاهدوا الرسالة</div>
+              <div style="height:5px;border-radius:99px;background:rgba(0,0,0,.08);margin-top:4px;overflow:hidden;">
+                <div style="height:100%;border-radius:99px;background:${barColor};width:${pct}%;"></div>
+              </div>
             </div>
-            <div style="height:6px;border-radius:99px;background:var(--border);overflow:hidden;">
-              <div style="height:100%;border-radius:99px;background:${barColor};width:${pct}%;transition:width .4s;"></div>
-            </div>
+            <span style="font-size:13px;font-weight:700;color:${barColor};">${pct}%</span>
+            <span style="font-size:11px;color:#94a3b8;">التفاصيل ›</span>
           </div>
           <button onclick="App.deleteBroadcast('${b.id}')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-family:inherit;font-weight:700;cursor:pointer;">🗑 حذف</button>
         </div>`;
       }).join('');
     } catch { el.innerHTML = '<div style="color:var(--muted);padding:12px;font-size:13px;">تعذّر تحميل السجل</div>'; }
+  },
+
+  async openBcViewers(id, seen, total) {
+    const modal = document.getElementById('bc-viewers-modal');
+    const body  = document.getElementById('bc-viewers-body');
+    const count = document.getElementById('bc-viewers-count');
+    if (!modal) return;
+    count.textContent = `${seen} من ${total} طالب شاهدوا الرسالة`;
+    body.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">جارٍ التحميل…</div>';
+    modal.style.display = 'flex';
+    try {
+      const { viewers } = await apiFetch(`/broadcasts/${id}/viewers`);
+      if (!viewers.length) {
+        body.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">لم يشاهد أحد الرسالة بعد</div>';
+        return;
+      }
+      body.innerHTML = viewers.map((v, i) => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f8fafc;">
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3F7CB8,#4FA877);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;flex-shrink:0;">${i+1}</div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:600;color:#1e293b;">${escapeHtml(v.name)}</div>
+            <div style="font-size:11px;color:#94a3b8;">${new Date(v.seen_at).toLocaleString('ar-SA',{dateStyle:'short',timeStyle:'short'})}</div>
+          </div>
+          <div style="font-size:11px;color:#94a3b8;font-family:monospace;">${escapeHtml(v.code)}</div>
+        </div>`).join('');
+    } catch { body.innerHTML = '<div style="color:#ef4444;padding:12px;font-size:13px;">تعذّر التحميل</div>'; }
+  },
+
+  closeBcViewers() {
+    const m = document.getElementById('bc-viewers-modal');
+    if (m) m.style.display = 'none';
   },
 
   async deleteBroadcast(id) {

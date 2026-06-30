@@ -2168,6 +2168,26 @@ export async function onRequest({ request, env }) {
         }
       }
 
+      // GET /api/broadcasts/:id/viewers — admin: list students who saw this broadcast
+      if (sub && subsub === 'viewers' && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const bc = await DB.prepare('SELECT school FROM broadcasts WHERE id = ?').bind(sub).first();
+        if (!bc) return err('الرسالة غير موجودة', 404, CORS);
+        if (claims.role !== 'dev') {
+          const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
+          if (!effectiveSchool || bc.school !== effectiveSchool) return err('غير مصرح', 401, CORS);
+        }
+        const { results: viewers } = await DB.prepare(`
+          SELECT s.name, s.code, d.created_at AS seen_at
+          FROM broadcast_dismissals d
+          JOIN students s ON s.id = d.student_id
+          WHERE d.broadcast_id = ?
+          ORDER BY d.created_at DESC
+        `).bind(sub).all();
+        return ok({ viewers }, 200, CORS);
+      }
+
       // POST /api/broadcasts/:id/dismiss — student dismisses broadcast
       if (sub && subsub === 'dismiss' && method === 'POST') {
         const claims = await verifyToken(request, env);

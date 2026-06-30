@@ -31,7 +31,7 @@ export default function AddStudentModal({ open, onOpenChange }: Props) {
     const next: { name?: string; code?: string } = {};
     if (!name.trim()) next.name = 'الاسم مطلوب';
     else if (name.length > 100) next.name = 'الاسم طويل جداً (الحد 100 حرف)';
-    if (!/^\d{10}$/.test(code)) next.code = 'رقم السجل المدني يجب أن يكون 10 أرقام';
+    if (!/^\d{10}$/.test(code)) next.code = 'رقم الدخول يجب أن يكون 10 أرقام';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -86,7 +86,7 @@ export default function AddStudentModal({ open, onOpenChange }: Props) {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                رقم السجل المدني
+                رقم الدخول
               </label>
               <input
                 value={code}

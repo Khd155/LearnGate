@@ -398,7 +398,7 @@ const App = {
     const code = document.getElementById('sl-code').value.trim();
     const errEl = document.getElementById('sl-err');
     if (!/^\d{10}$/.test(code)) {
-      showAlert(errEl, 'الرجاء إدخال رقم السجل المدني (١٠ أرقام).'); return;
+      showAlert(errEl, 'الرجاء إدخال رقم الدخول (١٠ أرقام).'); return;
     }
     const _btn = document.getElementById('sl-submit-btn');
     const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.innerHTML = 'دخول ←'; } };
@@ -424,10 +424,10 @@ const App = {
         _restoreBtn(); showAlert(errEl, 'محاولات كثيرة — انتظر دقيقة وأعد المحاولة.'); return;
       }
       if (status === 400 || msg.includes('غير صالح')) {
-        _restoreBtn(); showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
+        _restoreBtn(); showAlert(errEl, 'رقم الدخول يجب أن يكون ١٠ أرقام إنجليزية.'); return;
       }
       if (status === 401 || msg.includes('غير صحيحة')) {
-        _restoreBtn(); showAlert(errEl, 'بيانات الدخول غير صحيحة — تحقق من رقم السجل المدني.'); return;
+        _restoreBtn(); showAlert(errEl, 'بيانات الدخول غير صحيحة — تحقق من رقم الدخول.'); return;
       }
       if (msg.includes('TIMEOUT')) {
         _restoreBtn(); showAlert(errEl, 'انتهت مهلة الاتصال — تحقق من الإنترنت وأعد المحاولة.'); return;
@@ -477,7 +477,7 @@ const App = {
     const code  = document.getElementById('al-code').value.trim();
     const errEl = document.getElementById('al-err');
     if (!/^\d{10}$/.test(code)) {
-      showAlert(errEl, 'الرجاء إدخال رقم السجل المدني (١٠ أرقام).'); return;
+      showAlert(errEl, 'الرجاء إدخال رقم الدخول (١٠ أرقام).'); return;
     }
     const _btn = document.getElementById('al-submit-btn');
     const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.innerHTML = 'دخول ←'; } };
@@ -506,10 +506,10 @@ const App = {
         _restoreBtn(); showAlert(errEl, 'هذا الرمز غير مصرح له بالدخول على هذه المدرسة.'); return;
       }
       if (status === 400 || msg.includes('غير صالح')) {
-        _restoreBtn(); showAlert(errEl, 'رقم السجل المدني يجب أن يكون ١٠ أرقام إنجليزية.'); return;
+        _restoreBtn(); showAlert(errEl, 'رقم الدخول يجب أن يكون ١٠ أرقام إنجليزية.'); return;
       }
       if (status === 401 || msg.includes('غير صحيحة')) {
-        _restoreBtn(); showAlert(errEl, 'بيانات الدخول غير صحيحة — تحقق من رقم السجل المدني.'); return;
+        _restoreBtn(); showAlert(errEl, 'بيانات الدخول غير صحيحة — تحقق من رقم الدخول.'); return;
       }
       if (msg.includes('TIMEOUT')) {
         _restoreBtn(); showAlert(errEl, 'انتهت مهلة الاتصال — تحقق من الإنترنت وأعد المحاولة.'); return;

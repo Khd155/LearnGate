@@ -633,9 +633,10 @@ export async function onRequest({ request, env }) {
             }
           }
           const sd = (selfDiag && typeof selfDiag === 'object') ? selfDiag : {};
-          gaps = Object.entries(scores).map(([skillId, s]) => {
+          // Always include ALL defined skills — even if no questions exist for that skill in the bank
+          gaps = Object.entries(SKILL_META).map(([skillId, meta]) => {
+            const s     = scores[skillId] || { correct: 0, total: 0 };
             const pct   = s.total ? Math.round((s.correct / s.total) * 100) : 0;
-            const meta  = SKILL_META[skillId] || { name: skillId, category: 'verbal' };
             const self  = sd[skillId] || 'need';
             const level = pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low';
             const overconfident = self === 'mastered' && level === 'low';

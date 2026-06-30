@@ -157,6 +157,7 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
 
   // Second-level popup state
   const [detailPlan, setDetailPlan] = useState<{ plan: Plan; index: number } | null>(null);
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!student) return;
@@ -209,6 +210,19 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
       pushToast('error', e instanceof Error ? e.message : 'فشل إعادة تعيين الاختبار');
     } finally {
       setResetting(false);
+    }
+  };
+
+  const deletePlan = async (planId: string) => {
+    setDeletingPlanId(planId);
+    try {
+      await api.delete(`/plans/${planId}`);
+      setHistory((prev) => prev ? prev.filter((p) => p.id !== planId) : prev);
+      pushToast('success', 'تم حذف الاختبار');
+    } catch (e) {
+      pushToast('error', e instanceof Error ? e.message : 'فشل حذف الاختبار');
+    } finally {
+      setDeletingPlanId(null);
     }
   };
 
@@ -358,6 +372,19 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
                             👁 عرض
                           </button>
                         )}
+
+                        {/* Delete button */}
+                        <button
+                          type="button"
+                          disabled={deletingPlanId === p.id}
+                          onClick={() => {
+                            if (confirm(`حذف اختبار قدرات ${attemptNumber}؟ لا يمكن التراجع عن هذا الإجراء.`))
+                              deletePlan(p.id);
+                          }}
+                          className="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:opacity-40 dark:bg-rose-950/40 dark:text-rose-400"
+                        >
+                          {deletingPlanId === p.id ? '…' : '🗑'}
+                        </button>
                       </div>
                     );
                   })}

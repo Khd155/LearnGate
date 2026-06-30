@@ -562,6 +562,21 @@ export async function onRequest({ request, env }) {
         return ok({ plans: results.map(r => ({ ...r, gaps: JSON.parse(r.gaps || '[]') })) }, 200, CORS);
       }
 
+      // DELETE /api/plans/:id — admin/director: delete a single plan (scoped to their school)
+      if (method === 'DELETE' && sub && sub !== 'history') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const target = await DB.prepare('SELECT student_name, school FROM plans WHERE id = ?').bind(sub).first();
+        if (!target) return err('الخطة غير موجودة', 404, CORS);
+        if (claims.role !== 'dev') {
+          const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
+          if (!effectiveSchool || target.school !== effectiveSchool) return err('غير مصرح', 401, CORS);
+        }
+        await DB.prepare('DELETE FROM plans WHERE id = ?').bind(sub).run();
+        await logEvent(DB, { level: 'warn', category: 'test-management', message: `حذف اختبار قدرات للطالب: ${target.student_name}`, user_name: claims.name || '', user_role: claims.role, school: target.school || '' });
+        return ok({ ok: true }, 200, CORS);
+      }
+
       if (method === 'GET') {
         const claims = await verifyToken(request, env);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);

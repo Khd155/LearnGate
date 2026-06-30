@@ -1690,21 +1690,71 @@ const Dev = {
         if (!ex || r.created_at > ex.created_at) map.set(r.student_id, r);
       }
     } else {
-      // aptitude: filter by test_num if selected, then latest per student
+      // ── Aptitude: student-list view with expandable per-question detail ──
       const testNum = document.getElementById('diff-apt-test-filter')?.value || '';
-      if (!testNum) {
-        wrap.innerHTML = '<div class="empty">اختر رقم الاختبار (1-6) للعرض</div>';
-        countEl.textContent = '';
-        legend.style.display = 'none';
-        return;
-      }
+      const seen = new Map();
       for (const r of source) {
-        if (String(r.test_num) !== testNum) continue;
+        if (testNum && String(r.test_num) !== testNum) continue;
         if (school && r.school !== school) continue;
         if (!r.answers?.length) continue;
-        const ex = map.get(r.student_id);
-        if (!ex || r.created_at > ex.created_at) map.set(r.student_id, r);
+        const key = testNum ? r.student_id : `${r.student_id}_${r.test_num}`;
+        const ex = seen.get(key);
+        if (!ex || r.created_at > ex.created_at) seen.set(key, r);
       }
+      const rows = [...seen.values()].sort((a, b) => {
+        const nc = a.student_name.localeCompare(b.student_name, 'ar');
+        return nc !== 0 ? nc : (Number(a.test_num) || 0) - (Number(b.test_num) || 0);
+      });
+      if (!rows.length) {
+        wrap.innerHTML = '<div class="empty">لا توجد نتائج لاختبار القدرات</div>';
+        countEl.textContent = ''; legend.style.display = 'none'; return;
+      }
+      countEl.textContent = `${rows.length} طالب`;
+      legend.style.display = 'none';
+      let aptHtml = '<div style="display:flex;flex-direction:column;gap:6px">';
+      rows.forEach((r) => {
+        const scoreColor = r.score >= 70 ? '#34d399' : r.score >= 50 ? '#fbbf24' : '#f87171';
+        const ansList = [...(r.answers || [])].sort((a, b) => Number(a.q) - Number(b.q));
+        const correctCount = ansList.filter(a => a.a !== null && String(a.a) === String(a.corr)).length;
+        const uid = 'apt_' + Math.random().toString(36).slice(2, 9);
+        const qRows = ansList.map(a => {
+          const ok = a.a !== null && String(a.a) === String(a.corr);
+          const sLetter = a.a === null || a.a === undefined ? '—' : (LETTER[Number(a.a)] ?? String(a.a));
+          const cLetter = LETTER[Number(a.corr)] ?? (a.corr != null ? String(a.corr) : '—');
+          const sColor  = ok ? '#34d399' : (a.a === null || a.a === undefined) ? '#475569' : '#f87171';
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:6px 12px;text-align:center;font-weight:700;color:var(--fg)">${a.q}</td>
+            <td style="padding:6px 12px;text-align:center;font-weight:700;color:#34d399">${cLetter}</td>
+            <td style="padding:6px 12px;text-align:center;font-weight:700;color:${sColor}">${sLetter}</td>
+            <td style="padding:6px 12px;text-align:center;font-size:15px">${ok ? '✅' : (a.a === null || a.a === undefined ? '—' : '❌')}</td>
+          </tr>`;
+        }).join('');
+        aptHtml += `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)">
+          <div onclick="var d=document.getElementById('${uid}');var open=d.style.display!=='none';d.style.display=open?'none':'block';this.querySelector('[data-arr]').textContent=open?'▼':'▲'"
+               style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;user-select:none">
+            <div style="font-weight:700;font-size:13px;color:var(--fg);flex:1">${escapeHtml(r.student_name)}</div>
+            <div style="font-size:12px;color:var(--muted)">${escapeHtml(r.school || '')}</div>
+            ${!testNum ? `<div style="font-size:11px;background:var(--surface2);padding:2px 8px;border-radius:99px;color:var(--muted);white-space:nowrap">اختبار ${r.test_num}</div>` : ''}
+            <div style="font-weight:700;color:${scoreColor};font-size:13px;min-width:38px;text-align:left">${r.score != null ? r.score + '%' : correctCount + '/' + ansList.length}</div>
+            <div style="font-size:11px;color:var(--muted)">${correctCount}/${ansList.length}</div>
+            <span data-arr style="color:var(--muted);font-size:11px;min-width:12px;text-align:center">▼</span>
+          </div>
+          <div id="${uid}" style="display:none;border-top:1px solid var(--border)">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr style="background:var(--surface2)">
+                <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600;font-size:11px">رقم السؤال</th>
+                <th style="padding:8px 12px;text-align:center;color:#34d399;font-weight:700;font-size:11px">✓ الإجابة الصحيحة</th>
+                <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600;font-size:11px">إجابة الطالب</th>
+                <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600;font-size:11px">النتيجة</th>
+              </tr></thead>
+              <tbody>${qRows}</tbody>
+            </table>
+          </div>
+        </div>`;
+      });
+      aptHtml += '</div>';
+      wrap.innerHTML = aptHtml;
+      return;
     }
     const students = [...map.values()].sort((a, b) => a.student_name.localeCompare(b.student_name, 'ar'));
 

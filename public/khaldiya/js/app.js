@@ -3264,29 +3264,41 @@ const App = {
 
   // ── Chat: WhatsApp-style split layout ───────────────────────────────────
   _chatContacts: [],   // list shown in sidebar
+  _chatIsModal: false, // true when student uses the compact modal widget
 
-  // Student: open chat screen and load supervisors of this school
+  // Student: open chat as a modal card widget (not full-screen)
   async goToChat() {
-    const title = document.getElementById('chat-topbar-title');
-    if (title) title.textContent = 'التواصل مع المشرف';
-    show('screen-chat');
-    App._chatShowSidebar();
-    const contacts = document.getElementById('wachat-contacts');
-    contacts.innerHTML = '<div class="wachat-loading">جارٍ التحميل…</div>';
+    App._chatIsModal = true;
+    const modal = document.getElementById('student-chat-modal');
+    if (modal) modal.style.display = 'flex';
+    const msgs = document.getElementById('schat-messages');
+    if (msgs) msgs.innerHTML = '<div class="chat-empty">جارٍ التحميل…</div>';
     let admins = [];
     try {
       const data = await apiFetch(`/admins?school=${encodeURIComponent(State.school || '')}`);
       admins = (data.admins || []).filter(a => a.school === State.school || a.school === '*');
     } catch {}
-    App._chatContacts = admins.map(a => ({ id: a.id, name: a.name, role: 'admin' }));
     if (!admins.length) {
-      contacts.innerHTML = '<div class="wachat-loading">لا يوجد مشرفون في هذه المدرسة</div>';
+      if (msgs) msgs.innerHTML = '<div class="chat-empty">لا يوجد مشرفون في هذه المدرسة حالياً</div>';
       return;
     }
-    App._chatRenderContacts(admins.map(a => ({ id: a.id, name: a.name, sub: 'مشرف' })));
+    const admin = admins[0];
+    State.chatAdminId   = admin.id;
+    State.chatAdminName = 'المشرف';
+    State.chatStudentId = null;
+    App._chatMsgCount = 0;
+    App.loadChatMessages();
     App.startChatPoll();
-    // Auto-open first if only one
-    if (admins.length === 1) App.openChatWithAdmin(admins[0].id, admins[0].name);
+  },
+
+  closeStudentChatModal() {
+    clearInterval(App._chatTimer);
+    App._chatTimer = null;
+    App._chatIsModal = false;
+    const modal = document.getElementById('student-chat-modal');
+    if (modal) modal.style.display = 'none';
+    const badge = document.getElementById('chat-unread-badge');
+    if (badge) badge.style.display = 'none';
   },
 
   // Admin: open chat screen and load students who have messages
@@ -3432,7 +3444,7 @@ const App = {
   },
 
   async loadChatMessages() {
-    const el = document.getElementById('chat-messages');
+    const el = document.getElementById(App._chatIsModal ? 'schat-messages' : 'chat-messages');
     if (!el) return;
     let msgs = [], readPatch = null;
 
@@ -3477,9 +3489,9 @@ const App = {
   startChatPoll() {
     clearInterval(App._chatTimer);
     App._chatTimer = setInterval(async () => {
-      if (!document.getElementById('screen-chat').classList.contains('active')) {
-        clearInterval(App._chatTimer); return;
-      }
+      const screenActive = document.getElementById('screen-chat').classList.contains('active');
+      const modalActive  = App._chatIsModal && document.getElementById('student-chat-modal')?.style.display !== 'none';
+      if (!screenActive && !modalActive) { clearInterval(App._chatTimer); return; }
       try {
         let count = 0;
         if ((State.role === 'admin' || State.role === 'director') && State.chatStudentId) {
@@ -3498,7 +3510,7 @@ const App = {
   },
 
   async sendChatMsg() {
-    const input = document.getElementById('chat-input');
+    const input = document.getElementById(App._chatIsModal ? 'schat-input' : 'chat-input');
     const body  = input.value.trim();
     if (!body) return;
     input.value = '';

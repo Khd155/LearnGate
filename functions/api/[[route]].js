@@ -4,7 +4,7 @@ import { getDB } from '../_lib/db.js';
 import { listTestResults, deleteSingleTestResult, resetStudentTestResults, resetSchoolTestResults, grantRetakeForSchool } from '../_lib/test-management.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
-const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'https://learngate.pages.dev', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
+const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
 // Requests whose Origin matches the host actually being requested are same-origin
 // (e.g. CranL's auto-generated preview subdomains, which change on every deploy)
 // and are always safe to allow, regardless of the static whitelist above.
@@ -330,6 +330,7 @@ export async function onRequest({ request, env }) {
         if (Object.keys(rawAdminBody).some(k => !['code','school'].includes(k))) return err('حقول غير مسموحة', 400, CORS);
         const { code: adminCode, school: bodySchool } = rawAdminBody;
         if (!adminCode || !/^\d{10}$/.test(adminCode)) return err('رمز غير صالح', 400, CORS);
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN permissions TEXT DEFAULT '[]'").run(); } catch {}
         const admin = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(adminCode).first();
         const sc = bodySchool || school;
         if (!admin || (admin.school !== '*' && sc && admin.school !== sc)) {
@@ -342,9 +343,11 @@ export async function onRequest({ request, env }) {
         const adminName = admin.admin_name || admin.name || '';
         // Normalize role: only 'director' keeps its value, everything else becomes 'admin'
         const adminRole = admin.role === 'director' ? 'director' : 'admin';
-        const token = await jwtSign({ sub: admin.id, role: adminRole, name: adminName, school: admin.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
+        let permissions = [];
+        try { permissions = JSON.parse(admin.permissions || '[]'); } catch {}
+        const token = await jwtSign({ sub: admin.id, role: adminRole, name: adminName, school: admin.school, permissions, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
         await logEvent(DB, { level: 'success', category: 'login', message: `تسجيل دخول ${adminRole==='director'?'مدير':'مشرف'}`, user_name: adminName, user_role: adminRole, school: admin.school || '', ip });
-        return ok({ token, admin: { id: admin.id, name: adminName, school: admin.school, role: adminRole } }, 200, CORS);
+        return ok({ token, admin: { id: admin.id, name: adminName, school: admin.school, role: adminRole, permissions } }, 200, CORS);
       }
 
       // POST /api/auth/dev
@@ -998,7 +1001,7 @@ export async function onRequest({ request, env }) {
 
       if (method === 'GET') {
         const claims = await verifyToken(request, env);
-        const isPrivileged = claims && (claims.role === 'admin' || claims.role === 'director' || claims.role === 'dev');
+        const isPrivileged = (claims && (claims.role === 'admin' || claims.role === 'director' || claims.role === 'dev')) || authDev(request, env);
         const { results } = await DB.prepare('SELECT * FROM questions ORDER BY qnum ASC').all();
         return ok({ questions: results.map(r => {
           if (isPrivileged) return r;
@@ -1009,7 +1012,9 @@ export async function onRequest({ request, env }) {
 
       if (method === 'POST') {
         const qClaims = await verifyToken(request, env);
-        if (!qClaims || !['admin','director','dev'].includes(qClaims.role)) return err('غير مصرح', 401, CORS);
+        const qCanEdit = qClaims && (qClaims.role === 'director' || qClaims.role === 'dev' ||
+          (qClaims.role === 'admin' && Array.isArray(qClaims.permissions) && qClaims.permissions.includes('edit_questions')));
+        if (!qCanEdit) return err('غير مصرح', 401, CORS);
         const { action = 'append', questions: rows } = await request.json();
         if (action === 'replace') await DB.prepare('DELETE FROM questions').run();
         const { results: existing } = await DB.prepare('SELECT qnum FROM questions').all();
@@ -1025,6 +1030,31 @@ export async function onRequest({ request, env }) {
         }
         await logEvent(DB, { level: 'info', category: 'questions', message: `استيراد أسئلة (${action === 'replace' ? 'استبدال' : 'إضافة'}) — ${fresh.length} مضافة`, user_name: qClaims.name || '', user_role: qClaims.role, school: qClaims.school || '' });
         return ok({ added: fresh.length, skipped: rows.length - fresh.length }, 200, CORS);
+      }
+
+      // PATCH /api/questions/:id — edit a single question (director/dev, or admin with edit_questions permission)
+      if (sub && method === 'PATCH') {
+        const claims = await verifyToken(request, env);
+        const canEdit = claims && (claims.role === 'director' || claims.role === 'dev' ||
+          (claims.role === 'admin' && Array.isArray(claims.permissions) && claims.permissions.includes('edit_questions')));
+        if (!canEdit) return err('غير مصرح', 401, CORS);
+        const { qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans } = await request.json();
+        await DB.prepare(
+          'UPDATE questions SET qnum=?,type=?,skill_id=?,text=?,opt1=?,opt2=?,opt3=?,opt4=?,ans=? WHERE id=?'
+        ).bind(qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans, sub).run();
+        await logEvent(DB, { level: 'info', category: 'questions', message: `تعديل سؤال رقم ${qnum}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // DELETE /api/questions/:id — delete a single question (director/dev, or admin with edit_questions permission)
+      if (sub && method === 'DELETE') {
+        const claims = await verifyToken(request, env);
+        const canEdit = claims && (claims.role === 'director' || claims.role === 'dev' ||
+          (claims.role === 'admin' && Array.isArray(claims.permissions) && claims.permissions.includes('edit_questions')));
+        if (!canEdit) return err('غير مصرح', 401, CORS);
+        await DB.prepare('DELETE FROM questions WHERE id = ?').bind(sub).run();
+        await logEvent(DB, { level: 'warn', category: 'questions', message: `حذف سؤال`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
+        return ok({ ok: true }, 200, CORS);
       }
     }
 
@@ -1237,6 +1267,16 @@ export async function onRequest({ request, env }) {
       // DELETE /api/dev/admins/:id
       if (sub === 'admins' && subsub && method === 'DELETE') {
         await DB.prepare('DELETE FROM admins WHERE id = ?').bind(subsub).run();
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // PATCH /api/dev/admins/:id — update permissions (dev only)
+      if (sub === 'admins' && subsub && method === 'PATCH') {
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN permissions TEXT DEFAULT '[]'").run(); } catch {}
+        const { permissions } = await request.json();
+        if (!Array.isArray(permissions)) return err('صلاحيات غير صالحة', 400, CORS);
+        await DB.prepare('UPDATE admins SET permissions = ? WHERE id = ?').bind(JSON.stringify(permissions), subsub).run();
+        await logEvent(DB, { level: 'info', category: 'admin', message: `تعديل صلاحيات مشرف`, user_role: 'dev' });
         return ok({ ok: true }, 200, CORS);
       }
 

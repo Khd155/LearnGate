@@ -287,6 +287,7 @@
         <button class="tab-btn active" data-tab="overview"  onclick="Dev.setTab('overview')"><span class="tab-ic">📊</span> نظرة عامة</button>
         <button class="tab-btn"        data-tab="students"  onclick="Dev.setTab('students')"><span class="tab-ic">👥</span> الطلاب</button>
         <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')"><span class="tab-ic">🏫</span> المدارس والمشرفون</button>
+        <button class="tab-btn"        data-tab="permissions" onclick="Dev.setTab('permissions')"><span class="tab-ic">🔐</span> الصلاحيات</button>
         <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')"><span class="tab-ic">📝</span> الأسئلة</button>
         <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')"><span class="tab-ic">🧰</span> الأدوات</button>
         <button class="tab-btn"        data-tab="test-mgmt" onclick="Dev.setTab('test-mgmt')"><span class="tab-ic">🧪</span> إدارة الاختبارات</button>
@@ -437,6 +438,17 @@
       <div class="section">
         <div class="section-title"><span>📋</span> قائمة المشرفين</div>
         <div id="admins-list"><div class="empty">جارٍ التحميل...</div></div>
+      </div>
+    </div>
+
+    <!-- ── Permissions ── -->
+    <div id="tab-permissions" class="tab-pane">
+      <div class="section">
+        <div class="section-title"><span>🔐</span> صلاحيات المشرفين</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
+          فعّل صلاحية "تعديل الأسئلة" لمشرف معين ليظهر له تبويب الأسئلة في لوحته، ويتمكن من إضافة/تعديل/حذف الأسئلة.
+        </div>
+        <div id="permissions-list"><div class="empty">جارٍ التحميل...</div></div>
       </div>
     </div>
 
@@ -772,6 +784,7 @@ const Dev = {
     if (tab === 'support')   { Dev.setSupportTab('tickets'); return; }
     if (tab === 'analytics') { Dev.loadAnalytics(); return; }
     if (tab === 'test-mgmt') { Dev.loadTestResults(); Dev.loadAptitudePlans(); return; }
+    if (tab === 'permissions') { Dev.loadPermissions(); return; }
   },
 
   async loadAll() {
@@ -856,10 +869,48 @@ const Dev = {
     </table>`;
   },
 
+  async loadPermissions() {
+    const { admins } = await apiDev('/dev/admins');
+    const el = document.getElementById('permissions-list');
+    const eligible = admins.filter(a => a.role !== 'director');
+    if (!eligible.length) { el.innerHTML = '<div class="empty">لا يوجد مشرفون</div>'; return; }
+    el.innerHTML = `<table class="data-table">
+      <thead><tr><th>الاسم</th><th>المدرسة</th><th>تعديل الأسئلة</th></tr></thead>
+      <tbody>${eligible.map(a => {
+        let perms = [];
+        try { perms = JSON.parse(a.permissions || '[]'); } catch {}
+        const checked = perms.includes('edit_questions') ? 'checked' : '';
+        return `<tr>
+          <td>${escapeHtml(a.name)}</td>
+          <td>${a.school === '*' ? '<span class="badge badge-super">⭐ كل المدارس</span>' : escapeHtml(a.school || '—')}</td>
+          <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" ${checked} onchange="Dev.togglePermission('${a.id}','edit_questions',this.checked)">
+            <span style="font-size:13px;color:var(--muted)">يمكنه إضافة/تعديل/حذف الأسئلة</span>
+          </label></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  },
+
+  async togglePermission(adminId, perm, enabled) {
+    const { admins } = await apiDev('/dev/admins');
+    const admin = admins.find(a => a.id === adminId);
+    let perms = [];
+    try { perms = JSON.parse(admin?.permissions || '[]'); } catch {}
+    perms = enabled ? Array.from(new Set([...perms, perm])) : perms.filter(p => p !== perm);
+    try {
+      await apiDev('/dev/admins/' + adminId, { method: 'PATCH', body: JSON.stringify({ permissions: perms }) });
+      showToast('تم تحديث الصلاحيات ✅');
+    } catch (e) {
+      showToast('فشل تحديث الصلاحيات: ' + e.message, true);
+      Dev.loadPermissions();
+    }
+  },
+
   _allQuestions: [],
 
   async loadQuestions() {
-    const qres = await fetch(API + '/questions').then(r => r.json()).catch(() => ({ questions: [] }));
+    const qres = await apiDev('/questions').catch(() => ({ questions: [] }));
     const qs = qres.questions || [];
     Dev._allQuestions = qs;
     document.getElementById('q-count').textContent  = qs.length;

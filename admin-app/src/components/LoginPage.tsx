@@ -5,7 +5,7 @@ import type { Session } from '../types';
 
 interface LoginResponse {
   token: string;
-  admin: { id: string; name: string; school: string; role: string };
+  admin: { id: string; name: string; school: string; role: string; permissions?: string[] };
 }
 
 export default function LoginPage() {
@@ -30,6 +30,7 @@ export default function LoginPage() {
         code: admin.id,
         name: admin.name,
         school: admin.school,
+        permissions: admin.permissions || [],
       };
       localStorage.setItem('lg_xsession_admin', JSON.stringify(session));
       initSession();

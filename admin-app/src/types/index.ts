@@ -7,6 +7,7 @@ export interface Session {
   school: string;
   token: string;
   expiry: number;
+  permissions?: string[];
 }
 
 export interface Student {

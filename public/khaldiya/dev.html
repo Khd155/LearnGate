@@ -883,27 +883,25 @@ const Dev = {
     const skillCount = {};
     all.forEach(q => { skillCount[q.skill_id] = (skillCount[q.skill_id]||0)+1; });
 
-    const skillChips = Object.entries(Dev._SKILL_NAMES).map(([sid, name]) => {
-      const cnt = skillCount[sid] || 0;
-      const active = Dev._activeSkillFilter === sid;
-      const color = sid.startsWith('v') ? '#3b82f6' : '#a855f7';
-      return `<button onclick="Dev.setSkillFilter('${sid}')"
-        style="border:1.5px solid ${active?color:'var(--border2)'};background:${active?color+'22':'transparent'};color:${active?color:'var(--muted)'};border-radius:8px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap">
-        ${sid.toUpperCase()} ${name} <span style="background:rgba(255,255,255,.12);border-radius:99px;padding:1px 6px;font-weight:700">${cnt}</span>
-      </button>`;
-    }).join('');
+    const skillOpts = `<option value="">كل المهارات</option>
+      <optgroup label="── لفظي ──">
+        ${['v1','v2','v3','v4','v5'].map(sid=>`<option value="${sid}" ${Dev._activeSkillFilter===sid?'selected':''}>${Dev._SKILL_NAMES[sid]} (${skillCount[sid]||0})</option>`).join('')}
+      </optgroup>
+      <optgroup label="── كمي ──">
+        ${['q1','q2','q3','q4','q5'].map(sid=>`<option value="${sid}" ${Dev._activeSkillFilter===sid?'selected':''}>${Dev._SKILL_NAMES[sid]} (${skillCount[sid]||0})</option>`).join('')}
+      </optgroup>`;
 
     wrap.innerHTML = `
-      <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <input id="q-search" class="search-input" placeholder="🔍 بحث..." oninput="Dev.filterQuestions()" style="max-width:220px;padding:7px 12px">
+      <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input id="q-search" class="search-input" placeholder="🔍 بحث..." oninput="Dev.filterQuestions()" style="max-width:200px;padding:7px 12px">
         <select id="q-type-filter" class="form-select" style="width:auto;padding:7px 12px;font-size:13px" onchange="Dev.filterQuestions()">
           <option value="">كل الأنواع</option>
           <option value="verbal">📚 لفظي</option>
           <option value="quantitative">🔢 كمي</option>
         </select>
+        <select id="q-skill-filter" class="form-select" style="width:auto;padding:7px 12px;font-size:13px" onchange="Dev._activeSkillFilter=this.value;Dev.filterQuestions()">${skillOpts}</select>
         <span style="font-size:12px;color:var(--muted)">${qs.length} سؤال — اضغط لتعديل</span>
       </div>
-      <div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap">${skillChips}</div>
       <div style="max-height:540px;overflow-y:auto;border-radius:10px;border:1px solid var(--border)">
       <table class="data-table" id="q-table">
         <thead style="position:sticky;top:0;z-index:5">

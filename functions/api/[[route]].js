@@ -2430,9 +2430,10 @@ export async function onRequest({ request, env }) {
         })) }, 200, CORS);
       }
 
-      // GET /api/general-tests/results?studentId=...&testNum=N — admin: per-student or all results
+      // GET /api/general-tests/results?studentId=...&testNum=N — admin/dev: per-student or all results
       if (sub === 'results' && method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const isDevKey = authDev(request, env);
+        const claims = isDevKey ? { role: 'dev' } : await verifyToken(request, env);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const studentId = url.searchParams.get('studentId');
         const filterTest = url.searchParams.get('testNum');
@@ -2440,7 +2441,7 @@ export async function onRequest({ request, env }) {
         const params = [];
         if (studentId) { query += ' AND student_id = ?'; params.push(studentId); }
         if (filterTest) { query += ' AND test_num = ?'; params.push(Number(filterTest)); }
-        query += ' ORDER BY created_at DESC LIMIT 200';
+        query += ' ORDER BY created_at DESC LIMIT 2000';
         const stmt = DB.prepare(query);
         const bound = params.length ? stmt.bind(...params) : stmt;
         const { results } = await bound.all();

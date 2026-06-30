@@ -609,9 +609,20 @@
       <div class="section">
         <div class="section-title">
           <span>🔍</span> مقارنة إجابات الطلاب
-          <div style="margin-right:auto;display:flex;gap:8px;align-items:center">
+          <div style="margin-right:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button id="diff-src-bio-btn" class="btn btn-primary btn-sm" onclick="Dev.setDiffSource('bio')">🧬 أحياء</button>
+            <button id="diff-src-apt-btn" class="btn btn-sm" style="background:var(--surface2);color:var(--muted)" onclick="Dev.setDiffSource('apt')">🧠 القدرات</button>
             <button id="diff-pre-btn"  class="btn btn-primary  btn-sm" onclick="Dev.setDiffType('pre')">📋 قبلي</button>
             <button id="diff-post-btn" class="btn btn-sm" style="background:var(--surface2);color:var(--muted)" onclick="Dev.setDiffType('post')">🏁 بعدي</button>
+            <select id="diff-apt-test-filter" class="form-select" style="display:none;width:auto;font-size:13px;padding:6px 12px" onchange="Dev.renderDiff()">
+              <option value="">كل الاختبارات</option>
+              <option value="1">اختبار 1</option>
+              <option value="2">اختبار 2</option>
+              <option value="3">اختبار 3</option>
+              <option value="4">اختبار 4</option>
+              <option value="5">اختبار 5</option>
+              <option value="6">اختبار 6</option>
+            </select>
             <select id="diff-school-filter" class="form-select" style="width:auto;font-size:13px;padding:6px 12px" onchange="Dev.renderDiff()">
               <option value="">كل المدارس</option>
             </select>
@@ -1605,7 +1616,9 @@ const Dev = {
 
   // ── Diff Tab ─────────────────────────────────────────────────────────────
   _diffResults: [],
+  _diffAptResults: [],
   _diffType: 'pre',
+  _diffSource: 'bio',
 
   async loadDiff() {
     const wrap = document.getElementById('diff-table-wrap');
@@ -1613,16 +1626,36 @@ const Dev = {
     wrap.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
     countEl.textContent = '';
     try {
-      const { results } = await apiDev('/test-results?withAnswers=1');
-      Dev._diffResults = results || [];
-      // populate school filter
+      const [bioRes, aptRes] = await Promise.all([
+        apiDev('/test-results?withAnswers=1'),
+        apiDev('/general-tests/results'),
+      ]);
+      Dev._diffResults    = bioRes.results || [];
+      Dev._diffAptResults = aptRes.results || [];
+      // populate school filter from both sources
+      const allRows = [...Dev._diffResults, ...Dev._diffAptResults];
+      const schools = [...new Set(allRows.map(r => r.school).filter(Boolean))].sort();
       const sel = document.getElementById('diff-school-filter');
-      const schools = [...new Set(Dev._diffResults.map(r => r.school).filter(Boolean))].sort();
       sel.innerHTML = '<option value="">كل المدارس</option>' + schools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
       Dev.renderDiff();
     } catch (e) {
       wrap.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
     }
+  },
+
+  setDiffSource(src) {
+    Dev._diffSource = src;
+    const bioActive = src === 'bio';
+    // source buttons
+    document.getElementById('diff-src-bio-btn').className = 'btn btn-sm' + (bioActive  ? ' btn-primary' : '');
+    document.getElementById('diff-src-apt-btn').className = 'btn btn-sm' + (!bioActive ? ' btn-primary' : '');
+    document.getElementById('diff-src-bio-btn').style.cssText = bioActive  ? '' : 'background:var(--surface2);color:var(--muted)';
+    document.getElementById('diff-src-apt-btn').style.cssText = !bioActive ? '' : 'background:var(--surface2);color:var(--muted)';
+    // bio/apt specific controls
+    document.getElementById('diff-pre-btn').style.display         = bioActive ? '' : 'none';
+    document.getElementById('diff-post-btn').style.display        = bioActive ? '' : 'none';
+    document.getElementById('diff-apt-test-filter').style.display = bioActive ? 'none' : '';
+    Dev.renderDiff();
   },
 
   setDiffType(type) {
@@ -1640,17 +1673,37 @@ const Dev = {
     const legend  = document.getElementById('diff-legend');
     const school  = document.getElementById('diff-school-filter')?.value || '';
     const LETTER  = { 1: 'أ', 2: 'ب', 3: 'ج', 4: 'د' };
+    const isBio   = Dev._diffSource !== 'apt';
+    const source  = isBio ? Dev._diffResults : Dev._diffAptResults;
 
-    if (!Dev._diffResults.length) { wrap.innerHTML = '<div class="empty">لا توجد بيانات — اضغط 🔄 للتحميل</div>'; return; }
+    if (!source.length) { wrap.innerHTML = '<div class="empty">لا توجد بيانات — اضغط 🔄 للتحميل</div>'; return; }
 
-    // latest result per student for selected type + school
     const map = new Map();
-    for (const r of Dev._diffResults) {
-      if (r.test_type !== Dev._diffType) continue;
-      if (school && r.school !== school) continue;
-      if (!r.answers?.length) continue;
-      const ex = map.get(r.student_id);
-      if (!ex || r.created_at > ex.created_at) map.set(r.student_id, r);
+    if (isBio) {
+      // biology: filter by test_type (pre/post)
+      for (const r of source) {
+        if (r.test_type !== Dev._diffType) continue;
+        if (school && r.school !== school) continue;
+        if (!r.answers?.length) continue;
+        const ex = map.get(r.student_id);
+        if (!ex || r.created_at > ex.created_at) map.set(r.student_id, r);
+      }
+    } else {
+      // aptitude: filter by test_num if selected, then latest per student
+      const testNum = document.getElementById('diff-apt-test-filter')?.value || '';
+      if (!testNum) {
+        wrap.innerHTML = '<div class="empty">اختر رقم الاختبار (1-6) للعرض</div>';
+        countEl.textContent = '';
+        legend.style.display = 'none';
+        return;
+      }
+      for (const r of source) {
+        if (String(r.test_num) !== testNum) continue;
+        if (school && r.school !== school) continue;
+        if (!r.answers?.length) continue;
+        const ex = map.get(r.student_id);
+        if (!ex || r.created_at > ex.created_at) map.set(r.student_id, r);
+      }
     }
     const students = [...map.values()].sort((a, b) => a.student_name.localeCompare(b.student_name, 'ar'));
 

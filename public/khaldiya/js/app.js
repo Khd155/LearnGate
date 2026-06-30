@@ -4149,6 +4149,24 @@ const App = {
       const data = await apiFetch(`/broadcasts/active?school=${sc}`);
       const list = (data.broadcasts || []).filter(b => b.id !== App._broadcastCurrent && !App._broadcastQueue.find(q => q.id === b.id));
       if (list.length) {
+        // أضف كل رسالة جماعية كإشعار في لوحة التنبيهات
+        const bcItems = list.map(b => ({
+          id: 'bc_' + b.id,
+          type: 'broadcast',
+          title: 'رسالة من الإدارة',
+          sub: b.message.length > 60 ? b.message.slice(0, 60) + '…' : b.message,
+          read: false,
+          action: () => { App._broadcastQueue.unshift(b); App._showNextBroadcast(); },
+        }));
+        // ادمج مع الإشعارات الحالية (تجنّب التكرار)
+        const existingIds = new Set(App._notifItems.map(i => i.id));
+        const fresh = bcItems.filter(i => !existingIds.has(i.id));
+        if (fresh.length) {
+          App._notifItems = [...fresh, ...App._notifItems];
+          const unread = App._notifItems.filter(i => !i.read).length;
+          App._updateBell('student', unread);
+          App._ringBell('student');
+        }
         App._broadcastQueue.push(...list);
         App._showNextBroadcast();
       }
@@ -4264,8 +4282,8 @@ const App = {
     const panel = document.getElementById('notif-panel');
     if (!panel) return;
     const items = App._notifItems;
-    const iconMap = { msg: '💬', ticket: '🎫', plan: '📋' };
-    const clsMap  = { msg: 'msg-icon', ticket: 'ticket-icon', plan: 'plan-icon' };
+    const iconMap = { msg: '💬', ticket: '🎫', plan: '📋', broadcast: '📢' };
+    const clsMap  = { msg: 'msg-icon', ticket: 'ticket-icon', plan: 'plan-icon', broadcast: 'msg-icon' };
     const bodyHtml = items.length
       ? items.map(item => `
         <div class="notif-item ${item.read ? '' : 'unread'}"

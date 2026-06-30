@@ -324,12 +324,23 @@ const _SCREEN_PATHS = {
 };
 
 function show(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active', 'screen-home-entered');
+  });
   const el = document.getElementById(id);
   if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
   const path = _SCREEN_PATHS[id];
   if (path) history.replaceState(null, '', path);
   else if (location.pathname !== '/') history.replaceState(null, '', '/');
+  // Stagger home-screen cards
+  if (id === 'screen-student-home' && el) {
+    el.classList.add('screen-home-entered');
+    const sc = el.querySelector('.service-cards');
+    if (sc) {
+      sc.classList.remove('animate');
+      requestAnimationFrame(() => requestAnimationFrame(() => sc.classList.add('animate')));
+    }
+  }
 }
 
 // ── Cooldown helpers ─────────────────────────────────────────────────────
@@ -4410,13 +4421,17 @@ function showAlert(el, msg) {
 
 function showToast(msg) {
   const t = document.createElement('div');
-  t.style.cssText = `position:fixed;bottom:24px;right:50%;transform:translateX(50%);
+  t.style.cssText = `position:fixed;bottom:4px;right:50%;transform:translateX(50%);
     background:#1a5fa8;color:#fff;padding:12px 24px;border-radius:12px;
     font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.2);
-    transition:opacity .4s`;
+    opacity:0;transition:opacity .3s,bottom .3s cubic-bezier(.22,1,.36,1)`;
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
+  requestAnimationFrame(() => { t.style.bottom = '24px'; t.style.opacity = '1'; });
+  setTimeout(() => {
+    t.style.opacity = '0'; t.style.bottom = '8px';
+    setTimeout(() => t.remove(), 350);
+  }, 3000);
 }
 
 // ── Path/hash routing ─────────────────────────────────────────────────────

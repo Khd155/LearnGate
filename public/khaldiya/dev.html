@@ -291,6 +291,7 @@
         <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')"><span class="tab-ic">📝</span> الأسئلة</button>
         <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')"><span class="tab-ic">🧰</span> الأدوات</button>
         <button class="tab-btn"        data-tab="test-mgmt" onclick="Dev.setTab('test-mgmt')"><span class="tab-ic">🧪</span> إدارة الاختبارات</button>
+        <button class="tab-btn"        data-tab="diff"      onclick="Dev.setTab('diff')"><span class="tab-ic">🔍</span> مقارنة الإجابات</button>
         <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')"><span class="tab-ic">🎫</span> الدعم الفني</button>
         <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')"><span class="tab-ic">📋</span> سجل النشاط</button>
         <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')"><span class="tab-ic">🧠</span> تحليل السلوك</button>
@@ -603,6 +604,34 @@
       </div>
     </div>
 
+    <!-- ── Diff ── -->
+    <div id="tab-diff" class="tab-pane">
+      <div class="section">
+        <div class="section-title">
+          <span>🔍</span> مقارنة إجابات الطلاب
+          <div style="margin-right:auto;display:flex;gap:8px;align-items:center">
+            <button id="diff-pre-btn"  class="btn btn-primary  btn-sm" onclick="Dev.setDiffType('pre')">📋 قبلي</button>
+            <button id="diff-post-btn" class="btn btn-sm" style="background:var(--surface2);color:var(--muted)" onclick="Dev.setDiffType('post')">🏁 بعدي</button>
+            <select id="diff-school-filter" class="form-select" style="width:auto;font-size:13px;padding:6px 12px" onchange="Dev.renderDiff()">
+              <option value="">كل المدارس</option>
+            </select>
+            <button class="btn btn-warn btn-sm" onclick="Dev.loadDiff()">🔄</button>
+          </div>
+        </div>
+        <div id="diff-count" style="font-size:13px;color:var(--muted);margin-bottom:12px"></div>
+        <div id="diff-table-wrap" style="overflow-x:auto">
+          <div class="empty">اضغط على "مقارنة الإجابات" للتحميل</div>
+        </div>
+        <div id="diff-legend" style="display:none;margin-top:12px;display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--muted)">
+          <span><b style="color:#34d399">أ</b> = إجابة صحيحة</span>
+          <span><b style="color:#f87171">أ</b> = إجابة خاطئة</span>
+          <span><b style="color:#94a3b8">؟</b> = ما أعرف</span>
+          <span>— = ما أجاب</span>
+          <span><b style="color:#34d399">✓</b> = الإجابة الصحيحة</span>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Logs ── -->
     <div id="tab-logs" class="tab-pane">
       <div class="section">
@@ -784,6 +813,7 @@ const Dev = {
     if (tab === 'support')   { Dev.setSupportTab('tickets'); return; }
     if (tab === 'analytics') { Dev.loadAnalytics(); return; }
     if (tab === 'test-mgmt') { Dev.loadTestResults(); Dev.loadAptitudePlans(); return; }
+    if (tab === 'diff')      { Dev.loadDiff(); return; }
     if (tab === 'permissions') { Dev.loadPermissions(); return; }
   },
 
@@ -1571,6 +1601,130 @@ const Dev = {
     await apiDev('/dev/plans?school=' + encodeURIComponent(school) + '&confirm=RESET_SCHOOL_PLANS', { method: 'DELETE' });
     showToast('تم إعادة تعيين اختبار القدرات للمدرسة ✅');
     Dev.loadAptitudePlans();
+  },
+
+  // ── Diff Tab ─────────────────────────────────────────────────────────────
+  _diffResults: [],
+  _diffType: 'pre',
+
+  async loadDiff() {
+    const wrap = document.getElementById('diff-table-wrap');
+    const countEl = document.getElementById('diff-count');
+    wrap.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
+    countEl.textContent = '';
+    try {
+      const { results } = await apiDev('/test-results?withAnswers=1');
+      Dev._diffResults = results || [];
+      // populate school filter
+      const sel = document.getElementById('diff-school-filter');
+      const schools = [...new Set(Dev._diffResults.map(r => r.school).filter(Boolean))].sort();
+      sel.innerHTML = '<option value="">كل المدارس</option>' + schools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+      Dev.renderDiff();
+    } catch (e) {
+      wrap.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
+    }
+  },
+
+  setDiffType(type) {
+    Dev._diffType = type;
+    document.getElementById('diff-pre-btn').className  = 'btn btn-sm' + (type === 'pre'  ? ' btn-primary' : '');
+    document.getElementById('diff-post-btn').className = 'btn btn-sm' + (type === 'post' ? ' btn-primary' : '');
+    if (type === 'pre')  { document.getElementById('diff-pre-btn').style.cssText  = ''; document.getElementById('diff-post-btn').style.cssText = 'background:var(--surface2);color:var(--muted)'; }
+    if (type === 'post') { document.getElementById('diff-post-btn').style.cssText = ''; document.getElementById('diff-pre-btn').style.cssText  = 'background:var(--surface2);color:var(--muted)'; }
+    Dev.renderDiff();
+  },
+
+  renderDiff() {
+    const wrap    = document.getElementById('diff-table-wrap');
+    const countEl = document.getElementById('diff-count');
+    const legend  = document.getElementById('diff-legend');
+    const school  = document.getElementById('diff-school-filter')?.value || '';
+    const LETTER  = { 1: 'أ', 2: 'ب', 3: 'ج', 4: 'د' };
+
+    if (!Dev._diffResults.length) { wrap.innerHTML = '<div class="empty">لا توجد بيانات — اضغط 🔄 للتحميل</div>'; return; }
+
+    // latest result per student for selected type + school
+    const map = new Map();
+    for (const r of Dev._diffResults) {
+      if (r.test_type !== Dev._diffType) continue;
+      if (school && r.school !== school) continue;
+      if (!r.answers?.length) continue;
+      const ex = map.get(r.student_id);
+      if (!ex || r.created_at > ex.created_at) map.set(r.student_id, r);
+    }
+    const students = [...map.values()].sort((a, b) => a.student_name.localeCompare(b.student_name, 'ar'));
+
+    if (!students.length) {
+      wrap.innerHTML = '<div class="empty">لا توجد نتائج لهذا الاختبار</div>';
+      countEl.textContent = '';
+      legend.style.display = 'none';
+      return;
+    }
+
+    // all question numbers sorted
+    const qSet = new Set();
+    const corrMap = new Map();
+    for (const r of students) {
+      for (const a of r.answers || []) {
+        const qn = Number(a.q);
+        qSet.add(qn);
+        if (!corrMap.has(qn)) corrMap.set(qn, a.corr);
+      }
+    }
+    const qnums = [...qSet].sort((a, b) => a - b);
+
+    countEl.textContent = `${students.length} طالب · ${qnums.length} سؤال`;
+    legend.style.display = 'flex';
+
+    const thStyle = 'background:var(--surface2);font-size:11px;color:var(--muted);padding:8px 10px;text-align:center;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:2';
+    const stickyTh = `${thStyle};right:0;z-index:3`;
+
+    let html = `<table class="data-table" style="border-collapse:collapse;font-size:12px">
+      <thead><tr>
+        <th style="${stickyTh};min-width:44px">سؤال</th>
+        <th style="${stickyTh.replace('right:0','right:44px')};min-width:36px;color:#34d399">✓</th>
+        ${students.map(r => {
+          const scoreColor = r.score >= 70 ? '#34d399' : r.score >= 50 ? '#fbbf24' : '#f87171';
+          return `<th style="${thStyle};min-width:60px;max-width:72px;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(r.student_name)}">
+            <div style="overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.student_name.split(' ')[0])}</div>
+            <div style="font-size:10px;color:${scoreColor};font-weight:700">${r.score}%</div>
+          </th>`;
+        }).join('')}
+      </tr></thead>
+      <tbody>`;
+
+    for (const qn of qnums) {
+      const corr = corrMap.get(qn);
+      const corrLetter = LETTER[Number(corr)] ?? (corr != null ? String(corr) : '—');
+      html += `<tr>
+        <td style="background:var(--surface2);position:sticky;right:0;z-index:1;font-weight:700;color:#f1f5f9;padding:7px 10px;text-align:center;border-bottom:1px solid var(--border)">${qn}</td>
+        <td style="background:var(--surface2);position:sticky;right:44px;z-index:1;font-weight:700;color:#34d399;padding:7px 10px;text-align:center;border-bottom:1px solid var(--border)">${corrLetter}</td>`;
+      for (const r of students) {
+        const ans = (r.answers || []).find(a => Number(a.q) === qn);
+        if (!ans || ans.a === null || ans.a === undefined) {
+          html += `<td style="padding:7px 10px;text-align:center;color:#475569;border-bottom:1px solid var(--border)">—</td>`;
+        } else if (ans.a === 'dk') {
+          html += `<td style="padding:7px 10px;text-align:center;color:#94a3b8;border-bottom:1px solid var(--border)">؟</td>`;
+        } else {
+          const ok = String(ans.a) === String(ans.corr);
+          const letter = LETTER[Number(ans.a)] ?? String(ans.a);
+          html += `<td style="padding:7px 10px;text-align:center;font-weight:700;color:${ok ? '#34d399' : '#f87171'};border-bottom:1px solid var(--border)">${letter}</td>`;
+        }
+      }
+      html += '</tr>';
+    }
+
+    // footer: scores
+    html += `<tr style="border-top:2px solid var(--border2)">
+      <td colspan="2" style="background:var(--surface2);position:sticky;right:0;z-index:1;padding:8px 10px;text-align:center;font-size:11px;color:var(--muted);font-weight:600">النتيجة</td>
+      ${students.map(r => {
+        const c = r.score >= 70 ? '#34d399' : r.score >= 50 ? '#fbbf24' : '#f87171';
+        return `<td style="padding:8px 10px;text-align:center;font-weight:700;color:${c}">${r.score}%</td>`;
+      }).join('')}
+    </tr>`;
+
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
   },
 
   // ── Logs Tab ────────────────────────────────────────────────────────────

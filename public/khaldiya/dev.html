@@ -519,6 +519,12 @@
           <p>🗑️ <strong>مسح بنك الأسئلة كاملاً</strong> — سيتم استخدام الأسئلة الافتراضية</p>
           <button class="btn btn-danger" onclick="Dev.clearQuestions()">🗑️ مسح كل الأسئلة</button>
         </div>
+
+        <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:14px 16px;margin-top:16px;color:#1e3a5f;">
+          <p style="margin-bottom:10px;">✅ <strong>اعتماد كل الخطط المعلقة</strong> — تحويل أي خطة بحالة "معلقة" إلى "نشطة" تلقائياً (إصلاح البيانات القديمة)</p>
+          <button class="btn btn-primary" onclick="Dev.approvePendingPlans()">✅ اعتماد الكل</button>
+          <span id="approve-pending-result" style="margin-right:12px;font-size:13px;color:#1d4ed8;"></span>
+        </div>
       </div>
 
       <div class="section">
@@ -850,29 +856,145 @@ const Dev = {
     </table>`;
   },
 
+  _allQuestions: [],
+
   async loadQuestions() {
-    const { questions } = await apiDev('/dev/stats').then(() => fetch(API + '/questions', { headers: { 'X-Dev-Key': devKey } }).then(r => r.json())).catch(() => ({ questions: [] }));
-    // Actually load questions directly
     const qres = await fetch(API + '/questions').then(r => r.json()).catch(() => ({ questions: [] }));
     const qs = qres.questions || [];
+    Dev._allQuestions = qs;
     document.getElementById('q-count').textContent  = qs.length;
     document.getElementById('q-verbal').textContent = qs.filter(q => q.type === 'verbal').length;
     document.getElementById('q-quant').textContent  = qs.filter(q => q.type === 'quantitative').length;
+    Dev.renderQTable(qs);
+  },
 
+  renderQTable(qs) {
     const wrap = document.getElementById('q-table-wrap');
     if (!qs.length) { wrap.innerHTML = '<div class="empty">لا توجد أسئلة في البنك حالياً — يتم استخدام الأسئلة الافتراضية</div>'; return; }
-    wrap.innerHTML = `<table class="data-table">
-      <thead><tr><th>#</th><th>السؤال</th><th>النوع</th><th>المهارة</th></tr></thead>
-      <tbody>${qs.slice(0,20).map(q => `
-        <tr>
-          <td style="color:var(--muted)">${q.qnum}</td>
-          <td>${escapeHtml(q.text.substring(0,60))}${q.text.length>60?'...':''}</td>
-          <td>${q.type === 'verbal' ? '📚 لفظي' : '🔢 كمي'}</td>
-          <td style="color:var(--muted)">${q.skill_id}</td>
-        </tr>`).join('')}
-      ${qs.length > 20 ? `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:12px">... و ${qs.length - 20} سؤال آخر</td></tr>` : ''}
-      </tbody>
-    </table>`;
+    wrap.innerHTML = `
+      <div style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <input id="q-search" class="search-input" placeholder="🔍 بحث في الأسئلة..." oninput="Dev.filterQuestions()" style="max-width:300px">
+        <select id="q-type-filter" class="form-select" style="width:auto;padding:8px 12px;font-size:13px" onchange="Dev.filterQuestions()">
+          <option value="">كل الأنواع</option>
+          <option value="verbal">📚 لفظي</option>
+          <option value="quantitative">🔢 كمي</option>
+        </select>
+        <span style="font-size:12px;color:var(--muted)">${qs.length} سؤال — اضغط على أي صف للتعديل</span>
+      </div>
+      <div style="max-height:600px;overflow-y:auto;border-radius:10px;border:1px solid var(--border)">
+      <table class="data-table" id="q-table">
+        <thead style="position:sticky;top:0;z-index:5"><tr><th style="background:var(--surface2)">#</th><th style="background:var(--surface2)">السؤال</th><th style="background:var(--surface2)">الإجابة</th><th style="background:var(--surface2)">النوع</th><th style="background:var(--surface2)">المهارة</th></tr></thead>
+        <tbody>${qs.map(q => {
+          const choices = (() => { try { return JSON.parse(q.choices||'[]'); } catch { return []; } })();
+          const ansText = choices[Number(q.ans)] ?? q.ans;
+          return `<tr style="cursor:pointer" onclick="Dev.openEditQuestion('${q.id}')" title="اضغط للتعديل">
+            <td style="color:var(--muted);white-space:nowrap">${q.qnum}</td>
+            <td style="max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(q.text)}</td>
+            <td style="color:#86efac;font-size:12px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(String(ansText))}</td>
+            <td style="white-space:nowrap">${q.type === 'verbal' ? '📚 لفظي' : '🔢 كمي'}</td>
+            <td style="color:var(--muted);font-size:12px">${q.skill_id}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+      </div>`;
+  },
+
+  filterQuestions() {
+    const term = (document.getElementById('q-search')?.value || '').toLowerCase();
+    const type = document.getElementById('q-type-filter')?.value || '';
+    const filtered = Dev._allQuestions.filter(q =>
+      (!term || q.text.toLowerCase().includes(term) || String(q.qnum).includes(term)) &&
+      (!type || q.type === type)
+    );
+    Dev.renderQTable(filtered);
+  },
+
+  async openEditQuestion(id) {
+    const q = Dev._allQuestions.find(q => q.id === id);
+    if (!q) return;
+    let choices = [];
+    try { choices = JSON.parse(q.choices || '[]'); } catch {}
+
+    // Build choices inputs
+    const choiceInputs = choices.map((c, i) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:13px;color:var(--muted);width:20px">${i+1}.</span>
+        <input id="q-choice-${i}" class="form-input" style="flex:1;padding:7px 10px;font-size:13px" value="${escapeHtml(c)}">
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);cursor:pointer">
+          <input type="radio" name="q-ans" value="${i}" ${Number(q.ans)===i?'checked':''}> إجابة
+        </label>
+      </div>`).join('');
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,.5)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-size:15px;font-weight:800;color:#f1f5f9">✏️ تعديل السؤال #${q.qnum}</div>
+          <button onclick="this.closest('div[style*=fixed]').remove()" style="background:var(--surface2);border:none;border-radius:8px;padding:6px 12px;color:#e2e8f0;cursor:pointer;font-size:13px">✕ إغلاق</button>
+        </div>
+        <div style="margin-bottom:12px">
+          <div class="form-label" style="margin-bottom:6px">نص السؤال</div>
+          <textarea id="q-edit-text" style="width:100%;background:var(--bg);border:1.5px solid var(--border2);color:#f1f5f9;border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;min-height:80px;resize:vertical">${escapeHtml(q.text)}</textarea>
+        </div>
+        ${choices.length ? `<div style="margin-bottom:12px"><div class="form-label" style="margin-bottom:8px">الخيارات (حدّد الإجابة الصحيحة)</div>${choiceInputs}</div>` : `
+        <div style="margin-bottom:12px">
+          <div class="form-label" style="margin-bottom:6px">الإجابة الصحيحة</div>
+          <input id="q-edit-ans" class="form-input" value="${escapeHtml(String(q.ans))}">
+        </div>`}
+        <div style="display:flex;gap:10px">
+          <select id="q-edit-type" class="form-select" style="flex:1">
+            <option value="verbal" ${q.type==='verbal'?'selected':''}>📚 لفظي</option>
+            <option value="quantitative" ${q.type==='quantitative'?'selected':''}>🔢 كمي</option>
+          </select>
+          <input id="q-edit-skill" class="form-input" style="flex:1" value="${escapeHtml(q.skill_id)}" placeholder="skill_id">
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+          <button onclick="this.closest('div[style*=fixed]').remove()" class="btn" style="background:var(--surface2);color:#e2e8f0">إلغاء</button>
+          <button onclick="Dev.saveEditQuestion('${id}', this)" class="btn btn-primary">💾 حفظ التعديل</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('mousedown', e => { if (e.target === overlay) overlay.remove(); });
+  },
+
+  async saveEditQuestion(id, btn) {
+    const q = Dev._allQuestions.find(q => q.id === id);
+    if (!q) return;
+    let choices = [];
+    try { choices = JSON.parse(q.choices || '[]'); } catch {}
+
+    const text     = document.getElementById('q-edit-text')?.value.trim();
+    const type     = document.getElementById('q-edit-type')?.value;
+    const skill_id = document.getElementById('q-edit-skill')?.value.trim();
+
+    let ans;
+    if (choices.length) {
+      const checked = document.querySelector('input[name="q-ans"]:checked');
+      ans = checked ? String(checked.value) : q.ans;
+      choices = choices.map((_, i) => document.getElementById('q-choice-'+i)?.value || _);
+    } else {
+      ans = document.getElementById('q-edit-ans')?.value.trim();
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    try {
+      await apiDev(`/dev/questions/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ text, ans, type, skill_id, choices: choices.length ? choices : undefined }),
+      });
+      // Update local cache
+      Object.assign(q, { text, ans, type, skill_id, choices: choices.length ? JSON.stringify(choices) : q.choices });
+      Dev.renderQTable(Dev._allQuestions);
+      btn.closest('div[style*="fixed"]')?.remove();
+      showToast('تم حفظ السؤال ✅');
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '💾 حفظ التعديل';
+      showToast('فشل الحفظ: ' + e.message, true);
+    }
   },
 
   async populateSchoolSelects() {
@@ -917,22 +1039,26 @@ const Dev = {
     const url    = '/dev/students' + (school ? '?school=' + encodeURIComponent(school) : '');
     const { students } = await apiDev(url);
     if (!students.length) { el.innerHTML = '<div class="empty">لا يوجد طلاب' + (school ? ' في هذه المدرسة' : '') + '</div>'; return; }
+    const shown = students.slice(0, 500);
     el.innerHTML = `
-      <div style="margin-bottom:10px;font-size:13px;color:var(--muted)">${students.length} طالب</div>
+      <div style="margin-bottom:10px;font-size:13px;color:var(--muted)">${students.length} طالب${students.length > 500 ? ' (يعرض أول 500)' : ''}</div>
       <table class="data-table">
-        <thead><tr><th>#</th><th>الاسم</th><th>رقم السجل</th><th>رقم الجوال</th><th>المدرسة</th><th>حالة الخطة</th><th></th></tr></thead>
-        <tbody>${students.map((s, i) => `
-          <tr>
+        <thead><tr><th>#</th><th>الاسم</th><th>رقم السجل</th><th>رقم الجوال</th><th>المدرسة</th><th>حالة الاختبار</th><th></th></tr></thead>
+        <tbody>${shown.map((s, i) => {
+          const cnt = s.plan_count || 0;
+          const testBadge = cnt > 0
+            ? `<span class="badge badge-school">✅ اختبر (${cnt} مر${cnt===1?'ة':'ات'})</span>`
+            : `<span class="badge" style="background:rgba(148,163,184,.1);color:var(--muted)">لم يبدأ</span>`;
+          return `<tr>
             <td style="color:var(--muted)">${i + 1}</td>
             <td>${escapeHtml(s.name)}</td>
             <td style="direction:ltr;text-align:right">${escapeHtml(s.code)}</td>
             <td style="direction:ltr;text-align:right">${escapeHtml(s.phone) || '—'}</td>
             <td><span class="badge badge-school">${escapeHtml(s.school) || '—'}</span></td>
-            <td>${s.plan_status === 'active' ? '<span class="badge badge-school">نشطة ✅</span>'
-              : s.plan_status === 'pending' ? '<span class="badge" style="background:rgba(245,158,11,.15);color:#fbbf24">معلقة ⏳</span>'
-              : '<span class="badge" style="background:rgba(148,163,184,.1);color:var(--muted)">لم يبدأ</span>'}</td>
+            <td>${testBadge}</td>
             <td><button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">حذف</button></td>
-          </tr>`).join('')}
+          </tr>`;
+        }).join('')}
         </tbody>
       </table>`;
     } catch (e) {
@@ -1182,6 +1308,16 @@ const Dev = {
     } finally {
       btn.disabled = false; btn.textContent = '📥 تحميل الأسئلة الأصلية';
     }
+  },
+
+  async approvePendingPlans() {
+    const res = document.getElementById('approve-pending-result');
+    res.textContent = '⏳ جارٍ...';
+    try {
+      const { fixed } = await apiDev('/dev/approve-pending-plans', { method: 'POST' });
+      res.textContent = fixed > 0 ? `✅ تم اعتماد ${fixed} خطة` : 'لا توجد خطط معلقة';
+      if (fixed > 0) Dev.loadStudents();
+    } catch (e) { res.textContent = '❌ ' + e.message; }
   },
 
   async clearQuestions() {

@@ -1300,21 +1300,20 @@ export async function onRequest({ request, env }) {
         const filterSchool = url.searchParams.get('school');
         try {
           let q = `SELECT s.id, s.code, s.name, s.school, s.phone, s.created_at,
-                          p.status as plan_status
-                   FROM students s
-                   LEFT JOIN plans p ON p.student_id = s.id`;
+                     (SELECT COUNT(*) FROM plans p WHERE p.student_id = s.id) AS plan_count,
+                     (SELECT status FROM plans p WHERE p.student_id = s.id ORDER BY p.created_at DESC LIMIT 1) AS plan_status
+                   FROM students s`;
           const params = [];
           if (filterSchool) { q += ' WHERE s.school = ?'; params.push(filterSchool); }
           q += ' ORDER BY s.school, s.name ASC';
           const { results } = await DB.prepare(q).bind(...params).all();
           return ok({ students: results }, 200, CORS);
         } catch (e) {
-          // Fallback if school column not yet added (migration not run)
           if (e.message && e.message.includes('no such column')) {
             const { results } = await DB.prepare(
-              'SELECT s.id, s.code, s.name, s.created_at, p.status as plan_status FROM students s LEFT JOIN plans p ON p.student_id = s.id ORDER BY s.name ASC'
+              'SELECT s.id, s.code, s.name, s.created_at FROM students s ORDER BY s.name ASC'
             ).all();
-            return ok({ students: results.map(r => ({ ...r, school: '', phone: r.phone || '' })) }, 200, CORS);
+            return ok({ students: results.map(r => ({ ...r, school: '', phone: '', plan_count: 0, plan_status: null })) }, 200, CORS);
           }
           throw e;
         }
@@ -1362,6 +1361,15 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
+      // POST /api/dev/approve-pending-plans — fix old plans stuck in 'pending' status
+      if (sub === 'approve-pending-plans' && method === 'POST') {
+        const now = new Date().toISOString();
+        const { changes } = await DB.prepare(
+          "UPDATE plans SET status = 'active', approved_at = ? WHERE status = 'pending'"
+        ).bind(now).run();
+        return ok({ fixed: changes ?? 0 }, 200, CORS);
+      }
+
       // POST /api/dev/seed-questions — upsert hardcoded 50 questions
       if (sub === 'seed-questions' && method === 'POST') {
         const SEED = SEED_QUESTIONS;
@@ -1383,6 +1391,22 @@ export async function onRequest({ request, env }) {
         }
         return ok({ added, updated }, 200, CORS);
       }
+      // PATCH /api/dev/questions/:id — edit a question (dev only)
+      if (sub === 'questions' && subsub && method === 'PATCH') {
+        const body = await request.json();
+        const fields = [];
+        const vals   = [];
+        if (body.text  !== undefined) { fields.push('text = ?');    vals.push(body.text); }
+        if (body.ans   !== undefined) { fields.push('ans = ?');     vals.push(String(body.ans)); }
+        if (body.type  !== undefined) { fields.push('type = ?');    vals.push(body.type); }
+        if (body.skill_id !== undefined) { fields.push('skill_id = ?'); vals.push(body.skill_id); }
+        if (body.choices  !== undefined) { fields.push('choices = ?');  vals.push(JSON.stringify(body.choices)); }
+        if (!fields.length) return err('لا يوجد شيء للتعديل', 400, CORS);
+        vals.push(subsub);
+        await DB.prepare(`UPDATE questions SET ${fields.join(', ')} WHERE id = ?`).bind(...vals).run();
+        return ok({ ok: true }, 200, CORS);
+      }
+
       // DELETE /api/dev/questions — clear all questions
       if (sub === 'questions' && method === 'DELETE') {
         await DB.prepare('DELETE FROM questions').run();

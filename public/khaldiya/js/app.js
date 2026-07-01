@@ -472,10 +472,14 @@ const App = {
       const _minWait = new Promise(r => setTimeout(r, 700));
       try { await Promise.all([DB.loadStudentData(), _minWait]); } catch (_) { await _minWait; }
       App.renderStudentHome();
-      show('screen-student-home');
       document.documentElement.style.visibility = '';
-      routeHash();
-      setTimeout(() => App._checkBroadcasts(), 1500);
+      if (!State.student.phone) {
+        show('screen-phone-required');
+      } else {
+        show('screen-student-home');
+        routeHash();
+        setTimeout(() => App._checkBroadcasts(), 1500);
+      }
     } catch(e) {
       _restoreBtn();
       document.documentElement.style.visibility = '';
@@ -3284,22 +3288,42 @@ const App = {
     if (modal) modal.style.display = 'flex';
     const msgs = document.getElementById('schat-messages');
     if (msgs) msgs.innerHTML = '<div class="chat-empty">جارٍ التحميل…</div>';
-    let admins = [];
+    // Try to pick an admin — but open chat regardless
     try {
       const data = await apiFetch(`/admins?school=${encodeURIComponent(State.school || '')}`);
-      admins = (data.admins || []).filter(a => a.school === State.school || a.school === '*');
+      const admins = (data.admins || []).filter(a => !a.school || a.school === State.school || a.school === '*');
+      if (admins.length) {
+        State.chatAdminId   = admins[0].id;
+        State.chatAdminName = admins[0].name || 'المشرف';
+      }
     } catch {}
-    if (!admins.length) {
-      if (msgs) msgs.innerHTML = '<div class="chat-empty">لا يوجد مشرفون في هذه المدرسة حالياً</div>';
-      return;
-    }
-    const admin = admins[0];
-    State.chatAdminId   = admin.id;
-    State.chatAdminName = 'المشرف';
     State.chatStudentId = null;
     App._chatMsgCount = 0;
     App.loadChatMessages();
     App.startChatPoll();
+  },
+
+  async submitRequiredPhone() {
+    const input = document.getElementById('req-phone-input');
+    const errEl = document.getElementById('req-phone-err');
+    const btn   = document.getElementById('req-phone-btn');
+    const phone = (input?.value || '').trim();
+    if (!/^\d{10}$/.test(phone)) {
+      if (errEl) { errEl.textContent = 'أدخل رقم جوال صحيح (١٠ أرقام)'; errEl.style.display = 'block'; }
+      return;
+    }
+    if (errEl) errEl.style.display = 'none';
+    if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الحفظ…'; }
+    try {
+      await DB.updateStudentPhone(State.student.id, phone);
+      State.student.phone = phone;
+      show('screen-student-home');
+      routeHash();
+      setTimeout(() => App._checkBroadcasts(), 1500);
+    } catch(e) {
+      if (errEl) { errEl.textContent = 'تعذّر الحفظ — حاول مرة أخرى'; errEl.style.display = 'block'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'حفظ ومتابعة ←'; }
+    }
   },
 
   closeStudentChatModal() {
@@ -3471,8 +3495,9 @@ const App = {
         msgs = data.messages || [];
         if (msgs.some(m => m.sender_type === 'student' && !m.is_read))
           readPatch = { studentId: State.chatStudentId, readerType: 'admin' };
-      } else if (State.chatAdminId && State.student) {
-        const data = await apiFetch(`/messages?studentId=${State.student.id}&adminId=${State.chatAdminId}`);
+      } else if (State.student) {
+        const adminParam = State.chatAdminId ? `&adminId=${encodeURIComponent(State.chatAdminId)}` : '';
+        const data = await apiFetch(`/messages?studentId=${State.student.id}${adminParam}`);
         msgs = data.messages || [];
         if (msgs.some(m => m.sender_type === 'admin' && !m.is_read))
           readPatch = { studentId: State.student.id, readerType: 'student' };
@@ -3484,7 +3509,7 @@ const App = {
     if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>'; App._chatMsgCount = 0; return; }
     el.innerHTML = msgs.map(m => {
       const isMine = (State.role === 'admin' || State.role === 'director' || State.role === 'support') ? m.sender_type === 'admin' : m.sender_type === 'student';
-      const senderName = isMine ? 'أنت' : ((State.role === 'admin' || State.role === 'director' || State.role === 'support') ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(State.chatAdminName || 'المشرف'));
+      const senderName = isMine ? 'أنت' : ((State.role === 'admin' || State.role === 'director' || State.role === 'support') ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(m.admin_name || State.chatAdminName || 'المشرف'));
       const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
       return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};">
         <div class="chat-bubble ${isMine ? 'sent' : 'received'}">${escapeHtml(m.body)}</div>

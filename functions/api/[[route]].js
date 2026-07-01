@@ -361,6 +361,28 @@ export async function onRequest({ request, env }) {
         return ok({ token }, 200, CORS);
       }
 
+      // GET /api/auth/profile — returns current admin's profile (including phone after migration)
+      if (sub === 'profile' && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
+        const admin = await DB.prepare('SELECT id, name, school, role, phone FROM admins WHERE id = ?').bind(claims.sub).first();
+        if (!admin) return err('لم يتم العثور على الحساب', 404, CORS);
+        return ok({ admin }, 200, CORS);
+      }
+
+      // PATCH /api/auth/profile — update admin's own phone number
+      if (sub === 'profile' && method === 'PATCH') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
+        const body = await request.json();
+        const phone = (body.phone || '').trim();
+        if (phone && !/^\d{10}$/.test(phone)) return err('رقم الجوال يجب أن يكون ١٠ أرقام', 400, CORS);
+        await DB.prepare('UPDATE admins SET phone = ? WHERE id = ?').bind(phone, claims.sub).run();
+        return ok({ ok: true }, 200, CORS);
+      }
+
       // POST /api/auth/impersonate — admin/director mints a synthetic trial-student JWT so
       // they can preview the student experience ("عرض كطالب") without a real student account.
       // Attempts taken under this token are flagged is_trial=1 in general_test_results.
@@ -1898,10 +1920,10 @@ export async function onRequest({ request, env }) {
         }
         let q, params;
         if (adminId) {
-          q = 'SELECT * FROM messages WHERE student_id=? AND recipient_admin_id=? ORDER BY created_at ASC';
+          q = 'SELECT m.*, a.name as admin_name FROM messages m LEFT JOIN admins a ON m.recipient_admin_id = a.id WHERE m.student_id=? AND m.recipient_admin_id=? ORDER BY m.created_at ASC';
           params = [studentId, adminId];
         } else {
-          q = 'SELECT * FROM messages WHERE student_id=? ORDER BY created_at ASC';
+          q = 'SELECT m.*, a.name as admin_name FROM messages m LEFT JOIN admins a ON m.recipient_admin_id = a.id WHERE m.student_id=? ORDER BY m.created_at ASC';
           params = [studentId];
         }
         const { results } = await DB.prepare(q).bind(...params).all();

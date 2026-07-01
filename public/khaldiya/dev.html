@@ -1187,22 +1187,17 @@ const Dev = {
     el.innerHTML = `
       <div style="margin-bottom:10px;font-size:13px;color:var(--muted)">${students.length} طالب${students.length > 500 ? ' (يعرض أول 500)' : ''}</div>
       <table class="data-table">
-        <thead><tr><th>#</th><th>الاسم</th><th>رقم السجل</th><th>رقم الجوال</th><th>المدرسة</th><th>حالة الاختبار</th><th></th></tr></thead>
-        <tbody>${shown.map((s, i) => {
-          const cnt = s.plan_count || 0;
-          const testBadge = cnt > 0
-            ? `<span class="badge badge-school">✅ اختبر (${cnt} مر${cnt===1?'ة':'ات'})</span>`
-            : `<span class="badge" style="background:rgba(148,163,184,.1);color:var(--muted)">لم يبدأ</span>`;
-          return `<tr>
-            <td style="color:var(--muted)">${i + 1}</td>
-            <td>${escapeHtml(s.name)}</td>
-            <td style="direction:ltr;text-align:right">${escapeHtml(s.code)}</td>
-            <td style="direction:ltr;text-align:right">${escapeHtml(s.phone) || '—'}</td>
+        <thead><tr><th>#</th><th>الاسم</th><th>رقم السجل</th><th>رقم الجوال</th><th>المدرسة</th><th></th></tr></thead>
+        <tbody>${shown.map((s, i) => `<tr>
+            <td style="color:var(--muted);font-size:12px">${i + 1}</td>
+            <td style="font-weight:600">${escapeHtml(s.name)}</td>
+            <td style="direction:ltr;text-align:right;font-family:monospace;font-size:13px">${escapeHtml(s.code)}</td>
+            <td style="direction:ltr;text-align:right;color:${s.phone ? 'inherit' : 'var(--muted)'}">
+              ${s.phone ? escapeHtml(s.phone) : '<span style="font-size:12px">—</span>'}
+            </td>
             <td><span class="badge badge-school">${escapeHtml(s.school) || '—'}</span></td>
-            <td>${testBadge}</td>
             <td><button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">حذف</button></td>
-          </tr>`;
-        }).join('')}
+          </tr>`).join('')}
         </tbody>
       </table>`;
     } catch (e) {

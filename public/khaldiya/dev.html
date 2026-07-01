@@ -713,6 +713,39 @@
   </div><!-- /shell -->
 </div><!-- /app -->
 
+<!-- WhatsApp Send Modal -->
+<div id="wa-send-modal" style="display:none;position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:20px;width:100%;max-width:480px;padding:28px;box-shadow:0 32px 64px rgba(0,0,0,.5);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+      <span style="font-size:28px;">📲</span>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#e2e8f0;">إرسال عبر واتساب</div>
+        <div style="font-size:12px;color:#64748b;" id="wa-modal-school"></div>
+      </div>
+    </div>
+    <div style="background:#0f172a;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#94a3b8;line-height:1.6;max-height:80px;overflow:hidden;text-overflow:ellipsis;" id="wa-modal-msg"></div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:6px;">القالب (Template)</label>
+      <select id="wa-template-select" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#e2e8f0;font-size:13px;font-family:inherit;">
+        <option value="">جارٍ تحميل القوالب...</option>
+      </select>
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:6px;">اللغة</label>
+      <select id="wa-lang-select" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#e2e8f0;font-size:13px;font-family:inherit;">
+        <option value="ar">عربي (ar)</option>
+        <option value="en">English (en)</option>
+      </select>
+    </div>
+    <div id="wa-send-info" style="font-size:12px;color:#64748b;margin-bottom:14px;"></div>
+    <div id="wa-send-err" style="display:none;font-size:13px;color:#ef4444;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button id="wa-send-btn" onclick="Dev.confirmWaSend()" style="flex:1;background:#25D366;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">إرسال ✓</button>
+      <button onclick="Dev.closeWaModal()" style="flex:1;background:transparent;border:1px solid #334155;border-radius:10px;padding:12px;font-size:14px;color:#94a3b8;font-family:inherit;cursor:pointer;">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <div class="modal-overlay" id="modal-overlay" onmousedown="if(event.target.id==='modal-overlay') _closeModal(false)">
@@ -1935,9 +1968,14 @@ const Dev = {
             <div style="background:rgba(255,255,255,.07);border-radius:6px;height:6px;overflow:hidden;margin-bottom:10px;">
               <div style="height:100%;background:#4FA877;width:${pct}%;transition:width .4s;border-radius:6px;"></div>
             </div>
-            <button class="btn btn-sm" style="font-size:12px;padding:5px 12px;" onclick="Dev.toggleBroadcastViewers('${b.id}', this)">
-              👁 عرض من فتحها
-            </button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-sm" style="font-size:12px;padding:5px 12px;" onclick="Dev.toggleBroadcastViewers('${b.id}', this)">
+                👁 عرض من فتحها
+              </button>
+              <button class="btn btn-sm" style="font-size:12px;padding:5px 12px;background:#25D366;color:#fff;border:none;" onclick="Dev.openWaSendModal('${b.id}','${escapeHtml(b.school)}','${escapeHtml(b.message).replace(/'/g,'\\\'').replace(/\n/g,' ')}')">
+                📲 إرسال عبر واتساب
+              </button>
+            </div>
             <div id="bc-viewers-${b.id}" style="display:none;margin-top:10px;"></div>
           </div>
         </div>`;
@@ -2001,6 +2039,76 @@ const Dev = {
       Dev.loadBroadcasts();
     } catch(e) {
       Dev.showToast('تعذّر التعديل: ' + e.message, 'error');
+    }
+  },
+
+  _waBroadcastId: null,
+
+  async openWaSendModal(broadcastId, school, msgPreview) {
+    Dev._waBroadcastId = broadcastId;
+    const modal = document.getElementById('wa-send-modal');
+    document.getElementById('wa-modal-school').textContent = '🏫 ' + school;
+    document.getElementById('wa-modal-msg').textContent = msgPreview;
+    document.getElementById('wa-send-err').style.display = 'none';
+    document.getElementById('wa-send-info').textContent = '';
+    document.getElementById('wa-send-btn').disabled = false;
+    document.getElementById('wa-send-btn').textContent = 'إرسال ✓';
+    modal.style.display = 'flex';
+
+    // Load templates
+    const sel = document.getElementById('wa-template-select');
+    sel.innerHTML = '<option value="">جارٍ تحميل القوالب...</option>';
+    try {
+      const data = await apiDev('/sendpulse/templates');
+      const templates = data.templates || [];
+      if (!templates.length) {
+        sel.innerHTML = '<option value="">لا توجد قوالب</option>';
+      } else {
+        sel.innerHTML = templates.map(t =>
+          `<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}${t.status ? ' — ' + t.status : ''}</option>`
+        ).join('');
+      }
+    } catch(e) {
+      sel.innerHTML = '<option value="">تعذّر تحميل القوالب</option>';
+    }
+  },
+
+  closeWaModal() {
+    document.getElementById('wa-send-modal').style.display = 'none';
+    Dev._waBroadcastId = null;
+  },
+
+  async confirmWaSend() {
+    const template_name = document.getElementById('wa-template-select').value;
+    const language_code = document.getElementById('wa-lang-select').value;
+    const errEl = document.getElementById('wa-send-err');
+    const btn = document.getElementById('wa-send-btn');
+    const infoEl = document.getElementById('wa-send-info');
+
+    if (!template_name) {
+      errEl.textContent = 'اختر قالباً أولاً';
+      errEl.style.display = 'block';
+      return;
+    }
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'جارٍ الإرسال...';
+    infoEl.textContent = '';
+
+    try {
+      const data = await apiDev(`/sendpulse/broadcast/${Dev._waBroadcastId}`, {
+        method: 'POST',
+        body: JSON.stringify({ template_name, language_code }),
+      });
+      infoEl.textContent = `✅ تم الإرسال إلى ${data.sent_to || 0} طالب`;
+      infoEl.style.color = '#4FA877';
+      btn.textContent = 'تم ✓';
+      setTimeout(() => Dev.closeWaModal(), 2500);
+    } catch(e) {
+      errEl.textContent = 'تعذّر الإرسال: ' + e.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'إرسال ✓';
     }
   },
 

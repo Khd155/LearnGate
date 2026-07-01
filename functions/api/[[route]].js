@@ -130,6 +130,33 @@ function authDev(request, env) {
   return key === getDevKey(env);
 }
 
+// ── SendPulse WhatsApp helpers ─────────────────────────────────────────
+let _spToken = null, _spTokenExp = 0;
+async function getSendPulseToken(env) {
+  if (_spToken && Date.now() < _spTokenExp) return _spToken;
+  const res = await fetch('https://api.sendpulse.com/oauth/access_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ grant_type: 'client_credentials', client_id: env.SENDPULSE_ID, client_secret: env.SENDPULSE_SECRET }),
+  });
+  if (!res.ok) throw new Error('SendPulse auth failed: ' + res.status);
+  const data = await res.json();
+  _spToken = data.access_token;
+  _spTokenExp = Date.now() + (data.expires_in - 60) * 1000;
+  return _spToken;
+}
+
+async function spRequest(env, method, path, body) {
+  const token = await getSendPulseToken(env);
+  const res = await fetch('https://api.sendpulse.com' + path, {
+    method,
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return { error: text }; }
+}
+
 async function logEvent(DB, { level = 'info', category = 'system', message, user_name = '', user_role = '', school = '', ip = '' }) {
   try {
     await DB.prepare(
@@ -2598,6 +2625,67 @@ export async function onRequest({ request, env }) {
           await logEvent(DB, { level: 'info', category: 'test', message: `إنهاء الاختبار العام رقم ${testNum}${isTrial ? ' (تجريبي)' : ''} — النتيجة ${finalScore}% (${correct}/${total})`, user_name: claims.name || '', user_role: 'student', school: claims.school || '' });
           return ok({ id: rid, created_at: now, score: finalScore, correct, total, detail: storedAnswers }, 201, CORS);
         }
+      }
+    }
+
+    // ── SendPulse WhatsApp ──────────────────────────────────────────────
+    if (resource === 'sendpulse') {
+      if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
+
+      // GET /api/sendpulse/templates — list available WA templates
+      if (sub === 'templates' && method === 'GET') {
+        const botId = env.SENDPULSE_BOT_ID;
+        const data = await spRequest(env, 'GET', `/whatsapp/templates?bot_id=${botId}`);
+        return ok({ templates: data.data || data || [] }, 200, CORS);
+      }
+
+      // GET /api/sendpulse/bots — list bots (for debug)
+      if (sub === 'bots' && method === 'GET') {
+        const data = await spRequest(env, 'GET', '/whatsapp/bots');
+        return ok(data, 200, CORS);
+      }
+
+      // POST /api/sendpulse/send — send template to phone numbers
+      // body: { phones: ['+9665...'], template_name, language_code?, components? }
+      if (sub === 'send' && method === 'POST') {
+        const body = await request.json();
+        const { phones, template_name, language_code = 'ar', components = [] } = body;
+        if (!phones?.length) return err('phones مطلوب', 400, CORS);
+        if (!template_name) return err('template_name مطلوب', 400, CORS);
+        const botId = env.SENDPULSE_BOT_ID;
+        const data = await spRequest(env, 'POST', '/whatsapp/contacts/sendByPhones', {
+          bot_id: botId,
+          phones,
+          message: {
+            type: 'template',
+            template: { name: template_name, language: { code: language_code }, components },
+          },
+        });
+        return ok(data, 200, CORS);
+      }
+
+      // POST /api/sendpulse/broadcast/:broadcastId — send broadcast msg to school students via WA
+      if (sub === 'broadcast' && subsub && method === 'POST') {
+        const body = await request.json();
+        const { template_name, language_code = 'ar', components = [] } = body;
+        if (!template_name) return err('template_name مطلوب', 400, CORS);
+        const broadcast = await DB.prepare('SELECT * FROM broadcasts WHERE id = ?').bind(subsub).first();
+        if (!broadcast) return err('الرسالة غير موجودة', 404, CORS);
+        const { results: students } = await DB.prepare(
+          'SELECT phone FROM students WHERE school = ? AND phone IS NOT NULL AND phone != \'\''
+        ).bind(broadcast.school).all();
+        if (!students.length) return err('لا يوجد طلاب برقم جوال', 400, CORS);
+        const phones = students.map(s => s.phone.startsWith('+') ? s.phone : '+966' + s.phone.replace(/^0/, ''));
+        const botId = env.SENDPULSE_BOT_ID;
+        const data = await spRequest(env, 'POST', '/whatsapp/contacts/sendByPhones', {
+          bot_id: botId,
+          phones,
+          message: {
+            type: 'template',
+            template: { name: template_name, language: { code: language_code }, components },
+          },
+        });
+        return ok({ sent_to: phones.length, result: data }, 200, CORS);
       }
     }
 

@@ -2212,8 +2212,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/broadcasts/all — dev only: all broadcasts across schools with stats
       if (sub === 'all' && method === 'GET') {
-        const claims = await verifyToken(request, env);
-        if (!claims || claims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
         const sc = school || '';
         const { results } = sc
           ? await DB.prepare(`SELECT b.*,
@@ -2320,14 +2319,15 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
-      // PATCH /api/broadcasts/:id — edit message text (dev only, or scoped admin)
+      // PATCH /api/broadcasts/:id — edit message text (dev key or scoped admin JWT)
       if (sub && !subsub && method === 'PATCH') {
-        const claims = await verifyToken(request, env);
-        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const isDevKey = authDev(request, env);
+        const claims = isDevKey ? null : await verifyToken(request, env);
+        if (!isDevKey && (!claims || !['admin','director'].includes(claims.role))) return err('غير مصرح', 401, CORS);
         const body = await request.json();
         const message = (body.message || '').trim();
         if (!message) return err('النص مطلوب', 400, CORS);
-        if (claims.role === 'dev') {
+        if (isDevKey) {
           const res = await DB.prepare('UPDATE broadcasts SET message = ? WHERE id = ?').bind(message, sub).run();
           if (!res.meta?.changes) return err('الرسالة غير موجودة', 404, CORS);
         } else {

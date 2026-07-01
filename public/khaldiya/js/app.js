@@ -480,10 +480,9 @@ const App = {
       try { await Promise.all([DB.loadStudentData(), _minWait]); } catch (_) { await _minWait; }
       App.renderStudentHome();
       document.documentElement.style.visibility = '';
-      if (!State.student.phone) {
-        show('screen-phone-required');
-      } else {
-        show('screen-student-home');
+      show('screen-student-home');
+      App._checkPhoneGate();
+      if (State.student.phone) {
         routeHash();
         setTimeout(() => App._checkBroadcasts(), 1500);
       }
@@ -3328,12 +3327,35 @@ const App = {
     try {
       await DB.updateStudentPhone(State.student.id, phone);
       State.student.phone = phone;
-      show('screen-student-home');
+      App._hidePhoneGate();
       routeHash();
       setTimeout(() => App._checkBroadcasts(), 1500);
     } catch(e) {
       if (errEl) { errEl.textContent = 'تعذّر الحفظ — حاول مرة أخرى'; errEl.style.display = 'block'; }
       if (btn) { btn.disabled = false; btn.textContent = 'حفظ ومتابعة ←'; }
+    }
+  },
+
+  _showPhoneGate() {
+    const m = document.getElementById('phone-gate-modal');
+    if (!m) return;
+    m.style.display = 'flex';
+    const inp = document.getElementById('req-phone-input');
+    if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 100); }
+    const err = document.getElementById('req-phone-err');
+    if (err) err.style.display = 'none';
+    const btn = document.getElementById('req-phone-btn');
+    if (btn) { btn.disabled = false; btn.textContent = 'حفظ ومتابعة ←'; }
+  },
+
+  _hidePhoneGate() {
+    const m = document.getElementById('phone-gate-modal');
+    if (m) m.style.display = 'none';
+  },
+
+  _checkPhoneGate() {
+    if (State.role === 'student' && State.student && !State.student.phone) {
+      App._showPhoneGate();
     }
   },
 
@@ -3487,6 +3509,7 @@ const App = {
       : State.role === 'support' ? 'screen-support-admin'
       : 'screen-student-home';
     show(back);
+    if (back === 'screen-student-home') App._checkPhoneGate();
   },
 
   async loadChatMessages() {
@@ -4494,7 +4517,7 @@ function routeHash() {
   }
   // /login while already authenticated → go home
   if (path === '/login') {
-    if (State.student) { show('screen-student-home'); return; }
+    if (State.student) { show('screen-student-home'); App._checkPhoneGate(); return; }
     if (State.role === 'admin' || State.role === 'director') { show('screen-admin'); return; }
     // not logged in → stay on landing (already showing)
   }
@@ -4553,7 +4576,8 @@ async function _quickRestoreSession(sess) {
       App.renderStudentHome();
       show('screen-student-home');
       document.documentElement.style.visibility = '';
-      routeHash();
+      App._checkPhoneGate();
+      if (State.student?.phone) routeHash();
     } else {
       State.role  = sess.role;
       State.admin = { code: sess.code, name: sess.name, school: sess.school || '' };

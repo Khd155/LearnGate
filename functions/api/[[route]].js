@@ -2210,6 +2210,23 @@ export async function onRequest({ request, env }) {
         )`).run();
       } catch {}
 
+      // GET /api/broadcasts/all — dev only: all broadcasts across schools with stats
+      if (sub === 'all' && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims || claims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        const sc = school || '';
+        const { results } = sc
+          ? await DB.prepare(`SELECT b.*,
+              (SELECT COUNT(*) FROM broadcast_dismissals d WHERE d.broadcast_id = b.id) AS seen_count,
+              (SELECT COUNT(*) FROM students s WHERE s.school = b.school) AS total_students
+            FROM broadcasts b WHERE b.school = ? ORDER BY b.created_at DESC LIMIT 100`).bind(sc).all()
+          : await DB.prepare(`SELECT b.*,
+              (SELECT COUNT(*) FROM broadcast_dismissals d WHERE d.broadcast_id = b.id) AS seen_count,
+              (SELECT COUNT(*) FROM students s WHERE s.school = b.school) AS total_students
+            FROM broadcasts b ORDER BY b.created_at DESC LIMIT 100`).all();
+        return ok({ broadcasts: results }, 200, CORS);
+      }
+
       // POST /api/broadcasts — admin creates broadcast. Optional studentIds: when
       // present, the broadcast is only visible to those students (still school-scoped);
       // omitted/empty means visible to the whole school as before.
@@ -2300,6 +2317,23 @@ export async function onRequest({ request, env }) {
         const claims = await verifyToken(request, env);
         if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
         try { await DB.prepare('INSERT INTO broadcast_dismissals (broadcast_id, student_id) VALUES (?, ?) ON CONFLICT (broadcast_id, student_id) DO NOTHING').bind(sub, claims.sub).run(); } catch {}
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // PATCH /api/broadcasts/:id — edit message text (dev only, or scoped admin)
+      if (sub && !subsub && method === 'PATCH') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const body = await request.json();
+        const message = (body.message || '').trim();
+        if (!message) return err('النص مطلوب', 400, CORS);
+        if (claims.role === 'dev') {
+          const res = await DB.prepare('UPDATE broadcasts SET message = ? WHERE id = ?').bind(message, sub).run();
+          if (!res.meta?.changes) return err('الرسالة غير موجودة', 404, CORS);
+        } else {
+          const res = await DB.prepare('UPDATE broadcasts SET message = ? WHERE id = ? AND school = ?').bind(message, sub, claims.school).run();
+          if (!res.meta?.changes) return err('غير موجود أو غير مصرح', 404, CORS);
+        }
         return ok({ ok: true }, 200, CORS);
       }
 

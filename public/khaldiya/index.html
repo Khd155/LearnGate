@@ -702,19 +702,15 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════
-     SCREEN 2b: PHONE REQUIRED GATE
-═══════════════════════════════════════════════════════ -->
-<div id="screen-phone-required" class="screen">
-  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);padding:24px;">
-    <div style="background:#fff;border-radius:24px;width:100%;max-width:400px;padding:36px 28px;box-shadow:0 32px 64px -16px rgba(7,54,105,.45);text-align:center;">
-      <div style="font-size:48px;margin-bottom:12px;">📱</div>
-      <h2 style="font-size:20px;font-weight:800;color:#1e293b;margin-bottom:8px;">أضف رقم جوالك</h2>
-      <p style="font-size:14px;color:#64748b;margin-bottom:24px;line-height:1.6;">نحتاج رقم جوالك لتتمكن من التواصل مع المشرف وتلقي الإشعارات.</p>
-      <input id="req-phone-input" type="tel" dir="ltr" maxlength="10" placeholder="05xxxxxxxx" onkeydown="if(event.key==='Enter')App.submitRequiredPhone()" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;font-size:16px;font-family:inherit;text-align:center;outline:none;transition:border-color .2s;box-sizing:border-box;margin-bottom:8px;" onfocus="this.style.borderColor='#3F7CB8'" onblur="this.style.borderColor='#e2e8f0'">
-      <div id="req-phone-err" style="display:none;color:#ef4444;font-size:13px;font-weight:600;margin-bottom:8px;"></div>
-      <button id="req-phone-btn" onclick="App.submitRequiredPhone()" style="width:100%;background:linear-gradient(135deg,#3F7CB8,#4FA877);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;margin-top:4px;transition:opacity .2s;" onmouseenter="this.style.opacity='.9'" onmouseleave="this.style.opacity='1'">حفظ ومتابعة ←</button>
-    </div>
+<!-- Phone gate modal — non-dismissible overlay shown on top of home screen -->
+<div id="phone-gate-modal" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(15,23,42,.7);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:#fff;border-radius:24px;width:100%;max-width:400px;padding:36px 28px;box-shadow:0 32px 64px -16px rgba(7,54,105,.55);text-align:center;">
+    <div style="font-size:48px;margin-bottom:12px;">📱</div>
+    <h2 style="font-size:20px;font-weight:800;color:#1e293b;margin-bottom:8px;">أضف رقم جوالك</h2>
+    <p style="font-size:14px;color:#64748b;margin-bottom:24px;line-height:1.6;">نحتاج رقم جوالك لتتمكن من التواصل مع المشرف وتلقي الإشعارات.</p>
+    <input id="req-phone-input" type="tel" dir="ltr" maxlength="10" placeholder="05xxxxxxxx" onkeydown="if(event.key==='Enter')App.submitRequiredPhone()" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;font-size:16px;font-family:inherit;text-align:center;outline:none;transition:border-color .2s;box-sizing:border-box;margin-bottom:8px;" onfocus="this.style.borderColor='#3F7CB8'" onblur="this.style.borderColor='#e2e8f0'">
+    <div id="req-phone-err" style="display:none;color:#ef4444;font-size:13px;font-weight:600;margin-bottom:8px;"></div>
+    <button id="req-phone-btn" onclick="App.submitRequiredPhone()" style="width:100%;background:linear-gradient(135deg,#3F7CB8,#4FA877);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;margin-top:4px;transition:opacity .2s;" onmouseenter="this.style.opacity='.9'" onmouseleave="this.style.opacity='1'">حفظ ومتابعة ←</button>
   </div>
 </div>
 <!-- ═══════════════════════════════════════════════════════

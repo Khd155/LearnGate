@@ -296,6 +296,7 @@
         <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')"><span class="tab-ic">🎫</span> الدعم الفني</button>
         <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')"><span class="tab-ic">📋</span> سجل النشاط</button>
         <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')"><span class="tab-ic">🧠</span> تحليل السلوك</button>
+        <button class="tab-btn"        data-tab="broadcasts" onclick="Dev.setTab('broadcasts')"><span class="tab-ic">📢</span> الرسائل الجماعية</button>
       </nav>
       <div class="sidebar-foot">LearnGate v2.0</div>
     </aside>
@@ -695,6 +696,18 @@
       </div>
     </div>
 
+      <!-- ── Broadcasts ── -->
+    <div id="tab-broadcasts" class="tab-pane">
+      <div class="section-title" style="margin-bottom:16px;"><span>📢</span> الرسائل الجماعية</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <select id="bc-school-filter" class="form-select" style="width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadBroadcasts()">
+          <option value="">كل المدارس</option>
+        </select>
+        <button class="btn btn-warn btn-sm" onclick="Dev.loadBroadcasts()">🔄 تحديث</button>
+      </div>
+      <div id="bc-list"><div class="empty">اختر مدرسة أو اضغط تحديث</div></div>
+    </div>
+
       </div><!-- /content -->
     </div><!-- /main -->
   </div><!-- /shell -->
@@ -825,8 +838,9 @@ const Dev = {
     if (tab === 'support')   { Dev.setSupportTab('tickets'); return; }
     if (tab === 'analytics') { Dev.loadAnalytics(); return; }
     if (tab === 'test-mgmt') { Dev.loadTestResults(); Dev.loadAptitudePlans(); return; }
-    if (tab === 'diff')      { Dev.loadDiff(); return; }
+    if (tab === 'diff')        { Dev.loadDiff(); return; }
     if (tab === 'permissions') { Dev.loadPermissions(); return; }
+    if (tab === 'broadcasts')  { Dev.loadBroadcasts(); return; }
   },
 
   async loadAll() {
@@ -1174,6 +1188,10 @@ const Dev = {
     document.getElementById('ap-school-filter').innerHTML =
       `<option value="">كل المدارس</option>` + schoolOpts;
     document.getElementById('ap-reset-school').innerHTML = schoolOpts;
+
+    // Broadcasts school filter
+    document.getElementById('bc-school-filter').innerHTML =
+      `<option value="">كل المدارس</option>` + schoolOpts;
   },
 
   async loadStudents() {
@@ -1876,6 +1894,125 @@ const Dev = {
     await apiDev('/dev/logs?confirm=ERASE_ALL_LOGS', { method: 'DELETE' });
     showToast('تم مسح السجلات ✅');
     Dev.loadLogs();
+  },
+
+  // ── Broadcasts Tab ───────────────────────────────────────────────────
+  async loadBroadcasts() {
+    const el = document.getElementById('bc-list');
+    const school = document.getElementById('bc-school-filter')?.value || '';
+    if (el) el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
+    try {
+      const params = school ? `?school=${encodeURIComponent(school)}` : '?school=__all__';
+      const data = await apiDev('/broadcasts/all' + params);
+      const list = data.broadcasts || [];
+      if (!list.length) { el.innerHTML = '<div class="empty">لا توجد رسائل جماعية</div>'; return; }
+      el.innerHTML = list.map(b => {
+        const seen = b.seen_count || 0;
+        const total = b.total_students || 0;
+        const unseen = Math.max(0, total - seen);
+        const pct = total ? Math.round(seen / total * 100) : 0;
+        const date = new Date(b.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        return `<div class="section" style="margin-bottom:14px;padding:0;overflow:hidden;">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+              <div data-bc-text="${escapeHtml(b.message).replace(/"/g,'&quot;')}" style="font-size:13px;font-weight:600;color:#e2e8f0;flex:1;">${escapeHtml(b.message)}</div>
+              <button class="btn btn-sm" style="font-size:12px;padding:5px 10px;" onclick="Dev.editBroadcast('${b.id}', this)">✏️ تعديل</button>
+              <button class="btn btn-danger btn-sm" onclick="Dev.deleteBroadcast('${b.id}','${escapeHtml(b.school)}')">حذف</button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted);">
+              <span>🏫 ${escapeHtml(b.school)}</span>
+              <span>👤 ${escapeHtml(b.admin_name || '—')}</span>
+              <span>🕐 ${date}</span>
+            </div>
+          </div>
+          <div style="padding:12px 16px;background:rgba(255,255,255,.03);">
+            <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">
+              <span style="font-size:13px;"><span style="color:#4FA877;font-weight:700;">${seen}</span> <span style="color:var(--muted)">فتحوها</span></span>
+              <span style="font-size:13px;"><span style="color:#f59e0b;font-weight:700;">${unseen}</span> <span style="color:var(--muted)">لم يفتحوها</span></span>
+              <span style="font-size:13px;"><span style="color:#3b82f6;font-weight:700;">${total}</span> <span style="color:var(--muted)">إجمالي</span></span>
+              ${total ? `<span style="font-size:12px;color:var(--muted);">(${pct}% فتحوها)</span>` : ''}
+            </div>
+            <div style="background:rgba(255,255,255,.07);border-radius:6px;height:6px;overflow:hidden;margin-bottom:10px;">
+              <div style="height:100%;background:#4FA877;width:${pct}%;transition:width .4s;border-radius:6px;"></div>
+            </div>
+            <button class="btn btn-sm" style="font-size:12px;padding:5px 12px;" onclick="Dev.toggleBroadcastViewers('${b.id}', this)">
+              👁 عرض من فتحها
+            </button>
+            <div id="bc-viewers-${b.id}" style="display:none;margin-top:10px;"></div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
+    }
+  },
+
+  async toggleBroadcastViewers(id, btn) {
+    const el = document.getElementById('bc-viewers-' + id);
+    if (!el) return;
+    if (el.style.display !== 'none') { el.style.display = 'none'; btn.textContent = '👁 عرض من فتحها'; return; }
+    el.style.display = 'block';
+    btn.textContent = '▲ إخفاء';
+    if (el.dataset.loaded) return;
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px;">جارٍ التحميل...</div>';
+    try {
+      const data = await apiDev(`/broadcasts/${id}/viewers`);
+      const viewers = data.viewers || [];
+      if (!viewers.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12px;">لم يفتحها أحد بعد</div>'; return; }
+      el.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">الطلاب اللي فتحوها (${viewers.length}):</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${viewers.map(v => {
+            const t = new Date(v.seen_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+            return `<span style="background:rgba(79,168,119,.15);border:1px solid rgba(79,168,119,.3);border-radius:8px;padding:4px 10px;font-size:12px;color:#e2e8f0;" title="${t}">${escapeHtml(v.name)}</span>`;
+          }).join('')}
+        </div>`;
+      el.dataset.loaded = '1';
+    } catch(e) {
+      el.innerHTML = `<div style="color:var(--danger);font-size:12px;">تعذّر التحميل</div>`;
+    }
+  },
+
+  async editBroadcast(id, btn) {
+    const card = btn.closest('.section');
+    const textEl = card?.querySelector('[data-bc-text]');
+    if (!textEl) return;
+    const current = textEl.dataset.bcText || textEl.textContent.trim();
+
+    // Replace text display with inline textarea
+    const orig = textEl.outerHTML;
+    textEl.outerHTML = `<div data-bc-edit="${id}" style="flex:1;">
+      <textarea id="bc-edit-${id}" style="width:100%;min-height:72px;border:1.5px solid var(--primary);border-radius:8px;background:rgba(255,255,255,.07);color:#e2e8f0;font-size:13px;font-family:inherit;padding:8px 10px;resize:vertical;box-sizing:border-box;">${escapeHtml(current)}</textarea>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button class="btn btn-sm" style="background:#4FA877;color:#fff;font-size:12px;padding:5px 14px;" onclick="Dev.saveBroadcastEdit('${id}')">💾 حفظ</button>
+        <button class="btn btn-sm" style="font-size:12px;padding:5px 14px;" onclick="Dev.loadBroadcasts()">إلغاء</button>
+      </div>
+    </div>`;
+    btn.style.display = 'none';
+  },
+
+  async saveBroadcastEdit(id) {
+    const ta = document.getElementById('bc-edit-' + id);
+    if (!ta) return;
+    const message = ta.value.trim();
+    if (!message) { Dev.showToast('النص لا يمكن أن يكون فارغاً', 'error'); return; }
+    try {
+      await apiDev(`/broadcasts/${id}`, { method: 'PATCH', body: JSON.stringify({ message }) });
+      Dev.showToast('تم تعديل الرسالة ✅', 'success');
+      Dev.loadBroadcasts();
+    } catch(e) {
+      Dev.showToast('تعذّر التعديل: ' + e.message, 'error');
+    }
+  },
+
+  async deleteBroadcast(id, school) {
+    if (!confirm('حذف هذه الرسالة؟')) return;
+    try {
+      await apiDev(`/broadcasts/${id}`, { method: 'DELETE' });
+      Dev.showToast('تم الحذف', 'success');
+      Dev.loadBroadcasts();
+    } catch(e) {
+      Dev.showToast('تعذّر الحذف: ' + e.message, 'error');
+    }
   },
 
   // ── Behavior Analytics Tab ────────────────────────────────────────────

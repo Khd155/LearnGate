@@ -513,6 +513,14 @@ export async function onRequest({ request, env }) {
 
       if (method === 'PATCH' && sub) {
         const claims = await verifyToken(request, env);
+        // Allow students to update their own phone number only
+        if (claims?.role === 'student' && claims.sub === sub) {
+          const body = await request.json();
+          const phone = (body.phone || '').trim();
+          if (!phone || !/^\d{10}$/.test(phone)) return err('رقم الجوال غير صحيح', 400, CORS);
+          await DB.prepare('UPDATE students SET phone = ? WHERE id = ?').bind(phone, sub).run();
+          return ok({ ok: true }, 200, CORS);
+        }
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const target = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(sub).first();
         if (!target) return err('الطالب غير موجود', 404, CORS);

@@ -79,6 +79,13 @@ function _exitTrialMode() {
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('trial-banner-exit');
   if (btn) btn.addEventListener('click', _exitTrialMode);
+  // Fade in if we arrived from a hard navigation (e.g. back from academic page)
+  if (document.body.style.opacity === '0' || parseFloat(getComputedStyle(document.body).opacity) < 1) {
+    requestAnimationFrame(() => {
+      document.body.style.transition = 'opacity .25s ease';
+      document.body.style.opacity = '1';
+    });
+  }
 });
 
 // Base API call helper
@@ -618,10 +625,14 @@ const App = {
     const name = user.name || user.admin_name || '';
     const role = State.student ? 'student' : (State.admin ? 'admin' : '');
     localStorage.setItem('lg_academic_user', JSON.stringify({ name, role }));
-    window.location.href = 'academic/index.html';
+    // Fade out smoothly before hard navigation
+    document.body.style.transition = 'opacity .22s ease';
+    document.body.style.opacity = '0';
+    setTimeout(() => { window.location.href = 'academic/index.html'; }, 220);
   },
 
   async startCapabilities() {
+    show('screen-loading');
     try { await DB.loadStudentData(); } catch (e) {}
     const plans = DB.studentPlans(State.student.id);
     const latest = plans[0];

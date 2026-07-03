@@ -961,25 +961,31 @@ const Dev = {
   async loadPermissions() {
     const { admins } = await apiDev('/dev/admins');
     const el = document.getElementById('permissions-list');
-    const eligible = admins.filter(a => a.role !== 'director');
-    if (!eligible.length) { el.innerHTML = '<div class="empty">لا يوجد مشرفون</div>'; return; }
+    if (!admins.length) { el.innerHTML = '<div class="empty">لا يوجد مشرفون</div>'; return; }
     el.innerHTML = `<table class="data-table">
-      <thead><tr><th>الاسم</th><th>المدرسة</th><th>تعديل الأسئلة</th><th>مقارنة الإجابات</th></tr></thead>
-      <tbody>${eligible.map(a => {
+      <thead><tr><th>الاسم</th><th>المدرسة</th><th>تعديل الأسئلة</th><th>مقارنة الإجابات</th><th>إرسال واتساب</th></tr></thead>
+      <tbody>${admins.map(a => {
         let perms = [];
         try { perms = JSON.parse(a.permissions || '[]'); } catch {}
+        const isDirector = a.role === 'director';
         const chkQ    = perms.includes('edit_questions') ? 'checked' : '';
         const chkDiff = perms.includes('view_diff')      ? 'checked' : '';
+        const chkWa   = perms.includes('send_whatsapp')  ? 'checked' : '';
+        const autoCell = '<span style="font-size:12px;color:var(--muted)">✅ تلقائي (مدير)</span>';
         return `<tr>
-          <td>${escapeHtml(a.name)}</td>
+          <td>${escapeHtml(a.name)}${isDirector ? ' <span class="badge">مدير</span>' : ''}</td>
           <td>${a.school === '*' ? '<span class="badge badge-super">⭐ كل المدارس</span>' : escapeHtml(a.school || '—')}</td>
-          <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <td>${isDirector ? autoCell : `<label style="display:flex;align-items:center;gap:6px;cursor:pointer">
             <input type="checkbox" ${chkQ} onchange="Dev.togglePermission('${a.id}','edit_questions',this.checked)">
             <span style="font-size:13px;color:var(--muted)">يمكنه إضافة/تعديل/حذف الأسئلة</span>
-          </label></td>
-          <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          </label>`}</td>
+          <td>${isDirector ? autoCell : `<label style="display:flex;align-items:center;gap:6px;cursor:pointer">
             <input type="checkbox" ${chkDiff} onchange="Dev.togglePermission('${a.id}','view_diff',this.checked)">
             <span style="font-size:13px;color:var(--muted)">يمكنه رؤية مقارنة إجابات الطلاب</span>
+          </label>`}</td>
+          <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" ${chkWa} onchange="Dev.togglePermission('${a.id}','send_whatsapp',this.checked)">
+            <span style="font-size:13px;color:var(--muted)">يمكنه إرسال رسائل واتساب للطلاب</span>
           </label></td>
         </tr>`;
       }).join('')}</tbody>

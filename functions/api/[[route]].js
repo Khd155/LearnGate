@@ -146,6 +146,24 @@ async function getSendPulseToken(env) {
   return _spToken;
 }
 
+function normalizeSaudiPhone(phone) {
+  let p = String(phone).trim().replace(/[\s-]/g, '');
+  if (p.startsWith('+')) return p;
+  if (p.startsWith('966')) return '+' + p;
+  if (p.startsWith('05')) return '+966' + p.slice(1);
+  if (p.startsWith('5')) return '+966' + p;
+  return '+966' + p.replace(/^0/, '');
+}
+
+function sanitizeWaComponents(components) {
+  return (components || []).map(c => ({
+    ...c,
+    parameters: (c.parameters || []).map(p => (
+      p.type === 'text' ? { ...p, text: String(p.text).replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim() } : p
+    )),
+  }));
+}
+
 async function spRequest(env, method, path, body) {
   const token = await getSendPulseToken(env);
   const res = await fetch('https://api.sendpulse.com' + path, {
@@ -449,7 +467,8 @@ export async function onRequest({ request, env }) {
         // Directors/dev may filter by optional ?school= param
         let effectiveSchool;
         if (claims.role === 'admin') {
-          effectiveSchool = claims.school || null;
+          effectiveSchool = claims.school || '';
+          if (!effectiveSchool) return ok({ students: [] }, 200, CORS);
         } else {
           effectiveSchool = school || null; // director/dev may filter or get all
         }
@@ -2630,6 +2649,28 @@ export async function onRequest({ request, env }) {
 
     // ── SendPulse WhatsApp ──────────────────────────────────────────────
     if (resource === 'sendpulse') {
+      // POST /api/sendpulse/send — also accepts admin/director JWT (not just dev key)
+      if (sub === 'send' && method === 'POST') {
+        const _isDevSend = authDev(request, env);
+        const _claimsSend = _isDevSend ? null : await verifyToken(request, env);
+        if (!_isDevSend && (!_claimsSend || !['admin','director'].includes(_claimsSend.role))) return err('غير مصرح', 401, CORS);
+        if (!_isDevSend && _claimsSend.role !== 'dev' && !(Array.isArray(_claimsSend.permissions) && _claimsSend.permissions.includes('send_whatsapp'))) {
+          return err('لا تملك صلاحية إرسال الواتساب', 403, CORS);
+        }
+        const body = await request.json();
+        const { phones, template_name, language_code = 'ar', components = [] } = body;
+        if (!phones?.length) return err('phones مطلوب', 400, CORS);
+        if (!template_name) return err('template_name مطلوب', 400, CORS);
+        const botId = env.SENDPULSE_BOT_ID;
+        const cleanComponents = sanitizeWaComponents(components);
+        const results = await Promise.all(phones.map(phone => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+          bot_id: botId,
+          phone: normalizeSaudiPhone(phone),
+          template: { name: template_name, language: { code: language_code }, components: cleanComponents },
+        })));
+        return ok({ sent_to: phones.length, results }, 200, CORS);
+      }
+
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
 
       // GET /api/sendpulse/templates — list available WA templates
@@ -2645,25 +2686,6 @@ export async function onRequest({ request, env }) {
         return ok(data, 200, CORS);
       }
 
-      // POST /api/sendpulse/send — send template to phone numbers
-      // body: { phones: ['+9665...'], template_name, language_code?, components? }
-      if (sub === 'send' && method === 'POST') {
-        const body = await request.json();
-        const { phones, template_name, language_code = 'ar', components = [] } = body;
-        if (!phones?.length) return err('phones مطلوب', 400, CORS);
-        if (!template_name) return err('template_name مطلوب', 400, CORS);
-        const botId = env.SENDPULSE_BOT_ID;
-        const data = await spRequest(env, 'POST', '/whatsapp/contacts/sendByPhones', {
-          bot_id: botId,
-          phones,
-          message: {
-            type: 'template',
-            template: { name: template_name, language: { code: language_code }, components },
-          },
-        });
-        return ok(data, 200, CORS);
-      }
-
       // POST /api/sendpulse/broadcast/:broadcastId — send broadcast msg to school students via WA
       if (sub === 'broadcast' && subsub && method === 'POST') {
         const body = await request.json();
@@ -2675,17 +2697,15 @@ export async function onRequest({ request, env }) {
           'SELECT phone FROM students WHERE school = ? AND phone IS NOT NULL AND phone != \'\''
         ).bind(broadcast.school).all();
         if (!students.length) return err('لا يوجد طلاب برقم جوال', 400, CORS);
-        const phones = students.map(s => s.phone.startsWith('+') ? s.phone : '+966' + s.phone.replace(/^0/, ''));
+        const phones = students.map(s => normalizeSaudiPhone(s.phone));
         const botId = env.SENDPULSE_BOT_ID;
-        const data = await spRequest(env, 'POST', '/whatsapp/contacts/sendByPhones', {
+        const cleanComponents = sanitizeWaComponents(components);
+        const results = await Promise.all(phones.map(phone => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
           bot_id: botId,
-          phones,
-          message: {
-            type: 'template',
-            template: { name: template_name, language: { code: language_code }, components },
-          },
-        });
-        return ok({ sent_to: phones.length, result: data }, 200, CORS);
+          phone,
+          template: { name: template_name, language: { code: language_code }, components: cleanComponents },
+        })));
+        return ok({ sent_to: phones.length, results }, 200, CORS);
       }
     }
 

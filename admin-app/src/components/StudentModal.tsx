@@ -143,6 +143,10 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
   const updateStudent = useStore((s) => s.updateStudent);
   const removeStudent = useStore((s) => s.removeStudent);
   const pushToast = useStore((s) => s.pushToast);
+  const session = useStore((s) => s.session);
+
+  const canSendWhatsapp =
+    session?.role === 'dev' || !!session?.permissions?.includes('send_whatsapp');
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -151,6 +155,8 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
   const [resetting, setResetting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const [waSending, setWaSending] = useState(false);
 
   const [history, setHistory] = useState<Plan[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -226,6 +232,25 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
     }
   };
 
+  const sendWa = async () => {
+    if (!student.phone) { pushToast('error', 'الطالب ليس لديه رقم جوال'); return; }
+    setWaSending(true);
+    try {
+      const phone = student.phone.startsWith('+') ? student.phone : '+966' + student.phone.replace(/^0/, '');
+      await api.post('/sendpulse/send', {
+        phones: [phone],
+        template_name: 'test_1',
+        language_code: 'ar',
+        components: [{ type: 'body', parameters: [{ type: 'text', text: student.name }] }],
+      });
+      pushToast('success', `تم إرسال الواتساب لـ ${student.name} ✅`);
+    } catch (e) {
+      pushToast('error', e instanceof ApiError ? e.message : 'تعذّر الإرسال');
+    } finally {
+      setWaSending(false);
+    }
+  };
+
   const doDelete = async () => {
     setDeleting(true);
     try {
@@ -290,7 +315,7 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
             </div>
 
             {/* ── Action buttons ── */}
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <button
                 type="button"
                 onClick={() => onMessage(student)}
@@ -298,6 +323,17 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
               >
                 📩 رسالة
               </button>
+              {canSendWhatsapp && (
+                <button
+                  type="button"
+                  disabled={waSending || !student.phone}
+                  onClick={sendWa}
+                  title={!student.phone ? 'لا يوجد رقم جوال' : 'إرسال واتساب ترحيبي'}
+                  className="rounded-xl border border-emerald-200 px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 dark:border-emerald-700 dark:text-emerald-400"
+                >
+                  {waSending ? '…' : '📲 واتساب'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setResetOpen(true)}

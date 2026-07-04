@@ -353,8 +353,8 @@ export async function onRequest({ request, env }) {
         if (!code || !/^\d{10}$/.test(code)) return err('رمز غير صالح', 400, CORS);
         const sc = bodySchool || school;
         const student = sc
-          ? await DB.prepare('SELECT id, code, name, school FROM students WHERE code = ? AND school = ?').bind(code, sc).first()
-          : await DB.prepare('SELECT id, code, name, school FROM students WHERE code = ?').bind(code).first();
+          ? await DB.prepare('SELECT id, code, name, school, phone FROM students WHERE code = ? AND school = ?').bind(code, sc).first()
+          : await DB.prepare('SELECT id, code, name, school, phone FROM students WHERE code = ?').bind(code).first();
         if (!student) {
           await recordFailedAttempt(DB, ip, 'student-login');
           await logEvent(DB, { level: 'warn', category: 'login', message: 'محاولة دخول طالب فاشلة — بيانات غير صحيحة أو الحساب غير موجود', user_role: 'student', school: sc, ip });
@@ -364,7 +364,7 @@ export async function onRequest({ request, env }) {
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const token = await jwtSign({ sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
         await logEvent(DB, { level: 'success', category: 'login', message: 'تسجيل دخول طالب', user_name: student.name, user_role: 'student', school: student.school || '', ip });
-        return ok({ token, student: { id: student.id, name: student.name, school: student.school } }, 200, CORS);
+        return ok({ token, student: { id: student.id, name: student.name, school: student.school, phone: student.phone || '' } }, 200, CORS);
       }
 
       // POST /api/auth/admin-login

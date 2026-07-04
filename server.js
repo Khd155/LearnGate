@@ -72,7 +72,20 @@ for (const route of SPA_REWRITES) {
   app.get([route, `${route}/*`], (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
 }
 
-app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
+app.use(express.static(PUBLIC_DIR, {
+  extensions: ['html'],
+  setHeaders: (res, filePath) => {
+    // Hashed admin-app assets are immutable — safe to cache forever.
+    // Everything else (the SPA's index.html/app.js/dev.html) must always
+    // revalidate, or phones can keep running a stale cached copy for days
+    // after a deploy and silently miss client-side bug fixes.
+    if (filePath.includes(`${path.sep}admin${path.sep}assets${path.sep}`)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
 
 app.use((req, res) => {
   res.status(404).sendFile(path.join(PUBLIC_DIR, '404.html'));

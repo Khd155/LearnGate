@@ -515,10 +515,10 @@ const App = {
       document.querySelectorAll('.director-tab').forEach(el => {
         el.style.display = State.role === 'director' ? '' : 'none';
       });
-      await new Promise(r => setTimeout(r, 700));
-      App.setTab('students');
-      show('screen-admin');
-      document.documentElement.style.visibility = '';
+      // New admin dashboard (React) lives at /admin/ — redirect there now that the
+      // session is persisted to localStorage.lg_xsession. The old in-SPA admin
+      // screen is no longer shown after a successful admin login.
+      window.location.href = '/admin/';
     } catch(e) {
       _restoreBtn();
       document.documentElement.style.visibility = '';
@@ -4011,11 +4011,10 @@ async function _quickRestoreSession(sess) {
       document.querySelectorAll('.director-tab').forEach(el => {
         el.style.display = State.role === 'director' ? '' : 'none';
       });
-      await Promise.all([DB.loadAll(), _minDelay]);
-      App.setTab('students');
-      show('screen-admin');
-      document.documentElement.style.visibility = '';
-      routeHash();
+      // Restoring an existing admin/director session on page load also lands in the
+      // new React admin dashboard at /admin/ rather than the legacy in-SPA screen.
+      window.location.href = '/admin/';
+      return;
     }
   } catch (e) {
     _authToken = null;

@@ -876,17 +876,18 @@ export async function onRequest({ request, env }) {
         try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)`).run(); } catch {}
         const level    = url.searchParams.get('level') || '';
         const category = url.searchParams.get('category') || '';
-        const limitN   = Math.min(parseInt(url.searchParams.get('limit') || '200', 10), 500);
+        const limitN   = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 500);
+        const offsetN  = Math.max(parseInt(url.searchParams.get('offset') || '0', 10), 0);
         let q = 'SELECT * FROM logs';
         const params = [];
         const conds = [];
         if (level)    { conds.push('level = ?');    params.push(level); }
         if (category) { conds.push('category = ?'); params.push(category); }
         if (conds.length) q += ' WHERE ' + conds.join(' AND ');
-        q += ' ORDER BY created_at DESC LIMIT ?';
-        params.push(limitN);
+        q += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+        params.push(limitN, offsetN);
         const { results } = await DB.prepare(q).bind(...params).all();
-        return ok({ logs: results }, 200, CORS);
+        return ok({ logs: results, hasMore: results.length === limitN }, 200, CORS);
       }
 
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
@@ -987,12 +988,19 @@ export async function onRequest({ request, env }) {
 
       // PATCH /api/dev/schools/:id — rename school (cascades to students/admins/plans)
       if (sub === 'schools' && subsub && method === 'PATCH') {
-        const { name } = await request.json();
-        if (!name || !name.trim()) return err('الاسم مطلوب', 400, CORS);
-        const newName = name.trim();
+        let body;
+        try { body = await request.json(); } catch { return err('بيانات غير صالحة', 400, CORS); }
+        const rawName = typeof body?.name === 'string' ? body.name : '';
+        const newName = rawName.replace(/[ -]/g, '').trim();
+        if (!newName) return err('الاسم مطلوب', 400, CORS);
+        if (newName.length > 120) return err('اسم المدرسة طويل جداً (الحد الأقصى 120 حرفاً)', 400, CORS);
+
         const school = await DB.prepare('SELECT * FROM schools WHERE id = ?').bind(subsub).first();
         if (!school) return err('المدرسة غير موجودة', 404, CORS);
         const oldName = school.name;
+
+        if (newName === oldName) return ok({ school: { id: subsub, name: newName }, unchanged: true }, 200, CORS);
+
         try {
           await DB.batch([
             DB.prepare('UPDATE schools SET name = ? WHERE id = ?').bind(newName, subsub),
@@ -1011,7 +1019,7 @@ export async function onRequest({ request, env }) {
       if (sub === 'students' && method === 'GET') {
         const filterSchool = url.searchParams.get('school');
         try {
-          let q = `SELECT s.id, s.code, s.name, s.school, s.created_at,
+          let q = `SELECT s.id, s.code, s.name, s.school, s.phone, s.created_at,
                           p.status as plan_status
                    FROM students s
                    LEFT JOIN plans p ON p.student_id = s.id`;
@@ -1026,7 +1034,7 @@ export async function onRequest({ request, env }) {
             const { results } = await DB.prepare(
               'SELECT s.id, s.code, s.name, s.created_at, p.status as plan_status FROM students s LEFT JOIN plans p ON p.student_id = s.id ORDER BY s.name ASC'
             ).all();
-            return ok({ students: results.map(r => ({ ...r, school: '' })) }, 200, CORS);
+            return ok({ students: results.map(r => ({ ...r, school: '', phone: r.phone || '' })) }, 200, CORS);
           }
           throw e;
         }

@@ -374,7 +374,23 @@ export async function onRequest({ request, env }) {
         return ok({ students: results }, 200, CORS);
       }
 
-      if (method === 'POST') {
+      // POST /api/students/:id/reset-test — admin/director (own school) or dev: wipe a
+      // student's bio test attempts so they can take it again, without needing a dev key.
+      if (method === 'POST' && sub && subsub === 'reset-test') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const resetTarget = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(sub).first();
+        if (!resetTarget) return err('الطالب غير موجود', 404, CORS);
+        if (claims.role !== 'dev') {
+          const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
+          if (!effectiveSchool || resetTarget.school !== effectiveSchool) return err('غير مصرح', 401, CORS);
+        }
+        const deleted = await resetStudentTestResults(DB, sub);
+        await logEvent(DB, { level: 'warn', category: 'test-management', message: `إعادة تعيين اختبار الطالب: ${resetTarget.name}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || resetTarget.school || '' });
+        return ok({ ok: true, deleted }, 200, CORS);
+      }
+
+      if (method === 'POST' && !sub) {
         const postClaims = await verifyToken(request, env);
         if (!postClaims || !['admin','director','dev'].includes(postClaims.role)) return err('غير مصرح', 401, CORS);
         const body = await request.json();
@@ -444,9 +460,28 @@ export async function onRequest({ request, env }) {
           const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
           if (!effectiveSchool || target.school !== effectiveSchool) return err('غير مصرح', 401, CORS);
         }
-        const { phone } = await request.json();
-        await DB.prepare('UPDATE students SET phone = ? WHERE id = ?').bind(phone || '', sub).run();
-        await logEvent(DB, { level: 'info', category: 'student', message: `تحديث رقم جوال الطالب: ${target.name}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || target.school || '' });
+        const body = await request.json();
+        const sets = [];
+        const vals = [];
+        if ('phone' in body) { sets.push('phone = ?'); vals.push(body.phone || ''); }
+        if ('name' in body) {
+          const name = (body.name || '').trim();
+          if (!name) return err('اسم الطالب مطلوب', 400, CORS);
+          sets.push('name = ?'); vals.push(name);
+        }
+        if ('code' in body) {
+          const code = (body.code || '').trim();
+          if (!code) return err('رقم الهوية مطلوب', 400, CORS);
+          sets.push('code = ?'); vals.push(code);
+        }
+        if (!sets.length) return err('لا توجد بيانات للتحديث', 400, CORS);
+        try {
+          await DB.prepare(`UPDATE students SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, sub).run();
+        } catch (e) {
+          if (String(e?.message || '').includes('UNIQUE')) return err('السجل المدني مسجّل مسبقاً', 409, CORS);
+          throw e;
+        }
+        await logEvent(DB, { level: 'info', category: 'student', message: `تحديث بيانات الطالب: ${target.name}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || target.school || '' });
         return ok({ ok: true }, 200, CORS);
       }
 
@@ -1738,23 +1773,40 @@ export async function onRequest({ request, env }) {
           broadcast_id TEXT NOT NULL, student_id TEXT NOT NULL,
           PRIMARY KEY (broadcast_id, student_id)
         )`).run();
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS broadcast_targets (
+          broadcast_id TEXT NOT NULL, student_id TEXT NOT NULL,
+          PRIMARY KEY (broadcast_id, student_id)
+        )`).run();
       } catch {}
 
-      // POST /api/broadcasts — admin creates broadcast
+      // POST /api/broadcasts — admin creates broadcast. Optional studentIds: when
+      // present, the broadcast is only visible to those students (still school-scoped);
+      // omitted/empty means visible to the whole school as before.
       if (!sub && method === 'POST') {
         const claims = await verifyToken(request, env);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
-        const { message } = await request.json();
+        const { message, studentIds } = await request.json();
         if (!message || message.trim().length < 3) return err('الرسالة قصيرة جداً', 400, CORS);
         if (message.length > 500) return err('الرسالة طويلة جداً (الحد 500 حرف)', 400, CORS);
         const broadcastSchool = (claims.school && claims.school !== '*') ? claims.school : school;
         if (!broadcastSchool) return err('المدرسة مطلوبة', 400, CORS);
+        const targetIds = Array.isArray(studentIds) ? studentIds.filter(Boolean) : [];
+        if (targetIds.length) {
+          const placeholders = targetIds.map(() => '?').join(',');
+          const { results: validTargets } = await DB.prepare(
+            `SELECT id FROM students WHERE id IN (${placeholders}) AND school = ?`
+          ).bind(...targetIds, broadcastSchool).all();
+          if (validTargets.length !== targetIds.length) return err('بعض الطلاب المحددين غير صالحين', 400, CORS);
+        }
         const bid = crypto.randomUUID();
         const now = new Date().toISOString();
         await DB.prepare('INSERT INTO broadcasts (id, school, admin_id, admin_name, message, created_at) VALUES (?, ?, ?, ?, ?, ?)')
           .bind(bid, broadcastSchool, claims.sub || '', claims.name || 'المشرف', message.trim(), now).run();
-        await logEvent(DB, { level: 'info', category: 'broadcast', message: `رسالة جماعية جديدة: ${message.trim().slice(0, 80)}`, user_name: claims.name || '', user_role: claims.role, school: broadcastSchool });
-        return ok({ broadcast: { id: bid, admin_name: claims.name, message: message.trim(), created_at: now } }, 201, CORS);
+        for (const stId of targetIds) {
+          await DB.prepare('INSERT INTO broadcast_targets (broadcast_id, student_id) VALUES (?, ?)').bind(bid, stId).run();
+        }
+        await logEvent(DB, { level: 'info', category: 'broadcast', message: `رسالة جماعية جديدة${targetIds.length ? ` (${targetIds.length} طالب محدد)` : ''}: ${message.trim().slice(0, 80)}`, user_name: claims.name || '', user_role: claims.role, school: broadcastSchool });
+        return ok({ broadcast: { id: bid, admin_name: claims.name, message: message.trim(), created_at: now, targetCount: targetIds.length } }, 201, CORS);
       }
 
       // GET /api/broadcasts/active?school=X — student gets unseen broadcasts
@@ -1769,8 +1821,12 @@ export async function onRequest({ request, env }) {
             SELECT b.* FROM broadcasts b
             WHERE b.school = ? AND NOT EXISTS (
               SELECT 1 FROM broadcast_dismissals d WHERE d.broadcast_id = b.id AND d.student_id = ?
-            ) ORDER BY b.created_at DESC LIMIT 5
-          `).bind(sc, claims.sub).all();
+            ) AND (
+              NOT EXISTS (SELECT 1 FROM broadcast_targets t WHERE t.broadcast_id = b.id)
+              OR EXISTS (SELECT 1 FROM broadcast_targets t WHERE t.broadcast_id = b.id AND t.student_id = ?)
+            )
+            ORDER BY b.created_at DESC LIMIT 5
+          `).bind(sc, claims.sub, claims.sub).all();
           return ok({ broadcasts: results }, 200, CORS);
         } else {
           // Admins/directors: scoped to their own school (dev can pass school param)

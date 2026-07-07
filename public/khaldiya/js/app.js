@@ -2109,13 +2109,31 @@ const App = {
     App.renderAdminDashboard('students');
   },
 
-  async editStudentPhone(id, currentPhone) {
-    const phone = prompt('رقم جوال الطالب:', currentPhone || '');
-    if (phone === null) return;
-    const trimmed = phone.trim();
-    if (trimmed && !/^05\d{8}$/.test(trimmed)) { showToast('رقم الجوال يجب أن يبدأ بـ 05 ويكون 10 أرقام.'); return; }
+  editStudentPhone(id, currentPhone) {
+    App._ephoneId = id;
+    const input = document.getElementById('ephone-input');
+    const errEl = document.getElementById('ephone-err');
+    if (errEl) errEl.classList.remove('show');
+    if (input) input.value = currentPhone || '';
+    document.getElementById('edit-phone-modal').classList.add('open');
+    if (input) setTimeout(() => input.focus(), 50);
+  },
+
+  closeEditPhoneModal() {
+    document.getElementById('edit-phone-modal').classList.remove('open');
+    App._ephoneId = null;
+  },
+
+  async saveEditPhoneModal() {
+    const id = App._ephoneId;
+    if (!id) return;
+    const input = document.getElementById('ephone-input');
+    const errEl = document.getElementById('ephone-err');
+    const trimmed = (input?.value || '').trim();
+    if (trimmed && !/^05\d{8}$/.test(trimmed)) { showAlert(errEl, 'رقم الجوال يجب أن يبدأ بـ 05 ويكون 10 أرقام.'); return; }
     try { await DB.updateStudentPhone(id, trimmed); }
-    catch (e) { showToast(e.message || 'فشل الحفظ.'); return; }
+    catch (e) { showAlert(errEl, e.message || 'فشل الحفظ.'); return; }
+    App.closeEditPhoneModal();
     showToast('تم تحديث رقم الجوال ✅');
     App.renderAdminDashboard('students');
   },

@@ -1569,6 +1569,27 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
+     MODAL: EDIT STUDENT PHONE
+═══════════════════════════════════════════════════════ -->
+<div id="edit-phone-modal" class="modal-overlay" onclick="if(event.target===this)App.closeEditPhoneModal()">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-title">📱 رقم جوال الطالب</div>
+    <div id="ephone-err" class="alert alert-error"></div>
+    <div class="form-group" style="margin-bottom:4px;">
+      <label class="form-label">رقم الجوال</label>
+      <input type="text" id="ephone-input" class="form-input" placeholder="0500000000"
+             inputmode="numeric" maxlength="10"
+             oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+             onkeydown="if(event.key==='Enter') App.saveEditPhoneModal()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="App.saveEditPhoneModal()">حفظ</button>
+      <button class="btn btn-outline" onclick="App.closeEditPhoneModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
      REVIEW MODAL
 ═══════════════════════════════════════════════════════ -->
 <div id="review-modal" class="modal-overlay" onclick="if(event.target===this)App.closeModal()">

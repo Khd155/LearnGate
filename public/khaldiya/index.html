@@ -1315,7 +1315,7 @@
     <div id="sp-quant-cards" class="no-print"></div>
 
     <!-- Training Plan section -->
-    <h3 class="section-heading">📅 خطة التدريب الذاتي</h3>
+    <h3 class="section-heading" id="sp-training-section">📅 خطة التدريب الذاتي</h3>
     <div class="sp-training-wrap">
       <div class="sp-training-intro">
         أخي الطالب، بعد توكلك على الله جل وعلا ثم امتلاكك لمقومات التعلم الذاتي، بإمكانك أن ترسم خطتك للاستعداد لاختبار القدرات وفق منهجية متدرجة وذات أثر فاعل على مستوى إتقانك للمهارات.<br>
@@ -1474,6 +1474,10 @@
     <div class="no-print" style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
       <button class="btn btn-outline" style="flex:1;" onclick="show('screen-level-analysis')">
         ← تحليل المستوى
+      </button>
+      <button class="btn btn-primary" style="flex:1;"
+              onclick="document.getElementById('sp-training-section').scrollIntoView({behavior:'smooth',block:'start'})">
+        📅 خطة التدريب الذاتي
       </button>
       <button class="btn btn-outline" style="flex:1;"
               onclick="show('screen-student-home');App.renderStudentHome()">
@@ -1771,6 +1775,34 @@
 <!-- ═══════════════════════════════════════════════════════
      MODAL: EDIT STUDENT PHONE
 ═══════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════
+     STUDENT PHONE PROMPT MODAL (non-blocking)
+═══════════════════════════════════════════════════════ -->
+<div id="student-phone-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;text-align:center;">
+    <div style="font-size:42px;margin-bottom:8px;">📱</div>
+    <div class="modal-title" style="margin-bottom:6px;">أضف رقم جوالك</div>
+    <p style="font-size:13.5px;color:var(--muted);margin-bottom:18px;line-height:1.7;">
+      نحتاج رقم جوالك لتتمكن من التواصل مع المشرف وتلقّي الإشعارات.
+    </p>
+    <div class="form-group" style="margin-bottom:4px;text-align:right;">
+      <input type="text" id="sphone-input" class="form-input"
+             placeholder="05XXXXXXXX" inputmode="numeric" maxlength="10"
+             oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+             onkeydown="if(event.key==='Enter') App.saveStudentPhone()">
+    </div>
+    <div id="sphone-err" class="alert alert-error" style="margin-bottom:8px;text-align:right;"></div>
+    <button class="btn btn-primary btn-full" onclick="App.saveStudentPhone()">
+      حفظ ومتابعة ←
+    </button>
+    <button onclick="App.closeStudentPhoneModal()"
+            style="margin-top:10px;background:none;border:none;color:var(--muted);
+                   font-size:13px;font-family:inherit;cursor:pointer;width:100%;padding:4px;">
+      تخطى الآن
+    </button>
+  </div>
+</div>
+
 <div id="edit-phone-modal" class="modal-overlay" onclick="if(event.target===this)App.closeEditPhoneModal()">
   <div class="modal-box" style="max-width:380px;">
     <div class="modal-title">📱 رقم جوال الطالب</div>

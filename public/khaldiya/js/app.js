@@ -577,6 +577,44 @@ const App = {
     App.renderStudentPerformanceCard();
     // Check for unread support replies
     App.loadTicketNotifications();
+    // Prompt phone if missing (non-blocking — student can skip)
+    if (!State.student.phone) {
+      setTimeout(() => App.showStudentPhoneModal(), 800);
+    }
+  },
+
+  showStudentPhoneModal() {
+    const el = document.getElementById('student-phone-modal');
+    if (!el) return;
+    const inp = document.getElementById('sphone-input');
+    const err = document.getElementById('sphone-err');
+    if (inp) inp.value = '';
+    if (err) err.classList.remove('show');
+    el.classList.add('open');
+    if (inp) setTimeout(() => inp.focus(), 50);
+  },
+
+  closeStudentPhoneModal() {
+    const el = document.getElementById('student-phone-modal');
+    if (el) el.classList.remove('open');
+  },
+
+  async saveStudentPhone() {
+    const inp     = document.getElementById('sphone-input');
+    const errEl   = document.getElementById('sphone-err');
+    const trimmed = (inp?.value || '').trim();
+    if (!trimmed) { App.closeStudentPhoneModal(); return; }
+    if (!/^05\d{8}$/.test(trimmed)) {
+      showAlert(errEl, 'رقم الجوال يجب أن يبدأ بـ 05 ويكون 10 أرقام.');
+      return;
+    }
+    try {
+      await DB.updateStudentPhone(State.student.id, trimmed);
+      State.student.phone = trimmed;
+    } catch (_) {
+      // Save failed silently — don't block the student
+    }
+    App.closeStudentPhoneModal();
   },
 
   goToAcademic() {

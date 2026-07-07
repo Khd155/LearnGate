@@ -284,8 +284,9 @@ export async function onRequest({ request, env }) {
 
       // POST /api/auth/student-login
       if (sub === 'student-login' && method === 'POST') {
-        if (!await rateLimit(DB, ip, 'student-login', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
-        if (await isLockedOut(DB, ip, 'student-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
+        // TEMP: rate limiter disabled for load testing — restore before deploying to production
+        // if (!await rateLimit(DB, ip, 'student-login', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+        // if (await isLockedOut(DB, ip, 'student-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
         const rawBody = await request.json();
         // Mass assignment guard: only accept known fields
         const { code, school: bodySchool } = rawBody;

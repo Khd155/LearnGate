@@ -1278,17 +1278,17 @@ export async function onRequest({ request, env }) {
         if (adminId) {
           q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
                WHERE sender_type='student' AND is_read=0 AND school=? AND recipient_admin_id=?
-               GROUP BY student_id`;
+               GROUP BY student_id, student_name, school`;
           params = [school, adminId];
         } else if (school) {
           q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
                WHERE sender_type='student' AND is_read=0 AND school=?
-               GROUP BY student_id`;
+               GROUP BY student_id, student_name, school`;
           params = [school];
         } else {
           q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
                WHERE sender_type='student' AND is_read=0
-               GROUP BY student_id`;
+               GROUP BY student_id, student_name, school`;
           params = [];
         }
         const { results } = await DB.prepare(q).bind(...params).all();
@@ -1306,7 +1306,7 @@ export async function onRequest({ request, env }) {
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
                  (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id AND m2.recipient_admin_id=? ORDER BY m2.created_at DESC LIMIT 1) as last_msg
                FROM messages WHERE recipient_admin_id=? AND school=?
-               GROUP BY student_id ORDER BY last_at DESC`;
+               GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
           params = [adminId, adminId, school];
         } else if (adminId) {
           q = `SELECT student_id, student_name, school,
@@ -1314,7 +1314,7 @@ export async function onRequest({ request, env }) {
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
                  (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id AND m2.recipient_admin_id=? ORDER BY m2.created_at DESC LIMIT 1) as last_msg
                FROM messages WHERE recipient_admin_id=?
-               GROUP BY student_id ORDER BY last_at DESC`;
+               GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
           params = [adminId, adminId];
         } else if (school) {
           q = `SELECT student_id, student_name, school,
@@ -1322,7 +1322,7 @@ export async function onRequest({ request, env }) {
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
                  (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id ORDER BY m2.created_at DESC LIMIT 1) as last_msg
                FROM messages WHERE school=?
-               GROUP BY student_id ORDER BY last_at DESC`;
+               GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
           params = [school];
         } else {
           q = `SELECT student_id, student_name, school,
@@ -1330,7 +1330,7 @@ export async function onRequest({ request, env }) {
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
                  (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id ORDER BY m2.created_at DESC LIMIT 1) as last_msg
                FROM messages
-               GROUP BY student_id ORDER BY last_at DESC`;
+               GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
           params = [];
         }
         const { results: threads } = await DB.prepare(q).bind(...params).all();

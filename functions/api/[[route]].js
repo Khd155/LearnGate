@@ -4,9 +4,17 @@ import { getDB } from '../_lib/db.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
 const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'https://learngate.pages.dev', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
+// Requests whose Origin matches the host actually being requested are same-origin
+// (e.g. CranL's auto-generated preview subdomains, which change on every deploy)
+// and are always safe to allow, regardless of the static whitelist above.
+function isAllowedOrigin(origin, request) {
+  if (!origin) return true;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  try { return origin === new URL(request.url).origin; } catch { return false; }
+}
 function getCORS(request) {
   const origin = request.headers.get('Origin') || '';
-  const allow = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const allow = isAllowedOrigin(origin, request) ? origin : ALLOWED_ORIGINS[0];
   return {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': allow,
@@ -247,7 +255,7 @@ export async function onRequest({ request, env }) {
 
   // ── Origin check: reject cross-origin requests from unknown origins ──────
   const origin = request.headers.get('Origin');
-  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && !isAllowedOrigin(origin, request)) {
     return new Response(JSON.stringify({ error: 'غير مسموح' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
   }
 

@@ -1259,12 +1259,12 @@ const App = {
       await _loadXlsx();
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([
-        ['اسم الطالب', 'السجل المدني'],
-        ['محمد أحمد العمري', '1012345678'],
-        ['سارة علي الزهراني', '1098765432'],
+        ['اسم الطالب', 'السجل المدني', 'رقم الجوال'],
+        ['محمد أحمد العمري', '1012345678', '0512345678'],
+        ['سارة علي الزهراني', '1098765432', ''],
       ]);
       // Set RTL and column widths
-      ws['!cols'] = [{ wch: 30 }, { wch: 14 }];
+      ws['!cols'] = [{ wch: 30 }, { wch: 14 }, { wch: 14 }];
       XLSX.utils.book_append_sheet(wb, ws, 'الطلاب');
       XLSX.writeFile(wb, 'students-template.xlsx');
     } catch (e) { alert('تعذّر إنشاء القالب: ' + e.message); }
@@ -2131,16 +2131,18 @@ const App = {
       const rows = await readExcel(file);
       const allRows = rows.map((r, i) => ({
         _idx: i,
-        code: String(r['السجل المدني'] ?? r['code'] ?? r['رمز الدخول'] ?? '').trim(),
-        name: String(r['اسم الطالب']  ?? r['name']  ?? r['الاسم']      ?? '').trim(),
+        code:  String(r['السجل المدني'] ?? r['code']  ?? r['رمز الدخول'] ?? '').trim(),
+        name:  String(r['اسم الطالب']  ?? r['name']  ?? r['الاسم']      ?? '').trim(),
+        phone: String(r['رقم الجوال']  ?? r['phone'] ?? r['الجوال']     ?? '').trim(),
       }));
       if (!allRows.length) { alert('الملف فارغ أو لا يحتوي على بيانات.'); return; }
 
       // Detect per-row issues
       const codesSeen = {};
       allRows.forEach(r => {
-        r.validCode = /^\d{10}$/.test(r.code);
-        r.validName = r.name.length > 0;
+        r.validCode  = /^\d{10}$/.test(r.code);
+        r.validName  = r.name.length > 0;
+        r.validPhone = !r.phone || /^\d{9,10}$/.test(r.phone);
         if (r.validCode) {
           if (codesSeen[r.code] !== undefined) {
             r.dupOf = codesSeen[r.code];
@@ -2163,8 +2165,8 @@ const App = {
 
   _renderImportPreview() {
     const rows = App._importRows;
-    const valid   = rows.filter(r => r.validCode && r.validName && !r.dupOf && !r.existsInDB).length;
-    const errors  = rows.filter(r => !r.validCode || !r.validName).length;
+    const valid   = rows.filter(r => r.validCode && r.validName && r.validPhone && !r.dupOf && !r.existsInDB).length;
+    const errors  = rows.filter(r => !r.validCode || !r.validName || !r.validPhone).length;
     const dups    = rows.filter(r => r.dupOf !== undefined).length;
     const inDB    = rows.filter(r => r.existsInDB && !r.dupOf).length;
 
@@ -2184,7 +2186,7 @@ const App = {
     const body = document.getElementById('imp-preview-body');
     body.innerHTML = rows.map((r, i) => {
       let status = '', rowStyle = '';
-      if (!r.validCode || !r.validName) {
+      if (!r.validCode || !r.validName || !r.validPhone) {
         status = `<span style="background:#fee2e2;color:#991b1b;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">❌ خطأ</span>`;
         rowStyle = 'background:#fff5f5;';
       } else if (r.dupOf !== undefined) {
@@ -2208,6 +2210,11 @@ const App = {
           <input type="text" value="${escapeHtml(r.name)}"
             onchange="App._importRows[${i}].name=this.value.trim();App._importRows[${i}].validName=this.value.trim().length>0;App._revalidateImport();App._renderImportPreview()"
             style="width:100%;min-width:140px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px;">
+        </td>
+        <td style="padding:8px 12px;">
+          <input type="text" value="${escapeHtml(r.phone || '')}" maxlength="10" inputmode="numeric"
+            onchange="App._importRows[${i}].phone=this.value.trim();App._importRows[${i}].validPhone=!this.value.trim()||/^\\d{9,10}$/.test(this.value.trim());App._renderImportPreview()"
+            style="width:120px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:monospace;font-size:13px;">
         </td>
         <td style="padding:8px 12px;text-align:center;">${status}</td>
       </tr>`;
@@ -2238,7 +2245,7 @@ const App = {
   },
 
   async confirmImport() {
-    const toAdd = App._importRows.filter(r => r.validCode && r.validName && !r.dupOf && !r.existsInDB);
+    const toAdd = App._importRows.filter(r => r.validCode && r.validName && r.validPhone && !r.dupOf && !r.existsInDB);
     if (!toAdd.length) return;
     const errEl = document.getElementById('imp-modal-err');
     errEl.style.display = 'none';
@@ -2250,7 +2257,7 @@ const App = {
         errEl.style.display = 'block';
         return;
       }
-      const res = await DB.bulkAddStudents(toAdd.map(r => ({ code: r.code, name: r.name, school: r.school || importSchool })));
+      const res = await DB.bulkAddStudents(toAdd.map(r => ({ code: r.code, name: r.name, phone: r.phone || '', school: r.school || importSchool })));
       App.closeImportPreview();
       showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'طلاب' : 'طالب'}${res.skipped ? ' (تجاهل ' + res.skipped + ' مكرر)' : ''} ✅`);
       App.renderAdminDashboard('students');

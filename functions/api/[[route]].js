@@ -353,6 +353,7 @@ export async function onRequest({ request, env }) {
 
     // ── STUDENTS ─────────────────────────────────────────────────────────────
     if (resource === 'students') {
+      try { await DB.prepare("ALTER TABLE students ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
 
       if (method === 'GET') {
         const claims = await verifyToken(request, env);
@@ -396,9 +397,9 @@ export async function onRequest({ request, env }) {
 
           // Batch insert new students
           if (toAdd.length) {
-            const stmts = toAdd.map(({ name, code, school: s }) =>
-              DB.prepare('INSERT INTO students (id, code, name, school, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (code) DO NOTHING')
-                .bind(crypto.randomUUID(), code, name, s || school, now)
+            const stmts = toAdd.map(({ name, code, school: s, phone }) =>
+              DB.prepare('INSERT INTO students (id, code, name, school, phone, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (code) DO NOTHING')
+                .bind(crypto.randomUUID(), code, name, s || school, phone || '', now)
             );
             const results = await DB.batch(stmts);
             added = results.filter(r => r.changes).length;
@@ -406,9 +407,9 @@ export async function onRequest({ request, env }) {
 
           // Batch update existing students if upsert mode
           if (upsert && toUpdate.length) {
-            const stmts = toUpdate.map(({ name, code, school: s }) =>
-              DB.prepare('UPDATE students SET name = ?, school = ? WHERE code = ?')
-                .bind(name, s || school, code)
+            const stmts = toUpdate.map(({ name, code, school: s, phone }) =>
+              DB.prepare('UPDATE students SET name = ?, school = ?, phone = COALESCE(?, phone) WHERE code = ?')
+                .bind(name, s || school, phone || null, code)
             );
             const results = await DB.batch(stmts);
             updated = results.filter(r => r.changes).length;
@@ -418,20 +419,35 @@ export async function onRequest({ request, env }) {
           return ok({ added, updated, skipped: valid.length - added - updated, total: valid.length }, 200, CORS);
         }
 
-        const { name, code, school: bodySchool } = body;
+        const { name, code, school: bodySchool, phone } = body;
         const sid = crypto.randomUUID();
         const now = new Date().toISOString();
         try {
           await DB.prepare(
-            'INSERT INTO students (id, code, name, school, created_at) VALUES (?, ?, ?, ?, ?)'
-          ).bind(sid, code, name, bodySchool || school, now).run();
+            'INSERT INTO students (id, code, name, school, phone, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+          ).bind(sid, code, name, bodySchool || school, phone || '', now).run();
         } catch (e) {
           if (e.message && e.message.includes('UNIQUE'))
             return err('السجل المدني مسجّل مسبقاً', 409, CORS);
           throw e;
         }
         await logEvent(DB, { level: 'info', category: 'student', message: `إضافة طالب جديد: ${name}`, user_name: postClaims.name || '', user_role: postClaims.role, school: bodySchool || school || '' });
-        return ok({ student: { id: sid, code, name, school: bodySchool || school, created_at: now } }, 201, CORS);
+        return ok({ student: { id: sid, code, name, school: bodySchool || school, phone: phone || '', created_at: now } }, 201, CORS);
+      }
+
+      if (method === 'PATCH' && sub) {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const target = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(sub).first();
+        if (!target) return err('الطالب غير موجود', 404, CORS);
+        if (claims.role !== 'dev') {
+          const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
+          if (!effectiveSchool || target.school !== effectiveSchool) return err('غير مصرح', 401, CORS);
+        }
+        const { phone } = await request.json();
+        await DB.prepare('UPDATE students SET phone = ? WHERE id = ?').bind(phone || '', sub).run();
+        await logEvent(DB, { level: 'info', category: 'student', message: `تحديث رقم جوال الطالب: ${target.name}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || target.school || '' });
+        return ok({ ok: true }, 200, CORS);
       }
 
       if (method === 'DELETE' && sub) {

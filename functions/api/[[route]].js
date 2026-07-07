@@ -1,6 +1,7 @@
 // Cloudflare Pages Function — /api/* handler
 // PostgreSQL (via postgres.js) | Dev key env var: DEV_KEY
 import { getDB } from '../_lib/db.js';
+import { listTestResults, deleteSingleTestResult, resetStudentTestResults, resetSchoolTestResults, grantRetakeForSchool } from '../_lib/test-management.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
 const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'https://learngate.pages.dev', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
@@ -1113,6 +1114,66 @@ export async function onRequest({ request, env }) {
         }
         try { await DB.prepare('DELETE FROM logs').run(); } catch {}
         return ok({ ok: true }, 200, CORS);
+      }
+
+      // ── TEST MANAGEMENT (dev-only) ──────────────────────────────────────────
+      // Lets the dev reset/reissue bio-quiz attempts and study-plan retakes without
+      // touching the admin panel at all — these actions are intentionally not exposed
+      // to admin/director roles.
+
+      // GET /api/dev/test-results — list bio quiz attempts (optional ?school=X&studentId=X)
+      if (sub === 'test-results' && !subsub && method === 'GET') {
+        const results = await listTestResults(DB, {
+          school: url.searchParams.get('school'),
+          studentId: url.searchParams.get('studentId'),
+        });
+        return ok({ results }, 200, CORS);
+      }
+
+      // DELETE /api/dev/test-results/:id — delete a single attempt + its per-question answers
+      if (sub === 'test-results' && subsub && method === 'DELETE') {
+        await deleteSingleTestResult(DB, subsub);
+        await logEvent(DB, { level: 'warn', category: 'test-management', message: `حذف نتيجة اختبار: ${subsub}`, user_role: 'dev' });
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // DELETE /api/dev/test-results?studentId=X — reset (delete) all attempts for one student
+      // DELETE /api/dev/test-results?school=X&confirm=RESET_SCHOOL_TESTS — reset whole school's attempts
+      if (sub === 'test-results' && !subsub && method === 'DELETE') {
+        const targetStudent = url.searchParams.get('studentId');
+        const targetSchool = url.searchParams.get('school');
+        if (targetStudent) {
+          const deleted = await resetStudentTestResults(DB, targetStudent);
+          await logEvent(DB, { level: 'warn', category: 'test-management', message: `إعادة تعيين نتائج اختبارات الطالب: ${targetStudent}`, user_role: 'dev' });
+          return ok({ ok: true, deleted }, 200, CORS);
+        }
+        if (targetSchool) {
+          if (url.searchParams.get('confirm') !== 'RESET_SCHOOL_TESTS') {
+            return err('يتطلب تأكيد صريح لإعادة تعيين اختبارات المدرسة كاملة', 400, CORS);
+          }
+          const deleted = await resetSchoolTestResults(DB, targetSchool);
+          await logEvent(DB, { level: 'warn', category: 'test-management', message: `إعادة تعيين اختبارات مدرسة كاملة: ${targetSchool}`, user_role: 'dev', school: targetSchool });
+          return ok({ ok: true, deleted }, 200, CORS);
+        }
+        return err('يلزم تحديد studentId أو school', 400, CORS);
+      }
+
+      // PATCH /api/dev/plans/grant-retake?school=X (or ?studentId=X) — bulk-grant a
+      // retake by tagging each student's most recent plan with the existing
+      // OVERRIDE: admin_note convention (see app.js cooldownUntil()/grantRetake()) —
+      // reuses the cooldown-bypass mechanism the admin panel already understands,
+      // just applied in bulk from the dev panel instead of one student at a time.
+      if (sub === 'plans' && subsub === 'grant-retake' && method === 'PATCH') {
+        const targetSchool = url.searchParams.get('school');
+        const targetStudent = url.searchParams.get('studentId');
+        if (!targetSchool && !targetStudent) return err('يلزم تحديد studentId أو school', 400, CORS);
+        const updated = await grantRetakeForSchool(DB, { school: targetSchool, studentId: targetStudent });
+        await logEvent(DB, {
+          level: 'success', category: 'test-management',
+          message: targetStudent ? `منح إعادة اختبار للطالب: ${targetStudent}` : `منح إعادة اختبار لكل مدرسة: ${targetSchool}`,
+          user_role: 'dev', school: targetSchool || '',
+        });
+        return ok({ ok: true, updated }, 200, CORS);
       }
 
       // GET /api/dev/analytics — behavior analytics overview for the dashboard

@@ -46,12 +46,13 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
 
   const changed = useMemo(() => {
     if (!student) return {};
-    const patch: Partial<Pick<Student, 'name' | 'code' | 'phone'>> = {};
+    // code/national-ID is intentionally excluded here — only the dev panel may change it;
+    // the admin dashboard can only edit name/phone (enforced server-side too).
+    const patch: Partial<Pick<Student, 'name' | 'phone'>> = {};
     if (name.trim() !== student.name) patch.name = name.trim();
-    if (code.trim() !== student.code) patch.code = code.trim();
     if (phone.trim() !== (student.phone || '')) patch.phone = phone.trim();
     return patch;
-  }, [student, name, code, phone]);
+  }, [student, name, phone]);
 
   if (!student) return null;
 
@@ -123,10 +124,12 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
                 </label>
                 <input
                   value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 font-mono text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  disabled
+                  readOnly
+                  className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 font-mono text-sm text-slate-500 outline-none dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400"
                   inputMode="numeric"
                 />
+                <p className="mt-1 text-xs text-slate-400">🔒 تعديل رقم السجل المدني متاح فقط من لوحة المطوّر</p>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">الجوال</label>

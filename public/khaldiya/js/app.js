@@ -1,5 +1,15 @@
 'use strict';
 
+// ── Canonical skill order (verbal then quantitative, fixed) ───────────────
+const SKILL_ORDER = ['v4','v5','v1','v2','v3','q1','q2','q3','q4','q5'];
+function sortBySkillOrder(gaps) {
+  return [...gaps].sort((a, b) => {
+    const ai = SKILL_ORDER.indexOf(a.skillId);
+    const bi = SKILL_ORDER.indexOf(b.skillId);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+}
+
 // ── Lazy-load xlsx — only when Excel import/export is used ────────────────
 async function _loadXlsx() {
   if (window.XLSX) return;
@@ -786,7 +796,7 @@ const App = {
         : level === 'mid'  ? 'مهارة متوسطة — تحتاج تعزيزاً وتدريباً إضافياً.'
         : 'مهارة جيدة — الاستمرار في التطوير مستحسن.';
       return { skillId: sk.id, skillName: sk.name, category: sk.category, pct, level, selfAssess: self, recommendation: rec, overconfident };
-    }).sort((a, b) => a.pct - b.pct);
+    }); // order follows SKILL_ORDER (SKILLS array is already ordered)
 
     App._pendingGaps = gaps;
     const _loadEl = document.getElementById('processing-loading');
@@ -859,8 +869,9 @@ const App = {
   },
 
   renderLevelAnalysis(plan) {
-    const verbal = plan.gaps.filter(g => g.category === 'verbal');
-    const quant  = plan.gaps.filter(g => g.category === 'quantitative');
+    const sorted = sortBySkillOrder(plan.gaps);
+    const verbal = sorted.filter(g => g.category === 'verbal');
+    const quant  = sorted.filter(g => g.category === 'quantitative');
     const buildRow = g => {
       const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
       return `<tr>
@@ -997,13 +1008,14 @@ const App = {
         </div>`;
     };
 
-    const verbal = plan.gaps.filter(g => g.category === 'verbal');
-    const quant  = plan.gaps.filter(g => g.category === 'quantitative');
+    const sortedGaps = sortBySkillOrder(plan.gaps);
+    const verbal = sortedGaps.filter(g => g.category === 'verbal');
+    const quant  = sortedGaps.filter(g => g.category === 'quantitative');
     document.getElementById('sp-verbal-cards').innerHTML = verbal.map((g, i) => buildCard(g, i)).join('');
     document.getElementById('sp-quant-cards').innerHTML  = quant.map((g, i) => buildCard(g, i)).join('');
 
     // Print table
-    document.getElementById('sp-print-body').innerHTML = plan.gaps.map((g, i) => {
+    document.getElementById('sp-print-body').innerHTML = sortedGaps.map((g, i) => {
       const fullUrl = SKILL_LESSONS[g.skillId] || '';
       const shortUrl = fullUrl ? fullUrl.replace(/^https?:\/\/[^/]+/, '').replace(/\/$/, '') : '—';
       const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
@@ -1508,7 +1520,7 @@ const App = {
     // ── Attempts list (newest first) ──
     const listHtml = [...pts].reverse().map(p => {
       const cls = p.score >= 71 ? 'score-high' : p.score >= 50 ? 'score-mid' : 'score-low';
-      const skillRows = p.gaps.map(g => {
+      const skillRows = sortBySkillOrder(p.gaps).map(g => {
         const gc  = g.pct <= 30 ? 'score-low' : g.pct <= 70 ? 'score-mid' : 'score-high';
         const cat = g.category === 'verbal' ? '📚' : '🔢';
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">
@@ -2446,7 +2458,7 @@ const App = {
     document.getElementById('modal-student-name').textContent = plan.studentName;
     document.getElementById('modal-plan-date').textContent    = `تاريخ التشخيص: ${new Date(plan.createdAt).toLocaleDateString('ar-SA')}`;
     document.getElementById('modal-admin-note').value         = plan.adminNote || '';
-    document.getElementById('modal-gaps').innerHTML = plan.gaps.map(g => `
+    document.getElementById('modal-gaps').innerHTML = sortBySkillOrder(plan.gaps).map(g => `
       <div class="gap-item">
         <div class="gap-item-head">
           <span>${g.category === 'verbal' ? '📚' : '🔢'}</span>
@@ -2537,7 +2549,7 @@ const App = {
     // Skills table
     const skillsBody = document.getElementById('sdm-skills-body');
     if (latest && latest.gaps.length) {
-      skillsBody.innerHTML = latest.gaps.map(g => {
+      skillsBody.innerHTML = sortBySkillOrder(latest.gaps).map(g => {
         const lvl = g.pct <= 30 ? 'ضعيف' : g.pct <= 49 ? 'دون المتوسط' : g.pct <= 70 ? 'متوسط' : 'فوق المتوسط';
         const cls = g.pct <= 49 ? 'score-low' : g.pct <= 70 ? 'score-mid' : 'score-high';
         const cat = g.category === 'verbal' ? '📚 لفظي' : '🔢 كمي';
@@ -2595,7 +2607,7 @@ const App = {
     const school = State.school || st.school || '';
     const printDate = new Date().toLocaleDateString('ar-SA', { year:'numeric', month:'long', day:'numeric' });
 
-    const skillRows = latest.gaps.map((g, i) => {
+    const skillRows = sortBySkillOrder(latest.gaps).map((g, i) => {
       const lvlTxt = g.pct <= 30 ? 'ضعيف' : g.pct <= 49 ? 'دون المتوسط' : g.pct <= 70 ? 'متوسط' : 'فوق المتوسط';
       const barColor = g.pct <= 30 ? '#ef4444' : g.pct <= 49 ? '#f59e0b' : g.pct <= 70 ? '#3b82f6' : '#22c55e';
       const catTxt = g.category === 'verbal' ? 'لفظي' : 'كمي';

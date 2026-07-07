@@ -1,5 +1,6 @@
 // Cloudflare Pages Function — /api/* handler
-// D1 binding: DB | Dev key env var: DEV_KEY
+// PostgreSQL (via postgres.js) | Dev key env var: DEV_KEY
+import { getDB } from '../_lib/db.js';
 
 const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'https://learngate.pages.dev', 'http://localhost:8788'];
 function getCORS(request) {
@@ -193,13 +194,13 @@ async function verifyToken(request, env) {
 async function rateLimit(DB, ip, action, maxPerMin) {
   try {
     await DB.prepare(`CREATE TABLE IF NOT EXISTS rate_limits (
-      key TEXT PRIMARY KEY, count INTEGER DEFAULT 0, window INTEGER DEFAULT 0
+      key TEXT PRIMARY KEY, count INTEGER DEFAULT 0, win INTEGER DEFAULT 0
     )`).run();
     const window = Math.floor(Date.now() / 60000);
     const key = `${action}:${ip}`;
-    const row = await DB.prepare('SELECT count, window FROM rate_limits WHERE key = ?').bind(key).first();
-    if (!row || row.window !== window) {
-      await DB.prepare('INSERT OR REPLACE INTO rate_limits (key, count, window) VALUES (?, 1, ?)').bind(key, window).run();
+    const row = await DB.prepare('SELECT count, win FROM rate_limits WHERE key = ?').bind(key).first();
+    if (!row || row.win !== window) {
+      await DB.prepare('INSERT INTO rate_limits (key, count, win) VALUES (?, 1, ?) ON CONFLICT (key) DO UPDATE SET count = EXCLUDED.count, win = EXCLUDED.win').bind(key, window).run();
       return true;
     }
     if (row.count >= maxPerMin) return false;
@@ -213,12 +214,12 @@ async function recordFailedAttempt(DB, ip, action) {
   try {
     const lockKey   = `lock:${action}:${ip}`;
     const lockUntil = Math.floor(Date.now() / 1000) + 900; // 15 min from now
-    const row = await DB.prepare('SELECT count, window FROM rate_limits WHERE key = ?').bind(lockKey).first();
-    const count = (row && row.window > Math.floor(Date.now() / 1000)) ? (row.count + 1) : 1;
+    const row = await DB.prepare('SELECT count, win FROM rate_limits WHERE key = ?').bind(lockKey).first();
+    const count = (row && row.win > Math.floor(Date.now() / 1000)) ? (row.count + 1) : 1;
     if (count >= 5) {
-      await DB.prepare('INSERT OR REPLACE INTO rate_limits (key, count, window) VALUES (?, ?, ?)').bind(lockKey, count, lockUntil).run();
+      await DB.prepare('INSERT INTO rate_limits (key, count, win) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET count = EXCLUDED.count, win = EXCLUDED.win').bind(lockKey, count, lockUntil).run();
     } else {
-      await DB.prepare('INSERT OR REPLACE INTO rate_limits (key, count, window) VALUES (?, ?, ?)').bind(lockKey, count, Math.floor(Date.now() / 1000) + 900).run();
+      await DB.prepare('INSERT INTO rate_limits (key, count, win) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET count = EXCLUDED.count, win = EXCLUDED.win').bind(lockKey, count, Math.floor(Date.now() / 1000) + 900).run();
     }
   } catch {}
 }
@@ -226,8 +227,8 @@ async function recordFailedAttempt(DB, ip, action) {
 async function isLockedOut(DB, ip, action) {
   try {
     const lockKey = `lock:${action}:${ip}`;
-    const row = await DB.prepare('SELECT count, window FROM rate_limits WHERE key = ?').bind(lockKey).first();
-    if (row && row.count >= 5 && row.window > Math.floor(Date.now() / 1000)) return true;
+    const row = await DB.prepare('SELECT count, win FROM rate_limits WHERE key = ?').bind(lockKey).first();
+    if (row && row.count >= 5 && row.win > Math.floor(Date.now() / 1000)) return true;
     return false;
   } catch { return false; }
 }
@@ -263,7 +264,7 @@ export async function onRequest({ request, env }) {
   const resource = parts[1];   // e.g. 'students', 'plans', 'dev'
   const sub      = parts[2];   // e.g. student id, 'admins'
   const subsub   = parts[3];   // e.g. admin id
-  const DB       = env.DB;
+  const DB       = getDB(env);
   const school   = url.searchParams.get('school') || '';
 
   try {
@@ -386,7 +387,7 @@ export async function onRequest({ request, env }) {
           // Batch insert new students
           if (toAdd.length) {
             const stmts = toAdd.map(({ name, code, school: s }) =>
-              DB.prepare('INSERT OR IGNORE INTO students (id, code, name, school, created_at) VALUES (?, ?, ?, ?, ?)')
+              DB.prepare('INSERT INTO students (id, code, name, school, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (code) DO NOTHING')
                 .bind(crypto.randomUUID(), code, name, s || school, now)
             );
             const results = await DB.batch(stmts);
@@ -536,7 +537,7 @@ export async function onRequest({ request, env }) {
           correct      INTEGER NOT NULL,
           total        INTEGER NOT NULL,
           answers      TEXT NOT NULL DEFAULT '[]',
-          created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+          created_at   TEXT NOT NULL DEFAULT (now()::text)
         )`).run();
       } catch {}
       // Migrate: add answers column if table existed before this column was introduced
@@ -883,7 +884,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/dev/admins — all admins
       if (sub === 'admins' && method === 'GET') {
-        try { await DB.prepare('ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT "admin"').run(); } catch {}
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'").run(); } catch {}
         const { results } = await DB.prepare('SELECT * FROM admins ORDER BY school, name').all();
         return ok({ admins: results }, 200, CORS);
       }
@@ -893,7 +894,7 @@ export async function onRequest({ request, env }) {
         const { name, code, school: adminSchool, role: adminRole } = await request.json();
         if (!name || !code) return err('الاسم والرمز مطلوبان', 400, CORS);
         // Ensure role column exists (idempotent migration)
-        try { await DB.prepare('ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT "admin"').run(); } catch {}
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'").run(); } catch {}
         const aid = crypto.randomUUID();
         const now = new Date().toISOString();
         const role = adminRole === 'director' ? 'director' : 'admin';
@@ -1099,9 +1100,9 @@ export async function onRequest({ request, env }) {
           created_at TEXT NOT NULL
         )`).run();
         // Add recipient_admin_id column if not exists (idempotent)
-        try { await DB.prepare('ALTER TABLE messages ADD COLUMN recipient_admin_id TEXT DEFAULT ""').run(); } catch {}
+        try { await DB.prepare("ALTER TABLE messages ADD COLUMN recipient_admin_id TEXT DEFAULT ''").run(); } catch {}
         // Add role column to admins if not exists
-        try { await DB.prepare('ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT "admin"').run(); } catch {}
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'").run(); } catch {}
         // One-time cleanup: behavior analytics (speed/guessing/switching) removed entirely
         try { await DB.prepare('DROP TABLE IF EXISTS attempt_logs').run(); } catch {}
         try { await DB.prepare('DROP TABLE IF EXISTS behavior_logs').run(); } catch {}
@@ -1410,9 +1411,9 @@ export async function onRequest({ request, env }) {
       const tkPrivileged = ['admin','director','dev','support'].includes(tkClaims.role);
 
       // Idempotent schema migrations
-      try { await DB.prepare('ALTER TABLE tickets ADD COLUMN category TEXT NOT NULL DEFAULT "أخرى"').run(); } catch {}
-      try { await DB.prepare('ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT "متوسطة"').run(); } catch {}
-      try { await DB.prepare('ALTER TABLE tickets ADD COLUMN ticket_num TEXT NOT NULL DEFAULT ""').run(); } catch {}
+      try { await DB.prepare("ALTER TABLE tickets ADD COLUMN category TEXT NOT NULL DEFAULT 'أخرى'").run(); } catch {}
+      try { await DB.prepare("ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT 'متوسطة'").run(); } catch {}
+      try { await DB.prepare("ALTER TABLE tickets ADD COLUMN ticket_num TEXT NOT NULL DEFAULT ''").run(); } catch {}
       try { await DB.prepare('ALTER TABLE tickets ADD COLUMN rating INTEGER DEFAULT 0').run(); } catch {}
       try { await DB.prepare('ALTER TABLE ticket_replies ADD COLUMN is_read INTEGER DEFAULT 0').run(); } catch {}
 
@@ -1612,7 +1613,7 @@ export async function onRequest({ request, env }) {
       if (sub && subsub === 'dismiss' && method === 'POST') {
         const claims = await verifyToken(request, env);
         if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
-        try { await DB.prepare('INSERT OR IGNORE INTO broadcast_dismissals (broadcast_id, student_id) VALUES (?, ?)').bind(sub, claims.sub).run(); } catch {}
+        try { await DB.prepare('INSERT INTO broadcast_dismissals (broadcast_id, student_id) VALUES (?, ?) ON CONFLICT (broadcast_id, student_id) DO NOTHING').bind(sub, claims.sub).run(); } catch {}
         return ok({ ok: true }, 200, CORS);
       }
 

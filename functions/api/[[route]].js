@@ -285,9 +285,8 @@ export async function onRequest({ request, env }) {
 
       // POST /api/auth/student-login
       if (sub === 'student-login' && method === 'POST') {
-        // TEMP: rate limiter disabled for load testing — restore before deploying to production
-        // if (!await rateLimit(DB, ip, 'student-login', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
-        // if (await isLockedOut(DB, ip, 'student-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
+        if (!await rateLimit(DB, ip, 'student-login', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+        if (await isLockedOut(DB, ip, 'student-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
         const rawBody = await request.json();
         // Mass assignment guard: only accept known fields
         const { code, school: bodySchool } = rawBody;
@@ -1396,18 +1395,21 @@ export async function onRequest({ request, env }) {
       // GET /api/messages/unread — admin/director/dev only
       if (sub === 'unread' && method === 'GET') {
         if (!isPrivileged) return err('غير مسموح', 403, CORS);
+        // Admins (not dev/super-director) are always scoped to their own school from JWT — never from URL param
+        const scopedSchool = (msgClaims?.role !== 'dev' && msgClaims?.school && msgClaims.school !== '*')
+          ? msgClaims.school : school;
         const adminId = url.searchParams.get('adminId') || '';
         let q, params;
         if (adminId) {
           q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
                WHERE sender_type='student' AND is_read=0 AND school=? AND recipient_admin_id=?
                GROUP BY student_id, student_name, school`;
-          params = [school, adminId];
-        } else if (school) {
+          params = [scopedSchool, adminId];
+        } else if (scopedSchool) {
           q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
                WHERE sender_type='student' AND is_read=0 AND school=?
                GROUP BY student_id, student_name, school`;
-          params = [school];
+          params = [scopedSchool];
         } else {
           q = `SELECT student_id, student_name, school, COUNT(*) as cnt FROM messages
                WHERE sender_type='student' AND is_read=0
@@ -1421,16 +1423,19 @@ export async function onRequest({ request, env }) {
       // GET /api/messages/threads — admin: list students with conversations FOR THIS admin
       if (sub === 'threads' && method === 'GET') {
         if (!isPrivileged) return err('غير مسموح', 403, CORS);
+        // Admins (not dev/super-director) are always scoped to their own school from JWT — never from URL param
+        const scopedSchool = (msgClaims?.role !== 'dev' && msgClaims?.school && msgClaims.school !== '*')
+          ? msgClaims.school : school;
         const adminId = url.searchParams.get('adminId') || '';
         let q, params;
-        if (adminId && school) {
+        if (adminId && scopedSchool) {
           q = `SELECT student_id, student_name, school,
                  MAX(created_at) as last_at,
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
                  (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id AND m2.recipient_admin_id=? ORDER BY m2.created_at DESC LIMIT 1) as last_msg
                FROM messages WHERE recipient_admin_id=? AND school=?
                GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
-          params = [adminId, adminId, school];
+          params = [adminId, adminId, scopedSchool];
         } else if (adminId) {
           q = `SELECT student_id, student_name, school,
                  MAX(created_at) as last_at,
@@ -1439,14 +1444,14 @@ export async function onRequest({ request, env }) {
                FROM messages WHERE recipient_admin_id=?
                GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
           params = [adminId, adminId];
-        } else if (school) {
+        } else if (scopedSchool) {
           q = `SELECT student_id, student_name, school,
                  MAX(created_at) as last_at,
                  SUM(CASE WHEN sender_type='student' AND is_read=0 THEN 1 ELSE 0 END) as unread,
                  (SELECT body FROM messages m2 WHERE m2.student_id=messages.student_id ORDER BY m2.created_at DESC LIMIT 1) as last_msg
                FROM messages WHERE school=?
                GROUP BY student_id, student_name, school ORDER BY last_at DESC`;
-          params = [school];
+          params = [scopedSchool];
         } else {
           q = `SELECT student_id, student_name, school,
                  MAX(created_at) as last_at,
@@ -1568,6 +1573,9 @@ export async function onRequest({ request, env }) {
       const tkClaims = _devAuth ? { role: 'dev', sub: 'dev' } : await verifyToken(request, env);
       if (!tkClaims) return err('غير مصرح', 401, CORS);
       const tkPrivileged = ['admin','director','dev','support'].includes(tkClaims.role);
+      // Admins and directors (not dev/support, not super-director '*') are always scoped to their own school
+      const tkSchoolScope = (['admin','director'].includes(tkClaims.role) && tkClaims.school && tkClaims.school !== '*')
+        ? tkClaims.school : null;
 
       // Idempotent schema migrations
       try { await DB.prepare("ALTER TABLE tickets ADD COLUMN category TEXT NOT NULL DEFAULT 'أخرى'").run(); } catch {}
@@ -1580,16 +1588,18 @@ export async function onRequest({ request, env }) {
       // GET /api/tickets/stats — admin only
       if (method === 'GET' && sub === 'stats') {
         if (!tkPrivileged) return err('غير مسموح', 403, CORS);
+        const schoolCond = tkSchoolScope ? ' AND school=?' : '';
+        const schoolArgs = tkSchoolScope ? [tkSchoolScope] : [];
         const [total, openC, progC, resolvedC, urgentC] = await Promise.all([
-          DB.prepare('SELECT COUNT(*) as c FROM tickets').first(),
-          DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE status='open'").first(),
-          DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE status='in_progress'").first(),
-          DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE status='resolved'").first(),
-          DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE priority='عالية' AND status!='resolved'").first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM tickets WHERE 1=1${schoolCond}`).bind(...schoolArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM tickets WHERE status='open'${schoolCond}`).bind(...schoolArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM tickets WHERE status='in_progress'${schoolCond}`).bind(...schoolArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM tickets WHERE status='resolved'${schoolCond}`).bind(...schoolArgs).first(),
+          DB.prepare(`SELECT COUNT(*) as c FROM tickets WHERE priority='عالية' AND status!='resolved'${schoolCond}`).bind(...schoolArgs).first(),
         ]);
         const today = new Date().toISOString().split('T')[0];
-        const todayC = await DB.prepare("SELECT COUNT(*) as c FROM tickets WHERE created_at LIKE ?").bind(today + '%').first();
-        const { results: topCats } = await DB.prepare("SELECT category, COUNT(*) as cnt FROM tickets GROUP BY category ORDER BY cnt DESC LIMIT 3").all();
+        const todayC = await DB.prepare(`SELECT COUNT(*) as c FROM tickets WHERE created_at LIKE ?${schoolCond}`).bind(today + '%', ...schoolArgs).first();
+        const { results: topCats } = await DB.prepare(`SELECT category, COUNT(*) as cnt FROM tickets WHERE 1=1${schoolCond} GROUP BY category ORDER BY cnt DESC LIMIT 3`).bind(...schoolArgs).all();
         return ok({ total: total?.c||0, open: openC?.c||0, inProgress: progC?.c||0, resolved: resolvedC?.c||0, urgent: urgentC?.c||0, today: todayC?.c||0, topCategories: topCats }, 200, CORS);
       }
 
@@ -1616,8 +1626,8 @@ export async function onRequest({ request, env }) {
           params = [studentId];
         } else {
           if (!tkPrivileged) return err('غير مسموح', 403, CORS);
-          // Admins always scoped to their school; directors/dev may filter by ?school=
-          const tkSchool = tkClaims.role === 'admin' ? (tkClaims.school || null) : (school || null);
+          // Admins/directors always scoped to their school; dev/support may filter by ?school=
+          const tkSchool = tkSchoolScope || school || null;
           q = tkSchool
             ? 'SELECT * FROM tickets WHERE school=? ORDER BY created_at DESC'
             : 'SELECT * FROM tickets ORDER BY created_at DESC';
@@ -1632,7 +1642,7 @@ export async function onRequest({ request, env }) {
         const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
         if (!ticket) return err('غير موجود', 404, CORS);
         if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('غير مسموح', 403, CORS);
-        if (tkClaims.role === 'admin' && tkClaims.school && ticket.school !== tkClaims.school) return err('غير مسموح', 403, CORS);
+        if (tkSchoolScope && ticket.school !== tkSchoolScope) return err('غير مسموح', 403, CORS);
         const { results: replies } = await DB.prepare(
           'SELECT * FROM ticket_replies WHERE ticket_id=? ORDER BY created_at ASC'
         ).bind(sub).all();
@@ -1667,6 +1677,7 @@ export async function onRequest({ request, env }) {
         const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
         if (!ticket) return err('غير موجود', 404, CORS);
         if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('غير مسموح', 403, CORS);
+        if (tkSchoolScope && ticket.school !== tkSchoolScope) return err('غير مسموح', 403, CORS);
         const { readerType } = await request.json();
         const markSender = readerType === 'student' ? 'admin' : 'student';
         await DB.prepare("UPDATE ticket_replies SET is_read=1 WHERE ticket_id=? AND sender_type=?").bind(sub, markSender).run();
@@ -1678,7 +1689,7 @@ export async function onRequest({ request, env }) {
         const ticket = await DB.prepare('SELECT * FROM tickets WHERE id=?').bind(sub).first();
         if (!ticket) return err('غير موجود', 404, CORS);
         if (tkClaims.role === 'student' && tkClaims.sub !== ticket.student_id) return err('غير مسموح', 403, CORS);
-        if (tkClaims.role === 'admin' && tkClaims.school && ticket.school !== tkClaims.school) return err('غير مسموح', 403, CORS);
+        if (tkSchoolScope && ticket.school !== tkSchoolScope) return err('غير مسموح', 403, CORS);
         const { body: replyBody } = await request.json();
         if (!replyBody) return err('حقول مفقودة', 400, CORS);
         if (replyBody.length > 3000) return err('النص طويل جداً', 400, CORS);
@@ -1707,6 +1718,7 @@ export async function onRequest({ request, env }) {
           return ok({ ticket: t }, 200, CORS);
         }
         if (!tkPrivileged) return err('غير مسموح', 403, CORS);
+        if (tkSchoolScope && ticket.school !== tkSchoolScope) return err('غير مسموح', 403, CORS);
         const { status } = body;
         if (!['open','in_progress','resolved','rejected'].includes(status)) return err('حالة غير صالحة', 400, CORS);
         await DB.prepare('UPDATE tickets SET status=? WHERE id=?').bind(status, sub).run();

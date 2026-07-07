@@ -1284,6 +1284,25 @@ const App = {
     } catch (e) { alert('تعذّر إنشاء القالب: ' + e.message); }
   },
 
+  async exportStudentsList() {
+    const students = DB.students();
+    if (!students.length) { alert('لا يوجد طلاب لتصديرهم'); return; }
+    try {
+      await _loadXlsx();
+      const rows = students.map(s => ({
+        'اسم الطالب': s.name, 'السجل المدني': s.code,
+        'رقم الجوال': s.phone || '', 'المدرسة': s.school || '',
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, ws, 'الطلاب');
+      const stamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `students-export-${stamp}.xlsx`);
+      showToast('تم تصدير القائمة ✅');
+    } catch (e) { alert('تعذّر تصدير القائمة: ' + e.message); }
+  },
+
   async deleteNoSchoolStudents() {
     if (!confirm('سيتم حذف جميع الطلاب الذين ليس لديهم مدرسة. هل أنت متأكد؟')) return;
     try {

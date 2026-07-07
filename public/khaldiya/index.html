@@ -1454,6 +1454,10 @@
                placeholder="🔍 ابحث باسم الطالب أو رقمه…"
                oninput="App._filterStudentList()"
                style="flex:1;min-width:180px;">
+        <button class="btn btn-outline" style="padding:9px 18px;font-size:13.5px;white-space:nowrap;flex-shrink:0;gap:6px;"
+                onclick="App.exportStudentsList()">
+          ⬇️ تصدير القائمة
+        </button>
         <button class="btn btn-primary" style="padding:9px 18px;font-size:13.5px;white-space:nowrap;flex-shrink:0;gap:6px;"
                 onclick="App.toggleAddStudentPanel()">
           <span style="font-size:18px;line-height:1;font-weight:400;">+</span> إضافة طالب

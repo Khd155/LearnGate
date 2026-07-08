@@ -6,8 +6,8 @@
   --primary:    #3F7CB8;
   --primary-dk: #2B5F94;
   --primary-lt: #5A95C9;
-  --accent:     #4FA877;
-  --accent-2:   #5BB385;
+  --accent:     #7C5CD4;
+  --accent-2:   #9683E0;
   --gold:       #d97706;
   --success:    #4FA877;
   --danger:     #dc2626;
@@ -27,7 +27,79 @@
   --shadow-lg:  0 24px 60px -20px rgba(63,124,184,.30);
   --grad-hero:  linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
   --grad-soft:  linear-gradient(135deg,#eaf2f9 0%,#e8f4ee 100%);
+  --focus-ring: 0 0 0 3px rgba(63,124,184,.35);
 }
+
+/* ── Dark Mode ────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary:    #6FA8DA;
+    --primary-dk: #4F86BE;
+    --primary-lt: #8FC0E8;
+    --accent:     #A48CE6;
+    --accent-2:   #B9A7EE;
+    --gold:       #f0a94e;
+    --success:    #6FCB98;
+    --danger:     #f16565;
+    --warn:       #f0a94e;
+    --bg:         #0f1720;
+    --bg-tint:    #16212c;
+    --surface:    #1a2530;
+    --border:     #2b3947;
+    --border-strong:#3a4b5c;
+    --text:       #e7edf3;
+    --muted:      #93a4b3;
+    --shadow-sm:  0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.35);
+    --shadow:     0 8px 24px -8px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.3);
+    --shadow-lg:  0 24px 60px -20px rgba(0,0,0,.6);
+    --grad-hero:  linear-gradient(135deg,#2B5F94 0%,#2E6B71 55%,#3D8563 100%);
+    --grad-soft:  linear-gradient(135deg,#182430 0%,#17251f 100%);
+    --focus-ring: 0 0 0 3px rgba(111,168,218,.45);
+  }
+}
+:root[data-theme="dark"] {
+  --primary:    #6FA8DA;
+  --primary-dk: #4F86BE;
+  --primary-lt: #8FC0E8;
+  --accent:     #A48CE6;
+  --accent-2:   #B9A7EE;
+  --gold:       #f0a94e;
+  --success:    #6FCB98;
+  --danger:     #f16565;
+  --warn:       #f0a94e;
+  --bg:         #0f1720;
+  --bg-tint:    #16212c;
+  --surface:    #1a2530;
+  --border:     #2b3947;
+  --border-strong:#3a4b5c;
+  --text:       #e7edf3;
+  --muted:      #93a4b3;
+  --shadow-sm:  0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.35);
+  --shadow:     0 8px 24px -8px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.3);
+  --shadow-lg:  0 24px 60px -20px rgba(0,0,0,.6);
+  --grad-hero:  linear-gradient(135deg,#2B5F94 0%,#2E6B71 55%,#3D8563 100%);
+  --grad-soft:  linear-gradient(135deg,#182430 0%,#17251f 100%);
+  --focus-ring: 0 0 0 3px rgba(111,168,218,.45);
+}
+
+/* ── Dark-mode toggle button ──────────────────────────── */
+.theme-toggle-btn {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 500;
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  box-shadow: var(--shadow);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform .18s, background .2s;
+}
+.theme-toggle-btn:hover { transform: scale(1.06); }
+@media print { .theme-toggle-btn { display: none !important; } }
 
 html, body {
   height: 100%;
@@ -319,6 +391,16 @@ p, span, div, button, input, label, td, th {
   background: #fbfdff;
 }
 
+/* ── Global keyboard-focus visibility ─────────────────── */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 6px;
+}
+button:focus-visible, a:focus-visible, .btn:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
 /* ── Buttons ─────────────────────────────────────────── */
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -393,7 +475,7 @@ p, span, div, button, input, label, td, th {
   display: flex; align-items: center; justify-content: center;
   font-size: 28px; flex-shrink: 0;
 }
-.service-card.active .service-card-icon { background: linear-gradient(135deg,#e0f2fe,#dbeafe); }
+.service-card.active .service-card-icon { background: var(--bg-tint); }
 .service-card.disabled .service-card-icon { background: #f1f5f9; }
 .service-card-info { flex: 1; }
 .service-card-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
@@ -575,9 +657,9 @@ p, span, div, button, input, label, td, th {
 
 /* ── Intro Screen ────────────────────────────────────── */
 .intro-box {
-  background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+  background: var(--bg-tint);
   border-radius: var(--radius); padding: 28px;
-  border: 1.5px solid #bfdbfe; margin-bottom: 20px;
+  border: 1.5px solid var(--border-strong); margin-bottom: 20px;
 }
 .intro-box p { font-size: 15px; line-height: 2; color: var(--text); }
 .intro-steps { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
@@ -1224,8 +1306,8 @@ p, span, div, button, input, label, td, th {
 
 /* ── Student: performance card (student home) ── */
 .sh-perf-card {
-  background: linear-gradient(135deg, #f0f7ff 0%, #edfaf3 100%);
-  border: 1.5px solid #bcd6ee;
+  background: var(--bg-tint);
+  border: 1.5px solid var(--border-strong);
   border-radius: 18px;
   padding: 20px 20px 18px;
   margin-bottom: 20px;

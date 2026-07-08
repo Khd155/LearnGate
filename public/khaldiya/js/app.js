@@ -1,5 +1,24 @@
 'use strict';
 
+// ── Theme (dark/light) ─────────────────────────────────────────────────────
+function applyTheme(mode) {
+  const root = document.documentElement;
+  if (mode === 'dark' || mode === 'light') {
+    root.setAttribute('data-theme', mode);
+  } else {
+    root.removeAttribute('data-theme');
+  }
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) {
+    const isDark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    btn.textContent = isDark ? '☀️' : '🌙';
+  }
+}
+(function initTheme() {
+  const saved = localStorage.getItem('theme');
+  applyTheme(saved);
+})();
+
 // ── Canonical skill order (verbal then quantitative, fixed) ───────────────
 const SKILL_ORDER = ['v4','v5','v1','v2','v3','q1','q2','q3','q4','q5'];
 function sortBySkillOrder(gaps) {
@@ -581,6 +600,14 @@ const App = {
     if (!State.student.phone) {
       setTimeout(() => App.showStudentPhoneModal(), 800);
     }
+  },
+
+  toggleTheme() {
+    const current = localStorage.getItem('theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    applyTheme(next);
   },
 
   showStudentPhoneModal() {

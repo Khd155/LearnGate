@@ -55,6 +55,8 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
   const [gtTitles, setGtTitles] = useState<Record<number, string>>({});
   const [gtLoading, setGtLoading] = useState(false);
 
+  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
+
   useEffect(() => {
     if (student) {
       setName(student.name);
@@ -258,37 +260,62 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
                       const gaps = Array.isArray(p.gaps) ? p.gaps : [];
                       const score = planScore(p);
                       const attemptNumber = history.length - idx;
+                      const isExpanded = expandedPlanId === p.id;
                       return (
-                        <div
-                          key={p.id}
-                          className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-slate-700 dark:text-slate-200">
-                              قدرات {attemptNumber} — {p.status === 'active' ? 'خطة معتمدة' : 'خطة بانتظار الاعتماد'}
-                            </span>
-                            <span className="text-xs text-slate-400">
-                              {new Date(p.created_at).toLocaleDateString('ar-SA')}
-                            </span>
-                          </div>
-                          {score !== null && (
-                            <div className="mt-1 flex items-center gap-2">
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${levelColor(score)}`}>
-                                {score}%
+                        <div key={p.id} className="overflow-hidden rounded-lg border border-slate-100 bg-slate-50 text-sm dark:border-slate-700 dark:bg-slate-900">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedPlanId(isExpanded ? null : p.id)}
+                            className="flex w-full items-center justify-between px-3 py-2 text-right hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                          >
+                            <span className="flex items-center gap-2">
+                              <span className="font-medium text-slate-700 dark:text-slate-200">
+                                قدرات {attemptNumber}
                               </span>
-                              <span className="text-xs text-slate-500 dark:text-slate-400">{levelLabel(score)}</span>
+                              {score !== null && (
+                                <>
+                                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${levelColor(score)}`}>
+                                    {score}%
+                                  </span>
+                                  <span className="text-xs text-slate-500 dark:text-slate-400">{levelLabel(score)}</span>
+                                </>
+                              )}
+                            </span>
+                            <span className="flex items-center gap-2 text-xs text-slate-400">
+                              {new Date(p.created_at).toLocaleDateString('ar-SA')}
+                              <span className="text-slate-300 dark:text-slate-600">{isExpanded ? '▲' : '▼'}</span>
+                            </span>
+                          </button>
+
+                          {isExpanded && gaps.length > 0 && (
+                            <div className="border-t border-slate-100 px-3 py-2 dark:border-slate-700">
+                              <div className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                تفاصيل المهارات
+                              </div>
+                              <div className="space-y-1">
+                                {gaps.map((g, i) => (
+                                  <div key={i} className="flex items-center justify-between gap-2">
+                                    <span className="text-xs text-slate-600 dark:text-slate-300">{g.skillName}</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                        <div
+                                          className={`h-full rounded-full ${g.pct <= 30 ? 'bg-rose-500' : g.pct <= 49 ? 'bg-amber-500' : g.pct <= 70 ? 'bg-sky-500' : 'bg-emerald-500'}`}
+                                          style={{ width: `${g.pct}%` }}
+                                        />
+                                      </div>
+                                      <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${levelColor(g.pct)}`}>
+                                        {g.pct}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
-                          {gaps.length > 0 && (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {gaps.slice(0, 6).map((g, i) => (
-                                <span
-                                  key={i}
-                                  className="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                                >
-                                  {g.skillName} ({g.pct}%)
-                                </span>
-                              ))}
+
+                          {isExpanded && gaps.length === 0 && (
+                            <div className="border-t border-slate-100 px-3 py-2 text-xs text-slate-400 dark:border-slate-700">
+                              لا توجد تفاصيل مهارات لهذه الجلسة
                             </div>
                           )}
                         </div>

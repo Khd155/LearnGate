@@ -488,30 +488,37 @@ export async function onRequest({ request, env }) {
 
       if (method === 'PATCH' && sub) {
         const claims = await verifyToken(request, env);
-        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const isSelfStudent = claims && claims.role === 'student' && claims.sub === sub;
+        if (!claims || !(isSelfStudent || ['admin','director','dev'].includes(claims.role))) return err('غير مصرح', 401, CORS);
         const target = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(sub).first();
         if (!target) return err('الطالب غير موجود', 404, CORS);
-        if (claims.role !== 'dev') {
+        if (!isSelfStudent && claims.role !== 'dev') {
           const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
           if (!effectiveSchool || target.school !== effectiveSchool) return err('غير مصرح', 401, CORS);
         }
         const body = await request.json();
         const sets = [];
         const vals = [];
-        if ('phone' in body) { sets.push('phone = ?'); vals.push(body.phone || ''); }
-        if ('name' in body) {
-          const name = (body.name || '').trim();
-          if (!name) return err('اسم الطالب مطلوب', 400, CORS);
-          sets.push('name = ?'); vals.push(name);
-        }
-        if ('code' in body) {
-          // Only dev can change the national ID/code — admin & director are
-          // restricted to name/phone so the identity used for student login
-          // can't be altered from the school-level admin dashboard.
-          if (claims.role !== 'dev') return err('غير مسموح بتعديل رقم الهوية', 403, CORS);
-          const code = (body.code || '').trim();
-          if (!code) return err('رقم الهوية مطلوب', 400, CORS);
-          sets.push('code = ?'); vals.push(code);
+        // A student updating their own record may only ever touch their phone number.
+        if (isSelfStudent) {
+          if (!('phone' in body) || Object.keys(body).some(k => k !== 'phone')) return err('غير مصرح', 401, CORS);
+          sets.push('phone = ?'); vals.push(body.phone || '');
+        } else {
+          if ('phone' in body) { sets.push('phone = ?'); vals.push(body.phone || ''); }
+          if ('name' in body) {
+            const name = (body.name || '').trim();
+            if (!name) return err('اسم الطالب مطلوب', 400, CORS);
+            sets.push('name = ?'); vals.push(name);
+          }
+          if ('code' in body) {
+            // Only dev can change the national ID/code — admin & director are
+            // restricted to name/phone so the identity used for student login
+            // can't be altered from the school-level admin dashboard.
+            if (claims.role !== 'dev') return err('غير مسموح بتعديل رقم الهوية', 403, CORS);
+            const code = (body.code || '').trim();
+            if (!code) return err('رقم الهوية مطلوب', 400, CORS);
+            sets.push('code = ?'); vals.push(code);
+          }
         }
         if (!sets.length) return err('لا توجد بيانات للتحديث', 400, CORS);
         try {

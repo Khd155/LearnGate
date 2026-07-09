@@ -441,7 +441,7 @@ const App = {
         timeout: 5000,
       });
       token = data.token;
-      student = { id: data.student.id, code, name: data.student.name, school: data.student.school || '' };
+      student = { id: data.student.id, code, name: data.student.name, school: data.student.school || '', phone: data.student.phone || '' };
     } catch (e) {
       const msg = e?.message || '';
       const status = e?.status;
@@ -472,7 +472,7 @@ const App = {
       State.student = student;
       State.role = 'student';
       if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
-      const _sess = { role: 'student', id: student.id, code, name: student.name, school: student.school, token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
+      const _sess = { role: 'student', id: student.id, code, name: student.name, school: student.school, phone: student.phone || '', token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
       try { sessionStorage.setItem(_skey('lg_session', 'student'), JSON.stringify(_sess)); } catch(_) {}
       try { localStorage.setItem(_skey('lg_xsession', 'student'), JSON.stringify(_sess)); } catch(_) {}
       _setActiveRole('student');
@@ -665,6 +665,16 @@ const App = {
     try {
       await DB.updateStudentPhone(State.student.id, trimmed);
       State.student.phone = trimmed;
+      // Keep the persisted session in sync so quick-restore doesn't re-prompt
+      [['sessionStorage', 'lg_session'], ['localStorage', 'lg_xsession']].forEach(([store, key]) => {
+        try {
+          const raw = window[store].getItem(_skey(key, 'student'));
+          if (!raw) return;
+          const sess = JSON.parse(raw);
+          sess.phone = trimmed;
+          window[store].setItem(_skey(key, 'student'), JSON.stringify(sess));
+        } catch (_) {}
+      });
     } catch (_) {
       // Save failed silently — don't block the student
     }
@@ -4193,7 +4203,7 @@ async function _quickRestoreSession(sess) {
     _authToken = sess.token;
     const expiry = Date.now() + 4 * 60 * 60 * 1000;
     if (sess.role === 'student') {
-      State.student = { id: sess.id, code: sess.code, name: sess.name, school: sess.school || '', trial: !!sess.trial };
+      State.student = { id: sess.id, code: sess.code, name: sess.name, school: sess.school || '', phone: sess.phone || '', trial: !!sess.trial };
       State.role = 'student';
       if (sess.school) { State.school = sess.school; App._updateSchoolDisplay(sess.school); }
       if (sess.trial) _showTrialBanner();

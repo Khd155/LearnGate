@@ -1285,6 +1285,23 @@ export async function onRequest({ request, env }) {
         return ok({ token }, 201, CORS);
       }
 
+      // GET /api/dev/access-tokens?studentId=... — link-open tracking: every
+      // token sent to this student, and whether/when they actually opened it.
+      if (sub === 'access-tokens' && method === 'GET') {
+        const isDevKeyRead = authDev(request, env);
+        if (!isDevKeyRead) {
+          const atReadClaims = await verifyToken(request, env);
+          if (!atReadClaims || atReadClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        const studentId = url.searchParams.get('studentId') || '';
+        if (!studentId) return err('studentId مطلوب', 400, CORS);
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        const { results } = await DB.prepare(
+          'SELECT token, used_at, created_at FROM access_tokens WHERE student_id = ? ORDER BY created_at DESC'
+        ).bind(studentId).all();
+        return ok({ tokens: results }, 200, CORS);
+      }
+
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
 
       // GET /api/dev/backup — full-site data dump (all tables) for manual download

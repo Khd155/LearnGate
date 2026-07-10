@@ -1256,6 +1256,7 @@ const Dev = {
             <td style="white-space:nowrap;">
               <button class="btn btn-outline btn-sm" title="توليد رابط اختبار لمرة واحدة" onclick="Dev.generateTestAccessLink('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔗 اختبار</button>
               <button class="btn btn-outline btn-sm" title="إرسال رابط الحساب عبر واتساب" onclick="Dev.sendAccountLinkWhatsApp('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}','${escapeHtml(s.phone || '')}')">📲 واتساب</button>
+              <button class="btn btn-outline btn-sm" title="هل فتح الطالب رابط الحساب؟" onclick="Dev.showAccessTokenHistory('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">📋 حالة الرسالة</button>
               <button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">حذف</button>
             </td>
           </tr>`).join('')}
@@ -1424,6 +1425,25 @@ const Dev = {
       showToast('تم إرسال الرسالة عبر واتساب ✅');
     } catch (e) {
       showToast('تعذّر الإرسال: ' + e.message, true);
+    }
+  },
+
+  async showAccessTokenHistory(studentId, name) {
+    try {
+      const { tokens } = await apiDev(`/dev/access-tokens?studentId=${encodeURIComponent(studentId)}`);
+      if (!tokens.length) {
+        alert(`لم يُرسل أي رابط حساب لـ "${name}" بعد.`);
+        return;
+      }
+      const fmt = (iso) => new Date(iso).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' });
+      const lines = tokens.map((t, i) => {
+        const sentAt = fmt(t.created_at);
+        const status = t.used_at ? `✅ فُتح — ${fmt(t.used_at)}` : '⏳ لم يُفتح بعد';
+        return `#${tokens.length - i} — أُرسل: ${sentAt}\n   ${status}`;
+      }).join('\n\n');
+      alert(`سجل روابط الحساب لـ "${name}":\n\n${lines}`);
+    } catch (e) {
+      showToast('تعذّر تحميل السجل: ' + e.message, true);
     }
   },
 

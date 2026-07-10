@@ -456,22 +456,33 @@
       <div style="color:var(--muted);font-size:14px;">جارٍ التحقق من الرابط…</div>
     </div>
     <div id="at-success" style="display:none;background:var(--surface);border:1.5px solid var(--border);
-         border-radius:var(--radius-lg);padding:32px 24px;max-width:360px;width:100%;box-shadow:var(--shadow);">
+         border-radius:var(--radius-lg);padding:32px 24px;max-width:380px;width:100%;box-shadow:var(--shadow);">
       <div style="font-size:38px;margin-bottom:10px;">🎓</div>
-      <div style="font-weight:800;font-size:17px;margin-bottom:4px;" id="at-name"></div>
-      <div style="color:var(--muted);font-size:13px;margin-bottom:18px;">رقم الدخول الخاص بك</div>
+      <div style="font-weight:800;font-size:19px;margin-bottom:10px;">مرحبًا بك، <span id="at-name"></span></div>
+      <div style="color:var(--muted);font-size:13.5px;line-height:1.8;margin-bottom:14px;">
+        بوابة دعم التعلّم منصة تهدف لدعمك أكاديميًا من خلال تحليل نقاط قوتك وضعفك، وتقديم خطة دعم مخصصة لك بناءً على أدائك.
+      </div>
+      <div id="at-school" style="display:none;font-size:13px;color:var(--primary);font-weight:700;margin-bottom:18px;"></div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:8px;">رقم الدخول الخاص بك</div>
       <div style="display:flex;align-items:center;gap:8px;background:var(--bg-tint);border:1.5px solid var(--border-strong);
                   border-radius:12px;padding:14px 16px;justify-content:center;">
         <span id="at-code" style="font-size:22px;font-weight:800;letter-spacing:1px;font-variant-numeric:tabular-nums;color:var(--primary);"></span>
       </div>
       <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="App.copyAccessCode()">نسخ رقم الدخول 📋</button>
       <div style="color:var(--warn);font-size:12px;margin-top:14px;">⚠️ هذا الرابط صالح لمرة واحدة فقط ولن يعمل بعد الآن.</div>
+      <button class="btn btn-outline" style="width:100%;margin-top:20px;" onclick="window.location.href='/'">التوجه إلى الموقع الرئيسي ←</button>
+      <div style="border-top:1px solid var(--border);margin-top:22px;padding-top:16px;font-size:12.5px;color:var(--muted);">
+        تواجه مشكلة؟
+        <a href="#" onclick="App.openGuestSupport();return false;" style="color:var(--primary);font-weight:700;">تواصل مع الدعم الفني</a>
+      </div>
     </div>
     <div id="at-error" style="display:none;background:var(--surface);border:1.5px solid var(--border);
-         border-radius:var(--radius-lg);padding:32px 24px;max-width:360px;width:100%;box-shadow:var(--shadow);">
+         border-radius:var(--radius-lg);padding:32px 24px;max-width:380px;width:100%;box-shadow:var(--shadow);">
       <div style="font-size:38px;margin-bottom:10px;">⛔</div>
       <div style="font-weight:800;font-size:16px;margin-bottom:8px;">انتهت صلاحية هذا الرابط</div>
-      <div style="color:var(--muted);font-size:13px;">تم استخدام هذا الرابط من قبل أو أنه غير صحيح. تواصل مع الدعم الفني لمساعدتك.</div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:20px;">تعذّر الوصول لهذا الرابط — إما استُخدم من قبل أو أنه غير صحيح.</div>
+      <button class="btn btn-primary" style="width:100%;" onclick="App.openGuestSupport()">📩 تواصل مع الدعم الفني</button>
+      <button class="btn btn-outline" style="width:100%;margin-top:10px;" onclick="window.location.href='/'">التوجه إلى الموقع الرئيسي ←</button>
     </div>
   </div>
 </div>

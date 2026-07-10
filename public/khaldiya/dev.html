@@ -1400,6 +1400,8 @@ const Dev = {
         method: 'POST',
         body: JSON.stringify({ studentId }),
       });
+      const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+      const displayName = parts.length <= 2 ? parts.join(' ') : parts[0] + ' ' + parts[parts.length - 1];
       const sendRes = await apiDev('/sendpulse/send', {
         method: 'POST',
         body: JSON.stringify({
@@ -1407,7 +1409,7 @@ const Dev = {
           template_name: 'student_account_access_template_1',
           language_code: 'ar',
           components: [
-            { type: 'body', parameters: [{ type: 'text', text: name || '' }] },
+            { type: 'body', parameters: [{ type: 'text', text: displayName }] },
             { type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: token }] },
           ],
         }),

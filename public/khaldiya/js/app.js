@@ -111,6 +111,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btn) btn.addEventListener('click', _exitTrialMode);
 });
 
+// ── First + last name only (drops middle names) — shared by the access-link
+// landing page and the WhatsApp send button so both show the same thing.
+function firstLastName(fullName) {
+  const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) return parts.join(' ');
+  return parts[0] + ' ' + parts[parts.length - 1];
+}
+
 // ── Single-use account-access link ("?t=") — dev test tool ─────────────────
 (function initAccessTokenLanding() {
   const t = new URLSearchParams(window.location.search).get('t');
@@ -119,8 +127,13 @@ document.addEventListener('DOMContentLoaded', () => {
     show('screen-access-token');
     try {
       const data = await apiFetch('/auth/access-token?t=' + encodeURIComponent(t));
-      document.getElementById('at-name').textContent = data.name || '';
+      document.getElementById('at-name').textContent = firstLastName(data.name);
       document.getElementById('at-code').textContent = data.code || '';
+      if (data.school) {
+        const schoolEl = document.getElementById('at-school');
+        schoolEl.textContent = '🏫 مدرستك: ' + data.school;
+        schoolEl.style.display = 'block';
+      }
       document.getElementById('at-loading').style.display = 'none';
       document.getElementById('at-success').style.display = 'block';
     } catch (_) {

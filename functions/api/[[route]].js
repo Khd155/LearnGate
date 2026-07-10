@@ -352,10 +352,10 @@ export async function onRequest({ request, env }) {
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
         const row = await DB.prepare('SELECT token, student_id, used_at FROM access_tokens WHERE token = ?').bind(t).first();
         if (!row || row.used_at) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
-        const student = await DB.prepare('SELECT name, code FROM students WHERE id = ?').bind(row.student_id).first();
+        const student = await DB.prepare('SELECT name, code, school FROM students WHERE id = ?').bind(row.student_id).first();
         if (!student) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
         await DB.prepare('UPDATE access_tokens SET used_at = ? WHERE token = ?').bind(new Date().toISOString(), t).run();
-        return ok({ name: student.name, code: student.code }, 200, CORS);
+        return ok({ name: student.name, code: student.code, school: student.school || '' }, 200, CORS);
       }
 
       // POST /api/auth/student-login

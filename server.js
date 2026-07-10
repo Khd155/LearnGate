@@ -72,7 +72,18 @@ for (const route of SPA_REWRITES) {
   app.get([route, `${route}/*`], (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
 }
 
-app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
+app.use(express.static(PUBLIC_DIR, {
+  extensions: ['html'],
+  setHeaders: (res, filePath) => {
+    // HTML is the deploy unit that changes on every push — never let a CDN or
+    // browser cache serve a stale copy after a deploy. Hashed JS/CSS assets
+    // (under /assets/) are safe to cache long-term since their filenames
+    // change whenever their content does.
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  },
+}));
 
 app.use((req, res) => {
   res.status(404).sendFile(path.join(PUBLIC_DIR, '404.html'));

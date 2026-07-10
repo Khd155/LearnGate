@@ -28,6 +28,7 @@ function TableSkeleton() {
 
 export default function StudentsTable() {
   const students = useStore((s) => s.students);
+  const isDev = useStore((s) => s.session?.role === 'dev');
   const loadingCore = useStore((s) => s.loadingCore);
   const coreError = useStore((s) => s.coreError);
   const loadCore = useStore((s) => s.loadCore);
@@ -100,6 +101,22 @@ export default function StudentsTable() {
   const goMessage = (student: Student) => {
     setConversationFocusStudentId(student.id);
     setTab('conversations');
+  };
+
+  const generateTestLink = async (student: Student) => {
+    try {
+      const { token } = await api.post<{ token: string }>('/dev/access-tokens', { studentId: student.id });
+      const link = `${window.location.origin}/?t=${token}`;
+      try {
+        await navigator.clipboard.writeText(link);
+        pushToast('success', 'تم نسخ الرابط التجريبي');
+      } catch {
+        pushToast('success', 'تم توليد الرابط');
+      }
+      window.prompt(`رابط تجريبي لمرة واحدة لـ ${student.name}:`, link);
+    } catch (e) {
+      pushToast('error', e instanceof Error ? e.message : 'تعذّر توليد الرابط');
+    }
   };
 
   const doReset = async () => {
@@ -256,11 +273,13 @@ export default function StudentsTable() {
                   student={s}
                   status={statusOf(s.id)}
                   selected={selected.has(s.id)}
+                  isDev={isDev}
                   onToggleSelect={toggleSelect}
                   onOpen={setOpenStudent}
                   onResetTest={setResetTarget}
                   onDelete={setDeleteTarget}
                   onMessage={goMessage}
+                  onGenerateTestLink={generateTestLink}
                 />
               ))
             )}

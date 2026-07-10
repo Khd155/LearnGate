@@ -8,22 +8,26 @@ interface Props {
   student: Student;
   status: DerivedStatus;
   selected: boolean;
+  isDev: boolean;
   onToggleSelect: (id: string) => void;
   onOpen: (student: Student) => void;
   onResetTest: (student: Student) => void;
   onDelete: (student: Student) => void;
   onMessage: (student: Student) => void;
+  onGenerateTestLink: (student: Student) => void;
 }
 
 export default function StudentRow({
   student,
   status,
   selected,
+  isDev,
   onToggleSelect,
   onOpen,
   onResetTest,
   onDelete,
   onMessage,
+  onGenerateTestLink,
 }: Props) {
   const colors = testStatusColor(status);
   return (
@@ -94,6 +98,14 @@ export default function StudentRow({
               >
                 🔓 سماح بإعادة الاختبار
               </DropdownMenu.Item>
+              {isDev && (
+                <DropdownMenu.Item
+                  onSelect={() => onGenerateTestLink(student)}
+                  className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
+                >
+                  🔗 رابط اختبار (dev)
+                </DropdownMenu.Item>
+              )}
               <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
               <DropdownMenu.Item
                 onSelect={() => onDelete(student)}

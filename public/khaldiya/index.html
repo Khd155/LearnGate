@@ -412,8 +412,6 @@
 </head>
 <body>
 
-<button class="theme-toggle-btn no-print" id="theme-toggle-btn" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
-
 <!-- ═══════════════════════════════════════════════════════
      TRIAL/IMPERSONATION BANNER ("عرض كطالب")
 ═══════════════════════════════════════════════════════ -->
@@ -716,6 +714,9 @@
         تواجه مشكلة ولا تستطيع الدخول؟
         <a href="#" onclick="App.openGuestSupport();return false;" style="color:var(--primary);font-weight:700;">تواصل مع الدعم الفني</a>
       </p>
+      <p style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;opacity:.6;">
+        <a href="#" onclick="App.devLogin();return false;" style="color:inherit;">دخول Dev</a>
+      </p>
     </form>
   </div>
 </div>
@@ -758,6 +759,7 @@
       <div class="topbar-sub">متابعة التذاكر والطلبات</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="App.logout()" style="font-size:14px;">خروج</button>
   </div>
@@ -807,6 +809,7 @@
       <div class="topbar-sub" id="sh-school-sub"></div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="notif-bell-btn" id="notif-bell-student" onclick="App.toggleNotifPanel()" title="الإشعارات">
       🔔<span class="notif-count-badge" id="notif-count-student" style="display:none;"></span>
@@ -911,6 +914,7 @@
       <div class="topbar-sub">القدرات اللفظية والكمية</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
   </div>
@@ -930,6 +934,7 @@
       <div class="topbar-sub">جميع محاولاتك السابقة</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-cooldown')">رجوع</button>
   </div>
@@ -961,6 +966,7 @@
       <div class="topbar-sub">المقدمة التوجيهية</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
   </div>
@@ -1064,6 +1070,7 @@
       <div class="topbar-sub">قيّم مستواك في كل مهارة</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-intro')">رجوع</button>
   </div>
@@ -1093,6 +1100,7 @@
       <div class="topbar-sub">اقرأها بعناية قبل البدء</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-selfdiag')">رجوع</button>
   </div>
@@ -1233,6 +1241,7 @@
       <div class="topbar-sub">نتائج الاختبار التشخيصي</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
   </div>
@@ -1305,6 +1314,7 @@
       <div class="topbar-sub">مخصصة وفق نتائج تشخيصك</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button onclick="window.print()"
       style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.45);
@@ -1625,6 +1635,7 @@
       <div class="topbar-sub" id="ad-school-sub"></div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="notif-bell-btn" id="notif-bell-admin" onclick="App.toggleNotifPanel()" title="الإشعارات">
       🔔<span class="notif-count-badge" id="notif-count-admin" style="display:none;"></span>
@@ -2043,6 +2054,7 @@
       <div class="topbar-sub">رسائلك مع المشرف</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="App.leaveChatScreen()">رجوع</button>
   </div>
@@ -2098,6 +2110,7 @@
       <div class="topbar-sub" style="font-size:11px;color:rgba(255,255,255,.65);margin-top:1px;">نتواصل معك في أقرب وقت</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
   </div>

@@ -8,11 +8,12 @@ function applyTheme(mode) {
   } else {
     root.removeAttribute('data-theme');
   }
-  const btn = document.getElementById('theme-toggle-btn');
-  if (btn) {
-    const isDark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    btn.textContent = isDark ? '☀️' : '🌙';
-  }
+  _syncThemeButtons();
+}
+function _syncThemeButtons() {
+  const mode = localStorage.getItem('theme');
+  const isDark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.querySelectorAll('.tb-theme-btn').forEach(btn => { btn.textContent = isDark ? '☀️' : '🌙'; });
 }
 (function initTheme() {
   const saved = localStorage.getItem('theme');
@@ -601,6 +602,22 @@ const App = {
     }
   },
 
+  // ── Dev-only entry point: mints a role:'dev' JWT via DEV_KEY, then reuses
+  // the same /admin/ dashboard (React app) with the dev-only tools unlocked.
+  async devLogin() {
+    const key = window.prompt('مفتاح الدخول (DEV_KEY):');
+    if (!key) return;
+    try {
+      const data = await apiFetch('/auth/dev', { method: 'POST', body: JSON.stringify({ key }) });
+      const _sess = { role: 'dev', code: '', name: 'Dev', school: '', token: data.token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
+      try { sessionStorage.setItem(_skey('lg_session', 'admin'), JSON.stringify(_sess)); } catch(_) {}
+      try { localStorage.setItem(_skey('lg_xsession', 'admin'), JSON.stringify(_sess)); } catch(_) {}
+      window.location.href = '/admin/';
+    } catch (e) {
+      alert('مفتاح غير صحيح: ' + (e?.message || ''));
+    }
+  },
+
   // ── Populate all .tb-uname chips with user name ───────────────────────────
   _setTopbarUser(name) {
     document.querySelectorAll('.tb-uname').forEach(chip => {
@@ -608,6 +625,10 @@ const App = {
       if (textEl) textEl.textContent = name || '';
       chip.style.display = name ? 'inline-flex' : 'none';
     });
+    document.querySelectorAll('.tb-theme-btn').forEach(btn => {
+      btn.style.display = name ? 'inline-flex' : 'none';
+    });
+    _syncThemeButtons();
   },
 
   // ── Inject logo + name into all ghost topbar slots ───────────────────────

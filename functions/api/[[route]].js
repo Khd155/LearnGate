@@ -130,6 +130,46 @@ function authDev(request, env) {
   return key === getDevKey(env);
 }
 
+// Mints a one-time access token for a student and fires the approved
+// "student_account_access_template_1" WhatsApp template via Meta's Cloud API.
+// Best-effort: swallows every failure so a WhatsApp/Meta outage never blocks
+// student creation. No-ops silently if the student has no phone or the
+// WHATSAPP_TOKEN/WHATSAPP_PHONE_ID env vars aren't configured.
+async function sendWhatsAppAccountLink(DB, env, { id, name, phone }, request) {
+  try {
+    if (!phone || !env.WHATSAPP_TOKEN || !env.WHATSAPP_PHONE_ID) return;
+    const digits = String(phone).replace(/\D/g, '');
+    if (!/^0?5\d{8}$/.test(digits)) return;
+    const intlPhone = '966' + digits.replace(/^0/, '');
+
+    try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    const randBytes = crypto.getRandomValues(new Uint8Array(14));
+    const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
+    await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, id, new Date().toISOString()).run();
+
+    await fetch(`https://graph.facebook.com/v20.0/${env.WHATSAPP_PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: intlPhone,
+        type: 'template',
+        template: {
+          name: 'student_account_access_template_1',
+          language: { code: 'ar' },
+          components: [
+            { type: 'body', parameters: [{ type: 'text', text: name || '' }] },
+            { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: token }] },
+          ],
+        },
+      }),
+    });
+  } catch (_) {
+    // best-effort — never let a WhatsApp failure block student creation
+  }
+}
+
 async function logEvent(DB, { level = 'info', category = 'system', message, user_name = '', user_role = '', school = '', ip = '' }) {
   try {
     await DB.prepare(
@@ -464,12 +504,18 @@ export async function onRequest({ request, env }) {
 
           // Batch insert new students
           if (toAdd.length) {
-            const stmts = toAdd.map(({ name, code, school: s, phone }) =>
+            const toAddWithIds = toAdd.map(r => ({ ...r, id: crypto.randomUUID() }));
+            const stmts = toAddWithIds.map(({ id, name, code, school: s, phone }) =>
               DB.prepare('INSERT INTO students (id, code, name, school, phone, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (code) DO NOTHING')
-                .bind(crypto.randomUUID(), code, name, s || school, phone || '', now)
+                .bind(id, code, name, s || school, phone || '', now)
             );
             const results = await DB.batch(stmts);
             added = results.filter(r => r.changes).length;
+            for (let i = 0; i < toAddWithIds.length; i++) {
+              if (!results[i]?.changes) continue;
+              const { id, name, phone } = toAddWithIds[i];
+              await sendWhatsAppAccountLink(DB, env, { id, name, phone }, request);
+            }
           }
 
           // Batch update existing students if upsert mode
@@ -499,6 +545,7 @@ export async function onRequest({ request, env }) {
           throw e;
         }
         await logEvent(DB, { level: 'info', category: 'student', message: `إضافة طالب جديد: ${name}`, user_name: postClaims.name || '', user_role: postClaims.role, school: bodySchool || school || '' });
+        await sendWhatsAppAccountLink(DB, env, { id: sid, name, phone }, request);
         return ok({ student: { id: sid, code, name, school: bodySchool || school, phone: phone || '', created_at: now } }, 201, CORS);
       }
 

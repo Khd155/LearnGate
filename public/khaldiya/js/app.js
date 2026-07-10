@@ -925,9 +925,13 @@ const App = {
 
     const isLast = State.currentQ === total - 1;
     const nextBtn = document.getElementById('btn-next');
-    nextBtn.textContent   = 'إنهاء الاختبار';
-    nextBtn.className     = 'btn btn-success';
-    nextBtn.style.display = isLast ? 'inline-flex' : 'none';
+    nextBtn.textContent   = isLast ? 'إنهاء الاختبار' : 'التالي';
+    nextBtn.className     = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
+    // Only answering (not just viewing) advances automatically — but once a
+    // question already has a saved answer (e.g. after going back with
+    // "السابق"), show "التالي" so the student can move forward without
+    // having to re-tap the same choice.
+    nextBtn.style.display = (isLast || selected !== undefined) ? 'inline-flex' : 'none';
   },
 
   selectAnswer(idx) {
@@ -1068,9 +1072,9 @@ const App = {
     document.getElementById('gt-btn-prev').disabled = idx === 0;
     const isLast = idx === total - 1;
     const nextBtn = document.getElementById('gt-btn-next');
-    nextBtn.textContent   = 'إنهاء الاختبار';
-    nextBtn.className     = 'btn btn-success';
-    nextBtn.style.display = isLast ? 'inline-flex' : 'none';
+    nextBtn.textContent   = isLast ? 'إنهاء الاختبار' : 'التالي';
+    nextBtn.className     = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
+    nextBtn.style.display = (isLast || selected !== undefined) ? 'inline-flex' : 'none';
   },
 
   gtSelect(i) {

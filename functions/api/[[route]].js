@@ -297,6 +297,22 @@ export async function onRequest({ request, env }) {
     if (resource === 'auth') {
       const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
 
+      // GET /api/auth/access-token?t=... — public, single-use, no time expiry.
+      // Redeems a dev-minted test token once; a second attempt (or an unknown
+      // token) reports it as already used so the link can never be replayed.
+      if (sub === 'access-token' && method === 'GET') {
+        if (!await rateLimit(DB, ip, 'access-token', 20)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+        const t = url.searchParams.get('t') || '';
+        if (!t) return err('الرابط غير صالح', 400, CORS);
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        const row = await DB.prepare('SELECT token, student_id, used_at FROM access_tokens WHERE token = ?').bind(t).first();
+        if (!row || row.used_at) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
+        const student = await DB.prepare('SELECT name, code FROM students WHERE id = ?').bind(row.student_id).first();
+        if (!student) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
+        await DB.prepare('UPDATE access_tokens SET used_at = ? WHERE token = ?').bind(new Date().toISOString(), t).run();
+        return ok({ name: student.name, code: student.code }, 200, CORS);
+      }
+
       // POST /api/auth/student-login
       if (sub === 'student-login' && method === 'POST') {
         if (!await rateLimit(DB, ip, 'student-login', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
@@ -1073,6 +1089,28 @@ export async function onRequest({ request, env }) {
         params.push(limitN, offsetN);
         const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ logs: results, hasMore: results.length === limitN }, 200, CORS);
+      }
+
+      // POST /api/dev/access-tokens { studentId } — dev-only test tool: mints a
+      // single-use, no-expiry token for the "خطة التدريب" account-access link
+      // experiment. Reachable by DEV_KEY or a dev-role JWT, same as /dev/logs.
+      if (sub === 'access-tokens' && method === 'POST') {
+        const isDevKey = authDev(request, env);
+        if (!isDevKey) {
+          const atClaims = await verifyToken(request, env);
+          if (!atClaims || atClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        const atBody = await request.json();
+        const studentId = String(atBody.studentId || '');
+        if (!studentId) return err('studentId مطلوب', 400, CORS);
+        const student = await DB.prepare('SELECT id FROM students WHERE id = ?').bind(studentId).first();
+        if (!student) return err('الطالب غير موجود', 404, CORS);
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        const randBytes = crypto.getRandomValues(new Uint8Array(14));
+        const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
+        await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, studentId, new Date().toISOString()).run();
+        return ok({ token }, 201, CORS);
       }
 
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);

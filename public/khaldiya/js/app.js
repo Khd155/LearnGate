@@ -110,6 +110,25 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btn) btn.addEventListener('click', _exitTrialMode);
 });
 
+// ── Single-use account-access link ("?t=") — dev test tool ─────────────────
+(function initAccessTokenLanding() {
+  const t = new URLSearchParams(window.location.search).get('t');
+  if (!t) return;
+  document.addEventListener('DOMContentLoaded', async () => {
+    show('screen-access-token');
+    try {
+      const data = await apiFetch('/auth/access-token?t=' + encodeURIComponent(t));
+      document.getElementById('at-name').textContent = data.name || '';
+      document.getElementById('at-code').textContent = data.code || '';
+      document.getElementById('at-loading').style.display = 'none';
+      document.getElementById('at-success').style.display = 'block';
+    } catch (_) {
+      document.getElementById('at-loading').style.display = 'none';
+      document.getElementById('at-error').style.display = 'block';
+    }
+  });
+})();
+
 // Base API call helper
 async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
@@ -627,6 +646,26 @@ const App = {
     if (!State.student.phone) {
       setTimeout(() => App.showStudentPhoneModal(), 800);
     }
+  },
+
+  async generateTestAccessLink(studentId) {
+    try {
+      const { token } = await apiFetch('/dev/access-tokens', {
+        method: 'POST',
+        body: JSON.stringify({ studentId }),
+      });
+      const link = `${window.location.origin}/?t=${token}`;
+      try { await navigator.clipboard.writeText(link); } catch (_) {}
+      window.prompt('رابط تجريبي لمرة واحدة (تم نسخه):', link);
+    } catch (e) {
+      alert('تعذّر توليد الرابط: ' + (e?.message || ''));
+    }
+  },
+
+  copyAccessCode() {
+    const code = document.getElementById('at-code')?.textContent || '';
+    if (!code) return;
+    navigator.clipboard?.writeText(code).catch(() => {});
   },
 
   toggleTheme() {
@@ -1400,6 +1439,7 @@ const App = {
           ${badge}
           ${scoreChip}
           ${unlockBtn}
+          ${State.role === 'dev' ? `<button class="btn btn-outline btn-sm" title="توليد رابط دخول تجريبي (اختبار)" onclick="event.stopPropagation();App.generateTestAccessLink('${st.id}')">🔗 اختبار</button>` : ''}
           <button class="btn btn-danger btn-sm" onclick="App.deleteStudent('${st.id}')">حذف</button>
         </div>`;
       }).join('');
@@ -4310,6 +4350,9 @@ window.addEventListener('pageshow', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  // A one-time account-access link ("?t=") owns the screen entirely — skip
+  // session restore/auto-login so it can't get overridden mid-flight.
+  if (new URLSearchParams(window.location.search).get('t')) return;
   ActivityLog.info(`🌐 تحميل الصفحة — ${new Date().toLocaleString('ar-SA')} — ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
   const btn = document.getElementById('selfdiag-submit');
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }

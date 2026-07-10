@@ -2701,11 +2701,17 @@ export async function onRequest({ request, env }) {
         if (!template_name) return err('template_name مطلوب', 400, CORS);
         const botId = env.SENDPULSE_BOT_ID;
         const cleanComponents = sanitizeWaComponents(components);
-        const results = await Promise.all(phones.map(phone => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+        const sentPayloads = phones.map(phone => ({
           bot_id: botId,
           phone: normalizeSaudiPhone(phone),
           template: { name: template_name, language: { code: language_code }, components: cleanComponents },
-        })));
+        }));
+        const results = await Promise.all(sentPayloads.map(p => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', p)));
+        await logEvent(DB, {
+          level: results.some(r => r?.success === false || r?.error || r?.errors) ? 'error' : 'success',
+          category: 'whatsapp',
+          message: `SendPulse send — template=${template_name} | sent=${JSON.stringify(sentPayloads)} | received=${JSON.stringify(results)}`,
+        });
         return ok({ sent_to: phones.length, results }, 200, CORS);
       }
 

@@ -130,14 +130,30 @@ function authDev(request, env) {
   return key === getDevKey(env);
 }
 
+// SendPulse OAuth token — fetched fresh each send (low volume, no need to cache).
+async function _sendPulseToken(env) {
+  const res = await fetch('https://api.sendpulse.com/oauth/access_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'client_credentials',
+      client_id: env.SENDPULSE_API_USER_ID,
+      client_secret: env.SENDPULSE_API_SECRET,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.access_token) throw new Error('SendPulse auth failed');
+  return data.access_token;
+}
+
 // Mints a one-time access token for a student and fires the approved
-// "student_account_access_template_1" WhatsApp template via Meta's Cloud API.
-// Best-effort: swallows every failure so a WhatsApp/Meta outage never blocks
-// student creation. No-ops silently if the student has no phone or the
-// WHATSAPP_TOKEN/WHATSAPP_PHONE_ID env vars aren't configured.
+// "student_account_access_template_1" WhatsApp template through SendPulse's
+// WhatsApp API (the account's actual WhatsApp gateway). Best-effort: swallows
+// every failure so a SendPulse outage never blocks student creation. No-ops
+// silently if the student has no phone or the SENDPULSE_* env vars aren't set.
 async function sendWhatsAppAccountLink(DB, env, { id, name, phone }, request) {
   try {
-    if (!phone || !env.WHATSAPP_TOKEN || !env.WHATSAPP_PHONE_ID) return;
+    if (!phone || !env.SENDPULSE_API_USER_ID || !env.SENDPULSE_API_SECRET || !env.SENDPULSE_BOT_ID) return;
     const digits = String(phone).replace(/\D/g, '');
     if (!/^0?5\d{8}$/.test(digits)) return;
     const intlPhone = '966' + digits.replace(/^0/, '');
@@ -148,13 +164,13 @@ async function sendWhatsAppAccountLink(DB, env, { id, name, phone }, request) {
     const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
     await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, id, new Date().toISOString()).run();
 
-    await fetch(`https://graph.facebook.com/v20.0/${env.WHATSAPP_PHONE_ID}/messages`, {
+    const accessToken = await _sendPulseToken(env);
+    await fetch('https://api.sendpulse.com/whatsapp/contacts/sendTemplate', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: intlPhone,
-        type: 'template',
+        bot_id: env.SENDPULSE_BOT_ID,
+        phone: intlPhone,
         template: {
           name: 'student_account_access_template_1',
           language: { code: 'ar' },

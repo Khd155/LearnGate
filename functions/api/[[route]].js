@@ -2704,7 +2704,7 @@ export async function onRequest({ request, env }) {
         const sentPayloads = phones.map(phone => ({
           bot_id: botId,
           phone: normalizeSaudiPhone(phone),
-          template: { name: template_name, language: { code: language_code }, components: cleanComponents },
+          template: { name: template_name, language: { code: language_code, policy: 'deterministic' }, components: cleanComponents },
         }));
         const results = await Promise.all(sentPayloads.map(p => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', p)));
         await logEvent(DB, {
@@ -2747,7 +2747,7 @@ export async function onRequest({ request, env }) {
         const results = await Promise.all(phones.map(phone => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
           bot_id: botId,
           phone,
-          template: { name: template_name, language: { code: language_code }, components: cleanComponents },
+          template: { name: template_name, language: { code: language_code, policy: 'deterministic' }, components: cleanComponents },
         })));
         return ok({ sent_to: phones.length, results }, 200, CORS);
       }

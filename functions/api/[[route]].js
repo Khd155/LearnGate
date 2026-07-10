@@ -2659,21 +2659,37 @@ export async function onRequest({ request, env }) {
           if (!Array.isArray(answers) || !answers.length) return err('إجابات مطلوبة', 400, CORS);
 
           const { results: bank } = await DB.prepare(
-            'SELECT qnum, ans FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
+            'SELECT qnum, ans, skill_id FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
           ).bind(testNum).all();
           if (!bank.length) return err('بنك الأسئلة غير موجود', 500, CORS);
 
+          const GT_SKILL_NAMES = {
+            v1: 'الاستيعاب القرائي', v2: 'الخطأ السياقي', v3: 'المفردة الشاذة',
+            v4: 'التناظر اللفظي',   v5: 'إكمال الجمل',
+            q1: 'الحساب', q2: 'الجبر', q3: 'الهندسة',
+            q4: 'المقارنات الكمية', q5: 'الإحصاء والاحتمالات',
+          };
           const total = bank.length;
           let correct = 0;
           const storedAnswers = [];
+          const skillStats = {};
           for (const q of bank) {
             const a = answers.find(x => Number(x.qnum) === q.qnum) || {};
             const selected = Number.isInteger(Number(a.selected)) && a.selected !== null && a.selected !== undefined ? Number(a.selected) : null;
             const isCorrect = selected === q.ans;
             if (isCorrect) correct++;
             storedAnswers.push({ q: q.qnum, a: selected, corr: q.ans });
+            if (q.skill_id) {
+              if (!skillStats[q.skill_id]) skillStats[q.skill_id] = { correct: 0, total: 0 };
+              skillStats[q.skill_id].total++;
+              if (isCorrect) skillStats[q.skill_id].correct++;
+            }
           }
           const finalScore = Math.round((correct / total) * 100);
+          const skillBreakdown = Object.entries(skillStats).map(([skillId, s]) => ({
+            skillId, skillName: GT_SKILL_NAMES[skillId] || skillId,
+            correct: s.correct, total: s.total, pct: Math.round((s.correct / s.total) * 100),
+          }));
           const rid = crypto.randomUUID();
           const now = new Date().toISOString();
           const isTrial = claims.trial ? 1 : 0;
@@ -2684,7 +2700,7 @@ export async function onRequest({ request, env }) {
           ).bind(rid, claims.sub, claims.name, claims.school || '', testNum, finalScore, correct, total, isTrial, JSON.stringify(storedAnswers), now).run();
 
           await logEvent(DB, { level: 'info', category: 'test', message: `إنهاء الاختبار العام رقم ${testNum}${isTrial ? ' (تجريبي)' : ''} — النتيجة ${finalScore}% (${correct}/${total})`, user_name: claims.name || '', user_role: 'student', school: claims.school || '' });
-          return ok({ id: rid, created_at: now, score: finalScore, correct, total, detail: storedAnswers }, 201, CORS);
+          return ok({ id: rid, created_at: now, score: finalScore, correct, total, detail: storedAnswers, skillBreakdown }, 201, CORS);
         }
       }
     }

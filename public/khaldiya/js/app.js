@@ -925,14 +925,23 @@ const App = {
 
     const isLast = State.currentQ === total - 1;
     const nextBtn = document.getElementById('btn-next');
-    nextBtn.textContent = isLast ? 'إنهاء الاختبار' : 'التالي';
-    nextBtn.className   = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
+    nextBtn.textContent   = 'إنهاء الاختبار';
+    nextBtn.className     = 'btn btn-success';
+    nextBtn.style.display = isLast ? 'inline-flex' : 'none';
   },
 
   selectAnswer(idx) {
-    State.testAnswers[window.QUESTION_BANK[State.currentQ].id] = idx;
+    const QBANK = window.QUESTION_BANK;
+    State.testAnswers[QBANK[State.currentQ].id] = idx;
     App.renderQuestion();
     App._saveTestState();
+    if (State.currentQ < QBANK.length - 1) {
+      setTimeout(() => {
+        State.currentQ++;
+        App.renderQuestion();
+        App._saveTestState();
+      }, 300);
+    }
   },
 
   prevQ() {
@@ -1002,11 +1011,38 @@ const App = {
       document.getElementById('gt-take-title').textContent = `اختبار عام رقم ${num}`;
       show('screen-general-test-take');
       App.renderGTQuestion();
+      App.startGTTimer();
     } catch (e) {
       showToast('تعذّر تحميل الاختبار');
       show('screen-general-tests');
     }
   },
+
+  // ── General-test timer (50 min, same budget as the diagnostic test) ────────
+  _gtTimer: null,
+  startGTTimer() {
+    clearInterval(App._gtTimer);
+    const SECS = 50 * 60;
+    const deadline = Date.now() + SECS * 1000;
+    const el = document.getElementById('gt-timer');
+    const update = () => {
+      const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+      const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+      const s = String(remaining % 60).padStart(2, '0');
+      if (el) {
+        el.textContent = `⏱ ${m}:${s}`;
+        el.style.color = remaining <= 300 ? '#ef4444' : '#fff';
+      }
+      if (remaining <= 0) {
+        clearInterval(App._gtTimer);
+        App.gtFinish();
+      }
+    };
+    update();
+    App._gtTimer = setInterval(update, 1000);
+  },
+
+  stopGTTimer() { clearInterval(App._gtTimer); App._gtTimer = null; },
 
   renderGTQuestion() {
     const { questions, idx, answers } = State.gt;
@@ -1020,22 +1056,32 @@ const App = {
     document.getElementById('gt-q-text').textContent = q.text;
 
     const selected = answers[q.qnum];
-    document.getElementById('gt-q-opts').innerHTML = q.opts.map((opt, i) => `
+    document.getElementById('gt-q-opts').innerHTML = [...q.opts.map((opt, i) => `
       <div class="q-opt${selected === i ? ' selected' : ''}" onclick="App.gtSelect(${i})">
         <div class="opt-circle"></div><span>${opt}</span>
-      </div>`).join('');
+      </div>`),
+      `<div class="q-opt dont-know${selected === 'dk' ? ' selected' : ''}" onclick="App.gtSelect('dk')">
+        <div class="opt-circle"></div><span>لا أعرف الإجابة</span>
+      </div>`
+    ].join('');
 
     document.getElementById('gt-btn-prev').disabled = idx === 0;
     const isLast = idx === total - 1;
     const nextBtn = document.getElementById('gt-btn-next');
-    nextBtn.textContent = isLast ? 'إنهاء الاختبار' : 'التالي';
-    nextBtn.className = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
+    nextBtn.textContent   = 'إنهاء الاختبار';
+    nextBtn.className     = 'btn btn-success';
+    nextBtn.style.display = isLast ? 'inline-flex' : 'none';
   },
 
   gtSelect(i) {
     const { questions, idx } = State.gt;
     State.gt.answers[questions[idx].qnum] = i;
     App.renderGTQuestion();
+    if (idx < questions.length - 1) {
+      setTimeout(() => {
+        if (State.gt.idx < questions.length - 1) { State.gt.idx++; App.renderGTQuestion(); }
+      }, 300);
+    }
   },
 
   gtPrev() {
@@ -1045,11 +1091,16 @@ const App = {
   async gtNext() {
     const { questions, idx, answers } = State.gt;
     if (answers[questions[idx].qnum] === undefined) {
-      showToast('يرجى اختيار إجابة قبل المتابعة');
+      showToast('يرجى اختيار إجابة أو "لا أعرف الإجابة" قبل المتابعة');
       return;
     }
     if (idx < questions.length - 1) { State.gt.idx++; App.renderGTQuestion(); return; }
+    await App.gtFinish();
+  },
 
+  async gtFinish() {
+    App.stopGTTimer();
+    const { questions, answers } = State.gt;
     show('screen-loading');
     try {
       const payload = questions.map(q => ({ qnum: q.qnum, selected: answers[q.qnum] }));
@@ -1058,6 +1109,17 @@ const App = {
       });
       document.getElementById('gt-result-score').textContent = res.score + '%';
       document.getElementById('gt-result-detail').textContent = `${res.correct} إجابة صحيحة من ${res.total}`;
+      const skillsEl = document.getElementById('gt-result-skills');
+      if (skillsEl) {
+        const rows = (res.skillBreakdown || []).map(s => {
+          const cls = s.pct >= 71 ? 'score-high' : s.pct >= 50 ? 'score-mid' : 'score-low';
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">
+            <span style="font-weight:700;font-size:14px;">${escapeHtml(s.skillName)}</span>
+            <span class="gap-score ${cls}">${s.pct}%</span>
+          </div>`;
+        }).join('');
+        skillsEl.innerHTML = rows ? `<div style="font-weight:800;font-size:14px;margin-bottom:10px;">النتيجة حسب المهارة</div>${rows}` : '';
+      }
       show('screen-general-test-result');
     } catch (e) {
       showToast('تعذّر إرسال الاختبار');

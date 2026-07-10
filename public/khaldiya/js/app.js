@@ -696,10 +696,16 @@ const App = {
     }
   },
 
-  copyAccessCode() {
+  copyAccessCode(btn) {
     const code = document.getElementById('at-code')?.textContent || '';
     if (!code) return;
-    navigator.clipboard?.writeText(code).catch(() => {});
+    navigator.clipboard?.writeText(code).then(() => {
+      if (!btn) return;
+      const original = btn.textContent;
+      btn.textContent = '✅ تم نسخ رقم الدخول';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2000);
+    }).catch(() => {});
   },
 
   toggleTheme() {

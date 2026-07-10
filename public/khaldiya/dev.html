@@ -1073,17 +1073,15 @@ const Dev = {
   async sendAccessLinkWhatsApp(studentId, name, phone) {
     const digits = (phone || '').replace(/\D/g, '');
     if (!/^0?5\d{8}$/.test(digits)) { showToast('رقم جوال الطالب غير صحيح أو غير مسجّل', true); return; }
-    const intlPhone = '966' + digits.replace(/^0/, '');
+    if (!await confirmDialog(`إرسال رسالة الواتساب الآن لـ "${name}"؟`, { title: 'إرسال واتساب', okText: 'إرسال' })) return;
     try {
-      const { token } = await apiDev('/dev/access-tokens', {
+      await apiDev('/dev/send-whatsapp', {
         method: 'POST',
         body: JSON.stringify({ studentId }),
       });
-      const link = `${window.location.origin}/?t=${token}`;
-      const text = `عزيزي الطالب ${name}،\nمرحبًا بك، تم إنشاء حسابك بنجاح في بوابة دعم التعلّم.\nيمكنك الدخول والاطلاع على حسابك عبر الرابط:\n${link}\nنسأل الله لك التوفيق والسداد.\nبوابة دعم التعلم`;
-      window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(text)}`, '_blank');
+      showToast('تم إرسال الرسالة عبر واتساب ✅');
     } catch (e) {
-      showToast('تعذّر توليد الرابط: ' + e.message);
+      showToast('تعذّر الإرسال: ' + e.message, true);
     }
   },
 

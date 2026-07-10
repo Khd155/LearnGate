@@ -520,18 +520,12 @@ export async function onRequest({ request, env }) {
 
           // Batch insert new students
           if (toAdd.length) {
-            const toAddWithIds = toAdd.map(r => ({ ...r, id: crypto.randomUUID() }));
-            const stmts = toAddWithIds.map(({ id, name, code, school: s, phone }) =>
+            const stmts = toAdd.map(({ name, code, school: s, phone }) =>
               DB.prepare('INSERT INTO students (id, code, name, school, phone, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (code) DO NOTHING')
-                .bind(id, code, name, s || school, phone || '', now)
+                .bind(crypto.randomUUID(), code, name, s || school, phone || '', now)
             );
             const results = await DB.batch(stmts);
             added = results.filter(r => r.changes).length;
-            for (let i = 0; i < toAddWithIds.length; i++) {
-              if (!results[i]?.changes) continue;
-              const { id, name, phone } = toAddWithIds[i];
-              await sendWhatsAppAccountLink(DB, env, { id, name, phone }, request);
-            }
           }
 
           // Batch update existing students if upsert mode
@@ -561,7 +555,6 @@ export async function onRequest({ request, env }) {
           throw e;
         }
         await logEvent(DB, { level: 'info', category: 'student', message: `إضافة طالب جديد: ${name}`, user_name: postClaims.name || '', user_role: postClaims.role, school: bodySchool || school || '' });
-        await sendWhatsAppAccountLink(DB, env, { id: sid, name, phone }, request);
         return ok({ student: { id: sid, code, name, school: bodySchool || school, phone: phone || '', created_at: now } }, 201, CORS);
       }
 
@@ -1174,6 +1167,27 @@ export async function onRequest({ request, env }) {
         const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
         await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, studentId, new Date().toISOString()).run();
         return ok({ token }, 201, CORS);
+      }
+
+      // POST /api/dev/send-whatsapp { studentId } — dev-only manual trigger: sends the
+      // approved account-access WhatsApp template to this student right now via
+      // SendPulse. Nothing sends automatically on student creation — this is the
+      // only path that fires a real WhatsApp message.
+      if (sub === 'send-whatsapp' && method === 'POST') {
+        const isDevKey = authDev(request, env);
+        if (!isDevKey) {
+          const swClaims = await verifyToken(request, env);
+          if (!swClaims || swClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        const swBody = await request.json();
+        const studentId = String(swBody.studentId || '');
+        if (!studentId) return err('studentId مطلوب', 400, CORS);
+        const student = await DB.prepare('SELECT id, name, phone FROM students WHERE id = ?').bind(studentId).first();
+        if (!student) return err('الطالب غير موجود', 404, CORS);
+        if (!student.phone) return err('لا يوجد رقم جوال مسجّل لهذا الطالب', 400, CORS);
+        if (!env.SENDPULSE_API_USER_ID || !env.SENDPULSE_API_SECRET || !env.SENDPULSE_BOT_ID) return err('إعدادات SendPulse غير مكتملة على الخادم', 500, CORS);
+        await sendWhatsAppAccountLink(DB, env, { id: student.id, name: student.name, phone: student.phone }, request);
+        return ok({ ok: true }, 200, CORS);
       }
 
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);

@@ -931,7 +931,11 @@ const Dev = {
             <td>${s.plan_status === 'active' ? '<span class="badge badge-school">نشطة ✅</span>'
               : s.plan_status === 'pending' ? '<span class="badge" style="background:rgba(245,158,11,.15);color:#fbbf24">معلقة ⏳</span>'
               : '<span class="badge" style="background:rgba(148,163,184,.1);color:var(--muted)">لم يبدأ</span>'}</td>
-            <td><button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">حذف</button></td>
+            <td style="white-space:nowrap;">
+              <button class="btn btn-outline btn-sm" title="توليد رابط اختبار لمرة واحدة" onclick="Dev.generateTestAccessLink('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔗 اختبار</button>
+              <button class="btn btn-outline btn-sm" title="إرسال رابط الحساب عبر واتساب" onclick="Dev.sendAccessLinkWhatsApp('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}','${escapeHtml(s.phone || '')}')">📲 واتساب</button>
+              <button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">حذف</button>
+            </td>
           </tr>`).join('')}
         </tbody>
       </table>`;
@@ -1050,6 +1054,37 @@ const Dev = {
     await apiDev(`/dev/students/${id}`, { method: 'DELETE' });
     showToast('تم الحذف');
     Dev.loadStudents(); Dev.loadStats();
+  },
+
+  async generateTestAccessLink(studentId, name) {
+    try {
+      const { token } = await apiDev('/dev/access-tokens', {
+        method: 'POST',
+        body: JSON.stringify({ studentId }),
+      });
+      const link = `${window.location.origin}/?t=${token}`;
+      try { await navigator.clipboard.writeText(link); } catch (_) {}
+      window.prompt(`رابط تجريبي لمرة واحدة لـ ${name} (تم نسخه):`, link);
+    } catch (e) {
+      showToast('تعذّر توليد الرابط: ' + e.message);
+    }
+  },
+
+  async sendAccessLinkWhatsApp(studentId, name, phone) {
+    const digits = (phone || '').replace(/\D/g, '');
+    if (!/^0?5\d{8}$/.test(digits)) { showToast('رقم جوال الطالب غير صحيح أو غير مسجّل', true); return; }
+    const intlPhone = '966' + digits.replace(/^0/, '');
+    try {
+      const { token } = await apiDev('/dev/access-tokens', {
+        method: 'POST',
+        body: JSON.stringify({ studentId }),
+      });
+      const link = `${window.location.origin}/?t=${token}`;
+      const text = `عزيزي الطالب ${name}،\nمرحبًا بك، تم إنشاء حسابك بنجاح في بوابة دعم التعلّم.\nيمكنك الدخول والاطلاع على حسابك عبر الرابط:\n${link}\nنسأل الله لك التوفيق والسداد.\nبوابة دعم التعلم`;
+      window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(text)}`, '_blank');
+    } catch (e) {
+      showToast('تعذّر توليد الرابط: ' + e.message);
+    }
   },
 
   async addSchool() {

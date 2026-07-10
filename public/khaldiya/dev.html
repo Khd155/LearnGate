@@ -1407,15 +1407,16 @@ const Dev = {
           template_name: 'student_account_access_template_1',
           language_code: 'ar',
           components: [
-            { type: 'body', parameters: [{ type: 'text', text: name || '' }] },
+            { type: 'body', parameters: [{ type: 'number', text: name || '' }] },
             { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: token }] },
           ],
         }),
       });
       console.log('SendPulse response:', sendRes);
-      const spError = sendRes?.results?.[0]?.error || sendRes?.results?.[0]?.data?.error;
-      if (spError) {
-        showToast('رفضت SendPulse الإرسال: ' + JSON.stringify(spError), true);
+      const r0 = sendRes?.results?.[0];
+      const spError = r0?.error || r0?.data?.error || r0?.errors;
+      if (r0?.success === false || spError) {
+        showToast('رفضت SendPulse الإرسال: ' + JSON.stringify(spError || r0), true);
         return;
       }
       showToast('تم إرسال الرسالة عبر واتساب ✅');

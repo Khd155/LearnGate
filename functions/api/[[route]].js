@@ -4,7 +4,7 @@ import { getDB } from '../_lib/db.js';
 import { listTestResults, deleteSingleTestResult, resetStudentTestResults, resetSchoolTestResults, grantRetakeForSchool } from '../_lib/test-management.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
-const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'https://learngate.pages.dev', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
+const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
 // Requests whose Origin matches the host actually being requested are same-origin
 // (e.g. CranL's auto-generated preview subdomains, which change on every deploy)
 // and are always safe to allow, regardless of the static whitelist above.
@@ -130,60 +130,49 @@ function authDev(request, env) {
   return key === getDevKey(env);
 }
 
-// SendPulse OAuth token — fetched fresh each send (low volume, no need to cache).
-async function _sendPulseToken(env) {
+// ── SendPulse WhatsApp helpers ─────────────────────────────────────────
+let _spToken = null, _spTokenExp = 0;
+async function getSendPulseToken(env) {
+  if (_spToken && Date.now() < _spTokenExp) return _spToken;
   const res = await fetch('https://api.sendpulse.com/oauth/access_token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'client_credentials',
-      client_id: env.SENDPULSE_API_USER_ID,
-      client_secret: env.SENDPULSE_API_SECRET,
-    }),
+    body: JSON.stringify({ grant_type: 'client_credentials', client_id: env.SENDPULSE_ID, client_secret: env.SENDPULSE_SECRET }),
   });
+  if (!res.ok) throw new Error('SendPulse auth failed: ' + res.status);
   const data = await res.json();
-  if (!res.ok || !data.access_token) throw new Error('SendPulse auth failed');
-  return data.access_token;
+  _spToken = data.access_token;
+  _spTokenExp = Date.now() + (data.expires_in - 60) * 1000;
+  return _spToken;
 }
 
-// Mints a one-time access token for a student and fires the approved
-// "student_account_access_template_1" WhatsApp template through SendPulse's
-// WhatsApp API (the account's actual WhatsApp gateway). Best-effort: swallows
-// every failure so a SendPulse outage never blocks student creation. No-ops
-// silently if the student has no phone or the SENDPULSE_* env vars aren't set.
-async function sendWhatsAppAccountLink(DB, env, { id, name, phone }, request) {
-  try {
-    if (!phone || !env.SENDPULSE_API_USER_ID || !env.SENDPULSE_API_SECRET || !env.SENDPULSE_BOT_ID) return;
-    const digits = String(phone).replace(/\D/g, '');
-    if (!/^0?5\d{8}$/.test(digits)) return;
-    const intlPhone = '966' + digits.replace(/^0/, '');
+function normalizeSaudiPhone(phone) {
+  let p = String(phone).trim().replace(/[\s-]/g, '');
+  if (p.startsWith('+')) return p;
+  if (p.startsWith('966')) return '+' + p;
+  if (p.startsWith('05')) return '+966' + p.slice(1);
+  if (p.startsWith('5')) return '+966' + p;
+  return '+966' + p.replace(/^0/, '');
+}
 
-    try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    const randBytes = crypto.getRandomValues(new Uint8Array(14));
-    const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
-    await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, id, new Date().toISOString()).run();
+function sanitizeWaComponents(components) {
+  return (components || []).map(c => ({
+    ...c,
+    parameters: (c.parameters || []).map(p => (
+      p.type === 'text' ? { ...p, text: String(p.text).replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim() } : p
+    )),
+  }));
+}
 
-    const accessToken = await _sendPulseToken(env);
-    await fetch('https://api.sendpulse.com/whatsapp/contacts/sendTemplate', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        bot_id: env.SENDPULSE_BOT_ID,
-        phone: intlPhone,
-        template: {
-          name: 'student_account_access_template_1',
-          language: { code: 'ar' },
-          components: [
-            { type: 'body', parameters: [{ type: 'text', text: name || '' }] },
-            { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: token }] },
-          ],
-        },
-      }),
-    });
-  } catch (_) {
-    // best-effort — never let a WhatsApp failure block student creation
-  }
+async function spRequest(env, method, path, body) {
+  const token = await getSendPulseToken(env);
+  const res = await fetch('https://api.sendpulse.com' + path, {
+    method,
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return { error: text }; }
 }
 
 async function logEvent(DB, { level = 'info', category = 'system', message, user_name = '', user_role = '', school = '', ip = '' }) {
@@ -354,7 +343,7 @@ export async function onRequest({ request, env }) {
       const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
 
       // GET /api/auth/access-token?t=... — public, single-use, no time expiry.
-      // Redeems a dev-minted test token once; a second attempt (or an unknown
+      // Redeems a dev-minted token once; a second attempt (or an unknown
       // token) reports it as already used so the link can never be replayed.
       if (sub === 'access-token' && method === 'GET') {
         if (!await rateLimit(DB, ip, 'access-token', 20)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
@@ -402,6 +391,7 @@ export async function onRequest({ request, env }) {
         if (Object.keys(rawAdminBody).some(k => !['code','school'].includes(k))) return err('حقول غير مسموحة', 400, CORS);
         const { code: adminCode, school: bodySchool } = rawAdminBody;
         if (!adminCode || !/^\d{10}$/.test(adminCode)) return err('رمز غير صالح', 400, CORS);
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN permissions TEXT DEFAULT '[]'").run(); } catch {}
         const admin = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(adminCode).first();
         const sc = bodySchool || school;
         if (!admin || (admin.school !== '*' && sc && admin.school !== sc)) {
@@ -414,9 +404,11 @@ export async function onRequest({ request, env }) {
         const adminName = admin.admin_name || admin.name || '';
         // Normalize role: only 'director' keeps its value, everything else becomes 'admin'
         const adminRole = admin.role === 'director' ? 'director' : 'admin';
-        const token = await jwtSign({ sub: admin.id, role: adminRole, name: adminName, school: admin.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
+        let permissions = [];
+        try { permissions = JSON.parse(admin.permissions || '[]'); } catch {}
+        const token = await jwtSign({ sub: admin.id, role: adminRole, name: adminName, school: admin.school, permissions, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
         await logEvent(DB, { level: 'success', category: 'login', message: `تسجيل دخول ${adminRole==='director'?'مدير':'مشرف'}`, user_name: adminName, user_role: adminRole, school: admin.school || '', ip });
-        return ok({ token, admin: { id: admin.id, name: adminName, school: admin.school, role: adminRole } }, 200, CORS);
+        return ok({ token, admin: { id: admin.id, name: adminName, school: admin.school, role: adminRole, permissions } }, 200, CORS);
       }
 
       // POST /api/auth/dev
@@ -428,6 +420,28 @@ export async function onRequest({ request, env }) {
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const token = await jwtSign({ role: 'dev', exp: Math.floor(Date.now() / 1000) + 4 * 3600 }, env.JWT_SECRET);
         return ok({ token }, 200, CORS);
+      }
+
+      // GET /api/auth/profile — returns current admin's profile (including phone after migration)
+      if (sub === 'profile' && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
+        const admin = await DB.prepare('SELECT id, name, school, role, phone FROM admins WHERE id = ?').bind(claims.sub).first();
+        if (!admin) return err('لم يتم العثور على الحساب', 404, CORS);
+        return ok({ admin }, 200, CORS);
+      }
+
+      // PATCH /api/auth/profile — update admin's own phone number
+      if (sub === 'profile' && method === 'PATCH') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
+        const body = await request.json();
+        const phone = (body.phone || '').trim();
+        if (phone && !/^\d{10}$/.test(phone)) return err('رقم الجوال يجب أن يكون ١٠ أرقام', 400, CORS);
+        await DB.prepare('UPDATE admins SET phone = ? WHERE id = ?').bind(phone, claims.sub).run();
+        return ok({ ok: true }, 200, CORS);
       }
 
       // POST /api/auth/impersonate — admin/director mints a synthetic trial-student JWT so
@@ -469,7 +483,8 @@ export async function onRequest({ request, env }) {
         // Directors/dev may filter by optional ?school= param
         let effectiveSchool;
         if (claims.role === 'admin') {
-          effectiveSchool = claims.school || null;
+          effectiveSchool = claims.school || '';
+          if (!effectiveSchool) return ok({ students: [] }, 200, CORS);
         } else {
           effectiveSchool = school || null; // director/dev may filter or get all
         }
@@ -560,37 +575,38 @@ export async function onRequest({ request, env }) {
 
       if (method === 'PATCH' && sub) {
         const claims = await verifyToken(request, env);
-        const isSelfStudent = claims && claims.role === 'student' && claims.sub === sub;
-        if (!claims || !(isSelfStudent || ['admin','director','dev'].includes(claims.role))) return err('غير مصرح', 401, CORS);
+        // Allow students to update their own phone number only
+        if (claims?.role === 'student' && claims.sub === sub) {
+          const body = await request.json();
+          const phone = (body.phone || '').trim();
+          if (!phone || !/^\d{10}$/.test(phone)) return err('رقم الجوال غير صحيح', 400, CORS);
+          await DB.prepare('UPDATE students SET phone = ? WHERE id = ?').bind(phone, sub).run();
+          return ok({ ok: true }, 200, CORS);
+        }
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const target = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(sub).first();
         if (!target) return err('الطالب غير موجود', 404, CORS);
-        if (!isSelfStudent && claims.role !== 'dev') {
+        if (claims.role !== 'dev') {
           const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
           if (!effectiveSchool || target.school !== effectiveSchool) return err('غير مصرح', 401, CORS);
         }
         const body = await request.json();
         const sets = [];
         const vals = [];
-        // A student updating their own record may only ever touch their phone number.
-        if (isSelfStudent) {
-          if (!('phone' in body) || Object.keys(body).some(k => k !== 'phone')) return err('غير مصرح', 401, CORS);
-          sets.push('phone = ?'); vals.push(body.phone || '');
-        } else {
-          if ('phone' in body) { sets.push('phone = ?'); vals.push(body.phone || ''); }
-          if ('name' in body) {
-            const name = (body.name || '').trim();
-            if (!name) return err('اسم الطالب مطلوب', 400, CORS);
-            sets.push('name = ?'); vals.push(name);
-          }
-          if ('code' in body) {
-            // Only dev can change the national ID/code — admin & director are
-            // restricted to name/phone so the identity used for student login
-            // can't be altered from the school-level admin dashboard.
-            if (claims.role !== 'dev') return err('غير مسموح بتعديل رقم الهوية', 403, CORS);
-            const code = (body.code || '').trim();
-            if (!code) return err('رقم الهوية مطلوب', 400, CORS);
-            sets.push('code = ?'); vals.push(code);
-          }
+        if ('phone' in body) { sets.push('phone = ?'); vals.push(body.phone || ''); }
+        if ('name' in body) {
+          const name = (body.name || '').trim();
+          if (!name) return err('اسم الطالب مطلوب', 400, CORS);
+          sets.push('name = ?'); vals.push(name);
+        }
+        if ('code' in body) {
+          // Only dev can change the national ID/code — admin & director are
+          // restricted to name/phone so the identity used for student login
+          // can't be altered from the school-level admin dashboard.
+          if (claims.role !== 'dev') return err('غير مسموح بتعديل رقم الهوية', 403, CORS);
+          const code = (body.code || '').trim();
+          if (!code) return err('رقم الهوية مطلوب', 400, CORS);
+          sets.push('code = ?'); vals.push(code);
         }
         if (!sets.length) return err('لا توجد بيانات للتحديث', 400, CORS);
         try {
@@ -641,6 +657,21 @@ export async function onRequest({ request, env }) {
         return ok({ plans: results.map(r => ({ ...r, gaps: JSON.parse(r.gaps || '[]') })) }, 200, CORS);
       }
 
+      // DELETE /api/plans/:id — admin/director: delete a single plan (scoped to their school)
+      if (method === 'DELETE' && sub && sub !== 'history') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const target = await DB.prepare('SELECT student_name, school FROM plans WHERE id = ?').bind(sub).first();
+        if (!target) return err('الخطة غير موجودة', 404, CORS);
+        if (claims.role !== 'dev') {
+          const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
+          if (!effectiveSchool || target.school !== effectiveSchool) return err('غير مصرح', 401, CORS);
+        }
+        await DB.prepare('DELETE FROM plans WHERE id = ?').bind(sub).run();
+        await logEvent(DB, { level: 'warn', category: 'test-management', message: `حذف اختبار قدرات للطالب: ${target.student_name}`, user_name: claims.name || '', user_role: claims.role, school: target.school || '' });
+        return ok({ ok: true }, 200, CORS);
+      }
+
       if (method === 'GET') {
         const claims = await verifyToken(request, env);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
@@ -659,13 +690,62 @@ export async function onRequest({ request, env }) {
         if (!claims || !['student','admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const body = await request.json();
         // Mass assignment guard: only accept allowed fields
-        const { gaps, school: bodySchool } = body;
+        const { gaps: clientGaps, answers, selfDiag, school: bodySchool } = body;
         let { studentId, studentName } = body;
         // Students can only create plans for themselves — never trust body studentId
         if (claims.role === 'student') {
           studentId   = claims.sub;
           studentName = claims.name || '';
         }
+
+        let gaps;
+        if (answers && typeof answers === 'object' && claims.role === 'student') {
+          // Grade server-side: the GET /questions endpoint strips `ans` from students,
+          // so client-side scoring always produces 0%. We compute gaps here where we
+          // have the full question bank including correct answers.
+          const SKILL_META = {
+            v1: { name: 'الاستيعاب القرائي',   category: 'verbal' },
+            v2: { name: 'الخطأ السياقي',        category: 'verbal' },
+            v3: { name: 'المفردة الشاذة',       category: 'verbal' },
+            v4: { name: 'التناظر اللفظي',       category: 'verbal' },
+            v5: { name: 'إكمال الجمل',          category: 'verbal' },
+            q1: { name: 'الحساب',               category: 'quantitative' },
+            q2: { name: 'الجبر',                category: 'quantitative' },
+            q3: { name: 'الهندسة والقياس',      category: 'quantitative' },
+            q4: { name: 'المقارنات الكمية',     category: 'quantitative' },
+            q5: { name: 'الإحصاء والاحتمالات',  category: 'quantitative' },
+          };
+          const { results: questions } = await DB.prepare(
+            'SELECT qnum, skill_id, ans FROM questions ORDER BY qnum ASC'
+          ).all();
+          const scores = {};
+          for (const q of questions) {
+            if (!scores[q.skill_id]) scores[q.skill_id] = { correct: 0, total: 0 };
+            scores[q.skill_id].total++;
+            const selected = answers[q.qnum];
+            if (selected !== undefined && selected !== null && selected !== 'dk' && Number(selected) === Number(q.ans)) {
+              scores[q.skill_id].correct++;
+            }
+          }
+          const sd = (selfDiag && typeof selfDiag === 'object') ? selfDiag : {};
+          // Always include ALL defined skills — even if no questions exist for that skill in the bank
+          gaps = Object.entries(SKILL_META).map(([skillId, meta]) => {
+            const s     = scores[skillId] || { correct: 0, total: 0 };
+            const pct   = s.total ? Math.round((s.correct / s.total) * 100) : 0;
+            const self  = sd[skillId] || 'need';
+            const level = pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low';
+            const overconfident = self === 'mastered' && level === 'low';
+            const rec = overconfident
+              ? 'مهارة تحتاج مراجعة عاجلة — أجبت أنك متقن لها لكن أداءك كان ضعيفاً.'
+              : level === 'low'  ? 'مهارة ضعيفة — تحتاج تدريباً مكثفاً وأساسيات.'
+              : level === 'mid'  ? 'مهارة متوسطة — تحتاج تعزيزاً وتدريباً إضافياً.'
+              : 'مهارة جيدة — الاستمرار في التطوير مستحسن.';
+            return { skillId, skillName: meta.name, category: meta.category, pct, level, selfAssess: self, recommendation: rec, overconfident };
+          }).sort((a, b) => a.pct - b.pct);
+        } else {
+          gaps = Array.isArray(clientGaps) ? clientGaps : [];
+        }
+
         // Plans are auto-approved on creation — there is no admin review step.
         const status    = 'active';
         const adminNote = claims.role === 'student' ? '' : (body.adminNote || '');
@@ -759,12 +839,21 @@ export async function onRequest({ request, env }) {
             return { ...r, answers: ans };
           }) }, 200, CORS);
         }
-        let q = 'SELECT id, student_id, student_name, school, subject, test_type, score, correct, total, created_at FROM test_results';
+        const withAnswers = url.searchParams.get('withAnswers') === '1';
+        const cols = withAnswers
+          ? 'id, student_id, student_name, school, subject, test_type, score, correct, total, answers, created_at'
+          : 'id, student_id, student_name, school, subject, test_type, score, correct, total, created_at';
+        let q = `SELECT ${cols} FROM test_results`;
         const params = [];
         if (trSchool) { q += ' WHERE school = ?'; params.push(trSchool); }
         q += ' ORDER BY created_at DESC LIMIT 1000';
         const { results } = await DB.prepare(q).bind(...params).all();
-        return ok({ results }, 200, CORS);
+        const mapped = withAnswers ? results.map(r => {
+          let ans = [];
+          try { ans = JSON.parse(r.answers || '[]'); } catch {}
+          return { ...r, answers: ans };
+        }) : results;
+        return ok({ results: mapped }, 200, CORS);
       }
     }
 
@@ -1013,7 +1102,7 @@ export async function onRequest({ request, env }) {
 
       if (method === 'GET') {
         const claims = await verifyToken(request, env);
-        const isPrivileged = claims && (claims.role === 'admin' || claims.role === 'director' || claims.role === 'dev');
+        const isPrivileged = (claims && (claims.role === 'admin' || claims.role === 'director' || claims.role === 'dev')) || authDev(request, env);
         const { results } = await DB.prepare('SELECT * FROM questions ORDER BY qnum ASC').all();
         return ok({ questions: results.map(r => {
           if (isPrivileged) return r;
@@ -1024,7 +1113,9 @@ export async function onRequest({ request, env }) {
 
       if (method === 'POST') {
         const qClaims = await verifyToken(request, env);
-        if (!qClaims || !['admin','director','dev'].includes(qClaims.role)) return err('غير مصرح', 401, CORS);
+        const qCanEdit = qClaims && (qClaims.role === 'director' || qClaims.role === 'dev' ||
+          (qClaims.role === 'admin' && Array.isArray(qClaims.permissions) && qClaims.permissions.includes('edit_questions')));
+        if (!qCanEdit) return err('غير مصرح', 401, CORS);
         const { action = 'append', questions: rows } = await request.json();
         if (action === 'replace') await DB.prepare('DELETE FROM questions').run();
         const { results: existing } = await DB.prepare('SELECT qnum FROM questions').all();
@@ -1040,6 +1131,31 @@ export async function onRequest({ request, env }) {
         }
         await logEvent(DB, { level: 'info', category: 'questions', message: `استيراد أسئلة (${action === 'replace' ? 'استبدال' : 'إضافة'}) — ${fresh.length} مضافة`, user_name: qClaims.name || '', user_role: qClaims.role, school: qClaims.school || '' });
         return ok({ added: fresh.length, skipped: rows.length - fresh.length }, 200, CORS);
+      }
+
+      // PATCH /api/questions/:id — edit a single question (director/dev, or admin with edit_questions permission)
+      if (sub && method === 'PATCH') {
+        const claims = await verifyToken(request, env);
+        const canEdit = claims && (claims.role === 'director' || claims.role === 'dev' ||
+          (claims.role === 'admin' && Array.isArray(claims.permissions) && claims.permissions.includes('edit_questions')));
+        if (!canEdit) return err('غير مصرح', 401, CORS);
+        const { qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans } = await request.json();
+        await DB.prepare(
+          'UPDATE questions SET qnum=?,type=?,skill_id=?,text=?,opt1=?,opt2=?,opt3=?,opt4=?,ans=? WHERE id=?'
+        ).bind(qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans, sub).run();
+        await logEvent(DB, { level: 'info', category: 'questions', message: `تعديل سؤال رقم ${qnum}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // DELETE /api/questions/:id — delete a single question (director/dev, or admin with edit_questions permission)
+      if (sub && method === 'DELETE') {
+        const claims = await verifyToken(request, env);
+        const canEdit = claims && (claims.role === 'director' || claims.role === 'dev' ||
+          (claims.role === 'admin' && Array.isArray(claims.permissions) && claims.permissions.includes('edit_questions')));
+        if (!canEdit) return err('غير مصرح', 401, CORS);
+        await DB.prepare('DELETE FROM questions WHERE id = ?').bind(sub).run();
+        await logEvent(DB, { level: 'warn', category: 'questions', message: `حذف سؤال`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
+        return ok({ ok: true }, 200, CORS);
       }
     }
 
@@ -1148,8 +1264,8 @@ export async function onRequest({ request, env }) {
       }
 
       // POST /api/dev/access-tokens { studentId } — dev-only test tool: mints a
-      // single-use, no-expiry token for the "خطة التدريب" account-access link
-      // experiment. Reachable by DEV_KEY or a dev-role JWT, same as /dev/logs.
+      // single-use, no-expiry token for the account-access link. Reachable by
+      // DEV_KEY or a dev-role JWT, same as /dev/logs.
       if (sub === 'access-tokens' && method === 'POST') {
         const isDevKey = authDev(request, env);
         if (!isDevKey) {
@@ -1169,27 +1285,6 @@ export async function onRequest({ request, env }) {
         return ok({ token }, 201, CORS);
       }
 
-      // POST /api/dev/send-whatsapp { studentId } — dev-only manual trigger: sends the
-      // approved account-access WhatsApp template to this student right now via
-      // SendPulse. Nothing sends automatically on student creation — this is the
-      // only path that fires a real WhatsApp message.
-      if (sub === 'send-whatsapp' && method === 'POST') {
-        const isDevKey = authDev(request, env);
-        if (!isDevKey) {
-          const swClaims = await verifyToken(request, env);
-          if (!swClaims || swClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
-        }
-        const swBody = await request.json();
-        const studentId = String(swBody.studentId || '');
-        if (!studentId) return err('studentId مطلوب', 400, CORS);
-        const student = await DB.prepare('SELECT id, name, phone FROM students WHERE id = ?').bind(studentId).first();
-        if (!student) return err('الطالب غير موجود', 404, CORS);
-        if (!student.phone) return err('لا يوجد رقم جوال مسجّل لهذا الطالب', 400, CORS);
-        if (!env.SENDPULSE_API_USER_ID || !env.SENDPULSE_API_SECRET || !env.SENDPULSE_BOT_ID) return err('إعدادات SendPulse غير مكتملة على الخادم', 500, CORS);
-        await sendWhatsAppAccountLink(DB, env, { id: student.id, name: student.name, phone: student.phone }, request);
-        return ok({ ok: true }, 200, CORS);
-      }
-
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
 
       // GET /api/dev/backup — full-site data dump (all tables) for manual download
@@ -1207,6 +1302,45 @@ export async function onRequest({ request, env }) {
           } catch { tables[t] = []; }
         }
         return ok({ generated_at: new Date().toISOString(), tables }, 200, CORS);
+      }
+
+      // GET /api/dev/test-grading — simulate grading with all-correct answers to verify scoring logic
+      if (sub === 'test-grading' && method === 'GET') {
+        const tgDev = authDev(request, env);
+        const tgClaims = tgDev ? { role: 'dev' } : await verifyToken(request, env);
+        if (!tgClaims || !['admin','director','dev'].includes(tgClaims.role)) return err('غير مصرح', 401, CORS);
+        const { results: questions } = await DB.prepare('SELECT qnum, skill_id, ans FROM questions ORDER BY qnum ASC').all();
+        if (!questions.length) return ok({ error: 'لا توجد أسئلة في قاعدة البيانات' }, 200, CORS);
+        // Build all-correct answers
+        const allCorrect = {};
+        const allWrong   = {};
+        for (const q of questions) {
+          allCorrect[q.qnum] = Number(q.ans);
+          allWrong[q.qnum]   = (Number(q.ans) + 1) % 4;
+        }
+        // Grade both sets
+        const grade = (answers) => {
+          const scores = {};
+          for (const q of questions) {
+            if (!scores[q.skill_id]) scores[q.skill_id] = { correct: 0, total: 0 };
+            scores[q.skill_id].total++;
+            const selected = answers[q.qnum];
+            if (selected !== undefined && selected !== null && Number(selected) === Number(q.ans)) {
+              scores[q.skill_id].correct++;
+            }
+          }
+          return Object.entries(scores).map(([skillId, s]) => ({
+            skillId, correct: s.correct, total: s.total,
+            pct: s.total ? Math.round((s.correct / s.total) * 100) : 0,
+          }));
+        };
+        return ok({
+          questions_count: questions.length,
+          skills_found: [...new Set(questions.map(q => q.skill_id))],
+          all_correct_result: grade(allCorrect),
+          all_wrong_result:   grade(allWrong),
+          sample_question: questions[0],
+        }, 200, CORS);
       }
 
       // GET /api/dev/stats — stats per school
@@ -1256,6 +1390,16 @@ export async function onRequest({ request, env }) {
       // DELETE /api/dev/admins/:id
       if (sub === 'admins' && subsub && method === 'DELETE') {
         await DB.prepare('DELETE FROM admins WHERE id = ?').bind(subsub).run();
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // PATCH /api/dev/admins/:id — update permissions (dev only)
+      if (sub === 'admins' && subsub && method === 'PATCH') {
+        try { await DB.prepare("ALTER TABLE admins ADD COLUMN permissions TEXT DEFAULT '[]'").run(); } catch {}
+        const { permissions } = await request.json();
+        if (!Array.isArray(permissions)) return err('صلاحيات غير صالحة', 400, CORS);
+        await DB.prepare('UPDATE admins SET permissions = ? WHERE id = ?').bind(JSON.stringify(permissions), subsub).run();
+        await logEvent(DB, { level: 'info', category: 'admin', message: `تعديل صلاحيات مشرف`, user_role: 'dev' });
         return ok({ ok: true }, 200, CORS);
       }
 
@@ -1320,21 +1464,20 @@ export async function onRequest({ request, env }) {
         const filterSchool = url.searchParams.get('school');
         try {
           let q = `SELECT s.id, s.code, s.name, s.school, s.phone, s.created_at,
-                          p.status as plan_status
-                   FROM students s
-                   LEFT JOIN plans p ON p.student_id = s.id`;
+                     (SELECT COUNT(*) FROM plans p WHERE p.student_id = s.id) AS plan_count,
+                     (SELECT status FROM plans p WHERE p.student_id = s.id ORDER BY p.created_at DESC LIMIT 1) AS plan_status
+                   FROM students s`;
           const params = [];
           if (filterSchool) { q += ' WHERE s.school = ?'; params.push(filterSchool); }
           q += ' ORDER BY s.school, s.name ASC';
           const { results } = await DB.prepare(q).bind(...params).all();
           return ok({ students: results }, 200, CORS);
         } catch (e) {
-          // Fallback if school column not yet added (migration not run)
           if (e.message && e.message.includes('no such column')) {
             const { results } = await DB.prepare(
-              'SELECT s.id, s.code, s.name, s.created_at, p.status as plan_status FROM students s LEFT JOIN plans p ON p.student_id = s.id ORDER BY s.name ASC'
+              'SELECT s.id, s.code, s.name, s.created_at FROM students s ORDER BY s.name ASC'
             ).all();
-            return ok({ students: results.map(r => ({ ...r, school: '', phone: r.phone || '' })) }, 200, CORS);
+            return ok({ students: results.map(r => ({ ...r, school: '', phone: '', plan_count: 0, plan_status: null })) }, 200, CORS);
           }
           throw e;
         }
@@ -1382,6 +1525,15 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
+      // POST /api/dev/approve-pending-plans — fix old plans stuck in 'pending' status
+      if (sub === 'approve-pending-plans' && method === 'POST') {
+        const now = new Date().toISOString();
+        const { changes } = await DB.prepare(
+          "UPDATE plans SET status = 'active', approved_at = ? WHERE status = 'pending'"
+        ).bind(now).run();
+        return ok({ fixed: changes ?? 0 }, 200, CORS);
+      }
+
       // POST /api/dev/seed-questions — upsert hardcoded 50 questions
       if (sub === 'seed-questions' && method === 'POST') {
         const SEED = SEED_QUESTIONS;
@@ -1403,6 +1555,25 @@ export async function onRequest({ request, env }) {
         }
         return ok({ added, updated }, 200, CORS);
       }
+      // PATCH /api/dev/questions/:id — edit a question (dev only)
+      if (sub === 'questions' && subsub && method === 'PATCH') {
+        const body = await request.json();
+        const fields = [];
+        const vals   = [];
+        if (body.text     !== undefined) { fields.push('text = ?');     vals.push(body.text); }
+        if (body.ans      !== undefined) { fields.push('ans = ?');      vals.push(String(body.ans)); }
+        if (body.type     !== undefined) { fields.push('type = ?');     vals.push(body.type); }
+        if (body.skill_id !== undefined) { fields.push('skill_id = ?'); vals.push(body.skill_id); }
+        if (body.opt1     !== undefined) { fields.push('opt1 = ?');     vals.push(body.opt1); }
+        if (body.opt2     !== undefined) { fields.push('opt2 = ?');     vals.push(body.opt2); }
+        if (body.opt3     !== undefined) { fields.push('opt3 = ?');     vals.push(body.opt3); }
+        if (body.opt4     !== undefined) { fields.push('opt4 = ?');     vals.push(body.opt4); }
+        if (!fields.length) return err('لا يوجد شيء للتعديل', 400, CORS);
+        vals.push(subsub);
+        await DB.prepare(`UPDATE questions SET ${fields.join(', ')} WHERE id = ?`).bind(...vals).run();
+        return ok({ ok: true }, 200, CORS);
+      }
+
       // DELETE /api/dev/questions — clear all questions
       if (sub === 'questions' && method === 'DELETE') {
         await DB.prepare('DELETE FROM questions').run();
@@ -1841,10 +2012,10 @@ export async function onRequest({ request, env }) {
         }
         let q, params;
         if (adminId) {
-          q = 'SELECT * FROM messages WHERE student_id=? AND recipient_admin_id=? ORDER BY created_at ASC';
+          q = 'SELECT m.*, a.name as admin_name FROM messages m LEFT JOIN admins a ON m.recipient_admin_id = a.id WHERE m.student_id=? AND m.recipient_admin_id=? ORDER BY m.created_at ASC';
           params = [studentId, adminId];
         } else {
-          q = 'SELECT * FROM messages WHERE student_id=? ORDER BY created_at ASC';
+          q = 'SELECT m.*, a.name as admin_name FROM messages m LEFT JOIN admins a ON m.recipient_admin_id = a.id WHERE m.student_id=? ORDER BY m.created_at ASC';
           params = [studentId];
         }
         const { results } = await DB.prepare(q).bind(...params).all();
@@ -2123,6 +2294,22 @@ export async function onRequest({ request, env }) {
         )`).run();
       } catch {}
 
+      // GET /api/broadcasts/all — dev only: all broadcasts across schools with stats
+      if (sub === 'all' && method === 'GET') {
+        if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
+        const sc = school || '';
+        const { results } = sc
+          ? await DB.prepare(`SELECT b.*,
+              (SELECT COUNT(*) FROM broadcast_dismissals d WHERE d.broadcast_id = b.id) AS seen_count,
+              (SELECT COUNT(*) FROM students s WHERE s.school = b.school) AS total_students
+            FROM broadcasts b WHERE b.school = ? ORDER BY b.created_at DESC LIMIT 100`).bind(sc).all()
+          : await DB.prepare(`SELECT b.*,
+              (SELECT COUNT(*) FROM broadcast_dismissals d WHERE d.broadcast_id = b.id) AS seen_count,
+              (SELECT COUNT(*) FROM students s WHERE s.school = b.school) AS total_students
+            FROM broadcasts b ORDER BY b.created_at DESC LIMIT 100`).all();
+        return ok({ broadcasts: results }, 200, CORS);
+      }
+
       // POST /api/broadcasts — admin creates broadcast. Optional studentIds: when
       // present, the broadcast is only visible to those students (still school-scoped);
       // omitted/empty means visible to the whole school as before.
@@ -2176,9 +2363,36 @@ export async function onRequest({ request, env }) {
           // Admins/directors: scoped to their own school (dev can pass school param)
           const sc = (claims.school && claims.school !== '*') ? claims.school : (school || '');
           if (!sc) return ok({ broadcasts: [] }, 200, CORS);
-          const { results } = await DB.prepare('SELECT * FROM broadcasts WHERE school = ? ORDER BY created_at DESC LIMIT 30').bind(sc).all();
+          const { results } = await DB.prepare(`
+            SELECT b.*,
+              (SELECT COUNT(*) FROM broadcast_dismissals d WHERE d.broadcast_id = b.id) AS seen_count,
+              (SELECT COUNT(*) FROM students s WHERE s.school = b.school) AS total_students
+            FROM broadcasts b
+            WHERE b.school = ?
+            ORDER BY b.created_at DESC LIMIT 30
+          `).bind(sc).all();
           return ok({ broadcasts: results }, 200, CORS);
         }
+      }
+
+      // GET /api/broadcasts/:id/viewers — admin: list students who saw this broadcast
+      if (sub && subsub === 'viewers' && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const bc = await DB.prepare('SELECT school FROM broadcasts WHERE id = ?').bind(sub).first();
+        if (!bc) return err('الرسالة غير موجودة', 404, CORS);
+        if (claims.role !== 'dev') {
+          const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
+          if (!effectiveSchool || bc.school !== effectiveSchool) return err('غير مصرح', 401, CORS);
+        }
+        const { results: viewers } = await DB.prepare(`
+          SELECT s.name, s.code, d.created_at AS seen_at
+          FROM broadcast_dismissals d
+          JOIN students s ON s.id = d.student_id
+          WHERE d.broadcast_id = ?
+          ORDER BY d.created_at DESC
+        `).bind(sub).all();
+        return ok({ viewers }, 200, CORS);
       }
 
       // POST /api/broadcasts/:id/dismiss — student dismisses broadcast
@@ -2186,6 +2400,24 @@ export async function onRequest({ request, env }) {
         const claims = await verifyToken(request, env);
         if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
         try { await DB.prepare('INSERT INTO broadcast_dismissals (broadcast_id, student_id) VALUES (?, ?) ON CONFLICT (broadcast_id, student_id) DO NOTHING').bind(sub, claims.sub).run(); } catch {}
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // PATCH /api/broadcasts/:id — edit message text (dev key or scoped admin JWT)
+      if (sub && !subsub && method === 'PATCH') {
+        const isDevKey = authDev(request, env);
+        const claims = isDevKey ? null : await verifyToken(request, env);
+        if (!isDevKey && (!claims || !['admin','director'].includes(claims.role))) return err('غير مصرح', 401, CORS);
+        const body = await request.json();
+        const message = (body.message || '').trim();
+        if (!message) return err('النص مطلوب', 400, CORS);
+        if (isDevKey) {
+          const res = await DB.prepare('UPDATE broadcasts SET message = ? WHERE id = ?').bind(message, sub).run();
+          if (!res.meta?.changes) return err('الرسالة غير موجودة', 404, CORS);
+        } else {
+          const res = await DB.prepare('UPDATE broadcasts SET message = ? WHERE id = ? AND school = ?').bind(message, sub, claims.school).run();
+          if (!res.meta?.changes) return err('غير موجود أو غير مصرح', 404, CORS);
+        }
         return ok({ ok: true }, 200, CORS);
       }
 
@@ -2222,6 +2454,7 @@ export async function onRequest({ request, env }) {
         ans        INTEGER NOT NULL,
         created_at TEXT NOT NULL DEFAULT (now()::text)
       )`).run(); } catch {}
+      try { await DB.prepare("ALTER TABLE general_tests ADD COLUMN img_url TEXT DEFAULT ''").run(); } catch {}
       try { await DB.prepare(`CREATE TABLE IF NOT EXISTS general_test_results (
         id           TEXT PRIMARY KEY,
         student_id   TEXT NOT NULL,
@@ -2239,7 +2472,7 @@ export async function onRequest({ request, env }) {
       // Seed the 6 placeholder test slots once — real skill linkage/title/questions are
       // filled in later via PATCH .../:num and POST .../:num/questions.
       const gtMetaCheck = await DB.prepare('SELECT COUNT(*) as c FROM general_test_meta').first();
-      if (!gtMetaCheck || gtMetaCheck.c === 0) {
+      if (!gtMetaCheck || Number(gtMetaCheck.c) === 0) {
         const seedStmt = DB.prepare('INSERT INTO general_test_meta (test_num, skill_id, skill_name, title) VALUES (?, ?, ?, ?) ON CONFLICT (test_num) DO NOTHING');
         for (let n = 1; n <= 6; n++) await seedStmt.bind(n, '', '', `اختبار عام رقم ${n}`).run();
       }
@@ -2248,26 +2481,79 @@ export async function onRequest({ request, env }) {
       // are pending; until uploaded their question_count stays 0, which already makes
       // the student-facing list show them disabled with "قريباً" automatically.
       await DB.prepare(
-        "UPDATE general_test_meta SET skill_id = 'v1', skill_name = 'الاستيعاب القرائي', title = 'اختبار الاستيعاب القرائي' WHERE test_num = 1"
+        "UPDATE general_test_meta SET skill_id = 'mix1', skill_name = 'لفظي وكمي', title = 'اختبار محاكي رقم 1' WHERE test_num = 1"
       ).run();
       const gt1Check = await DB.prepare('SELECT COUNT(*) as c FROM general_tests WHERE test_num = 1').first();
-      if (!gt1Check || gt1Check.c === 0) {
+      if (!gt1Check || Number(gt1Check.c) !== 48) {
+        await DB.prepare('DELETE FROM general_tests WHERE test_num = 1').run();
         const GT1_SEED = [
-          {qnum:1,text:'اقرأ: "يُعتبر الأمن المائي من الركائز الأساسية لاستقرار المجتمعات وتنميتها المستدامة في القرن الحادي والعشرين. وتواجه دول المنطقة العربية تحديات جسيمة في هذا المجال نظراً لوقوع معظم أراضيها في مناطق جافة وشبه جافة، حيث لا تتجاوز حصتها من المياه المتجددة 1% من الإجمالي العالمي، في حين أنها تضم نحو 5% من سكان العالم." — ماذا يُمثّل امتلاك المنطقة العربية 1% من المياه مع 5% من سكان العالم؟',opt1:'توازناً دقيقاً بين الموارد والسكان',opt2:'فجوة كبيرة بين الاحتياج والوفرة',opt3:'فائضاً مائياً يخدم التنمية المستدامة',opt4:'انخفاضاً طفيفاً لا يشكل خطورة مستقبليّة',ans:1},
-          {qnum:2,text:'وفقاً للفقرة السابقة (الأمن المائي العربي)، ما العامل الطبيعي الخارجي الذي يُفاقم أزمة المياه؟',opt1:'النمو السكاني المتسارع في المنطقة',opt2:'زيادة الاستهلاك في القطاعات الاقتصادية',opt3:'عدم إعادة تدوير مياه الصرف الصحي',opt4:'التغيرات المناخية وتذبذب معدلات الأمطار',ans:3},
-          {qnum:3,text:'اقرأ: "إن مواجهة هذه الأزمة تتطلب التحول من الإدارة التقليدية للموارد المائية القائمة على زيادة الإمدادات، إلى إدارة متكاملة تركز على ترشيد الاستهلاك، وتطوير تقنيات تحلية مياه البحر باستخدام الطاقة المتجددة." — الفكرة الرئيسية لهذه الفقرة:',opt1:'الحلول والاستراتيجيات المقترحة لمواجهة الأزمة المائية',opt2:'أهمية زيادة إمدادات المياه عبر الوسائل التقليدية',opt3:'دور التغيرات المناخية في جفاف المنطقة العربية',opt4:'التوزيع الديموغرافي والنمو السكاني لسكان الوطن العربي',ans:0},
-          {qnum:4,text:'وفقاً للفقرة السابقة (الحلول المائية)، كلمة "المقيدة" في سياق الزراعة تعني:',opt1:'المستحيلة والممنوعة رسمياً',opt2:'المفتوحة والحرّة دون شروط',opt3:'المشروطة بضوابط بيئية وصحية محددة',opt4:'التقليدية القديمة المعتمدة على الأمطار',ans:2},
-          {qnum:5,text:'وفقاً للفقرة السابقة (الحلول المائية)، التحول المطلوب في إدارة الموارد المائية يتطلب أساساً:',opt1:'زيادة الإمدادات التقليدية وحفر الآبار الارتوازية فقط',opt2:'التركيز على ترشيد الاستهلاك والاستدامة للموارد المتاحة',opt3:'إلغاء المشاريع الزراعية بالكامل لتقنين الهدر',opt4:'الاعتماد الكلي على مياه الأمطار كمصدر وحيد',ans:1},
-          {qnum:6,text:'في فقرة الأمن المائي، علاقة جملة "نظراً لوقوع معظم أراضيها في مناطق جافة" بما قبلها هي:',opt1:'نتيجة مترتبة عليها',opt2:'تضاد وتعارض في المعنى',opt3:'تفصيل بعد إجمال',opt4:'تعليل وبيان للسبب',ans:3},
-          {qnum:7,text:'نص عن الأمن المائي العربي يستعرض شُحّ المياه (1% من العالمية) وتحديات النمو السكاني والمناخ، ثم يقترح الترشيد وتحلية المياه وإعادة تدوير الصرف ونشر الوعي البيئي. أنسب عنوان لهذا النص:',opt1:'الأمن المائي العربي: التحديات والحلول الاستراتيجية',opt2:'التوزيع السكاني والديموغرافي في الوطن العربي',opt3:'تقنيات تحلية مياه البحر بالطاقة الشمسية الحديثة',opt4:'تاريخ الجفاف في العصور الجيولوجية الحديثة',ans:0},
+          // ── تشبيه ──
+          {qnum:1,text:'الكعبة : المطاف',opt1:'الحجر الأسود : المقام',opt2:'الملابس : القماش',opt3:'البيت : السور',opt4:'الوردة : البستان',ans:2},
+          {qnum:2,text:'ضجيج : محرك',opt1:'مصباح : ضوء',opt2:'ماء : سراب',opt3:'سراب : صحراء',opt4:'مطر : سحاب',ans:0},
+          {qnum:3,text:'مال : بنون',opt1:'إقليم : مكان',opt2:'كحل : حناء',opt3:'قيادة : قانون',opt4:'فجر : ظلام',ans:1},
+          {qnum:4,text:'شرى : باع',opt1:'رطب : تمر',opt2:'غاب : حضر',opt3:'فرح : سرور',opt4:'قدم : ذهب',ans:1},
+          {qnum:5,text:'جريمة : سرقة',opt1:'تمساح : برمائي',opt2:'دودة : حشرة',opt3:'كلمة : فعل',opt4:'غصن : شجرة',ans:0},
+          // ── إكمال ──
+          {qnum:6,text:'إن الله إذا أراد بقوم ....... جعل فيهم الجدل ومنع عنهم .......',opt1:'سوءاً - العمل',opt2:'خيراً - العمل',opt3:'حباً - التفاؤل',opt4:'كرهاً - الغبن',ans:0},
+          {qnum:7,text:'عثرة ....... أسلم من زلة .......',opt1:'العلم - العقل',opt2:'القدم - اللسان',opt3:'الماضي - الحاضر',opt4:'الصديق - العدو',ans:1},
+          {qnum:8,text:'إياك وفضول الكلام فإنه يظهر من عيوبك ما ....... ويحرك عليك من أعدائك ما .......',opt1:'بطن - سكن',opt2:'ظهر - وقع',opt3:'خفي - علم',opt4:'شهد - وضح',ans:2},
+          {qnum:9,text:'إن طول ....... في أي مهنة يقتل روح المبادرة ويرسخ .......',opt1:'العمل - الموهبة',opt2:'الموضوع - التكرار',opt3:'الممارسة - النمطية',opt4:'المسافة - التبعية',ans:2},
+          {qnum:10,text:'إذا أردت أن ....... المودة عليك أن ....... الطرف عن الزلات',opt1:'تستمر - تحفظ',opt2:'تدوم - تغض',opt3:'تتزايد - تترك',opt4:'تبقى - تبعد',ans:1},
+          // ── استيعاب: القائد الفذ ──
+          {qnum:11,text:'اقرأ: "ما يميز القائد الفذ إلهام الآخرين لعمل الأفضل وللوصول إلى الأحلام والآمال ومساعدتهم على فعل ذلك، لذلك تراه يتحلى بالشجاعة والإقدام حينما يجبن الآخرون." يمكن أن نستبدل كلمة "الفذ" بكل الكلمات ما عدا:',opt1:'المميز',opt2:'الملهم',opt3:'الخامل',opt4:'الفريد',ans:2},
+          {qnum:12,text:'من النص السابق (القائد الفذ)، يمكن أن نبدأ النص ب:',opt1:'لكن',opt2:'لعل',opt3:'حيث',opt4:'ليت',ans:2},
+          // ── استيعاب: العدل والظلم ──
+          {qnum:13,text:'اقرأ: "يوم العدل على الظالم أشد من يوم الجور على المظلوم." من النص السابق، ما فائدة التضاد بين الظالم والمظلوم؟',opt1:'تفسير المعنى',opt2:'تحليل المعنى',opt3:'بيان المعنى',opt4:'تقوية المعنى',ans:3},
+          {qnum:14,text:'من النص السابق (العدل والظلم)، يميل النص إلى:',opt1:'المقارنة',opt2:'المصارحة',opt3:'التكرار',opt4:'التحليل',ans:0},
+          // ── استيعاب: صقل المواهب ──
+          {qnum:15,text:'اقرأ: "إن معرفة صقل المواهب يحتاج إلى أن نعرف أكثر عن مجالاتها وإجراء التجارب والاستعانة بأهل الخبرة والدراية واستشارتهم لتقويم التجربة وتحسين الموهبة." الترتيب الصحيح لتنمية الموهبة:',opt1:'معرفة / تجربة / استعانة (تقويم) / تحسين',opt2:'تجربة / استعانة / تحسين / معرفة',opt3:'استعانة / معرفة / تحسين / اطلاع',opt4:'تحسين / معرفة / تجربة / استعانة',ans:0},
+          // ── كلمة تخل بالسياق ──
+          {qnum:16,text:'العواصف الرخوة تحطم الأشجار الضخمة لكنها لا تؤثر في العيدان الخضراء التي تنحني لها',opt1:'الرخوة',opt2:'الأشجار',opt3:'تؤثر',opt4:'العيدان',ans:0},
+          {qnum:17,text:'إياك أن تكثر الطلبات الشخصية من أصدقائك فيكرهون غيابك',opt1:'تكثر',opt2:'فيكرهون',opt3:'الشخصية',opt4:'غيابك',ans:3},
+          {qnum:18,text:'من عوّد نفسه على البذل زاد شغفه للمال وقلّ إحسانه للناس',opt1:'البذل',opt2:'زاد',opt3:'قلّ',opt4:'إحسانه',ans:1},
+          {qnum:19,text:'إن كنت تريد النجاح فاذهب مع من يحبون الفوز، وإن لم تستطع فاذهب مع من يرغبون الهزيمة',opt1:'النجاح',opt2:'يحبون',opt3:'الفوز',opt4:'يرغبون',ans:3},
+          {qnum:20,text:'الجمال الحقيقي هو الذي لا يرى ولكن يظهر في تقاسيم الوجه وفلتات اللسان وما تخفيه تصرفاتك',opt1:'الحقيقي',opt2:'الوجه',opt3:'اللسان',opt4:'تخفيه',ans:3},
+          // ── الكلمة الشاذة ──
+          {qnum:21,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'ترح',opt2:'سرور',opt3:'حبور',opt4:'سعادة',ans:0},
+          {qnum:22,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'الغيبة',opt2:'النميمة',opt3:'الخذلان',opt4:'البهتان',ans:2},
+          {qnum:23,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'قراءة',opt2:'نسخ',opt3:'كتابة',opt4:'رسم',ans:0},
+          {qnum:24,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'تلفاز',opt2:'جوال',opt3:'كاميرا',opt4:'حاسوب',ans:2},
+          {qnum:25,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'سكر',opt2:'نعناع',opt3:'جرجير',opt4:'زنجبيل',ans:0},
+          // ── كمي: حساب وجبر ──
+          {qnum:26,text:'(999)² − 1 = .......',opt1:'999²',opt2:'998²',opt3:'998000',opt4:'999000',ans:2},
+          {qnum:27,text:'قيمة العبارة في الصورة المرفقة =',opt1:'16',opt2:'1',opt3:'36',opt4:'56',ans:0,img:'/img/gt1/q27.png'},
+          {qnum:28,text:'(212)² − (213)² = .......',opt1:'446',opt2:'410',opt3:'-425',opt4:'415',ans:2},
+          {qnum:29,text:'إذا وزع مبلغ 1800 ريال بين 3 أشخاص بنسبة 3:2:1، فإن نصيب الأكبر يساوي:',opt1:'860',opt2:'960',opt3:'900',opt4:'1000',ans:2},
+          {qnum:30,text:'حل المعادلة في الصورة المرفقة، ثم أوجد قيمة 6أ + 4ل =',opt1:'5',opt2:'10',opt3:'12',opt4:'20',ans:1,img:'/img/gt1/q30.png'},
+          {qnum:31,text:'إذا كان 4س + 5ص = 24، فأي الآتي يجب أن يكون صحيحاً (انظر الصورة)؟',opt1:'ص زوجية',opt2:'ص فردية',opt3:'س فردية',opt4:'س زوجية',ans:0,img:'/img/gt1/q31.png'},
+          {qnum:32,text:'إذا كان: س − ص = 5، س × ص = 10، فإن: س² + ص² = .......',opt1:'25',opt2:'45',opt3:'50',opt4:'100',ans:1},
+          {qnum:33,text:'إذا كان: س + ص = 16، س − ص = 10، فإن: 3س + 5ص = .......',opt1:'54',opt2:'45',opt3:'46',opt4:'48',ans:0},
+          {qnum:34,text:'إذا كانت: س + ص = 12، فإن أكبر قيمة للمقدار س × ص = .......',opt1:'16',opt2:'24',opt3:'36',opt4:'40',ans:2},
+          // ── كمي: هندسة ──
+          {qnum:35,text:'كم عدد المثلثات في الشكل؟',opt1:'6',opt2:'8',opt3:'12',opt4:'24',ans:0,img:'/img/gt1/q35.png'},
+          {qnum:36,text:'في الشكل المقابل ضلعا المربع مماسان للدائرة التي مساحتها 25 ط، فإن مساحة المربع =',opt1:'25',opt2:'50',opt3:'75',opt4:'100',ans:3,img:'/img/gt1/q36.png'},
+          {qnum:37,text:'في الشكل المجاور ما قيمة س + ص + م + ز؟',opt1:'300',opt2:'240',opt3:'120',opt4:'180',ans:1,img:'/img/gt1/q37.png'},
+          {qnum:38,text:'أوجد محيط المربع جدهو في الشكل المرفق',opt1:'6 سم',opt2:'9 سم',opt3:'12 سم',opt4:'15 سم',ans:2,img:'/img/gt1/q38.png'},
+          {qnum:39,text:'من الرسم، إذا كان طول ضلع المربع 4 سم فإن مساحة الجزء المظلل تساوي:',opt1:'4ط − 20',opt2:'4ط² − 16',opt3:'16 − 2ط²',opt4:'4ط − 16',ans:3,img:'/img/gt1/q39.png'},
+          // ── كمي: مقارنات ──
+          {qnum:40,text:'قارن بين: القيمة الأولى = 5/7، القيمة الثانية = 3/5',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:0},
+          {qnum:41,text:'قارن بين القيمتين في الشكل المرفق (س مقابل 59)',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:2,img:'/img/gt1/q41.png'},
+          {qnum:42,text:'قارن بين: القيمة الأولى = أكبر عدد أولي من 50 إلى 64، القيمة الثانية = 63',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:1},
+          {qnum:43,text:'قارن بين: القيمة الأولى = 2/125، القيمة الثانية = 2/25',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:1},
+          // ── كمي: إحصاء ──
+          {qnum:44,text:'حسب الرسم البياني المرفق، في أي شهر كانت مبيعات النساء أكثر ما يمكن؟',opt1:'محرم',opt2:'صفر',opt3:'ربيع أول',opt4:'ربيع ثاني',ans:0,img:'/img/gt1/q44.png'},
+          {qnum:45,text:'حسب الرسم الدائري المرفق، كم النسبة المئوية للحاصلين على تقدير ممتاز؟',opt1:'25%',opt2:'30%',opt3:'75%',opt4:'50%',ans:3,img:'/img/gt1/q45.png'},
+          {qnum:46,text:'إذا كان متوسط الإنتاج اليومي للفواكه 1000، والمانجو تمثل 12% منه، والإنتاج المتوقع غداً 1500، فكم كمية المانجو غداً؟',opt1:'180',opt2:'120',opt3:'250',opt4:'360',ans:0},
+          {qnum:47,text:'أوجد المتوسط الحسابي للأعداد المرفقة في الصورة',opt1:'1225',opt2:'1250',opt3:'1400',opt4:'1500',ans:1,img:'/img/gt1/q47.png'},
+          {qnum:48,text:'قارن بين القيمتين في الصورة المرفقة',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:0,img:'/img/gt1/q48.png'},
         ];
         const gt1Stmt = DB.prepare(
-          `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, created_at)
-           VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, img_url, created_at)
+           VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
         const gt1Now = new Date().toISOString();
         for (const q of GT1_SEED) {
-          await gt1Stmt.bind(crypto.randomUUID(), q.qnum, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, gt1Now).run();
+          await gt1Stmt.bind(crypto.randomUUID(), q.qnum, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, q.img || '', gt1Now).run();
         }
       }
 
@@ -2292,15 +2578,21 @@ export async function onRequest({ request, env }) {
         })) }, 200, CORS);
       }
 
-      // GET /api/general-tests/results?studentId=... — admin/director/dev: every attempt for one student
+      // GET /api/general-tests/results?studentId=...&testNum=N — admin/dev: per-student or all results
       if (sub === 'results' && method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const isDevKey = authDev(request, env);
+        const claims = isDevKey ? { role: 'dev' } : await verifyToken(request, env);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const studentId = url.searchParams.get('studentId');
-        if (!studentId) return err('studentId مطلوب', 400, CORS);
-        const { results } = await DB.prepare(
-          'SELECT * FROM general_test_results WHERE student_id = ? ORDER BY test_num ASC, created_at ASC'
-        ).bind(studentId).all();
+        const filterTest = url.searchParams.get('testNum');
+        let query = 'SELECT * FROM general_test_results WHERE is_trial = 0';
+        const params = [];
+        if (studentId) { query += ' AND student_id = ?'; params.push(studentId); }
+        if (filterTest) { query += ' AND test_num = ?'; params.push(Number(filterTest)); }
+        query += ' ORDER BY created_at DESC LIMIT 2000';
+        const stmt = DB.prepare(query);
+        const bound = params.length ? stmt.bind(...params) : stmt;
+        const { results } = await bound.all();
         return ok({ results: results.map(r => {
           let ans = []; try { ans = JSON.parse(r.answers || '[]'); } catch (e) {}
           return { ...r, answers: ans };
@@ -2315,10 +2607,10 @@ export async function onRequest({ request, env }) {
           const claims = await verifyToken(request, env);
           if (!claims) return err('غير مصرح', 401, CORS);
           const { results } = await DB.prepare(
-            'SELECT qnum, text, opt1, opt2, opt3, opt4 FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
+            'SELECT qnum, text, opt1, opt2, opt3, opt4, img_url FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
           ).bind(testNum).all();
           if (!results.length) return err('الاختبار غير متوفر بعد', 404, CORS);
-          return ok({ questions: results.map(r => ({ qnum: r.qnum, text: r.text, opts: [r.opt1, r.opt2, r.opt3, r.opt4] })) }, 200, CORS);
+          return ok({ questions: results.map(r => ({ qnum: r.qnum, text: r.text, opts: [r.opt1, r.opt2, r.opt3, r.opt4], img: r.img_url || null })) }, 200, CORS);
         }
 
         // POST /api/general-tests/:num/questions — admin upload {action:'replace'|'append', questions:[...]}
@@ -2331,11 +2623,11 @@ export async function onRequest({ request, env }) {
           const existingNums = new Set(existing.map(r => r.qnum));
           const fresh = (rows || []).filter(r => !existingNums.has(r.qnum));
           const stmt = DB.prepare(
-            `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, img_url, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           );
           for (const q of fresh) {
-            await stmt.bind(crypto.randomUUID(), testNum, q.qnum, q.text, q.opts[0], q.opts[1], q.opts[2], q.opts[3], q.ans, new Date().toISOString()).run();
+            await stmt.bind(crypto.randomUUID(), testNum, q.qnum, q.text, q.opts[0], q.opts[1], q.opts[2], q.opts[3], q.ans, q.img || '', new Date().toISOString()).run();
           }
           await logEvent(DB, { level: 'info', category: 'general-tests', message: `استيراد أسئلة الاختبار العام رقم ${testNum} (${action === 'replace' ? 'استبدال' : 'إضافة'}) — ${fresh.length} مضافة`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
           return ok({ added: fresh.length, skipped: (rows || []).length - fresh.length }, 200, CORS);
@@ -2388,8 +2680,70 @@ export async function onRequest({ request, env }) {
           ).bind(rid, claims.sub, claims.name, claims.school || '', testNum, finalScore, correct, total, isTrial, JSON.stringify(storedAnswers), now).run();
 
           await logEvent(DB, { level: 'info', category: 'test', message: `إنهاء الاختبار العام رقم ${testNum}${isTrial ? ' (تجريبي)' : ''} — النتيجة ${finalScore}% (${correct}/${total})`, user_name: claims.name || '', user_role: 'student', school: claims.school || '' });
-          return ok({ id: rid, created_at: now, score: finalScore, correct, total }, 201, CORS);
+          return ok({ id: rid, created_at: now, score: finalScore, correct, total, detail: storedAnswers }, 201, CORS);
         }
+      }
+    }
+
+    // ── SendPulse WhatsApp ──────────────────────────────────────────────
+    if (resource === 'sendpulse') {
+      // POST /api/sendpulse/send — also accepts admin/director JWT (not just dev key)
+      if (sub === 'send' && method === 'POST') {
+        const _isDevSend = authDev(request, env);
+        const _claimsSend = _isDevSend ? null : await verifyToken(request, env);
+        if (!_isDevSend && (!_claimsSend || !['admin','director'].includes(_claimsSend.role))) return err('غير مصرح', 401, CORS);
+        if (!_isDevSend && _claimsSend.role !== 'dev' && !(Array.isArray(_claimsSend.permissions) && _claimsSend.permissions.includes('send_whatsapp'))) {
+          return err('لا تملك صلاحية إرسال الواتساب', 403, CORS);
+        }
+        const body = await request.json();
+        const { phones, template_name, language_code = 'ar', components = [] } = body;
+        if (!phones?.length) return err('phones مطلوب', 400, CORS);
+        if (!template_name) return err('template_name مطلوب', 400, CORS);
+        const botId = env.SENDPULSE_BOT_ID;
+        const cleanComponents = sanitizeWaComponents(components);
+        const results = await Promise.all(phones.map(phone => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+          bot_id: botId,
+          phone: normalizeSaudiPhone(phone),
+          template: { name: template_name, language: { code: language_code }, components: cleanComponents },
+        })));
+        return ok({ sent_to: phones.length, results }, 200, CORS);
+      }
+
+      if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
+
+      // GET /api/sendpulse/templates — list available WA templates
+      if (sub === 'templates' && method === 'GET') {
+        const botId = env.SENDPULSE_BOT_ID;
+        const data = await spRequest(env, 'GET', `/whatsapp/templates?bot_id=${botId}`);
+        return ok({ templates: data.data || data || [] }, 200, CORS);
+      }
+
+      // GET /api/sendpulse/bots — list bots (for debug)
+      if (sub === 'bots' && method === 'GET') {
+        const data = await spRequest(env, 'GET', '/whatsapp/bots');
+        return ok(data, 200, CORS);
+      }
+
+      // POST /api/sendpulse/broadcast/:broadcastId — send broadcast msg to school students via WA
+      if (sub === 'broadcast' && subsub && method === 'POST') {
+        const body = await request.json();
+        const { template_name, language_code = 'ar', components = [] } = body;
+        if (!template_name) return err('template_name مطلوب', 400, CORS);
+        const broadcast = await DB.prepare('SELECT * FROM broadcasts WHERE id = ?').bind(subsub).first();
+        if (!broadcast) return err('الرسالة غير موجودة', 404, CORS);
+        const { results: students } = await DB.prepare(
+          'SELECT phone FROM students WHERE school = ? AND phone IS NOT NULL AND phone != \'\''
+        ).bind(broadcast.school).all();
+        if (!students.length) return err('لا يوجد طلاب برقم جوال', 400, CORS);
+        const phones = students.map(s => normalizeSaudiPhone(s.phone));
+        const botId = env.SENDPULSE_BOT_ID;
+        const cleanComponents = sanitizeWaComponents(components);
+        const results = await Promise.all(phones.map(phone => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+          bot_id: botId,
+          phone,
+          template: { name: template_name, language: { code: language_code }, components: cleanComponents },
+        })));
+        return ok({ sent_to: phones.length, results }, 200, CORS);
       }
     }
 

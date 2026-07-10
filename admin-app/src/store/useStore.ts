@@ -124,8 +124,8 @@ export const useStore = create<StoreState>((set, get) => ({
       const schoolQuery =
         session && session.school && session.school !== '*' ? `?school=${encodeURIComponent(session.school)}` : '';
       const [studentsRes, plansRes, testResultsRes] = await Promise.all([
-        api.get<{ students: Student[] }>('/students'),
-        api.get<{ plans: Plan[] }>('/plans'),
+        api.get<{ students: Student[] }>(`/students${schoolQuery}`),
+        api.get<{ plans: Plan[] }>(`/plans${schoolQuery}`),
         api.get<{ results: TestResult[] }>(`/test-results${schoolQuery}`),
       ]);
       set({

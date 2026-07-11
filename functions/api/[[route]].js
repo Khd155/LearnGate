@@ -342,6 +342,22 @@ export async function onRequest({ request, env }) {
     if (resource === 'auth') {
       const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
 
+      // GET /api/auth/access-token?t=... — public, single-use, no time expiry.
+      // Redeems a dev-minted token once; a second attempt (or an unknown
+      // token) reports it as already used so the link can never be replayed.
+      if (sub === 'access-token' && method === 'GET') {
+        if (!await rateLimit(DB, ip, 'access-token', 20)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+        const t = url.searchParams.get('t') || '';
+        if (!t) return err('الرابط غير صالح', 400, CORS);
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        const row = await DB.prepare('SELECT token, student_id, used_at FROM access_tokens WHERE token = ?').bind(t).first();
+        if (!row || row.used_at) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
+        const student = await DB.prepare('SELECT name, code, school FROM students WHERE id = ?').bind(row.student_id).first();
+        if (!student) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
+        await DB.prepare('UPDATE access_tokens SET used_at = ? WHERE token = ?').bind(new Date().toISOString(), t).run();
+        return ok({ name: student.name, code: student.code, school: student.school || '' }, 200, CORS);
+      }
+
       // POST /api/auth/student-login
       if (sub === 'student-login' && method === 'POST') {
         if (!await rateLimit(DB, ip, 'student-login', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
@@ -1245,6 +1261,83 @@ export async function onRequest({ request, env }) {
         params.push(limitN, offsetN);
         const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ logs: results, hasMore: results.length === limitN }, 200, CORS);
+      }
+
+      // POST /api/dev/access-tokens { studentId } — dev-only test tool: mints a
+      // single-use, no-expiry token for the account-access link. Reachable by
+      // DEV_KEY or a dev-role JWT, same as /dev/logs.
+      if (sub === 'access-tokens' && method === 'POST') {
+        const isDevKey = authDev(request, env);
+        if (!isDevKey) {
+          const atClaims = await verifyToken(request, env);
+          if (!atClaims || atClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        const atBody = await request.json();
+        const studentId = String(atBody.studentId || '');
+        if (!studentId) return err('studentId مطلوب', 400, CORS);
+        const student = await DB.prepare('SELECT id FROM students WHERE id = ?').bind(studentId).first();
+        if (!student) return err('الطالب غير موجود', 404, CORS);
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        const randBytes = crypto.getRandomValues(new Uint8Array(14));
+        const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
+        await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, studentId, new Date().toISOString()).run();
+        return ok({ token }, 201, CORS);
+      }
+
+      // GET /api/dev/access-tokens?studentId=... — link-open tracking: every
+      // token sent to this student, and whether/when they actually opened it.
+      if (sub === 'access-tokens' && method === 'GET') {
+        const isDevKeyRead = authDev(request, env);
+        if (!isDevKeyRead) {
+          const atReadClaims = await verifyToken(request, env);
+          if (!atReadClaims || atReadClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        const studentId = url.searchParams.get('studentId') || '';
+        if (!studentId) return err('studentId مطلوب', 400, CORS);
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        const { results } = await DB.prepare(
+          'SELECT token, used_at, created_at FROM access_tokens WHERE student_id = ? ORDER BY created_at DESC'
+        ).bind(studentId).all();
+        return ok({ tokens: results }, 200, CORS);
+      }
+
+      // POST /api/dev/ticket-link { ticketId } — mints a random opaque token for
+      // the support-ticket WhatsApp notification button, instead of putting the
+      // guessable ticket_num/id directly in the link (dev-only auth still gates
+      // the resolved page, so this only prevents ID-guessing/enumeration).
+      if (sub === 'ticket-link' && method === 'POST') {
+        const isDevKeyTL = authDev(request, env);
+        if (!isDevKeyTL) {
+          const tlClaims = await verifyToken(request, env);
+          if (!tlClaims || tlClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS ticket_link_tokens (token TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, created_at TEXT NOT NULL)`).run(); } catch {}
+        const tlBody = await request.json();
+        const ticketId = String(tlBody.ticketId || '');
+        if (!ticketId) return err('ticketId مطلوب', 400, CORS);
+        const ticket = await DB.prepare('SELECT id FROM tickets WHERE id = ?').bind(ticketId).first();
+        if (!ticket) return err('الطلب غير موجود', 404, CORS);
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        const randBytes = crypto.getRandomValues(new Uint8Array(14));
+        const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
+        await DB.prepare('INSERT INTO ticket_link_tokens (token, ticket_id, created_at) VALUES (?, ?, ?)').bind(token, ticketId, new Date().toISOString()).run();
+        return ok({ token }, 201, CORS);
+      }
+
+      // GET /api/dev/ticket-link/:token — resolve the token to a ticket_id.
+      // Requires the same dev auth as everything else here; the token alone
+      // never bypasses login, it only tells the panel which ticket to open.
+      if (sub === 'ticket-link' && subsub && method === 'GET') {
+        const isDevKeyTLR = authDev(request, env);
+        if (!isDevKeyTLR) {
+          const tlrClaims = await verifyToken(request, env);
+          if (!tlrClaims || tlrClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS ticket_link_tokens (token TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, created_at TEXT NOT NULL)`).run(); } catch {}
+        const row = await DB.prepare('SELECT ticket_id FROM ticket_link_tokens WHERE token = ?').bind(subsub).first();
+        if (!row) return err('الرابط غير صالح', 404, CORS);
+        return ok({ ticketId: row.ticket_id }, 200, CORS);
       }
 
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
@@ -2417,6 +2510,7 @@ export async function onRequest({ request, env }) {
         created_at TEXT NOT NULL DEFAULT (now()::text)
       )`).run(); } catch {}
       try { await DB.prepare("ALTER TABLE general_tests ADD COLUMN img_url TEXT DEFAULT ''").run(); } catch {}
+      try { await DB.prepare("ALTER TABLE general_tests ADD COLUMN skill_id TEXT DEFAULT ''").run(); } catch {}
       try { await DB.prepare(`CREATE TABLE IF NOT EXISTS general_test_results (
         id           TEXT PRIMARY KEY,
         student_id   TEXT NOT NULL,
@@ -2439,83 +2533,86 @@ export async function onRequest({ request, env }) {
         for (let n = 1; n <= 6; n++) await seedStmt.bind(n, '', '', `اختبار عام رقم ${n}`).run();
       }
 
-      // Provisional content for test #1 ("مبدئيا") — real question sets for tests 2-6
-      // are pending; until uploaded their question_count stays 0, which already makes
-      // the student-facing list show them disabled with "قريباً" automatically.
+      // Content for test #1 — approved question bank (R-01), quantitative section.
+      // The verbal section is pending and will be appended once authored; each
+      // question carries skill_id (q1-q5) matching SKILL_META above.
       await DB.prepare(
         "UPDATE general_test_meta SET skill_id = 'mix1', skill_name = 'لفظي وكمي', title = 'اختبار محاكي رقم 1' WHERE test_num = 1"
       ).run();
       const gt1Check = await DB.prepare('SELECT COUNT(*) as c FROM general_tests WHERE test_num = 1').first();
-      if (!gt1Check || Number(gt1Check.c) !== 48) {
+      if (!gt1Check || Number(gt1Check.c) !== 50) {
         await DB.prepare('DELETE FROM general_tests WHERE test_num = 1').run();
+        // Verbal section (v1-v5, restored from the prior trial set) + approved
+        // quantitative bank (R-01, Question_ID kept in comments for traceability).
         const GT1_SEED = [
-          // ── تشبيه ──
-          {qnum:1,text:'الكعبة : المطاف',opt1:'الحجر الأسود : المقام',opt2:'الملابس : القماش',opt3:'البيت : السور',opt4:'الوردة : البستان',ans:2},
-          {qnum:2,text:'ضجيج : محرك',opt1:'مصباح : ضوء',opt2:'ماء : سراب',opt3:'سراب : صحراء',opt4:'مطر : سحاب',ans:0},
-          {qnum:3,text:'مال : بنون',opt1:'إقليم : مكان',opt2:'كحل : حناء',opt3:'قيادة : قانون',opt4:'فجر : ظلام',ans:1},
-          {qnum:4,text:'شرى : باع',opt1:'رطب : تمر',opt2:'غاب : حضر',opt3:'فرح : سرور',opt4:'قدم : ذهب',ans:1},
-          {qnum:5,text:'جريمة : سرقة',opt1:'تمساح : برمائي',opt2:'دودة : حشرة',opt3:'كلمة : فعل',opt4:'غصن : شجرة',ans:0},
-          // ── إكمال ──
-          {qnum:6,text:'إن الله إذا أراد بقوم ....... جعل فيهم الجدل ومنع عنهم .......',opt1:'سوءاً - العمل',opt2:'خيراً - العمل',opt3:'حباً - التفاؤل',opt4:'كرهاً - الغبن',ans:0},
-          {qnum:7,text:'عثرة ....... أسلم من زلة .......',opt1:'العلم - العقل',opt2:'القدم - اللسان',opt3:'الماضي - الحاضر',opt4:'الصديق - العدو',ans:1},
-          {qnum:8,text:'إياك وفضول الكلام فإنه يظهر من عيوبك ما ....... ويحرك عليك من أعدائك ما .......',opt1:'بطن - سكن',opt2:'ظهر - وقع',opt3:'خفي - علم',opt4:'شهد - وضح',ans:2},
-          {qnum:9,text:'إن طول ....... في أي مهنة يقتل روح المبادرة ويرسخ .......',opt1:'العمل - الموهبة',opt2:'الموضوع - التكرار',opt3:'الممارسة - النمطية',opt4:'المسافة - التبعية',ans:2},
-          {qnum:10,text:'إذا أردت أن ....... المودة عليك أن ....... الطرف عن الزلات',opt1:'تستمر - تحفظ',opt2:'تدوم - تغض',opt3:'تتزايد - تترك',opt4:'تبقى - تبعد',ans:1},
-          // ── استيعاب: القائد الفذ ──
-          {qnum:11,text:'اقرأ: "ما يميز القائد الفذ إلهام الآخرين لعمل الأفضل وللوصول إلى الأحلام والآمال ومساعدتهم على فعل ذلك، لذلك تراه يتحلى بالشجاعة والإقدام حينما يجبن الآخرون." يمكن أن نستبدل كلمة "الفذ" بكل الكلمات ما عدا:',opt1:'المميز',opt2:'الملهم',opt3:'الخامل',opt4:'الفريد',ans:2},
-          {qnum:12,text:'من النص السابق (القائد الفذ)، يمكن أن نبدأ النص ب:',opt1:'لكن',opt2:'لعل',opt3:'حيث',opt4:'ليت',ans:2},
-          // ── استيعاب: العدل والظلم ──
-          {qnum:13,text:'اقرأ: "يوم العدل على الظالم أشد من يوم الجور على المظلوم." من النص السابق، ما فائدة التضاد بين الظالم والمظلوم؟',opt1:'تفسير المعنى',opt2:'تحليل المعنى',opt3:'بيان المعنى',opt4:'تقوية المعنى',ans:3},
-          {qnum:14,text:'من النص السابق (العدل والظلم)، يميل النص إلى:',opt1:'المقارنة',opt2:'المصارحة',opt3:'التكرار',opt4:'التحليل',ans:0},
-          // ── استيعاب: صقل المواهب ──
-          {qnum:15,text:'اقرأ: "إن معرفة صقل المواهب يحتاج إلى أن نعرف أكثر عن مجالاتها وإجراء التجارب والاستعانة بأهل الخبرة والدراية واستشارتهم لتقويم التجربة وتحسين الموهبة." الترتيب الصحيح لتنمية الموهبة:',opt1:'معرفة / تجربة / استعانة (تقويم) / تحسين',opt2:'تجربة / استعانة / تحسين / معرفة',opt3:'استعانة / معرفة / تحسين / اطلاع',opt4:'تحسين / معرفة / تجربة / استعانة',ans:0},
-          // ── كلمة تخل بالسياق ──
-          {qnum:16,text:'العواصف الرخوة تحطم الأشجار الضخمة لكنها لا تؤثر في العيدان الخضراء التي تنحني لها',opt1:'الرخوة',opt2:'الأشجار',opt3:'تؤثر',opt4:'العيدان',ans:0},
-          {qnum:17,text:'إياك أن تكثر الطلبات الشخصية من أصدقائك فيكرهون غيابك',opt1:'تكثر',opt2:'فيكرهون',opt3:'الشخصية',opt4:'غيابك',ans:3},
-          {qnum:18,text:'من عوّد نفسه على البذل زاد شغفه للمال وقلّ إحسانه للناس',opt1:'البذل',opt2:'زاد',opt3:'قلّ',opt4:'إحسانه',ans:1},
-          {qnum:19,text:'إن كنت تريد النجاح فاذهب مع من يحبون الفوز، وإن لم تستطع فاذهب مع من يرغبون الهزيمة',opt1:'النجاح',opt2:'يحبون',opt3:'الفوز',opt4:'يرغبون',ans:3},
-          {qnum:20,text:'الجمال الحقيقي هو الذي لا يرى ولكن يظهر في تقاسيم الوجه وفلتات اللسان وما تخفيه تصرفاتك',opt1:'الحقيقي',opt2:'الوجه',opt3:'اللسان',opt4:'تخفيه',ans:3},
-          // ── الكلمة الشاذة ──
-          {qnum:21,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'ترح',opt2:'سرور',opt3:'حبور',opt4:'سعادة',ans:0},
-          {qnum:22,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'الغيبة',opt2:'النميمة',opt3:'الخذلان',opt4:'البهتان',ans:2},
-          {qnum:23,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'قراءة',opt2:'نسخ',opt3:'كتابة',opt4:'رسم',ans:0},
-          {qnum:24,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'تلفاز',opt2:'جوال',opt3:'كاميرا',opt4:'حاسوب',ans:2},
-          {qnum:25,text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'سكر',opt2:'نعناع',opt3:'جرجير',opt4:'زنجبيل',ans:0},
-          // ── كمي: حساب وجبر ──
-          {qnum:26,text:'(999)² − 1 = .......',opt1:'999²',opt2:'998²',opt3:'998000',opt4:'999000',ans:2},
-          {qnum:27,text:'قيمة العبارة في الصورة المرفقة =',opt1:'16',opt2:'1',opt3:'36',opt4:'56',ans:0,img:'/img/gt1/q27.png'},
-          {qnum:28,text:'(212)² − (213)² = .......',opt1:'446',opt2:'410',opt3:'-425',opt4:'415',ans:2},
-          {qnum:29,text:'إذا وزع مبلغ 1800 ريال بين 3 أشخاص بنسبة 3:2:1، فإن نصيب الأكبر يساوي:',opt1:'860',opt2:'960',opt3:'900',opt4:'1000',ans:2},
-          {qnum:30,text:'حل المعادلة في الصورة المرفقة، ثم أوجد قيمة 6أ + 4ل =',opt1:'5',opt2:'10',opt3:'12',opt4:'20',ans:1,img:'/img/gt1/q30.png'},
-          {qnum:31,text:'إذا كان 4س + 5ص = 24، فأي الآتي يجب أن يكون صحيحاً (انظر الصورة)؟',opt1:'ص زوجية',opt2:'ص فردية',opt3:'س فردية',opt4:'س زوجية',ans:0,img:'/img/gt1/q31.png'},
-          {qnum:32,text:'إذا كان: س − ص = 5، س × ص = 10، فإن: س² + ص² = .......',opt1:'25',opt2:'45',opt3:'50',opt4:'100',ans:1},
-          {qnum:33,text:'إذا كان: س + ص = 16، س − ص = 10، فإن: 3س + 5ص = .......',opt1:'54',opt2:'45',opt3:'46',opt4:'48',ans:0},
-          {qnum:34,text:'إذا كانت: س + ص = 12، فإن أكبر قيمة للمقدار س × ص = .......',opt1:'16',opt2:'24',opt3:'36',opt4:'40',ans:2},
-          // ── كمي: هندسة ──
-          {qnum:35,text:'كم عدد المثلثات في الشكل؟',opt1:'6',opt2:'8',opt3:'12',opt4:'24',ans:0,img:'/img/gt1/q35.png'},
-          {qnum:36,text:'في الشكل المقابل ضلعا المربع مماسان للدائرة التي مساحتها 25 ط، فإن مساحة المربع =',opt1:'25',opt2:'50',opt3:'75',opt4:'100',ans:3,img:'/img/gt1/q36.png'},
-          {qnum:37,text:'في الشكل المجاور ما قيمة س + ص + م + ز؟',opt1:'300',opt2:'240',opt3:'120',opt4:'180',ans:1,img:'/img/gt1/q37.png'},
-          {qnum:38,text:'أوجد محيط المربع جدهو في الشكل المرفق',opt1:'6 سم',opt2:'9 سم',opt3:'12 سم',opt4:'15 سم',ans:2,img:'/img/gt1/q38.png'},
-          {qnum:39,text:'من الرسم، إذا كان طول ضلع المربع 4 سم فإن مساحة الجزء المظلل تساوي:',opt1:'4ط − 20',opt2:'4ط² − 16',opt3:'16 − 2ط²',opt4:'4ط − 16',ans:3,img:'/img/gt1/q39.png'},
-          // ── كمي: مقارنات ──
-          {qnum:40,text:'قارن بين: القيمة الأولى = 5/7، القيمة الثانية = 3/5',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:0},
-          {qnum:41,text:'قارن بين القيمتين في الشكل المرفق (س مقابل 59)',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:2,img:'/img/gt1/q41.png'},
-          {qnum:42,text:'قارن بين: القيمة الأولى = أكبر عدد أولي من 50 إلى 64، القيمة الثانية = 63',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:1},
-          {qnum:43,text:'قارن بين: القيمة الأولى = 2/125، القيمة الثانية = 2/25',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:1},
-          // ── كمي: إحصاء ──
-          {qnum:44,text:'حسب الرسم البياني المرفق، في أي شهر كانت مبيعات النساء أكثر ما يمكن؟',opt1:'محرم',opt2:'صفر',opt3:'ربيع أول',opt4:'ربيع ثاني',ans:0,img:'/img/gt1/q44.png'},
-          {qnum:45,text:'حسب الرسم الدائري المرفق، كم النسبة المئوية للحاصلين على تقدير ممتاز؟',opt1:'25%',opt2:'30%',opt3:'75%',opt4:'50%',ans:3,img:'/img/gt1/q45.png'},
-          {qnum:46,text:'إذا كان متوسط الإنتاج اليومي للفواكه 1000، والمانجو تمثل 12% منه، والإنتاج المتوقع غداً 1500، فكم كمية المانجو غداً؟',opt1:'180',opt2:'120',opt3:'250',opt4:'360',ans:0},
-          {qnum:47,text:'أوجد المتوسط الحسابي للأعداد المرفقة في الصورة',opt1:'1225',opt2:'1250',opt3:'1400',opt4:'1500',ans:1,img:'/img/gt1/q47.png'},
-          {qnum:48,text:'قارن بين القيمتين في الصورة المرفقة',opt1:'القيمة الأولى أكبر',opt2:'القيمة الثانية أكبر',opt3:'القيمتان متساويتان',opt4:'المعطيات غير كافية',ans:0,img:'/img/gt1/q48.png'},
+          // ── v4: التناظر اللفظي ──
+          {qnum:1,skill:'v4',text:'الكعبة : المطاف',opt1:'الحجر الأسود : المقام',opt2:'الملابس : القماش',opt3:'البيت : السور',opt4:'الوردة : البستان',ans:2},
+          {qnum:2,skill:'v4',text:'ضجيج : محرك',opt1:'مصباح : ضوء',opt2:'ماء : سراب',opt3:'سراب : صحراء',opt4:'مطر : سحاب',ans:0},
+          {qnum:3,skill:'v4',text:'مال : بنون',opt1:'إقليم : مكان',opt2:'كحل : حناء',opt3:'قيادة : قانون',opt4:'فجر : ظلام',ans:1},
+          {qnum:4,skill:'v4',text:'شرى : باع',opt1:'رطب : تمر',opt2:'غاب : حضر',opt3:'فرح : سرور',opt4:'قدم : ذهب',ans:1},
+          {qnum:5,skill:'v4',text:'جريمة : سرقة',opt1:'تمساح : برمائي',opt2:'دودة : حشرة',opt3:'كلمة : فعل',opt4:'غصن : شجرة',ans:0},
+          // ── v5: إكمال الجمل ──
+          {qnum:6,skill:'v5',text:'إن الله إذا أراد بقوم ....... جعل فيهم الجدل ومنع عنهم .......',opt1:'سوءاً - العمل',opt2:'خيراً - العمل',opt3:'حباً - التفاؤل',opt4:'كرهاً - الغبن',ans:0},
+          {qnum:7,skill:'v5',text:'عثرة ....... أسلم من زلة .......',opt1:'العلم - العقل',opt2:'القدم - اللسان',opt3:'الماضي - الحاضر',opt4:'الصديق - العدو',ans:1},
+          {qnum:8,skill:'v5',text:'إياك وفضول الكلام فإنه يظهر من عيوبك ما ....... ويحرك عليك من أعدائك ما .......',opt1:'بطن - سكن',opt2:'ظهر - وقع',opt3:'خفي - علم',opt4:'شهد - وضح',ans:2},
+          {qnum:9,skill:'v5',text:'إن طول ....... في أي مهنة يقتل روح المبادرة ويرسخ .......',opt1:'العمل - الموهبة',opt2:'الموضوع - التكرار',opt3:'الممارسة - النمطية',opt4:'المسافة - التبعية',ans:2},
+          {qnum:10,skill:'v5',text:'إذا أردت أن ....... المودة عليك أن ....... الطرف عن الزلات',opt1:'تستمر - تحفظ',opt2:'تدوم - تغض',opt3:'تتزايد - تترك',opt4:'تبقى - تبعد',ans:1},
+          // ── v1: الاستيعاب القرائي ──
+          {qnum:11,skill:'v1',text:'اقرأ: "ما يميز القائد الفذ إلهام الآخرين لعمل الأفضل وللوصول إلى الأحلام والآمال ومساعدتهم على فعل ذلك، لذلك تراه يتحلى بالشجاعة والإقدام حينما يجبن الآخرون." يمكن أن نستبدل كلمة "الفذ" بكل الكلمات ما عدا:',opt1:'المميز',opt2:'الملهم',opt3:'الخامل',opt4:'الفريد',ans:2},
+          {qnum:12,skill:'v1',text:'من النص السابق (القائد الفذ)، يمكن أن نبدأ النص ب:',opt1:'لكن',opt2:'لعل',opt3:'حيث',opt4:'ليت',ans:2},
+          {qnum:13,skill:'v1',text:'اقرأ: "يوم العدل على الظالم أشد من يوم الجور على المظلوم." من النص السابق، ما فائدة التضاد بين الظالم والمظلوم؟',opt1:'تفسير المعنى',opt2:'تحليل المعنى',opt3:'بيان المعنى',opt4:'تقوية المعنى',ans:3},
+          {qnum:14,skill:'v1',text:'من النص السابق (العدل والظلم)، يميل النص إلى:',opt1:'المقارنة',opt2:'المصارحة',opt3:'التكرار',opt4:'التحليل',ans:0},
+          {qnum:15,skill:'v1',text:'اقرأ: "إن معرفة صقل المواهب يحتاج إلى أن نعرف أكثر عن مجالاتها وإجراء التجارب والاستعانة بأهل الخبرة والدراية واستشارتهم لتقويم التجربة وتحسين الموهبة." الترتيب الصحيح لتنمية الموهبة:',opt1:'معرفة / تجربة / استعانة (تقويم) / تحسين',opt2:'تجربة / استعانة / تحسين / معرفة',opt3:'استعانة / معرفة / تحسين / اطلاع',opt4:'تحسين / معرفة / تجربة / استعانة',ans:0},
+          // ── v2: الخطأ السياقي ──
+          {qnum:16,skill:'v2',text:'العواصف الرخوة تحطم الأشجار الضخمة لكنها لا تؤثر في العيدان الخضراء التي تنحني لها',opt1:'الرخوة',opt2:'الأشجار',opt3:'تؤثر',opt4:'العيدان',ans:0},
+          {qnum:17,skill:'v2',text:'إياك أن تكثر الطلبات الشخصية من أصدقائك فيكرهون غيابك',opt1:'تكثر',opt2:'فيكرهون',opt3:'الشخصية',opt4:'غيابك',ans:3},
+          {qnum:18,skill:'v2',text:'من عوّد نفسه على البذل زاد شغفه للمال وقلّ إحسانه للناس',opt1:'البذل',opt2:'زاد',opt3:'قلّ',opt4:'إحسانه',ans:1},
+          {qnum:19,skill:'v2',text:'إن كنت تريد النجاح فاذهب مع من يحبون الفوز، وإن لم تستطع فاذهب مع من يرغبون الهزيمة',opt1:'النجاح',opt2:'يحبون',opt3:'الفوز',opt4:'يرغبون',ans:3},
+          {qnum:20,skill:'v2',text:'الجمال الحقيقي هو الذي لا يرى ولكن يظهر في تقاسيم الوجه وفلتات اللسان وما تخفيه تصرفاتك',opt1:'الحقيقي',opt2:'الوجه',opt3:'اللسان',opt4:'تخفيه',ans:3},
+          // ── v3: المفردة الشاذة ──
+          {qnum:21,skill:'v3',text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'ترح',opt2:'سرور',opt3:'حبور',opt4:'سعادة',ans:0},
+          {qnum:22,skill:'v3',text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'الغيبة',opt2:'النميمة',opt3:'الخذلان',opt4:'البهتان',ans:2},
+          {qnum:23,skill:'v3',text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'قراءة',opt2:'نسخ',opt3:'كتابة',opt4:'رسم',ans:0},
+          {qnum:24,skill:'v3',text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'تلفاز',opt2:'جوال',opt3:'كاميرا',opt4:'حاسوب',ans:2},
+          {qnum:25,skill:'v3',text:'حدد المفردة الشاذة في الكلمات التالية:',opt1:'سكر',opt2:'نعناع',opt3:'جرجير',opt4:'زنجبيل',ans:0},
+          // ── q1: الحساب ──
+          {qnum:26,skill:'q1',text:'اشترى تاجر بضاعة بمبلغ 800 ريال، ثم باعها بربح مقداره 15% من سعر الشراء. فما سعر البيع؟',opt1:'900',opt2:'920',opt3:'940',opt4:'960',ans:1}, // QB-AR-001
+          {qnum:27,skill:'q1',text:'متوسط أربعة أعداد هو 18. إذا كانت ثلاثة منها هي: 12، 20، 22، فما العدد الرابع؟',opt1:'16',opt2:'18',opt3:'20',opt4:'24',ans:1}, // QB-AR-002
+          {qnum:28,skill:'q1',text:'إذا كان (3/5) مبلغ يساوي 240 ريالًا، فما قيمة المبلغ كاملًا؟',opt1:'360',opt2:'380',opt3:'400',opt4:'420',ans:2}, // QB-AR-003
+          {qnum:29,skill:'q1',text:'قطع سائق مسافة 180 كم خلال 3 ساعات بسرعة ثابتة. فإذا حافظ على السرعة نفسها، فكم يقطع خلال ساعتين ونصف؟',opt1:'120',opt2:'140',opt3:'150',opt4:'160',ans:2}, // QB-AR-004
+          {qnum:30,skill:'q1',text:'إذا كان العامل (أ) ينجز عملاً في 12 يومًا، والعامل (ب) ينجزه في 18 يومًا، فكم يومًا يحتاجان إذا عملا معًا بالمعدل نفسه؟',opt1:'6.2',opt2:'7.2',opt3:'8',opt4:'9',ans:1}, // QB-AR-005
+          // ── q2: الجبر ──
+          {qnum:31,skill:'q2',text:'إذا كان 5س − 15 = 35، فإن قيمة س تساوي:',opt1:'8',opt2:'9',opt3:'10',opt4:'11',ans:2}, // QB-AL-001
+          {qnum:32,skill:'q2',text:'قيمة 3(2س + 4) − 2(س − 1) تساوي:',opt1:'4س + 10',opt2:'5س + 12',opt3:'4س + 14',opt4:'6س + 10',ans:2}, // QB-AL-002
+          {qnum:33,skill:'q2',text:'إذا كان س : ص = 4 : 7 وكان س = 20، فإن قيمة ص هي:',opt1:'28',opt2:'30',opt3:'35',opt4:'40',ans:2}, // QB-AL-003
+          {qnum:34,skill:'q2',text:'إذا كان 2^5 ÷ 2^2 فإن الناتج يساوي:',opt1:'4',opt2:'6',opt3:'8',opt4:'16',ans:2}, // QB-AL-004
+          {qnum:35,skill:'q2',text:'يزيد عمر أحمد على عمر أخيه بـ 6 سنوات، ومجموع عمريهما 34 سنة. كم عمر أحمد؟',opt1:'14',opt2:'18',opt3:'20',opt4:'22',ans:2}, // QB-AL-005
+          // ── q3: الهندسة ──
+          {qnum:36,skill:'q3',text:'مستطيل طوله 14 سم وعرضه 9 سم. فما مساحته؟',opt1:'46',opt2:'92',opt3:'126',opt4:'138',ans:2}, // QB-GE-001
+          {qnum:37,skill:'q3',text:'مثلث أطوال أضلاعه 8 سم، 11 سم، 13 سم. فما محيطه؟',opt1:'30',opt2:'31',opt3:'32',opt4:'33',ans:2}, // QB-GE-002
+          {qnum:38,skill:'q3',text:'دائرة نصف قطرها 7 سم. إذا اعتُمد π = (22/7)، فما مساحة الدائرة؟',opt1:'144',opt2:'154',opt3:'164',opt4:'176',ans:1}, // QB-GE-003
+          {qnum:39,skill:'q3',text:'مثلث قائم الزاوية طولا ضلعيه القائمين 9 سم و12 سم. فما طول الوتر؟',opt1:'13',opt2:'14',opt3:'15',opt4:'16',ans:2}, // QB-GE-004
+          {qnum:40,skill:'q3',text:'مثلثان متشابهان، معامل التشابه بينهما (3/5). إذا كان طول ضلع في المثلث الأكبر يساوي 30 سم، فما طول الضلع المناظر له في المثلث الأصغر؟',opt1:'16',opt2:'18',opt3:'20',opt4:'24',ans:1}, // QB-GE-005
+          // ── q4: المقارنات الكمية ──
+          {qnum:41,skill:'q4',text:'الكمية (أ): 18 × 4 — الكمية (ب): 24 × 3',opt1:'الكمية (أ) أكبر',opt2:'الكمية (ب) أكبر',opt3:'الكميتان متساويتان',opt4:'لا يمكن تحديد العلاقة',ans:2}, // QB-QC-001
+          {qnum:42,skill:'q4',text:'الكمية (أ): (5/8) — الكمية (ب): (3/4)',opt1:'الكمية (أ) أكبر',opt2:'الكمية (ب) أكبر',opt3:'الكميتان متساويتان',opt4:'لا يمكن تحديد العلاقة',ans:1}, // QB-QC-002
+          {qnum:43,skill:'q4',text:'الكمية (أ): √144 — الكمية (ب): 11',opt1:'الكمية (أ) أكبر',opt2:'الكمية (ب) أكبر',opt3:'الكميتان متساويتان',opt4:'لا يمكن تحديد العلاقة',ans:0}, // QB-QC-003
+          {qnum:44,skill:'q4',text:'إذا كان س > 0، فقارن بين: الكمية (أ): س^2 ، والكمية (ب): س',opt1:'الكمية (أ) أكبر',opt2:'الكمية (ب) أكبر',opt3:'الكميتان متساويتان',opt4:'لا يمكن تحديد العلاقة',ans:3}, // QB-QC-004
+          {qnum:45,skill:'q4',text:'الكمية (أ): مساحة مربع طول ضلعه 10 سم. الكمية (ب): مساحة مستطيل طوله 20 سم وعرضه 5 سم.',opt1:'الكمية (أ) أكبر',opt2:'الكمية (ب) أكبر',opt3:'الكميتان متساويتان',opt4:'لا يمكن تحديد العلاقة',ans:2}, // QB-QC-005
+          // ── q5: الإحصاء والاحتمالات ──
+          {qnum:46,skill:'q5',text:'سجّل خمسة طلاب الدرجات التالية: 12، 15، 18، 20، 25. فما المتوسط الحسابي لهذه الدرجات؟',opt1:'17',opt2:'18',opt3:'18.5',opt4:'19',ans:1}, // QB-ST-001
+          {qnum:47,skill:'q5',text:'رتب القيم التالية تصاعديًا ثم حدد الوسيط: 14، 9، 18، 12، 10.',opt1:'10',opt2:'11',opt3:'12',opt4:'14',ans:2}, // QB-ST-002
+          {qnum:48,skill:'q5',text:'في البيانات التالية: 7، 5، 9، 7، 6، 5، 7، 8. ما المنوال؟',opt1:'5',opt2:'6',opt3:'7',opt4:'8',ans:2}, // QB-ST-003
+          {qnum:49,skill:'q5',text:'يحتوي صندوق على 5 كرات حمراء و3 كرات زرقاء، وتُسحب كرة واحدة عشوائيًا. ما احتمال أن تكون الكرة المسحوبة زرقاء؟',opt1:'(3/8)',opt2:'(5/8)',opt3:'(1/2)',opt4:'(3/5)',ans:0}, // QB-ST-004
+          {qnum:50,skill:'q5',text:'لدى متجر 4 ألوان من القمصان و3 مقاسات لكل لون. إذا اختار شخص قميصًا واحدًا، فكم عدد الاختيارات المختلفة الممكنة؟',opt1:'7',opt2:'10',opt3:'12',opt4:'16',ans:2}, // QB-ST-005
         ];
         const gt1Stmt = DB.prepare(
-          `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, img_url, created_at)
-           VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO general_tests (id, test_num, qnum, text, opt1, opt2, opt3, opt4, ans, img_url, skill_id, created_at)
+           VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
         const gt1Now = new Date().toISOString();
         for (const q of GT1_SEED) {
-          await gt1Stmt.bind(crypto.randomUUID(), q.qnum, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, q.img || '', gt1Now).run();
+          await gt1Stmt.bind(crypto.randomUUID(), q.qnum, q.text, q.opt1, q.opt2, q.opt3, q.opt4, q.ans, q.img || '', q.skill || '', gt1Now).run();
         }
       }
 
@@ -2617,21 +2714,37 @@ export async function onRequest({ request, env }) {
           if (!Array.isArray(answers) || !answers.length) return err('إجابات مطلوبة', 400, CORS);
 
           const { results: bank } = await DB.prepare(
-            'SELECT qnum, ans FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
+            'SELECT qnum, ans, skill_id FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
           ).bind(testNum).all();
           if (!bank.length) return err('بنك الأسئلة غير موجود', 500, CORS);
 
+          const GT_SKILL_NAMES = {
+            v1: 'الاستيعاب القرائي', v2: 'الخطأ السياقي', v3: 'المفردة الشاذة',
+            v4: 'التناظر اللفظي',   v5: 'إكمال الجمل',
+            q1: 'الحساب', q2: 'الجبر', q3: 'الهندسة',
+            q4: 'المقارنات الكمية', q5: 'الإحصاء والاحتمالات',
+          };
           const total = bank.length;
           let correct = 0;
           const storedAnswers = [];
+          const skillStats = {};
           for (const q of bank) {
             const a = answers.find(x => Number(x.qnum) === q.qnum) || {};
             const selected = Number.isInteger(Number(a.selected)) && a.selected !== null && a.selected !== undefined ? Number(a.selected) : null;
             const isCorrect = selected === q.ans;
             if (isCorrect) correct++;
             storedAnswers.push({ q: q.qnum, a: selected, corr: q.ans });
+            if (q.skill_id) {
+              if (!skillStats[q.skill_id]) skillStats[q.skill_id] = { correct: 0, total: 0 };
+              skillStats[q.skill_id].total++;
+              if (isCorrect) skillStats[q.skill_id].correct++;
+            }
           }
           const finalScore = Math.round((correct / total) * 100);
+          const skillBreakdown = Object.entries(skillStats).map(([skillId, s]) => ({
+            skillId, skillName: GT_SKILL_NAMES[skillId] || skillId,
+            correct: s.correct, total: s.total, pct: Math.round((s.correct / s.total) * 100),
+          }));
           const rid = crypto.randomUUID();
           const now = new Date().toISOString();
           const isTrial = claims.trial ? 1 : 0;
@@ -2642,7 +2755,7 @@ export async function onRequest({ request, env }) {
           ).bind(rid, claims.sub, claims.name, claims.school || '', testNum, finalScore, correct, total, isTrial, JSON.stringify(storedAnswers), now).run();
 
           await logEvent(DB, { level: 'info', category: 'test', message: `إنهاء الاختبار العام رقم ${testNum}${isTrial ? ' (تجريبي)' : ''} — النتيجة ${finalScore}% (${correct}/${total})`, user_name: claims.name || '', user_role: 'student', school: claims.school || '' });
-          return ok({ id: rid, created_at: now, score: finalScore, correct, total, detail: storedAnswers }, 201, CORS);
+          return ok({ id: rid, created_at: now, score: finalScore, correct, total, detail: storedAnswers, skillBreakdown }, 201, CORS);
         }
       }
     }
@@ -2663,11 +2776,17 @@ export async function onRequest({ request, env }) {
         if (!template_name) return err('template_name مطلوب', 400, CORS);
         const botId = env.SENDPULSE_BOT_ID;
         const cleanComponents = sanitizeWaComponents(components);
-        const results = await Promise.all(phones.map(phone => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+        const sentPayloads = phones.map(phone => ({
           bot_id: botId,
           phone: normalizeSaudiPhone(phone),
-          template: { name: template_name, language: { code: language_code }, components: cleanComponents },
-        })));
+          template: { name: template_name, language: { code: language_code, policy: 'deterministic' }, components: cleanComponents },
+        }));
+        const results = await Promise.all(sentPayloads.map(p => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', p)));
+        await logEvent(DB, {
+          level: results.some(r => r?.success === false || r?.error || r?.errors) ? 'error' : 'success',
+          category: 'whatsapp',
+          message: `SendPulse send — template=${template_name} | sent=${JSON.stringify(sentPayloads)} | received=${JSON.stringify(results)}`,
+        });
         return ok({ sent_to: phones.length, results }, 200, CORS);
       }
 
@@ -2703,7 +2822,7 @@ export async function onRequest({ request, env }) {
         const results = await Promise.all(phones.map(phone => spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
           bot_id: botId,
           phone,
-          template: { name: template_name, language: { code: language_code }, components: cleanComponents },
+          template: { name: template_name, language: { code: language_code, policy: 'deterministic' }, components: cleanComponents },
         })));
         return ok({ sent_to: phones.length, results }, 200, CORS);
       }

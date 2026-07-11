@@ -1,5 +1,35 @@
 'use strict';
 
+// ── Theme (dark/light) ─────────────────────────────────────────────────────
+function applyTheme(mode) {
+  const root = document.documentElement;
+  if (mode === 'dark' || mode === 'light') {
+    root.setAttribute('data-theme', mode);
+  } else {
+    root.removeAttribute('data-theme');
+  }
+  _syncThemeButtons();
+}
+function _syncThemeButtons() {
+  const mode = localStorage.getItem('theme');
+  const isDark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.querySelectorAll('.tb-theme-btn').forEach(btn => { btn.textContent = isDark ? '☀️' : '🌙'; });
+}
+(function initTheme() {
+  const saved = localStorage.getItem('theme');
+  applyTheme(saved);
+})();
+
+// ── Canonical skill order (verbal then quantitative, fixed) ───────────────
+const SKILL_ORDER = ['v4','v5','v1','v2','v3','q1','q2','q3','q4','q5'];
+function sortBySkillOrder(gaps) {
+  return [...gaps].sort((a, b) => {
+    const ai = SKILL_ORDER.indexOf(a.skillId);
+    const bi = SKILL_ORDER.indexOf(b.skillId);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+}
+
 // ── Lazy-load xlsx — only when Excel import/export is used ────────────────
 async function _loadXlsx() {
   if (window.XLSX) return;
@@ -87,6 +117,38 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// ── First + last name only (drops middle names) — shared by the access-link
+// landing page and the WhatsApp send button so both show the same thing.
+function firstLastName(fullName) {
+  const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) return parts.join(' ');
+  return parts[0] + ' ' + parts[parts.length - 1];
+}
+
+// ── Single-use account-access link ("?t=") — dev test tool ─────────────────
+(function initAccessTokenLanding() {
+  const t = new URLSearchParams(window.location.search).get('t');
+  if (!t) return;
+  document.addEventListener('DOMContentLoaded', async () => {
+    show('screen-access-token');
+    try {
+      const data = await apiFetch('/auth/access-token?t=' + encodeURIComponent(t));
+      document.getElementById('at-name').textContent = firstLastName(data.name);
+      document.getElementById('at-code').textContent = data.code || '';
+      if (data.school) {
+        const schoolEl = document.getElementById('at-school');
+        schoolEl.textContent = '🏫 مدرستك: ' + data.school;
+        schoolEl.style.display = 'block';
+      }
+      document.getElementById('at-loading').style.display = 'none';
+      document.getElementById('at-success').style.display = 'block';
+    } catch (_) {
+      document.getElementById('at-loading').style.display = 'none';
+      document.getElementById('at-error').style.display = 'block';
+    }
+  });
+})();
 
 // Base API call helper
 async function apiFetch(path, opts = {}) {
@@ -576,6 +638,22 @@ const App = {
     }
   },
 
+  // ── Dev-only entry point: mints a role:'dev' JWT via DEV_KEY, then reuses
+  // the same /admin/ dashboard (React app) with the dev-only tools unlocked.
+  async devLogin() {
+    const key = window.prompt('مفتاح الدخول (DEV_KEY):');
+    if (!key) return;
+    try {
+      const data = await apiFetch('/auth/dev', { method: 'POST', body: JSON.stringify({ key }) });
+      const _sess = { role: 'dev', code: '', name: 'Dev', school: '', token: data.token, expiry: Date.now() + 4 * 60 * 60 * 1000 };
+      try { sessionStorage.setItem(_skey('lg_session', 'admin'), JSON.stringify(_sess)); } catch(_) {}
+      try { localStorage.setItem(_skey('lg_xsession', 'admin'), JSON.stringify(_sess)); } catch(_) {}
+      window.location.href = '/admin/';
+    } catch (e) {
+      alert('مفتاح غير صحيح: ' + (e?.message || ''));
+    }
+  },
+
   // ── Populate all .tb-uname chips with user name ───────────────────────────
   _setTopbarUser(name) {
     document.querySelectorAll('.tb-uname').forEach(chip => {
@@ -583,6 +661,10 @@ const App = {
       if (textEl) textEl.textContent = name || '';
       chip.style.display = name ? 'inline-flex' : 'none';
     });
+    document.querySelectorAll('.tb-theme-btn').forEach(btn => {
+      btn.style.display = name ? 'inline-flex' : 'none';
+    });
+    _syncThemeButtons();
   },
 
   // ── Inject logo + name into all ghost topbar slots ───────────────────────
@@ -617,6 +699,88 @@ const App = {
     App.renderStudentPerformanceCard();
     // Check for unread support replies
     App.loadTicketNotifications();
+    // Prompt phone if missing (non-blocking — student can skip)
+    if (!State.student.phone) {
+      setTimeout(() => App.showStudentPhoneModal(), 800);
+    }
+  },
+
+  async generateTestAccessLink(studentId) {
+    try {
+      const { token } = await apiFetch('/dev/access-tokens', {
+        method: 'POST',
+        body: JSON.stringify({ studentId }),
+      });
+      const link = `${window.location.origin}/?t=${token}`;
+      try { await navigator.clipboard.writeText(link); } catch (_) {}
+      window.prompt('رابط تجريبي لمرة واحدة (تم نسخه):', link);
+    } catch (e) {
+      alert('تعذّر توليد الرابط: ' + (e?.message || ''));
+    }
+  },
+
+  copyAccessCode(btn) {
+    const code = document.getElementById('at-code')?.textContent || '';
+    if (!code) return;
+    navigator.clipboard?.writeText(code).then(() => {
+      if (!btn) return;
+      const original = btn.textContent;
+      btn.textContent = '✅ تم نسخ رقم الدخول';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2000);
+    }).catch(() => {});
+  },
+
+  toggleTheme() {
+    const current = localStorage.getItem('theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    applyTheme(next);
+  },
+
+  showStudentPhoneModal() {
+    const el = document.getElementById('student-phone-modal');
+    if (!el) return;
+    const inp = document.getElementById('sphone-input');
+    const err = document.getElementById('sphone-err');
+    if (inp) inp.value = '';
+    if (err) err.classList.remove('show');
+    el.classList.add('open');
+    if (inp) setTimeout(() => inp.focus(), 50);
+  },
+
+  closeStudentPhoneModal() {
+    const el = document.getElementById('student-phone-modal');
+    if (el) el.classList.remove('open');
+  },
+
+  async saveStudentPhone() {
+    const inp     = document.getElementById('sphone-input');
+    const errEl   = document.getElementById('sphone-err');
+    const trimmed = (inp?.value || '').trim();
+    if (!trimmed) { App.closeStudentPhoneModal(); return; }
+    if (!/^05\d{8}$/.test(trimmed)) {
+      showAlert(errEl, 'رقم الجوال يجب أن يبدأ بـ 05 ويكون 10 أرقام.');
+      return;
+    }
+    try {
+      await DB.updateStudentPhone(State.student.id, trimmed);
+      State.student.phone = trimmed;
+      // Keep the persisted session in sync so quick-restore doesn't re-prompt
+      [['sessionStorage', 'lg_session'], ['localStorage', 'lg_xsession']].forEach(([store, key]) => {
+        try {
+          const raw = window[store].getItem(_skey(key, 'student'));
+          if (!raw) return;
+          const sess = JSON.parse(raw);
+          sess.phone = trimmed;
+          window[store].setItem(_skey(key, 'student'), JSON.stringify(sess));
+        } catch (_) {}
+      });
+    } catch (_) {
+      // Save failed silently — don't block the student
+    }
+    App.closeStudentPhoneModal();
   },
 
   goToAcademic() {
@@ -788,18 +952,27 @@ const App = {
 
     const isLast = State.currentQ === total - 1;
     const nextBtn = document.getElementById('btn-next');
-    nextBtn.textContent = isLast ? 'إنهاء الاختبار' : 'التالي';
-    nextBtn.className   = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
+    nextBtn.textContent   = isLast ? 'إنهاء الاختبار' : 'التالي';
+    nextBtn.className     = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
+    // Only answering (not just viewing) advances automatically — but once a
+    // question already has a saved answer (e.g. after going back with
+    // "السابق"), show "التالي" so the student can move forward without
+    // having to re-tap the same choice.
+    nextBtn.style.display = (isLast || selected !== undefined) ? 'inline-flex' : 'none';
   },
 
   selectAnswer(idx) {
-    State.testAnswers[window.QUESTION_BANK[State.currentQ].id] = idx;
+    const QBANK = window.QUESTION_BANK;
+    State.testAnswers[QBANK[State.currentQ].id] = idx;
     App.renderQuestion();
     App._saveTestState();
-    // Auto-advance to next question after a brief pause so the selection is visible.
-    // On the last question leave it to the student to press "إنهاء الاختبار".
-    const isLast = State.currentQ === window.QUESTION_BANK.length - 1;
-    if (!isLast) setTimeout(() => App.nextQ(), 320);
+    if (State.currentQ < QBANK.length - 1) {
+      setTimeout(() => {
+        State.currentQ++;
+        App.renderQuestion();
+        App._saveTestState();
+      }, 300);
+    }
   },
 
   prevQ() {
@@ -824,115 +997,123 @@ const App = {
   },
 
   // ── General Tests (6 stand-alone skill tests, reached from the support-plan screen) ──
+  // ── General Tests (6 stand-alone skill tests, reached from the support-plan screen) ──
+  async openGeneralTests() {
+    show('screen-general-tests');
+    const list = document.getElementById('gt-list');
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;">جاري التحميل…</div>';
+    try {
+      const { tests } = await apiFetch('/general-tests');
+      App.renderGeneralTestsList(tests);
+    } catch (e) {
+      list.innerHTML = '<div style="text-align:center;color:#dc2626;padding:24px;">تعذّر تحميل الاختبارات</div>';
+    }
+  },
 
   renderGeneralTestsList(tests) {
     const list = document.getElementById('gt-list');
-    list.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;padding:4px 0;';
     list.innerHTML = tests.map(t => {
-      const ready = false; // الاختبارات المحاكية قريباً — تُفعَّل لاحقاً
-      const done  = t.my_result;
-      const badge = done
-        ? `<div style="display:inline-block;background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${done.score}%</div>`
-        : ready
-          ? `<div style="display:inline-block;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${t.question_count} سؤال</div>`
-          : `<div style="display:inline-block;background:#f1f5f9;color:#94a3b8;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">قريباً</div>`;
+      const has = t.question_count > 0;
+      const result = t.my_result;
+      const resultHtml = result
+        ? `<div style="font-size:13px;color:var(--accent);font-weight:700;margin-top:4px;">آخر نتيجة: ${result.score}% (${result.correct}/${result.total})</div>`
+        : '';
       return `
-        <div onclick="${ready ? `App.startGeneralTest(${t.test_num})` : ''}"
-             style="border-radius:16px;background:var(--card-bg,#fff);border:1.5px ${ready ? 'solid #2563eb' : 'dashed #d1d5db'};padding:28px 12px;text-align:center;cursor:${ready ? 'pointer' : 'default'};opacity:${ready ? '1' : '0.65'};transition:transform .15s,box-shadow .15s;"
-             ${ready ? 'onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 16px rgba(37,99,235,.15)\'" onmouseleave="this.style.transform=\'\';this.style.boxShadow=\'\'"' : ''}>
-          <div style="font-weight:800;font-size:13px;color:var(--text-main,#1e293b);margin-bottom:10px;">${t.title}</div>
-          ${badge}
+        <div class="skill-card" style="padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-weight:800;font-size:15px;">${t.title}</div>
+              ${t.skill_name ? `<div style="font-size:12.5px;color:var(--muted);margin-top:2px;">${t.skill_name}</div>` : ''}
+              ${resultHtml}
+            </div>
+            <button class="btn ${has ? 'btn-primary' : 'btn-outline'}" style="white-space:nowrap;" ${has ? '' : 'disabled'}
+                    onclick="App.startGeneralTest(${t.test_num})">
+              ${has ? (result ? 'إعادة الاختبار' : 'بدء الاختبار') : 'قريباً'}
+            </button>
+          </div>
         </div>`;
     }).join('');
-  },
-
-  // ── General Test Timer ────────────────────────────────────────────────────
-  _gtTimer: null,
-  startGTTimer(totalSecs) {
-    clearInterval(App._gtTimer);
-    const deadline = Date.now() + totalSecs * 1000;
-    const el = document.getElementById('gt-timer');
-    const update = () => {
-      const rem = Math.max(0, Math.round((deadline - Date.now()) / 1000));
-      const m = String(Math.floor(rem / 60)).padStart(2, '0');
-      const s = String(rem % 60).padStart(2, '0');
-      if (el) { el.textContent = `⏱ ${m}:${s}`; el.style.color = rem <= 300 ? '#ef4444' : '#fff'; }
-      if (rem <= 0) { clearInterval(App._gtTimer); App._gtSubmit(); }
-    };
-    update();
-    App._gtTimer = setInterval(update, 1000);
-  },
-  stopGTTimer() { clearInterval(App._gtTimer); App._gtTimer = null; },
-
-  async openGeneralTests() {
-    show('screen-loading');
-    try {
-      const { tests } = await apiFetch('/general-tests');
-      App._gtTests = tests;
-      show('screen-general-tests');
-      App.renderGeneralTestsList(tests);
-    } catch (e) { showToast('تعذّر تحميل الاختبارات'); show('screen-support-plan'); }
   },
 
   async startGeneralTest(num) {
     show('screen-loading');
     try {
       const { questions } = await apiFetch(`/general-tests/${num}/questions`);
-      const meta = (App._gtTests || []).find(t => t.test_num === num);
       State.gt = { num, questions, idx: 0, answers: {} };
-      document.getElementById('gt-take-title').textContent = meta ? meta.title : `اختبار محاكي رقم ${num}`;
+      document.getElementById('gt-take-title').textContent = `اختبار عام رقم ${num}`;
       show('screen-general-test-take');
       App.renderGTQuestion();
-      App.startGTTimer(50 * 60);
+      App.startGTTimer();
     } catch (e) {
       showToast('تعذّر تحميل الاختبار');
       show('screen-general-tests');
     }
   },
 
+  // ── General-test timer (50 min, same budget as the diagnostic test) ────────
+  _gtTimer: null,
+  startGTTimer() {
+    clearInterval(App._gtTimer);
+    const SECS = 50 * 60;
+    const deadline = Date.now() + SECS * 1000;
+    const el = document.getElementById('gt-timer');
+    const update = () => {
+      const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+      const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+      const s = String(remaining % 60).padStart(2, '0');
+      if (el) {
+        el.textContent = `⏱ ${m}:${s}`;
+        el.style.color = remaining <= 300 ? '#ef4444' : '#fff';
+      }
+      if (remaining <= 0) {
+        clearInterval(App._gtTimer);
+        App.gtFinish();
+      }
+    };
+    update();
+    App._gtTimer = setInterval(update, 1000);
+  },
+
+  stopGTTimer() { clearInterval(App._gtTimer); App._gtTimer = null; },
+
   renderGTQuestion() {
     const { questions, idx, answers } = State.gt;
     const q = questions[idx];
     const total = questions.length;
-    const pct = Math.round(((idx + 1) / total) * 100);
-    const isVerbal = q.qnum <= 25;
+    const pct = Math.round((idx / total) * 100);
 
     document.getElementById('gt-progress-bar').style.width = pct + '%';
     document.getElementById('gt-progress-label').textContent = `السؤال ${idx + 1} من ${total}`;
-
-    const badge = document.getElementById('gt-section-badge');
-    if (isVerbal) {
-      badge.textContent = '📚 القسم اللفظي';
-      badge.className = 'test-section-badge badge-verbal';
-    } else {
-      badge.textContent = '🔢 القسم الكمي';
-      badge.className = 'test-section-badge badge-quant';
-    }
-
     document.getElementById('gt-q-num').textContent = `سؤال ${idx + 1}`;
     document.getElementById('gt-q-text').textContent = q.text;
-    const imgEl = document.getElementById('gt-q-img');
-    if (q.img) { imgEl.src = q.img; imgEl.style.display = ''; } else { imgEl.removeAttribute('src'); imgEl.style.display = 'none'; }
 
     const selected = answers[q.qnum];
-    document.getElementById('gt-q-opts').innerHTML = q.opts.map((opt, i) => `
+    document.getElementById('gt-q-opts').innerHTML = [...q.opts.map((opt, i) => `
       <div class="q-opt${selected === i ? ' selected' : ''}" onclick="App.gtSelect(${i})">
         <div class="opt-circle"></div><span>${opt}</span>
-      </div>`).join('');
+      </div>`),
+      `<div class="q-opt dont-know${selected === 'dk' ? ' selected' : ''}" onclick="App.gtSelect('dk')">
+        <div class="opt-circle"></div><span>لا أعرف الإجابة</span>
+      </div>`
+    ].join('');
 
     document.getElementById('gt-btn-prev').disabled = idx === 0;
     const isLast = idx === total - 1;
     const nextBtn = document.getElementById('gt-btn-next');
-    nextBtn.textContent = isLast ? 'إنهاء الاختبار' : 'التالي';
-    nextBtn.className = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
+    nextBtn.textContent   = isLast ? 'إنهاء الاختبار' : 'التالي';
+    nextBtn.className     = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
+    nextBtn.style.display = (isLast || selected !== undefined) ? 'inline-flex' : 'none';
   },
 
   gtSelect(i) {
     const { questions, idx } = State.gt;
     State.gt.answers[questions[idx].qnum] = i;
     App.renderGTQuestion();
-    const isLast = idx === questions.length - 1;
-    if (!isLast) setTimeout(() => App.gtNext(), 320);
+    if (idx < questions.length - 1) {
+      setTimeout(() => {
+        if (State.gt.idx < questions.length - 1) { State.gt.idx++; App.renderGTQuestion(); }
+      }, 300);
+    }
   },
 
   gtPrev() {
@@ -942,23 +1123,35 @@ const App = {
   async gtNext() {
     const { questions, idx, answers } = State.gt;
     if (answers[questions[idx].qnum] === undefined) {
-      showToast('يرجى اختيار إجابة قبل المتابعة');
+      showToast('يرجى اختيار إجابة أو "لا أعرف الإجابة" قبل المتابعة');
       return;
     }
     if (idx < questions.length - 1) { State.gt.idx++; App.renderGTQuestion(); return; }
-    await App._gtSubmit();
+    await App.gtFinish();
   },
 
-  async _gtSubmit() {
+  async gtFinish() {
     App.stopGTTimer();
     const { questions, answers } = State.gt;
     show('screen-loading');
     try {
-      const payload = questions.map(q => ({ qnum: q.qnum, selected: answers[q.qnum] ?? null }));
+      const payload = questions.map(q => ({ qnum: q.qnum, selected: answers[q.qnum] }));
       const res = await apiFetch(`/general-tests/${State.gt.num}/submit`, {
         method: 'POST', body: JSON.stringify({ answers: payload }),
       });
-      App._renderGTResult(res, questions);
+      document.getElementById('gt-result-score').textContent = res.score + '%';
+      document.getElementById('gt-result-detail').textContent = `${res.correct} إجابة صحيحة من ${res.total}`;
+      const skillsEl = document.getElementById('gt-result-skills');
+      if (skillsEl) {
+        const rows = (res.skillBreakdown || []).map(s => {
+          const cls = s.pct >= 71 ? 'score-high' : s.pct >= 50 ? 'score-mid' : 'score-low';
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">
+            <span style="font-weight:700;font-size:14px;">${escapeHtml(s.skillName)}</span>
+            <span class="gap-score ${cls}">${s.pct}%</span>
+          </div>`;
+        }).join('');
+        skillsEl.innerHTML = rows ? `<div style="font-weight:800;font-size:14px;margin-bottom:10px;">النتيجة حسب المهارة</div>${rows}` : '';
+      }
       show('screen-general-test-result');
     } catch (e) {
       showToast('تعذّر إرسال الاختبار');
@@ -966,96 +1159,45 @@ const App = {
     }
   },
 
-  _renderGTResult(res, questions) {
-    const scoreColor = res.score >= 70 ? '#16a34a' : res.score >= 50 ? '#d97706' : '#dc2626';
-    document.getElementById('gt-result-score').innerHTML =
-      `<span style="color:${scoreColor}">${res.score}%</span>`;
-    document.getElementById('gt-result-detail').textContent =
-      `${res.correct} إجابة صحيحة من ${res.total}`;
-
-    // Verbal vs Quant breakdown
-    const detail = res.detail || [];
-    const vRight = detail.filter(d => d.q <= 25 && d.a === d.corr).length;
-    const vTotal = detail.filter(d => d.q <= 25).length;
-    const qRight = detail.filter(d => d.q > 25 && d.a === d.corr).length;
-    const qTotal = detail.filter(d => d.q > 25).length;
-    const card = (label, badge, right, total) => {
-      const pct = total ? Math.round(right/total*100) : 0;
-      const col = pct >= 70 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
-      return `<div style="background:#fff;border-radius:16px;padding:18px;border:1.5px solid #e5e7eb;text-align:center;">
-        <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;">${badge} ${label}</div>
-        <div style="font-size:32px;font-weight:900;color:${col};">${pct}%</div>
-        <div style="font-size:12px;color:#94a3b8;margin-top:4px;">${right} من ${total}</div>
-      </div>`;
-    };
-    document.getElementById('gt-result-breakdown').innerHTML =
-      card('القسم اللفظي','📚', vRight, vTotal) +
-      card('القسم الكمي','🔢', qRight, qTotal);
-
-    // Wrong answers review list
-    const wrong = detail.filter(d => d.a !== d.corr);
-    if (wrong.length) {
-      const labels = ['أ','ب','ج','د'];
-      const rows = wrong.map(d => {
-        const q = questions.find(q => q.qnum === d.q);
-        const section = d.q <= 25 ? 'لفظي' : 'كمي';
-        const yourAns = d.a !== null && d.a !== undefined ? labels[d.a] : '—';
-        const corrAns = labels[d.corr];
-        return `<tr style="border-bottom:1px solid #f1f5f9;">
-          <td style="padding:8px 6px;font-size:12px;color:#64748b;text-align:center;">${d.q}</td>
-          <td style="padding:8px 6px;font-size:11px;color:#64748b;text-align:center;">${section}</td>
-          <td style="padding:8px 6px;font-size:13px;color:#dc2626;font-weight:700;text-align:center;">${yourAns}</td>
-          <td style="padding:8px 6px;font-size:13px;color:#16a34a;font-weight:700;text-align:center;">${corrAns}</td>
-        </tr>`;
-      }).join('');
-      document.getElementById('gt-result-review').innerHTML = `
-        <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">الأسئلة الخاطئة (${wrong.length})</div>
-        <div style="overflow:auto;border-radius:12px;border:1.5px solid #e5e7eb;">
-          <table style="width:100%;border-collapse:collapse;direction:rtl;">
-            <thead><tr style="background:#f8fafc;">
-              <th style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:700;">رقم</th>
-              <th style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:700;">القسم</th>
-              <th style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:700;">إجابتك</th>
-              <th style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:700;">الصحيحة</th>
-            </tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>`;
-    } else {
-      document.getElementById('gt-result-review').innerHTML =
-        `<div style="text-align:center;padding:20px;background:#f0fdf4;border-radius:16px;color:#16a34a;font-weight:700;">🎉 أجبت على جميع الأسئلة بشكل صحيح!</div>`;
-    }
-  },
-
   // ── Gap Analysis ──────────────────────────────────────────────────────────
   async processResults() {
-    App._pendingAnswers  = State.testAnswers;
-    App._pendingSelfDiag = State.selfDiag;
-    const loadEl = document.getElementById('processing-loading');
-    const errEl  = document.getElementById('processing-error');
-    if (loadEl) loadEl.style.display = '';
-    if (errEl)  errEl.style.display  = 'none';
-    await App._submitPlan();
+    const scores = {};
+    SKILLS.forEach(sk => { scores[sk.id] = { correct: 0, total: 0 }; });
+    window.QUESTION_BANK.forEach(q => {
+      scores[q.skillId].total++;
+      if (State.testAnswers[q.id] === q.ans) scores[q.skillId].correct++;
+    });
+
+    const gaps = SKILLS.map(sk => {
+      const s    = scores[sk.id];
+      const pct  = s.total ? Math.round((s.correct / s.total) * 100) : 0;
+      const self = State.selfDiag[sk.id] || 'need';
+      const level = pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low';
+      const overconfident = self === 'mastered' && level === 'low';
+      const rec = overconfident
+        ? 'مهارة تحتاج مراجعة عاجلة — أجبت أنك متقن لها لكن أداءك كان ضعيفاً.'
+        : level === 'low'  ? 'مهارة ضعيفة — تحتاج تدريباً مكثفاً وأساسيات.'
+        : level === 'mid'  ? 'مهارة متوسطة — تحتاج تعزيزاً وتدريباً إضافياً.'
+        : 'مهارة جيدة — الاستمرار في التطوير مستحسن.';
+      return { skillId: sk.id, skillName: sk.name, category: sk.category, pct, level, selfAssess: self, recommendation: rec, overconfident };
+    }); // order follows SKILL_ORDER (SKILLS array is already ordered)
+
+    App._pendingGaps = gaps;
+    const _loadEl = document.getElementById('processing-loading');
+    const _errEl  = document.getElementById('processing-error');
+    if (_loadEl) _loadEl.style.display = '';
+    if (_errEl)  _errEl.style.display  = 'none';
+    await App._submitPlan(gaps);
   },
 
-  async _submitPlan() {
+  async _submitPlan(gaps) {
     const loadEl = document.getElementById('processing-loading');
     const errEl  = document.getElementById('processing-error');
     if (loadEl) loadEl.style.display = '';
     if (errEl)  errEl.style.display  = 'none';
     let plan;
     try {
-      // Send raw answers to the server — it grades them against the stored answer key.
-      // The GET /questions endpoint strips `ans` from students so client-side scoring
-      // always produced 0%; server-side grading fixes that.
-      plan = await DB.addAttempt({
-        studentId:   State.student.id,
-        studentName: State.student.name,
-        status:      'active',
-        answers:     App._pendingAnswers  || {},
-        selfDiag:    App._pendingSelfDiag || {},
-        adminNote:   '',
-      });
+      plan = await DB.addAttempt({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, adminNote: '' });
     } catch (e) {
       ActivityLog.error('✗ حفظ الخطة فشل: ' + (e?.message || e));
       serverLog('error', 'plan', '✗ حفظ الخطة فشل: ' + (e?.message || e));
@@ -1068,11 +1210,10 @@ const App = {
     show('screen-level-analysis');
   },
 
-  _pendingAnswers:  null,
-  _pendingSelfDiag: null,
+  _pendingGaps: null,
 
   async retryProcessResults() {
-    if (App._pendingAnswers) await App._submitPlan();
+    if (App._pendingGaps) await App._submitPlan(App._pendingGaps);
   },
 
   // ── Level Analysis ───────────────────────────────────────────────────────
@@ -1112,8 +1253,9 @@ const App = {
   },
 
   renderLevelAnalysis(plan) {
-    const verbal = plan.gaps.filter(g => g.category === 'verbal');
-    const quant  = plan.gaps.filter(g => g.category === 'quantitative');
+    const sorted = sortBySkillOrder(plan.gaps);
+    const verbal = sorted.filter(g => g.category === 'verbal');
+    const quant  = sorted.filter(g => g.category === 'quantitative');
     const buildRow = g => {
       const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
       return `<tr>
@@ -1250,13 +1392,14 @@ const App = {
         </div>`;
     };
 
-    const verbal = plan.gaps.filter(g => g.category === 'verbal');
-    const quant  = plan.gaps.filter(g => g.category === 'quantitative');
+    const sortedGaps = sortBySkillOrder(plan.gaps);
+    const verbal = sortedGaps.filter(g => g.category === 'verbal');
+    const quant  = sortedGaps.filter(g => g.category === 'quantitative');
     document.getElementById('sp-verbal-cards').innerHTML = verbal.map((g, i) => buildCard(g, i)).join('');
     document.getElementById('sp-quant-cards').innerHTML  = quant.map((g, i) => buildCard(g, i)).join('');
 
     // Print table
-    document.getElementById('sp-print-body').innerHTML = plan.gaps.map((g, i) => {
+    document.getElementById('sp-print-body').innerHTML = sortedGaps.map((g, i) => {
       const fullUrl = SKILL_LESSONS[g.skillId] || '';
       const shortUrl = fullUrl ? fullUrl.replace(/^https?:\/\/[^/]+/, '').replace(/\/$/, '') : '—';
       const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
@@ -1430,6 +1573,7 @@ const App = {
           ${badge}
           ${scoreChip}
           ${unlockBtn}
+          ${State.role === 'dev' ? `<button class="btn btn-outline btn-sm" title="توليد رابط دخول تجريبي (اختبار)" onclick="event.stopPropagation();App.generateTestAccessLink('${st.id}')">🔗 اختبار</button>` : ''}
           <button class="btn btn-danger btn-sm" onclick="App.deleteStudent('${st.id}')">حذف</button>
         </div>`;
       }).join('');
@@ -1868,7 +2012,7 @@ const App = {
     // ── Attempts list (newest first) ──
     const listHtml = [...pts].reverse().map(p => {
       const cls = p.score >= 71 ? 'score-high' : p.score >= 50 ? 'score-mid' : 'score-low';
-      const skillRows = p.gaps.map(g => {
+      const skillRows = sortBySkillOrder(p.gaps).map(g => {
         const gc  = g.pct <= 30 ? 'score-low' : g.pct <= 70 ? 'score-mid' : 'score-high';
         const cat = g.category === 'verbal' ? '📚' : '🔢';
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">
@@ -2806,7 +2950,7 @@ const App = {
     document.getElementById('modal-student-name').textContent = plan.studentName;
     document.getElementById('modal-plan-date').textContent    = `تاريخ التشخيص: ${new Date(plan.createdAt).toLocaleDateString('ar-SA')}`;
     document.getElementById('modal-admin-note').value         = plan.adminNote || '';
-    document.getElementById('modal-gaps').innerHTML = plan.gaps.map(g => `
+    document.getElementById('modal-gaps').innerHTML = sortBySkillOrder(plan.gaps).map(g => `
       <div class="gap-item">
         <div class="gap-item-head">
           <span>${g.category === 'verbal' ? '📚' : '🔢'}</span>
@@ -2897,7 +3041,7 @@ const App = {
     // Skills table
     const skillsBody = document.getElementById('sdm-skills-body');
     if (latest && latest.gaps.length) {
-      skillsBody.innerHTML = latest.gaps.map(g => {
+      skillsBody.innerHTML = sortBySkillOrder(latest.gaps).map(g => {
         const lvl = g.pct <= 30 ? 'ضعيف' : g.pct <= 49 ? 'دون المتوسط' : g.pct <= 70 ? 'متوسط' : 'فوق المتوسط';
         const cls = g.pct <= 49 ? 'score-low' : g.pct <= 70 ? 'score-mid' : 'score-high';
         const cat = g.category === 'verbal' ? '📚 لفظي' : '🔢 كمي';
@@ -3029,7 +3173,7 @@ const App = {
     const school = State.school || st.school || '';
     const printDate = new Date().toLocaleDateString('ar-SA', { year:'numeric', month:'long', day:'numeric' });
 
-    const skillRows = latest.gaps.map((g, i) => {
+    const skillRows = sortBySkillOrder(latest.gaps).map((g, i) => {
       const lvlTxt = g.pct <= 30 ? 'ضعيف' : g.pct <= 49 ? 'دون المتوسط' : g.pct <= 70 ? 'متوسط' : 'فوق المتوسط';
       const barColor = g.pct <= 30 ? '#ef4444' : g.pct <= 49 ? '#f59e0b' : g.pct <= 70 ? '#3b82f6' : '#22c55e';
       const catTxt = g.category === 'verbal' ? 'لفظي' : 'كمي';
@@ -4660,6 +4804,9 @@ window.addEventListener('pageshow', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  // A one-time account-access link ("?t=") owns the screen entirely — skip
+  // session restore/auto-login so it can't get overridden mid-flight.
+  if (new URLSearchParams(window.location.search).get('t')) return;
   ActivityLog.info(`🌐 تحميل الصفحة — ${new Date().toLocaleString('ar-SA')} — ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
   const btn = document.getElementById('selfdiag-submit');
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }

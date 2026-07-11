@@ -262,6 +262,57 @@
     .cd-lbl  { font-size:11px; color:var(--muted); margin-top:3px; }
     .cd-sep  { font-size:32px; font-weight:900; color:var(--primary); padding-bottom:18px; }
 
+    /* ── Training Plan section ─────────────────────────── */
+    .sp-training-wrap {
+      margin-top:8px; margin-bottom:24px;
+    }
+    .sp-training-intro {
+      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
+      border:1px solid #bcd6ee; border-radius:var(--radius);
+      padding:16px 20px; margin-bottom:18px;
+      font-size:13.5px; line-height:1.9; color:var(--text);
+    }
+    .sp-training-intro strong { color:var(--primary); }
+    .sp-training-table-wrap { overflow-x:auto; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); }
+    .sp-training-table {
+      width:100%; border-collapse:collapse;
+      font-size:13px; background:var(--surface);
+      min-width:640px;
+    }
+    .sp-training-table th {
+      background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 100%);
+      color:#fff; padding:11px 14px; text-align:center;
+      font-weight:700; font-size:13px; border:none;
+    }
+    .sp-training-table th:first-child { width:72px; }
+    .sp-training-table td {
+      padding:10px 13px; border-bottom:1px solid var(--border);
+      vertical-align:top; line-height:1.8; font-size:13px;
+      text-align:right;
+    }
+    .sp-training-table td:first-child {
+      font-weight:800; color:var(--primary);
+      text-align:center; background:#f0f7ff;
+      border-left:1px solid var(--border);
+      white-space:nowrap;
+    }
+    .sp-training-table tr:last-child td { border-bottom:none; }
+    .sp-training-table tbody tr:nth-child(even) { background:#f7fafd; }
+    .sp-training-table tbody tr:nth-child(even) td:first-child { background:#eaf2f9; }
+    .sp-training-table .row-span td {
+      background:#fff8e1 !important; font-weight:700; color:#7c4d00;
+      text-align:center; border-bottom:2px solid #ffe082;
+    }
+    .sp-training-table .row-span td:first-child {
+      background:#fff3cd !important; color:#7c4d00;
+    }
+    .sp-training-note {
+      margin-top:12px; padding:10px 14px;
+      background:#fffbeb; border:1.5px solid #fde68a;
+      border-radius:10px; font-size:13px; line-height:1.75;
+      color:#78350f; display:flex; gap:8px; align-items:flex-start;
+    }
+
     .print-only { display:none; }
     @media print {
       @page { margin:1.5cm 1.8cm; size:A4; }
@@ -338,6 +389,16 @@
       .score-mid  { background:#fef9c3 !important; color:#854d0e !important; }
       .score-low  { background:#fee2e2 !important; color:#991b1b !important; }
 
+      /* ── Training Plan print ── */
+      .sp-training-wrap { margin-top:0; margin-bottom:0; }
+      .sp-training-intro { font-size:9.5pt; line-height:1.75; padding:8pt 12pt; margin-bottom:8pt; border:1px solid #bcd6ee; border-right:4px solid #3F7CB8; background:#f8faff !important; border-radius:5pt; }
+      .sp-training-table-wrap { overflow:visible; }
+      .sp-training-table { font-size:9pt; min-width:unset !important; }
+      .sp-training-table th { font-size:9pt; padding:7pt 10pt; }
+      .sp-training-table td { font-size:9pt; padding:6pt 9pt; line-height:1.6; }
+      .sp-training-table td:first-child { font-size:9pt; }
+      .sp-training-note { display:none !important; }
+
       /* ── Print Footer ── */
       .print-footer {
         position:fixed; bottom:0; left:0; right:0; width:100%;
@@ -381,6 +442,52 @@
       الاتصال بطيء — جارٍ المحاولة… انتظر قليلاً
     </div>
     <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     ACCESS-TOKEN LANDING (single-use "?t=" link)
+═══════════════════════════════════════════════════════ -->
+<div id="screen-access-token" class="screen">
+  <div class="page-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:28px;">
+      <img src="logo.png" alt="وزارة التعليم" style="height:52px;">
+      <div style="font-weight:800;font-size:16px;color:var(--primary);">بوابة دعم التعلم</div>
+    </div>
+    <div id="at-loading">
+      <div style="width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);
+                  border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 18px;"></div>
+      <div style="color:var(--muted);font-size:14px;">جارٍ التحقق من الرابط…</div>
+    </div>
+    <div id="at-success" style="display:none;background:var(--surface);border:1.5px solid var(--border);
+         border-radius:var(--radius-lg);padding:32px 24px;max-width:380px;width:100%;box-shadow:var(--shadow);">
+      <div style="font-size:38px;margin-bottom:10px;">🎓</div>
+      <div style="font-weight:800;font-size:19px;margin-bottom:10px;">مرحبًا بك، <span id="at-name"></span></div>
+      <div style="color:var(--muted);font-size:13.5px;line-height:1.8;margin-bottom:14px;">
+        بوابة دعم التعلّم منصة تهدف لدعمك أكاديميًا من خلال تحليل نقاط قوتك وضعفك، وتقديم خطة دعم مخصصة لك بناءً على أدائك.
+      </div>
+      <div id="at-school" style="display:none;font-size:13px;color:var(--primary);font-weight:700;margin-bottom:18px;"></div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:8px;">رقم الدخول الخاص بك</div>
+      <div style="display:flex;align-items:center;gap:8px;background:var(--bg-tint);border:1.5px solid var(--border-strong);
+                  border-radius:12px;padding:14px 16px;justify-content:center;">
+        <span id="at-code" style="font-size:22px;font-weight:800;letter-spacing:1px;font-variant-numeric:tabular-nums;color:var(--primary);"></span>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="App.copyAccessCode(this)">نسخ رقم الدخول 📋</button>
+      <div style="color:var(--warn);font-size:12px;margin-top:14px;">⚠️ هذا الرابط صالح لمرة واحدة فقط ولن يعمل بعد الآن.</div>
+      <button class="btn btn-outline" style="width:100%;margin-top:20px;" onclick="window.location.href='/'">التوجه إلى الموقع الرئيسي ←</button>
+      <div style="border-top:1px solid var(--border);margin-top:22px;padding-top:16px;font-size:12.5px;color:var(--muted);">
+        تواجه مشكلة؟
+        <a href="#" onclick="App.openGuestSupport();return false;" style="color:var(--primary);font-weight:700;">تواصل مع الدعم الفني</a>
+      </div>
+    </div>
+    <div id="at-error" style="display:none;background:var(--surface);border:1.5px solid var(--border);
+         border-radius:var(--radius-lg);padding:32px 24px;max-width:380px;width:100%;box-shadow:var(--shadow);">
+      <div style="font-size:38px;margin-bottom:10px;">⛔</div>
+      <div style="font-weight:800;font-size:16px;margin-bottom:8px;">انتهت صلاحية هذا الرابط</div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:20px;">تعذّر الوصول لهذا الرابط — إما استُخدم من قبل أو أنه غير صحيح.</div>
+      <button class="btn btn-primary" style="width:100%;" onclick="App.openGuestSupport()">📩 تواصل مع الدعم الفني</button>
+      <button class="btn btn-outline" style="width:100%;margin-top:10px;" onclick="window.location.href='/'">التوجه إلى الموقع الرئيسي ←</button>
+    </div>
   </div>
 </div>
 
@@ -622,6 +729,9 @@
         تواجه مشكلة ولا تستطيع الدخول؟
         <a href="#" onclick="App.openGuestSupport();return false;" style="color:var(--primary);font-weight:700;">تواصل مع الدعم الفني</a>
       </p>
+      <p style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;opacity:.6;">
+        <a href="#" onclick="App.devLogin();return false;" style="color:inherit;">دخول Dev</a>
+      </p>
     </form>
   </div>
 </div>
@@ -664,6 +774,7 @@
       <div class="topbar-sub">متابعة التذاكر والطلبات</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="App.logout()" style="font-size:14px;">خروج</button>
   </div>
@@ -724,6 +835,7 @@
       <div class="topbar-sub" id="sh-school-sub"></div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="notif-bell-btn" id="notif-bell-student" onclick="App.toggleNotifPanel()" title="الإشعارات">
       🔔<span class="notif-count-badge" id="notif-count-student" style="display:none;"></span>
@@ -828,6 +940,7 @@
       <div class="topbar-sub">القدرات اللفظية والكمية</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
   </div>
@@ -847,6 +960,7 @@
       <div class="topbar-sub">جميع محاولاتك السابقة</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-cooldown')">رجوع</button>
   </div>
@@ -878,6 +992,7 @@
       <div class="topbar-sub">المقدمة التوجيهية</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
   </div>
@@ -981,6 +1096,7 @@
       <div class="topbar-sub">قيّم مستواك في كل مهارة</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-intro')">رجوع</button>
   </div>
@@ -1010,6 +1126,7 @@
       <div class="topbar-sub">اقرأها بعناية قبل البدء</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-selfdiag')">رجوع</button>
   </div>
@@ -1150,6 +1267,7 @@
       <div class="topbar-sub">نتائج الاختبار التشخيصي</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
   </div>
@@ -1222,6 +1340,7 @@
       <div class="topbar-sub">مخصصة وفق نتائج تشخيصك</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button onclick="window.print()"
       style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.45);
@@ -1301,6 +1420,70 @@
         <tbody id="sp-print-body"></tbody>
       </table>
     </div>
+    <!-- Print-only Training Plan -->
+    <div class="print-only" style="margin-top:18pt;">
+      <p class="section-heading">ثالثاً / خطة التدريب الذاتي المقترحة</p>
+      <p style="font-size:10pt;line-height:1.8;color:#333;margin-bottom:10pt;">
+        أخي الطالب، بعد توكلك على الله جل وعلا وامتلاكك لمقومات التعلم الذاتي، وفيما يلي الجدول الزمني المقترح لخطة التدرب والاستفادة من بوابة دعم التعلم:
+      </p>
+      <table class="sp-training-table" style="min-width:unset;font-size:9pt;">
+        <thead>
+          <tr>
+            <th style="width:60pt;">اليوم</th>
+            <th>الفترة الأولى — ٣٠ دقيقة</th>
+            <th>الفترة الثانية</th>
+            <th>الفترة الثالثة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-size:9pt;">الأول</td>
+            <td>الاطلاع على المقطع التعريفي ثم إجراء الاختبار التشخيصي</td>
+            <td>الاطلاع على خطة الدعم ومكوناتها وأخذ تصور عام عن المهارات</td>
+            <td>رسم بقية الخطة الزمنية لتوزيع المهارات</td>
+          </tr>
+          <tr>
+            <td style="font-size:9pt;">الثاني</td>
+            <td>البدء بالقسم اللفظي — مهارة التناظر اللفظي بالمقطع التأسيسي + ٣ أو ٥ مقاطع تدريبية</td>
+            <td>قراءة دليل التدرب ثم الدخول لـ(تدرب الآن) وحل النموذج ١ وإعادة الحل للوصول لـ١٠/١٠</td>
+            <td>حل النماذج ٢ و٣ و٤ بنفس الطريقة مع تصوير النتائج</td>
+          </tr>
+          <tr>
+            <td style="font-size:9pt;">الثالث</td>
+            <td>الانتقال للمهارة الثانية في القسم اللفظي بالمقطع التأسيسي ثم مقاطع التدريبات</td>
+            <td>تطبيق نفس خطوات المهارة السابقة على المهارة الحالية</td>
+            <td>نفس خطوات الفقرة أعلاه</td>
+          </tr>
+          <tr style="background:#fff8e1!important;">
+            <td style="font-size:9pt;background:#fff3cd!important;color:#7c4d00;font-weight:800;">الرابع — السادس</td>
+            <td colspan="3" style="background:#fff8e1!important;color:#7c4d00;font-weight:700;">السير بنفس الطريقة لكل من المهارات الثلاث المتبقية — وفي حال التأخر يُعوَّض بيوم إضافي</td>
+          </tr>
+          <tr style="background:#fff8e1!important;">
+            <td style="font-size:9pt;background:#fff3cd!important;color:#7c4d00;font-weight:800;">السابع</td>
+            <td colspan="3" style="background:#fff8e1!important;color:#7c4d00;font-weight:700;">إجراء تدريبات على النماذج ٥ و٦ و٧ من كل مهارة من المهارات الخمس للقسم اللفظي مع التصحيح والتوثيق</td>
+          </tr>
+          <tr style="background:#fff8e1!important;">
+            <td style="font-size:9pt;background:#fff3cd!important;color:#7c4d00;font-weight:800;">الثامن</td>
+            <td colspan="3" style="background:#fff8e1!important;color:#7c4d00;font-weight:700;">إعادة الاختبار التشخيصي مرة أخرى ثم أخذ استراحة بقية اليوم</td>
+          </tr>
+          <tr>
+            <td style="font-size:9pt;">التاسع</td>
+            <td>البدء بالقسم الكمي — مهارة الحساب بالمقطع التأسيسي + ٣ أو ٥ مقاطع تدريبية</td>
+            <td>قراءة دليل التدرب ثم الدخول لـ(تدرب الآن) وحل النموذج ١ وإعادة الحل للوصول لـ١٠/١٠</td>
+            <td>حل النماذج ٢ و٣ و٤ بنفس الطريقة مع تصوير النتائج</td>
+          </tr>
+          <tr style="background:#fff8e1!important;">
+            <td style="font-size:9pt;background:#fff3cd!important;color:#7c4d00;font-weight:800;">العاشر — الثالث عشر</td>
+            <td colspan="3" style="background:#fff8e1!important;color:#7c4d00;font-weight:700;">بنفس الآلية الموضحة في القسم اللفظي مع اختلاف المهارات</td>
+          </tr>
+          <tr style="background:#fff8e1!important;">
+            <td style="font-size:9pt;background:#fff3cd!important;color:#7c4d00;font-weight:800;">الرابع عشر</td>
+            <td colspan="3" style="background:#fff8e1!important;color:#7c4d00;font-weight:700;">إعادة الاختبار التشخيصي للمرة الثالثة للمقارنة بين المحاولات الثلاث، ثم التواصل مع مشرف الدعم للاستشارة</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <!-- Print footer -->
     <div class="print-only print-footer">
       <span>بوابة دعم التعلم — ثانوية الخالدية بالوسقة</span>
@@ -1311,6 +1494,10 @@
       <button class="btn btn-outline" style="flex:1;" onclick="show('screen-level-analysis')">
         ← تحليل المستوى
       </button>
+      <button class="btn btn-primary" style="flex:1;"
+              onclick="show('screen-training-plan')">
+        📅 خطة التدريب الذاتي
+      </button>
       <button class="btn btn-outline" style="flex:1;"
               onclick="show('screen-student-home');App.renderStudentHome()">
         الرئيسية
@@ -1320,6 +1507,91 @@
       <button class="btn btn-primary" style="width:100%;" onclick="App.openGeneralTests()">
         📝 الانتقال إلى الاختبارات
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: TRAINING PLAN (self-study schedule)
+═══════════════════════════════════════════════════════ -->
+<div id="screen-training-plan" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">📅 خطة التدريب الذاتي</div>
+      <div class="topbar-sub">بوابة دعم التعلم</div>
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="show('screen-support-plan')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div class="sp-training-wrap">
+      <div class="sp-training-intro">
+        أخي الطالب، بعد توكلك على الله جل وعلا ثم امتلاكك لمقومات التعلم الذاتي، بإمكانك أن ترسم خطتك للاستعداد لاختبار القدرات وفق منهجية متدرجة وذات أثر فاعل على مستوى إتقانك للمهارات.<br>
+        <strong>وفيما يلي الجدول الزمني المقترح لخطة التدرب والاستفادة من بوابة دعم التعلم:</strong>
+      </div>
+      <div class="sp-training-table-wrap">
+        <table class="sp-training-table">
+          <thead>
+            <tr>
+              <th>اليوم</th>
+              <th>الفترة الأولى — ٣٠ دقيقة</th>
+              <th>الفترة الثانية</th>
+              <th>الفترة الثالثة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>الأول</td>
+              <td>الاطلاع على المقطع التعريفي ثم إجراء الاختبار التشخيصي</td>
+              <td>الاطلاع على خطة الدعم ومكوناتها وأخذ تصور عام عن المهارات ومكوناتها</td>
+              <td>رسم بقية الخطة الزمنية لتوزيع المهارات</td>
+            </tr>
+            <tr>
+              <td>الثاني</td>
+              <td>البدء بالقسم اللفظي بالمهارة الأولى وهي التناظر اللفظي — استماع ومشاهدة المقطع التأسيسي + استماع ومشاهدة ٣ أو ٥ مقاطع للتدريبات</td>
+              <td>قراءة المحتوى أو دليل التدرب على المهارة، ثم الدخول لأيقونة (تدرب الآن) وحل النموذج رقم ١، ثم الاطلاع على النتيجة، ثم مشاهدة مقاطع الحل لكل إجابة خاطئة، ثم إعادة الحل للحصول على درجة ١٠/١٠ ثم تصوير النتيجة</td>
+              <td>الدخول مرة أخرى لأيقونة (تدرب الآن) وحل النماذج رقم ٢ و٣ و٤ بنفس الطريقة الموضحة في النموذج رقم ١ مع تصوير النتائج بعد الوصول لدرجة ١٠/١٠</td>
+            </tr>
+            <tr>
+              <td>الثالث</td>
+              <td>الانتقال للمهارة الثانية في القسم اللفظي والبدء بنفس الطريقة السابقة بالمقطع التأسيسي ثم ثلاثة مقاطع تدريبات أو أكثر</td>
+              <td>القيام بنفس الخطوات الموضحة أعلاه في المهارة السابقة وتطبيقها على المهارة الحالية</td>
+              <td>نفس خطوات الفقرة أعلاه</td>
+            </tr>
+            <tr class="row-span">
+              <td>الرابع — السادس</td>
+              <td colspan="3">السير بنفس الطريقة السابقة لكل من المهارات الثلاث المتبقية في الأيام الثلاثة (الرابع والخامس والسادس) — وفي حال حصول تأخر أو توقف اضطراري يتم تعويضه بيوم إضافي</td>
+            </tr>
+            <tr class="row-span">
+              <td>السابع</td>
+              <td colspan="3">إجراء تدريبات من أيقونة (تدرب الآن) على النماذج رقم ٥ و٦ و٧ من كل مهارة من المهارات الخمس للقسم اللفظي مع إجراء التصحيح والتوثيق (التصوير)</td>
+            </tr>
+            <tr class="row-span">
+              <td>الثامن</td>
+              <td colspan="3">إعادة الاختبار التشخيصي مرة أخرى ثم أخذ استراحة بقية اليوم</td>
+            </tr>
+            <tr>
+              <td>التاسع</td>
+              <td>البدء بالقسم الكمي بالمهارة الأولى وهي الحساب — استماع ومشاهدة المقطع التأسيسي + استماع ومشاهدة ٣ أو ٥ مقاطع للتدريبات</td>
+              <td>قراءة المحتوى أو دليل التدرب على المهارة، ثم الدخول لأيقونة (تدرب الآن) وحل النموذج رقم ١، ثم الاطلاع على النتيجة، ثم مشاهدة مقاطع الحل لكل إجابة خاطئة، ثم إعادة الحل للحصول على درجة ١٠/١٠ ثم تصوير النتيجة</td>
+              <td>الدخول مرة أخرى لأيقونة (تدرب الآن) وحل النماذج رقم ٢ و٣ و٤ بنفس الطريقة الموضحة في النموذج رقم ١ مع تصوير النتائج بعد الوصول لدرجة ١٠/١٠</td>
+            </tr>
+            <tr class="row-span">
+              <td>العاشر — الثالث عشر</td>
+              <td colspan="3">بقية الأيام من العاشر إلى الثالث عشر بنفس الآلية الموضحة في القسم اللفظي مع اختلاف المهارات</td>
+            </tr>
+            <tr class="row-span">
+              <td>الرابع عشر</td>
+              <td colspan="3">إعادة الاختبار التشخيصي للمرة الثالثة للمقارنة بين الثلاث المحاولات، ثم التواصل مع مشرف الدعم للاستشارة فيما يتبقى من تدريبات</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="sp-training-note">
+        <span>💡</span>
+        <span>احرص على تصوير نتائجك بعد كل نموذج تصل فيه لدرجة ١٠/١٠، وتذكر أن الانتظام والمثابرة هما مفتاح الإتقان.</span>
+      </div>
     </div>
   </div>
 </div>
@@ -1349,24 +1621,29 @@
   <div class="topbar">
     <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
-      <div class="topbar-title" id="gt-take-title">اختبار محاكي</div>
+      <div class="topbar-title" id="gt-take-title">اختبار عام</div>
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
-    <div id="gt-timer" style="font-size:15px;font-weight:800;color:#fff;background:rgba(255,255,255,.18);border-radius:10px;padding:6px 14px;letter-spacing:1px;flex-shrink:0;">⏱ 50:00</div>
+    <div id="gt-timer"
+         style="font-size:15px;font-weight:800;color:#fff;
+                background:rgba(255,255,255,.18);border-radius:10px;
+                padding:6px 14px;letter-spacing:1px;flex-shrink:0;">
+      ⏱ 50:00
+    </div>
   </div>
   <div class="page-wrap">
     <div class="test-progress-bar-wrap">
       <div class="test-progress-bar" id="gt-progress-bar" style="width:0%"></div>
     </div>
     <div class="test-progress-label" id="gt-progress-label">السؤال 1 من 1</div>
-    <div id="gt-section-badge" class="test-section-badge badge-verbal">📚 القسم اللفظي</div>
+
     <div class="q-card">
       <div class="q-num" id="gt-q-num">سؤال 1</div>
       <div class="q-text" id="gt-q-text"></div>
-      <img id="gt-q-img" style="display:none;max-width:100%;border-radius:12px;margin:10px 0;border:1px solid #e5e7eb;" alt="" />
       <div class="q-options" id="gt-q-opts"></div>
     </div>
+
     <div class="test-nav">
       <button class="btn btn-outline" id="gt-btn-prev" onclick="App.gtPrev()">السابق →</button>
       <button class="btn btn-primary" id="gt-btn-next" onclick="App.gtNext()">← التالي</button>
@@ -1385,13 +1662,10 @@
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
   </div>
-  <div class="page-wrap">
-    <div style="text-align:center;margin-bottom:24px;">
-      <div id="gt-result-score" style="font-size:64px;font-weight:900;color:var(--primary);line-height:1;margin-bottom:6px;"></div>
-      <div id="gt-result-detail" style="font-size:15px;color:var(--muted);"></div>
-    </div>
-    <div id="gt-result-breakdown" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;"></div>
-    <div id="gt-result-review" style="margin-bottom:24px;"></div>
+  <div class="page-wrap" style="text-align:center;">
+    <div id="gt-result-score" style="font-size:48px;font-weight:900;color:var(--primary);margin:24px 0 8px;"></div>
+    <div id="gt-result-detail" style="font-size:15px;color:var(--muted);margin-bottom:20px;"></div>
+    <div id="gt-result-skills" style="text-align:right;margin-bottom:24px;"></div>
     <button class="btn btn-primary" style="width:100%;" onclick="App.openGeneralTests()">
       ← العودة إلى قائمة الاختبارات
     </button>
@@ -1409,6 +1683,7 @@
       <div class="topbar-sub" id="ad-school-sub"></div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="notif-bell-btn" id="notif-bell-admin" onclick="App.toggleNotifPanel()" title="الإشعارات">
       🔔<span class="notif-count-badge" id="notif-count-admin" style="display:none;"></span>
@@ -1687,6 +1962,34 @@
 <!-- ═══════════════════════════════════════════════════════
      MODAL: EDIT STUDENT PHONE
 ═══════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════
+     STUDENT PHONE PROMPT MODAL (non-blocking)
+═══════════════════════════════════════════════════════ -->
+<div id="student-phone-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;text-align:center;">
+    <div style="font-size:42px;margin-bottom:8px;">📱</div>
+    <div class="modal-title" style="margin-bottom:6px;">أضف رقم جوالك</div>
+    <p style="font-size:13.5px;color:var(--muted);margin-bottom:18px;line-height:1.7;">
+      نحتاج رقم جوالك لتتمكن من التواصل مع المشرف وتلقّي الإشعارات.
+    </p>
+    <div class="form-group" style="margin-bottom:4px;text-align:right;">
+      <input type="text" id="sphone-input" class="form-input"
+             placeholder="05XXXXXXXX" inputmode="numeric" maxlength="10"
+             oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+             onkeydown="if(event.key==='Enter') App.saveStudentPhone()">
+    </div>
+    <div id="sphone-err" class="alert alert-error" style="margin-bottom:8px;text-align:right;"></div>
+    <button class="btn btn-primary btn-full" onclick="App.saveStudentPhone()">
+      حفظ ومتابعة ←
+    </button>
+    <button onclick="App.closeStudentPhoneModal()"
+            style="margin-top:10px;background:none;border:none;color:var(--muted);
+                   font-size:13px;font-family:inherit;cursor:pointer;width:100%;padding:4px;">
+      تخطى الآن
+    </button>
+  </div>
+</div>
+
 <div id="edit-phone-modal" class="modal-overlay" onclick="if(event.target===this)App.closeEditPhoneModal()">
   <div class="modal-box" style="max-width:380px;">
     <div class="modal-title">📱 رقم جوال الطالب</div>
@@ -1800,6 +2103,7 @@
       <div class="topbar-sub">رسائلك مع المشرف</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="App.leaveChatScreen()">رجوع</button>
   </div>
@@ -1855,6 +2159,7 @@
       <div class="topbar-sub" style="font-size:11px;color:rgba(255,255,255,.65);margin-top:1px;">نتواصل معك في أقرب وقت</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <div style="flex:1;min-width:8px;"></div>
     <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
   </div>

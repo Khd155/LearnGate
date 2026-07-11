@@ -847,6 +847,7 @@ const Dev = {
       document.getElementById('lock-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       Dev.loadAll();
+      Dev.openTicketFromLink();
     } catch (e) {
       devKey = '';
       document.getElementById('lock-err').textContent = 'كلمة المرور غير صحيحة';
@@ -2340,6 +2341,25 @@ const Dev = {
     Dev.loadTicketThread(id);
   },
 
+  // Opens the ticket a "?ticket=TOKEN" link points to — the token only says
+  // which ticket to open, it does not skip the dev-key login above.
+  async openTicketFromLink() {
+    const token = new URLSearchParams(window.location.search).get('ticket');
+    if (!token) return;
+    try {
+      const { ticketId } = await apiDev(`/dev/ticket-link/${encodeURIComponent(token)}`);
+      Dev.setTab('tickets');
+      await Dev.loadTickets();
+      const el = document.getElementById('ti-' + ticketId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        Dev.toggleTicket(ticketId);
+      }
+    } catch (e) {
+      showToast('تعذّر فتح الطلب من الرابط: ' + e.message, true);
+    }
+  },
+
   async loadTicketThread(id) {
     const el = document.getElementById('tw-' + id);
     const descEl = document.getElementById('td-' + id);
@@ -2509,6 +2529,7 @@ window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('lock-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       Dev.loadAll();
+      Dev.openTicketFromLink();
     }).catch(() => { devKey = ''; sessionStorage.removeItem('devKey'); });
   }
 });

@@ -1302,6 +1302,44 @@ export async function onRequest({ request, env }) {
         return ok({ tokens: results }, 200, CORS);
       }
 
+      // POST /api/dev/ticket-link { ticketId } — mints a random opaque token for
+      // the support-ticket WhatsApp notification button, instead of putting the
+      // guessable ticket_num/id directly in the link (dev-only auth still gates
+      // the resolved page, so this only prevents ID-guessing/enumeration).
+      if (sub === 'ticket-link' && method === 'POST') {
+        const isDevKeyTL = authDev(request, env);
+        if (!isDevKeyTL) {
+          const tlClaims = await verifyToken(request, env);
+          if (!tlClaims || tlClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS ticket_link_tokens (token TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, created_at TEXT NOT NULL)`).run(); } catch {}
+        const tlBody = await request.json();
+        const ticketId = String(tlBody.ticketId || '');
+        if (!ticketId) return err('ticketId مطلوب', 400, CORS);
+        const ticket = await DB.prepare('SELECT id FROM tickets WHERE id = ?').bind(ticketId).first();
+        if (!ticket) return err('الطلب غير موجود', 404, CORS);
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        const randBytes = crypto.getRandomValues(new Uint8Array(14));
+        const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
+        await DB.prepare('INSERT INTO ticket_link_tokens (token, ticket_id, created_at) VALUES (?, ?, ?)').bind(token, ticketId, new Date().toISOString()).run();
+        return ok({ token }, 201, CORS);
+      }
+
+      // GET /api/dev/ticket-link/:token — resolve the token to a ticket_id.
+      // Requires the same dev auth as everything else here; the token alone
+      // never bypasses login, it only tells the panel which ticket to open.
+      if (sub === 'ticket-link' && subsub && method === 'GET') {
+        const isDevKeyTLR = authDev(request, env);
+        if (!isDevKeyTLR) {
+          const tlrClaims = await verifyToken(request, env);
+          if (!tlrClaims || tlrClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS ticket_link_tokens (token TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, created_at TEXT NOT NULL)`).run(); } catch {}
+        const row = await DB.prepare('SELECT ticket_id FROM ticket_link_tokens WHERE token = ?').bind(subsub).first();
+        if (!row) return err('الرابط غير صالح', 404, CORS);
+        return ok({ ticketId: row.ticket_id }, 200, CORS);
+      }
+
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
 
       // GET /api/dev/backup — full-site data dump (all tables) for manual download

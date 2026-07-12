@@ -175,6 +175,46 @@ async function spRequest(env, method, path, body) {
   try { return JSON.parse(text); } catch { return { error: text }; }
 }
 
+// Staff phone that receives a WhatsApp ping for every new support ticket.
+const SUPPORT_NOTIFY_PHONE = '966560521057';
+
+// Fires the "new_support_ticket_notify" WhatsApp template at SUPPORT_NOTIFY_PHONE
+// whenever a ticket is created. Mints a fresh opaque ticket-link token per send
+// (see POST/GET /api/dev/ticket-link above) instead of embedding the raw ticket
+// id, so the deep link can't be used to enumerate/guess other tickets.
+async function notifyNewTicket(env, DB, { ticketId, studentName, school, subject, description }) {
+  try {
+    await DB.prepare(`CREATE TABLE IF NOT EXISTS ticket_link_tokens (token TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, created_at TEXT NOT NULL)`).run();
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    const randBytes = crypto.getRandomValues(new Uint8Array(14));
+    const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
+    await DB.prepare('INSERT INTO ticket_link_tokens (token, ticket_id, created_at) VALUES (?, ?, ?)').bind(token, ticketId, new Date().toISOString()).run();
+
+    const components = sanitizeWaComponents([
+      { type: 'body', parameters: [
+        { type: 'text', text: studentName || 'غير معروف' },
+        { type: 'text', text: school || '—' },
+        { type: 'text', text: subject || '—' },
+        { type: 'text', text: (description || '—').slice(0, 300) },
+      ] },
+    ]);
+    components.push({ type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: token }] });
+
+    const result = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+      bot_id: env.SENDPULSE_BOT_ID,
+      phone: normalizeSaudiPhone(SUPPORT_NOTIFY_PHONE),
+      template: { name: 'new_support_ticket_notify', language: { code: 'ar', policy: 'deterministic' }, components },
+    });
+    await logEvent(DB, {
+      level: (result?.success === false || result?.error || result?.errors) ? 'error' : 'success',
+      category: 'whatsapp',
+      message: `إشعار تذكرة دعم جديدة عبر واتساب — ticket=${ticketId} | received=${JSON.stringify(result)}`,
+    });
+  } catch (e) {
+    await logEvent(DB, { level: 'error', category: 'whatsapp', message: `فشل إرسال إشعار تذكرة دعم عبر واتساب: ${e?.message || e}` });
+  }
+}
+
 async function logEvent(DB, { level = 'info', category = 'system', message, user_name = '', user_role = '', school = '', ip = '' }) {
   try {
     await DB.prepare(
@@ -2154,6 +2194,7 @@ export async function onRequest({ request, env }) {
           'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?)'
         ).bind(rid, tid, 'student', tkBody, 1, now).run();
         await logEvent(DB, { level: 'info', category: 'ticket', message: `تذكرة دعم بدون حساب (${ticketNum})`, user_name: name, user_role: 'guest', school: guestSchool });
+        notifyNewTicket(env, DB, { ticketId: tid, studentName: name, school: guestSchool, subject, description: tkBody });
         return ok({ ticket: { id: tid, ticket_num: ticketNum } }, 201, CORS);
       }
 
@@ -2274,6 +2315,7 @@ export async function onRequest({ request, env }) {
           'INSERT INTO ticket_replies (id, ticket_id, sender_type, body, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?)'
         ).bind(rid, tid, 'student', tkBody, 1, now).run();
         await logEvent(DB, { level: 'info', category: 'ticket', message: `تذكرة دعم جديدة (${ticketNum}): ${subject}`, user_name: studentName, user_role: 'student', school: effectiveSchool });
+        notifyNewTicket(env, DB, { ticketId: tid, studentName, school: effectiveSchool, subject, description: tkBody });
         return ok({ ticket: { id: tid, subject, status: 'open', category: category||'أخرى', priority: priority||'متوسطة', ticket_num: ticketNum, created_at: now } }, 201, CORS);
       }
 

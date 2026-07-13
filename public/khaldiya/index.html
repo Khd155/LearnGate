@@ -97,8 +97,8 @@
 
     /* ── Level Analysis & Support Plan ───────────────── */
     .analysis-intro {
-      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
-      border:1px solid #bcd6ee; border-radius:var(--radius-sm);
+      background:var(--grad-soft);
+      border:1px solid var(--border-strong); border-radius:var(--radius-sm);
       padding:16px 18px; margin-bottom:24px;
       font-size:14px; line-height:1.85; color:var(--text);
     }
@@ -122,7 +122,7 @@
       line-height:1.65; vertical-align:top;
     }
     .analysis-table tr:last-child td { border-bottom:none; }
-    .analysis-table tbody tr:nth-child(even) { background:#f7fafd; }
+    .analysis-table tbody tr:nth-child(even) { background:var(--bg-tint); }
     .sp-table {
       width:100%; border-collapse:collapse; font-size:13.5px;
       background:var(--surface);
@@ -137,7 +137,7 @@
       line-height:1.65; vertical-align:middle;
     }
     .sp-table tr:last-child td { border-bottom:none; }
-    .sp-table tbody tr:nth-child(even) { background:#f7fafd; }
+    .sp-table tbody tr:nth-child(even) { background:var(--bg-tint); }
     .sp-lesson-btn {
       display:inline-flex; align-items:center; gap:6px;
       background:var(--primary); color:#fff; border-radius:10px;
@@ -148,8 +148,8 @@
     .sp-lesson-btn:hover { opacity:.85; }
     /* ── Support Plan intro ─────────────────────────── */
     .sp-intro-box {
-      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
-      border:1px solid #bcd6ee; border-radius:var(--radius);
+      background:var(--grad-soft);
+      border:1px solid var(--border-strong); border-radius:var(--radius);
       padding:20px 22px; margin-bottom:20px;
     }
     .sp-intro-title { font-size:17px; font-weight:800; color:var(--primary); margin-bottom:10px; }
@@ -171,9 +171,9 @@
       padding:15px 18px; display:flex; align-items:center; gap:12px;
       cursor:pointer; user-select:none; transition:background .15s;
     }
-    .skill-card-header:hover { background:#f7fafd; }
+    .skill-card-header:hover { background:var(--bg-tint); }
     .skill-card.open .skill-card-header {
-      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
+      background:var(--grad-soft);
       border-bottom:1px solid var(--border);
     }
     .skill-card-rank {
@@ -195,7 +195,7 @@
     /* Tabs inside card */
     .skill-tabs {
       display:flex; border-bottom:2px solid var(--border);
-      background:#f8fbfd; overflow-x:auto;
+      background:var(--bg-tint); overflow-x:auto;
     }
     .skill-tab {
       flex:1; min-width:90px; padding:11px 6px; text-align:center;
@@ -267,8 +267,8 @@
       margin-top:8px; margin-bottom:24px;
     }
     .sp-training-intro {
-      background:linear-gradient(135deg,#eaf2f9,#e8f4ee);
-      border:1px solid #bcd6ee; border-radius:var(--radius);
+      background:var(--grad-soft);
+      border:1px solid var(--border-strong); border-radius:var(--radius);
       padding:16px 20px; margin-bottom:18px;
       font-size:13.5px; line-height:1.9; color:var(--text);
     }
@@ -292,13 +292,13 @@
     }
     .sp-training-table td:first-child {
       font-weight:800; color:var(--primary);
-      text-align:center; background:#f0f7ff;
+      text-align:center; background:var(--bg-tint);
       border-left:1px solid var(--border);
       white-space:nowrap;
     }
     .sp-training-table tr:last-child td { border-bottom:none; }
-    .sp-training-table tbody tr:nth-child(even) { background:#f7fafd; }
-    .sp-training-table tbody tr:nth-child(even) td:first-child { background:#eaf2f9; }
+    .sp-training-table tbody tr:nth-child(even) { background:var(--bg-tint); }
+    .sp-training-table tbody tr:nth-child(even) td:first-child { background:var(--bg-tint); }
     .sp-training-table .row-span td {
       background:#fff8e1 !important; font-weight:700; color:#7c4d00;
       text-align:center; border-bottom:2px solid #ffe082;
@@ -592,12 +592,12 @@
     </p>
     <div id="school-cards" style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;max-width:560px;">
       <button class="identity-card" onclick="App.selectSchool('ثانوية الخالدية')">
-        <div class="card-icon">🏫</div>
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 22v-4a2 2 0 1 0-4 0v4"/><path d="m18 10 3.447 1.724a1 1 0 0 1 .553.894V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7.382a1 1 0 0 1 .553-.894L6 10"/><path d="M18 5v17"/><path d="m4 6 7.106-3.553a2 2 0 0 1 1.788 0L20 6"/><path d="M6 5v17"/><circle cx="12" cy="9" r="2"/></svg></div>
         <div class="card-title">ثانوية الخالدية</div>
         <div class="card-desc">اضغط للمتابعة</div>
       </button>
       <button class="identity-card" onclick="App.showOtherSchools()">
-        <div class="card-icon">🏫</div>
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 22v-4a2 2 0 1 0-4 0v4"/><path d="m18 10 3.447 1.724a1 1 0 0 1 .553.894V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7.382a1 1 0 0 1 .553-.894L6 10"/><path d="M18 5v17"/><path d="m4 6 7.106-3.553a2 2 0 0 1 1.788 0L20 6"/><path d="M6 5v17"/><circle cx="12" cy="9" r="2"/></svg></div>
         <div class="card-title">مدرسة أخرى</div>
         <div class="card-desc">اضغط للمتابعة</div>
       </button>
@@ -666,8 +666,10 @@
                  oninput="this.value=this.value.replace(/[^0-9]/g,'')"
                  onkeydown="if(event.key==='Enter') App.studentLogin()"
                  style="padding-left:44px;">
-          <button type="button" onclick="(function(btn){var inp=document.getElementById('sl-code');inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🔒';})(this)"
-                  style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:4px;">👁</button>
+          <button type="button" class="pw-toggle" aria-label="إظهار/إخفاء رقم الدخول" onclick="App.togglePw(this,'sl-code')">
+            <svg class="pw-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="pw-eye-off" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>
+          </button>
         </div>
       </div>
       <label class="remember-label">
@@ -713,8 +715,10 @@
                  oninput="this.value=this.value.replace(/[^0-9]/g,'')"
                  onkeydown="if(event.key==='Enter') App.adminLogin()"
                  style="padding-left:44px;">
-          <button type="button" onclick="(function(btn){var inp=document.getElementById('al-code');inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🔒';})(this)"
-                  style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:4px;">👁</button>
+          <button type="button" class="pw-toggle" aria-label="إظهار/إخفاء رقم الدخول" onclick="App.togglePw(this,'al-code')">
+            <svg class="pw-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="pw-eye-off" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>
+          </button>
         </div>
       </div>
       <label class="remember-label">
@@ -1496,7 +1500,7 @@
       </button>
       <button class="btn btn-primary" style="flex:1;"
               onclick="show('screen-training-plan')">
-        📅 خطة التدريب الذاتي
+        📅 الجدول الزمني للتدريب الذاتي
       </button>
       <button class="btn btn-outline" style="flex:1;"
               onclick="show('screen-student-home');App.renderStudentHome()">

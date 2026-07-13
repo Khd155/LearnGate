@@ -30,33 +30,8 @@
   --focus-ring: 0 0 0 3px rgba(63,124,184,.35);
 }
 
-/* ── Dark Mode ────────────────────────────────────────── */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --primary:    #6FA8DA;
-    --primary-dk: #4F86BE;
-    --primary-lt: #8FC0E8;
-    --accent:     #A48CE6;
-    --accent-2:   #B9A7EE;
-    --gold:       #f0a94e;
-    --success:    #6FCB98;
-    --danger:     #f16565;
-    --warn:       #f0a94e;
-    --bg:         #0f1720;
-    --bg-tint:    #16212c;
-    --surface:    #1a2530;
-    --border:     #2b3947;
-    --border-strong:#3a4b5c;
-    --text:       #e7edf3;
-    --muted:      #93a4b3;
-    --shadow-sm:  0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.35);
-    --shadow:     0 8px 24px -8px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.3);
-    --shadow-lg:  0 24px 60px -20px rgba(0,0,0,.6);
-    --grad-hero:  linear-gradient(135deg,#2B5F94 0%,#2E6B71 55%,#3D8563 100%);
-    --grad-soft:  linear-gradient(135deg,#182430 0%,#17251f 100%);
-    --focus-ring: 0 0 0 3px rgba(111,168,218,.45);
-  }
-}
+/* ── Dark Mode — opt-in only (the site always starts light; OS preference
+     is deliberately ignored because many screens assume a light canvas) ── */
 :root[data-theme="dark"] {
   --primary:    #6FA8DA;
   --primary-dk: #4F86BE;
@@ -329,6 +304,8 @@ p, span, div, button, input, label, td, th {
   box-shadow: 0 20px 50px -20px rgba(0,0,0,.45);
 }
 .identity-card .card-icon { font-size: 44px; margin-bottom: 14px; }
+/* SVG icons render identically on every device, unlike emoji */
+.identity-card .card-icon svg { width: 46px; height: 46px; display: inline-block; }
 .identity-card .card-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
 .identity-card .card-desc { font-size: 13px; opacity: .8; line-height: 1.5; }
 
@@ -364,12 +341,55 @@ p, span, div, button, input, label, td, th {
   user-select: none;
 }
 .remember-label input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
-  accent-color: var(--primary);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 19px;
+  height: 19px;
+  border: 2px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
   cursor: pointer;
   flex-shrink: 0;
+  display: inline-grid;
+  place-content: center;
+  transition: background .15s, border-color .15s;
 }
+.remember-label input[type="checkbox"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transition: transform .12s ease-in-out;
+  clip-path: polygon(14% 44%, 0 60%, 40% 100%, 100% 20%, 84% 8%, 38% 71%);
+  background: #fff;
+}
+.remember-label input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.remember-label input[type="checkbox"]:checked::before { transform: scale(1); }
+.remember-label input[type="checkbox"]:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.remember-label:hover input[type="checkbox"]:not(:checked) { border-color: var(--primary-lt); }
+
+/* Show/hide-password button inside login inputs */
+.pw-toggle {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 6px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, background .15s;
+}
+.pw-toggle:hover { color: var(--primary); background: var(--bg-tint); }
+.pw-toggle svg { width: 20px; height: 20px; }
 .form-input {
   width: 100%;
   border: 1.5px solid var(--border);
@@ -386,7 +406,9 @@ p, span, div, button, input, label, td, th {
   outline: none;
   border-color: var(--primary-lt);
   box-shadow: 0 0 0 4px rgba(39,116,196,.15);
-  background: #fbfdff;
+  /* Must stay theme-aware: a hardcoded near-white here made typed text
+     (white in dark mode) invisible while the field was focused. */
+  background: var(--surface);
 }
 
 /* ── Global keyboard-focus visibility ─────────────────── */
@@ -512,7 +534,7 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 }
 .diag-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .diag-table tr:last-child td { border-bottom: none; }
-.diag-table tr:hover td { background: #f8fbff; }
+.diag-table tr:hover td { background: var(--bg-tint); }
 .diag-options { display: flex; gap: 10px; }
 .diag-option { cursor: pointer; }
 .diag-option input { display: none; }
@@ -584,11 +606,16 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   display: flex; align-items: center; gap: 16px;
   margin-bottom: 20px;
 }
-.status-banner.pending { background: #fef9c3; border: 1.5px solid #fde68a; }
-.status-banner.active  { background: #dcfce7; border: 1.5px solid #86efac; }
+/* The banners keep light backgrounds in both themes, so their text colors
+   are pinned dark — var(--text)/var(--muted) turn white in dark mode and
+   would vanish against these backgrounds. */
+.status-banner.pending { background: #fef9c3; border: 1.5px solid #fde68a; color: #713f12; }
+.status-banner.active  { background: #dcfce7; border: 1.5px solid #86efac; color: #14532d; }
 .status-icon { font-size: 36px; }
 .status-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
 .status-desc  { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.status-banner.pending .status-desc { color: #92650f; }
+.status-banner.active  .status-desc { color: #166534; }
 
 .gap-list { display: flex; flex-direction: column; gap: 12px; }
 .gap-item {
@@ -1125,7 +1152,7 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .sdm-table td  { padding: 9px 12px; border-bottom: 1px solid var(--border);
                   vertical-align: middle; }
 .sdm-table tr:last-child td { border-bottom: none; }
-.sdm-table tbody tr:hover { background: #f7fafd; }
+.sdm-table tbody tr:hover { background: var(--bg-tint); }
 .sdm-close     { display: block; width: 100%; margin-top: 20px; }
 .sdm-status-banner {
   border-radius: 10px; padding: 11px 16px; font-size: 13px;

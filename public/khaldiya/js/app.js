@@ -11,8 +11,8 @@ function applyTheme(mode) {
   _syncThemeButtons();
 }
 function _syncThemeButtons() {
-  const mode = localStorage.getItem('theme');
-  const isDark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  // Light is the site-wide default; dark applies only when the user opted in.
+  const isDark = localStorage.getItem('theme') === 'dark';
   document.querySelectorAll('.tb-theme-btn').forEach(btn => { btn.textContent = isDark ? '☀️' : '🌙'; });
 }
 (function initTheme() {
@@ -731,9 +731,20 @@ const App = {
     }).catch(() => {});
   },
 
+  // Show/hide a password field and swap the eye / eye-off icon inside the button
+  togglePw(btn, inputId) {
+    const inp = document.getElementById(inputId);
+    if (!inp) return;
+    const showing = inp.type === 'text';
+    inp.type = showing ? 'password' : 'text';
+    const eye = btn.querySelector('.pw-eye');
+    const off = btn.querySelector('.pw-eye-off');
+    if (eye) eye.style.display = showing ? '' : 'none';
+    if (off) off.style.display = showing ? 'none' : '';
+  },
+
   toggleTheme() {
-    const current = localStorage.getItem('theme') ||
-      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const current = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
     const next = current === 'dark' ? 'light' : 'dark';
     localStorage.setItem('theme', next);
     applyTheme(next);

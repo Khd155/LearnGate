@@ -369,6 +369,9 @@ const State = {
   tab: 'students',
   currentPlan: null,
   detailStudentId: null, // student currently open in detail modal
+  navStack: [], // screens visited, for goBack() — lets "رجوع" return to
+                // wherever the student actually came from instead of a
+                // single hardcoded target
 };
 
 // ── Screen router ─────────────────────────────────────────────────────────
@@ -392,7 +395,16 @@ const _SCREEN_PATHS = {
   'screen-admin-login':   '/login',
 };
 
+// Transient/loading screens never make sense as a "back" target — never push them.
+const _NAV_STACK_EXCLUDE = new Set(['screen-loading', 'screen-processing']);
+let _isBackNav = false;
+
 function show(id) {
+  const current = document.querySelector('.screen.active');
+  if (current && current.id !== id && !_isBackNav && !_NAV_STACK_EXCLUDE.has(current.id)) {
+    State.navStack.push(current.id);
+  }
+  _isBackNav = false;
   document.querySelectorAll('.screen').forEach(s => {
     s.classList.remove('active', 'screen-home-entered');
   });
@@ -410,6 +422,19 @@ function show(id) {
       requestAnimationFrame(() => requestAnimationFrame(() => sc.classList.add('animate')));
     }
   }
+}
+
+// Returns to the screen actually visited before this one; falls back to a
+// fixed target only when there's no real history (e.g. after a fresh
+// deep-link load straight into a sub-page).
+function goBack(fallbackId) {
+  const prev = State.navStack.pop();
+  const target = prev || fallbackId;
+  _isBackNav = true;
+  show(target);
+  // Home's dynamic bits (plan banner, performance card, notifications) need a
+  // refresh no matter which route lands us there — safe to call repeatedly.
+  if (target === 'screen-student-home') App.renderStudentHome();
 }
 
 // ── Cooldown helpers ─────────────────────────────────────────────────────
@@ -4292,6 +4317,7 @@ const App = {
     State.selfDiag    = {};
     State.testAnswers = {};
     State.currentPlan = null;
+    State.navStack    = [];
     document.getElementById('sl-code').value = '';
     const alCode = document.getElementById('al-code');
     if (alCode) alCode.value = '';

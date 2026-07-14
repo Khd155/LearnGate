@@ -645,7 +645,7 @@
       <div class="topbar-sub">بيانات الطالب</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
-    <button class="topbar-back" onclick="show('screen-identity')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-identity')">رجوع</button>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div style="text-align:center;margin-bottom:32px;">
@@ -696,7 +696,7 @@
       <div class="topbar-sub">أدخل رقم الدخول</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
-    <button class="topbar-back" onclick="show('screen-identity')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-identity')">رجوع</button>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div style="text-align:center;margin-bottom:32px;">
@@ -751,7 +751,7 @@
       <div class="topbar-sub">لفريق الدعم الفني</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
-    <button class="topbar-back" onclick="show('screen-admin-login')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-admin-login')">رجوع</button>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
     <div class="card">
@@ -946,7 +946,7 @@
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
     <div style="flex:1;min-width:8px;"></div>
     <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
-    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div id="cd-content"></div>
@@ -966,7 +966,7 @@
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
     <div style="flex:1;min-width:8px;"></div>
     <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
-    <button class="topbar-back" onclick="show('screen-cooldown')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-cooldown')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="table-scroll">
@@ -998,7 +998,7 @@
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
     <div style="flex:1;min-width:8px;"></div>
     <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
-    <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="intro-box" style="margin-bottom:20px;">
@@ -1102,7 +1102,7 @@
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
     <div style="flex:1;min-width:8px;"></div>
     <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
-    <button class="topbar-back" onclick="show('screen-intro')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-intro')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="alert alert-info show" style="margin-bottom:20px;">
@@ -1132,7 +1132,7 @@
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
     <div style="flex:1;min-width:8px;"></div>
     <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
-    <button class="topbar-back" onclick="show('screen-selfdiag')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-selfdiag')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="analysis-intro" style="margin-bottom:24px;">
@@ -1273,7 +1273,7 @@
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
     <div style="flex:1;min-width:8px;"></div>
     <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
-    <button class="topbar-back" onclick="show('screen-student-home');App.renderStudentHome()">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
   </div>
   <div class="page-wrap">
 
@@ -1352,7 +1352,7 @@
              font-family:inherit;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
       📄 تصدير PDF
     </button>
-    <button class="topbar-back" onclick="show('screen-level-analysis')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-level-analysis')">رجوع</button>
   </div>
 
   <!-- Plan navigator (shown when student has multiple plans) -->
@@ -1526,7 +1526,7 @@
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
-    <button class="topbar-back" onclick="show('screen-support-plan')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-support-plan')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div class="sp-training-wrap">
@@ -1611,7 +1611,7 @@
       <div class="topbar-sub">6 اختبارات قصيرة لقياس مهاراتك</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
-    <button class="topbar-back" onclick="show('screen-support-plan')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-support-plan')">رجوع</button>
   </div>
   <div class="page-wrap">
     <div id="gt-list" style="display:flex;flex-direction:column;gap:12px;"></div>
@@ -2165,7 +2165,7 @@
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
     <div style="flex:1;min-width:8px;"></div>
     <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
-    <button class="topbar-back" onclick="show('screen-student-home')">رجوع</button>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
   </div>
   <div class="page-wrap">
     <!-- Stats summary bar -->

@@ -60,11 +60,11 @@
 /* ── Dark-mode toggle button ──────────────────────────── */
 /* ── Dark-mode toggle: sits beside the user-name chip in each topbar ──── */
 .tb-theme-btn {
-  background: rgba(255,255,255,.15); border: 1.5px solid rgba(255,255,255,.3);
-  color: #fff; border-radius: 50%;
-  width: 30px; height: 30px; flex-shrink: 0;
+  background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.35);
+  color: #fff; border-radius: 99px;
+  width: 38px; height: 38px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 14px; line-height: 1; cursor: pointer;
+  font-size: 16px; line-height: 1; cursor: pointer;
   transition: background .18s, transform .15s;
 }
 .tb-theme-btn:hover { background: rgba(255,255,255,.28); transform: scale(1.06); }

@@ -492,14 +492,14 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .service-card.disabled {
   opacity: 1;
   cursor: not-allowed;
-  background: linear-gradient(105deg, #f8fafc 35%, #ecf0f6 50%, #f8fafc 65%);
+  background: linear-gradient(105deg, var(--bg-tint) 35%, var(--surface) 50%, var(--bg-tint) 65%);
   background-size: 300% 100%;
   animation: cardShimmer 2.4s ease-in-out infinite;
-  border-color: #e8edf3;
+  border-color: var(--border);
   box-shadow: none;
 }
-.service-card.disabled .service-card-name { color: #94a3b8; }
-.service-card.disabled .service-card-desc { color: #b8c4d0; }
+.service-card.disabled .service-card-name { color: var(--muted); }
+.service-card.disabled .service-card-desc { color: var(--muted); opacity: .75; }
 .service-card.disabled::after { display: none; }
 .service-card-icon {
   width: 58px; height: 58px; border-radius: 16px;
@@ -507,7 +507,7 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   font-size: 28px; flex-shrink: 0;
 }
 .service-card.active .service-card-icon { background: var(--bg-tint); }
-.service-card.disabled .service-card-icon { background: #f1f5f9; }
+.service-card.disabled .service-card-icon { background: var(--bg-tint); }
 .service-card-info { flex: 1; }
 .service-card-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
 .service-card-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }

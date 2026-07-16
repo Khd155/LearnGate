@@ -388,6 +388,7 @@ const _SCREEN_PATHS = {
   'screen-processing':    '/capabilities/processing',
   'screen-level-analysis':'/capabilities/results',
   'screen-general-tests': '/quiz',
+  'screen-about':         '/about',
   'screen-landing':       '/login',
   'screen-school':        '/login',
   'screen-identity':      '/login',
@@ -4706,6 +4707,11 @@ function routeHash() {
     show('screen-chat');
     return;
   }
+  // Public info page — no login required, works as a direct shareable link.
+  if (path === '/about') {
+    show('screen-about');
+    return;
+  }
   // /login while already authenticated → go home
   if (path === '/login') {
     if (State.student) { show('screen-student-home'); App._checkPhoneGate(); return; }
@@ -4905,6 +4911,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (location.pathname === '/quiz') {
     App.openGeneralTests();
+    document.documentElement.style.visibility = '';
+  } else if (location.pathname === '/about') {
+    show('screen-about');
     document.documentElement.style.visibility = '';
   } else {
     show('screen-landing');

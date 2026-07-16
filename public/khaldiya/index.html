@@ -313,6 +313,54 @@
       color:#78350f; display:flex; gap:8px; align-items:flex-start;
     }
 
+    /* ── About the platform ("عن البوابة") ───────────── */
+    .about-hero {
+      background:var(--grad-hero); color:#fff; border-radius:var(--radius-lg);
+      padding:28px 26px; margin-bottom:26px; line-height:1.9; font-size:14.5px;
+    }
+    .about-hero strong { font-weight:800; }
+    .about-section-title {
+      font-size:16px; font-weight:800; color:var(--primary);
+      margin:28px 0 14px; padding-right:12px;
+      border-right:3px solid var(--accent);
+    }
+    .about-steps { display:flex; flex-direction:column; gap:14px; }
+    .about-step {
+      display:flex; gap:16px; align-items:flex-start;
+      background:var(--surface); border:1.5px solid var(--border);
+      border-radius:var(--radius); padding:16px 18px;
+      box-shadow:var(--shadow-sm);
+    }
+    .about-step-num {
+      flex-shrink:0; width:34px; height:34px; border-radius:50%;
+      background:var(--grad-hero); color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:14px;
+    }
+    .about-step-title { font-weight:700; font-size:14.5px; margin-bottom:4px; }
+    .about-step-desc { font-size:13.5px; color:var(--muted); line-height:1.8; }
+    .about-support-grid {
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+      gap:16px;
+    }
+    .about-support-card {
+      background:var(--surface); border:1.5px solid var(--border);
+      border-radius:var(--radius); padding:20px 18px; text-align:center;
+      box-shadow:var(--shadow-sm);
+    }
+    .about-support-icon {
+      width:52px; height:52px; border-radius:14px; margin:0 auto 12px;
+      background:var(--bg-tint); color:var(--primary);
+      display:flex; align-items:center; justify-content:center; font-size:24px;
+    }
+    .about-support-name { font-weight:700; font-size:14.5px; margin-bottom:6px; }
+    .about-support-desc { font-size:13px; color:var(--muted); line-height:1.75; }
+    .about-cycle {
+      background:var(--grad-soft); border:1px solid var(--border-strong);
+      border-radius:var(--radius); padding:20px 22px; margin-top:26px;
+      font-size:13.5px; line-height:1.9; color:var(--text); text-align:center;
+    }
+
     .print-only { display:none; }
     @media print {
       @page { margin:1.5cm 1.8cm; size:A4; }
@@ -498,7 +546,12 @@
   <div style="background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);min-height:100vh;width:100%;display:flex;flex-direction:column;overflow:hidden;">
     <!-- Header bar -->
     <div style="padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
-      <div style="color:rgba(255,255,255,.8);font-size:13px;">بوابة دعم التعلم</div>
+      <button onclick="show('screen-about')"
+        style="background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.3);
+               color:#fff;border-radius:99px;padding:7px 16px;font-size:12.5px;
+               font-family:inherit;font-weight:600;cursor:pointer;">
+        ℹ️ عن البوابة
+      </button>
       <button onclick="show('screen-school')"
         style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.35);
                color:#fff;border-radius:99px;padding:8px 20px;font-size:13px;
@@ -602,6 +655,91 @@
         <div class="card-desc">اضغط للمتابعة</div>
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 0c: ABOUT THE PLATFORM ("عن البوابة")
+═══════════════════════════════════════════════════════ -->
+<div id="screen-about" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">عن البوابة</div>
+      <div class="topbar-sub">بوابة دعم التعلم</div>
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="goBack('screen-landing')">رجوع</button>
+  </div>
+  <div class="page-wrap" style="max-width:760px;">
+
+    <div class="about-hero">
+      <strong>بوابة دعم التعلم</strong> بوابة تعليمية موجهة لطلاب المرحلة الثانوية، تهدف إلى مساعدتهم على اكتساب المهارات اللازمة في المواد الدراسية، والاستعداد للاختبارات الوطنية، وبخاصة <strong>اختبار القدرات</strong> و<strong>الاختبار التحصيلي</strong>.
+    </div>
+
+    <h3 class="about-section-title">🧭 كيف يعمل مسار الاستعداد لاختبار القدرات؟</h3>
+    <div class="about-steps">
+      <div class="about-step">
+        <div class="about-step-num">١</div>
+        <div>
+          <div class="about-step-title">اختبار تشخيصي شامل</div>
+          <div class="about-step-desc">يبدأ المسار باختبار تشخيصي من 50 سؤالًا يغطي المهارات الأساسية في القسمين اللفظي والكمي — هدفه تحديد المهارات التي تحتاج تنمية، وليس إصدار حكم نهائي على مستواك.</div>
+        </div>
+      </div>
+      <div class="about-step">
+        <div class="about-step-num">٢</div>
+        <div>
+          <div class="about-step-title">خطة دعم شخصية</div>
+          <div class="about-step-desc">بعد الاختبار، تُنشئ البوابة خطة دعم خاصة بك وفق نتيجتك، تركّز على المهارات التي تحتاج إلى تحسين.</div>
+        </div>
+      </div>
+      <div class="about-step">
+        <div class="about-step-num">٣</div>
+        <div>
+          <div class="about-step-title">تدريب على كل مهارة بثلاث طرق مكمّلة</div>
+          <div class="about-step-desc">مقاطع تعليمية، وملخص علمي مكتوب، وتدريبات قصيرة مع تغذية راجعة فورية (التفاصيل بالأسفل).</div>
+        </div>
+      </div>
+      <div class="about-step">
+        <div class="about-step-num">٤</div>
+        <div>
+          <div class="about-step-title">اختبارات محاكية وتقويمية</div>
+          <div class="about-step-desc">بعد إتمام التدريب على كل المهارات المستهدفة، تنتقل لاختبارات محاكية مختصرة لمقارنة مستواك قبل التدريب وبعده وقياس مقدار تقدمك.</div>
+        </div>
+      </div>
+      <div class="about-step">
+        <div class="about-step-num">٥</div>
+        <div>
+          <div class="about-step-title">إعادة التشخيص والاستمرار</div>
+          <div class="about-step-desc">يمكنك إعادة الاختبار التشخيصي لتحديث خطة الدعم وفق مستواك الجديد، والاستمرار في التدريب حتى تصل لمستوى أعلى من الإتقان.</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="about-section-title">📚 أنواع الدعم الثلاثة لكل مهارة</h3>
+    <div class="about-support-grid">
+      <div class="about-support-card">
+        <div class="about-support-icon">🎬</div>
+        <div class="about-support-name">مقاطع تعليمية</div>
+        <div class="about-support-desc">مقطع تأسيسي واحد يشرح فكرة المهارة، ثم مقاطع قصيرة تعرض نماذج من الأسئلة وطريقة حلها.</div>
+      </div>
+      <div class="about-support-card">
+        <div class="about-support-icon">📝</div>
+        <div class="about-support-name">ملخص علمي مكتوب</div>
+        <div class="about-support-desc">يوضح أهم قواعد المهارة وأفكارها بصيغة مركّزة وسهلة المراجعة.</div>
+      </div>
+      <div class="about-support-card">
+        <div class="about-support-icon">✅</div>
+        <div class="about-support-name">تدريبات قصيرة</div>
+        <div class="about-support-desc">نماذج من 10 أسئلة، مع تغذية راجعة فورية: درجتك من 10، علامة صح على الإجابة الصحيحة، ومقطع حل قصير لكل إجابة خاطئة.</div>
+      </div>
+    </div>
+
+    <div class="about-cycle">
+      💡 بهذه الآلية تجمع البوابة بين <strong>التشخيص</strong>، و<strong>التدريب</strong>، و<strong>التقويم</strong>، وإعادة الدعم في دورة تعليمية متكاملة — تساعدك على تنمية مهاراتك في القسمين الكمي واللفظي، ورفع جاهزيتك لاختبار القدرات بصورة منهجية ومتدرجة.
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;margin-top:28px;" onclick="show('screen-school')">ابدأ الآن ←</button>
   </div>
 </div>
 

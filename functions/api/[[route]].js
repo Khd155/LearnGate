@@ -215,11 +215,21 @@ async function notifyNewTicket(env, DB, { ticketId, studentName, school, subject
   }
 }
 
-async function logEvent(DB, { level = 'info', category = 'system', message, user_name = '', user_role = '', school = '', ip = '' }) {
+// Rough device classification from the requester's own User-Agent header —
+// good enough to tell "جوال" from "كمبيوتر" in the activity log, not meant
+// to be bulletproof (UA strings can be spoofed/blank).
+function detectDevice(userAgent) {
+  if (!userAgent) return '';
+  if (/iPad|Tablet(?!.*Mobile)/i.test(userAgent)) return 'tablet';
+  if (/Mobi|Android|iPhone|iPod/i.test(userAgent)) return 'mobile';
+  return 'desktop';
+}
+
+async function logEvent(DB, { level = 'info', category = 'system', message, user_name = '', user_role = '', school = '', ip = '', device = '' }) {
   try {
     await DB.prepare(
-      'INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,created_at) VALUES (?,?,?,?,?,?,?,?,?)'
-    ).bind(crypto.randomUUID(), level, category, message, user_name, user_role, school, ip, new Date().toISOString()).run();
+      'INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,device,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
+    ).bind(crypto.randomUUID(), level, category, message, user_name, user_role, school, ip, device, new Date().toISOString()).run();
   } catch {}
 }
 
@@ -1259,11 +1269,13 @@ export async function onRequest({ request, env }) {
         const isDevKey = authDev(request, env);
         const logClaims = isDevKey ? null : await verifyToken(request, env);
         if (!isDevKey && !logClaims) return err('غير مصرح', 401, CORS);
-        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', device TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
+        try { await DB.prepare(`ALTER TABLE logs ADD COLUMN device TEXT DEFAULT ''`).run(); } catch {}
         try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category)`).run(); } catch {}
         try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)`).run(); } catch {}
         const body = await request.json();
         const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
+        const device = detectDevice(request.headers.get('User-Agent') || '');
         await logEvent(DB, {
           level: body.level || 'info',
           category: body.category || 'system',
@@ -1272,6 +1284,7 @@ export async function onRequest({ request, env }) {
           user_role: body.user_role || logClaims?.role || '',
           school: body.school || logClaims?.school || '',
           ip,
+          device,
         });
         return ok({ ok: true }, 201, CORS);
       }
@@ -1284,7 +1297,8 @@ export async function onRequest({ request, env }) {
           const logClaims = await verifyToken(request, env);
           if (!logClaims || logClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
-        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', device TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
+        try { await DB.prepare(`ALTER TABLE logs ADD COLUMN device TEXT DEFAULT ''`).run(); } catch {}
         try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category)`).run(); } catch {}
         try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)`).run(); } catch {}
         const level    = url.searchParams.get('level') || '';

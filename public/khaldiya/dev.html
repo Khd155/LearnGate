@@ -1990,6 +1990,9 @@ const Dev = {
                 ${l.user_name ? `<span>👤 ${l.user_name}</span>` : ''}
                 ${l.school    ? `<span>🏫 ${l.school}</span>` : ''}
                 ${l.ip        ? `<span>🌐 ${l.ip}</span>` : ''}
+                ${l.device === 'mobile'  ? `<span>📱 جوال</span>` : ''}
+                ${l.device === 'tablet'  ? `<span>📱 تابلت</span>` : ''}
+                ${l.device === 'desktop' ? `<span>💻 كمبيوتر</span>` : ''}
                 <span>${time}</span>
               </div>
             </div>

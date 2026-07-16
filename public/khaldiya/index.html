@@ -313,6 +313,57 @@
       color:#78350f; display:flex; gap:8px; align-items:flex-start;
     }
 
+    /* ── About the platform ("عن البوابة") — colors are pinned (not var()-based)
+       so this screen looks identical for every visitor regardless of the
+       site's light/dark toggle, same as the pre-login landing screens. ── */
+    .about-hero {
+      background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+      color:#fff; border-radius:22px;
+      padding:28px 26px; margin-bottom:26px; line-height:1.9; font-size:14.5px;
+    }
+    .about-hero strong { font-weight:800; }
+    .about-section-title {
+      font-size:16px; font-weight:800; color:#3F7CB8;
+      margin:28px 0 14px; padding-right:12px;
+      border-right:3px solid #7C5CD4;
+    }
+    .about-steps { display:flex; flex-direction:column; gap:14px; }
+    .about-step {
+      display:flex; gap:16px; align-items:flex-start;
+      background:#ffffff; border:1.5px solid #e2e8f0;
+      border-radius:16px; padding:16px 18px;
+      box-shadow:0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+    }
+    .about-step-num {
+      flex-shrink:0; width:34px; height:34px; border-radius:50%;
+      background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%); color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:14px;
+    }
+    .about-step-title { font-weight:700; font-size:14.5px; margin-bottom:4px; color:#0f172a; }
+    .about-step-desc { font-size:13.5px; color:#64748b; line-height:1.8; }
+    .about-support-grid {
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+      gap:16px;
+    }
+    .about-support-card {
+      background:#ffffff; border:1.5px solid #e2e8f0;
+      border-radius:16px; padding:20px 18px; text-align:center;
+      box-shadow:0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+    }
+    .about-support-icon {
+      width:52px; height:52px; border-radius:14px; margin:0 auto 12px;
+      background:#e9f1f6; color:#3F7CB8;
+      display:flex; align-items:center; justify-content:center; font-size:24px;
+    }
+    .about-support-name { font-weight:700; font-size:14.5px; margin-bottom:6px; color:#0f172a; }
+    .about-support-desc { font-size:13px; color:#64748b; line-height:1.75; }
+    .about-cycle {
+      background:linear-gradient(135deg,#eaf2f9 0%,#e8f4ee 100%); border:1px solid #cbd5e1;
+      border-radius:16px; padding:20px 22px; margin-top:26px;
+      font-size:13.5px; line-height:1.9; color:#0f172a; text-align:center;
+    }
+
     .print-only { display:none; }
     @media print {
       @page { margin:1.5cm 1.8cm; size:A4; }
@@ -615,101 +666,98 @@
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-about" class="screen">
   <div style="background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
-              min-height:100vh;width:100%;display:flex;flex-direction:column;">
-    <div style="padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
-      <button onclick="goBack('screen-landing')"
-        style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.35);
-               color:#fff;border-radius:99px;padding:8px 20px;font-size:13px;
-               font-family:inherit;font-weight:700;cursor:pointer;">
-        رجوع
-      </button>
-      <div style="color:rgba(255,255,255,.8);font-size:13px;font-weight:700;">عن البوابة</div>
-    </div>
-
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 20px 48px;">
-      <div style="max-width:720px;width:100%;">
-
-        <div style="text-align:center;margin-bottom:30px;">
-          <img src="logo-white.png" alt="وزارة التعليم" style="height:48px;margin-bottom:14px;opacity:.95;">
-          <h1 style="color:#fff;font-size:24px;font-weight:900;margin-bottom:12px;">بوابة دعم التعلم</h1>
-          <p style="color:rgba(255,255,255,.88);font-size:14.5px;line-height:1.95;max-width:620px;margin:0 auto;">
-            بوابة تعليمية موجهة لطلاب المرحلة الثانوية، تهدف إلى مساعدتهم على اكتساب المهارات اللازمة في المواد الدراسية، والاستعداد للاختبارات الوطنية، وبخاصة <strong>اختبار القدرات</strong> و<strong>الاختبار التحصيلي</strong>.
-          </p>
-        </div>
-
-        <h3 style="color:#fff;font-size:15.5px;font-weight:800;margin:26px 0 14px;display:flex;align-items:center;gap:8px;">
-          <span>🧭</span> كيف يعمل مسار الاستعداد لاختبار القدرات؟
-        </h3>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          <div style="display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);border-radius:16px;padding:16px 18px;">
-            <div style="flex-shrink:0;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">١</div>
-            <div>
-              <div style="color:#fff;font-weight:700;font-size:14px;margin-bottom:4px;">اختبار تشخيصي شامل</div>
-              <div style="color:rgba(255,255,255,.8);font-size:13px;line-height:1.85;">يبدأ المسار باختبار تشخيصي من 50 سؤالًا يغطي المهارات الأساسية في القسمين اللفظي والكمي — هدفه تحديد المهارات التي تحتاج تنمية، وليس إصدار حكم نهائي على مستواك.</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);border-radius:16px;padding:16px 18px;">
-            <div style="flex-shrink:0;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">٢</div>
-            <div>
-              <div style="color:#fff;font-weight:700;font-size:14px;margin-bottom:4px;">خطة دعم شخصية</div>
-              <div style="color:rgba(255,255,255,.8);font-size:13px;line-height:1.85;">بعد الاختبار، تُنشئ البوابة خطة دعم خاصة بك وفق نتيجتك، تركّز على المهارات التي تحتاج إلى تحسين.</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);border-radius:16px;padding:16px 18px;">
-            <div style="flex-shrink:0;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">٣</div>
-            <div>
-              <div style="color:#fff;font-weight:700;font-size:14px;margin-bottom:4px;">تدريب على كل مهارة بثلاث طرق مكمّلة</div>
-              <div style="color:rgba(255,255,255,.8);font-size:13px;line-height:1.85;">مقاطع تعليمية، وملخص علمي مكتوب، وتدريبات قصيرة مع تغذية راجعة فورية (التفاصيل بالأسفل).</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);border-radius:16px;padding:16px 18px;">
-            <div style="flex-shrink:0;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">٤</div>
-            <div>
-              <div style="color:#fff;font-weight:700;font-size:14px;margin-bottom:4px;">اختبارات محاكية وتقويمية</div>
-              <div style="color:rgba(255,255,255,.8);font-size:13px;line-height:1.85;">بعد إتمام التدريب على كل المهارات المستهدفة، تنتقل لاختبارات محاكية مختصرة لمقارنة مستواك قبل التدريب وبعده وقياس مقدار تقدمك.</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);border-radius:16px;padding:16px 18px;">
-            <div style="flex-shrink:0;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">٥</div>
-            <div>
-              <div style="color:#fff;font-weight:700;font-size:14px;margin-bottom:4px;">إعادة التشخيص والاستمرار</div>
-              <div style="color:rgba(255,255,255,.8);font-size:13px;line-height:1.85;">يمكنك إعادة الاختبار التشخيصي لتحديث خطة الدعم وفق مستواك الجديد، والاستمرار في التدريب حتى تصل لمستوى أعلى من الإتقان.</div>
-            </div>
-          </div>
-        </div>
-
-        <h3 style="color:#fff;font-size:15.5px;font-weight:800;margin:28px 0 14px;display:flex;align-items:center;gap:8px;">
-          <span>📚</span> أنواع الدعم الثلاثة لكل مهارة
-        </h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
-          <div style="background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);border-radius:16px;padding:20px 16px;text-align:center;">
-            <div style="font-size:26px;margin-bottom:10px;">🎬</div>
-            <div style="color:#fff;font-weight:700;font-size:14px;margin-bottom:6px;">مقاطع تعليمية</div>
-            <div style="color:rgba(255,255,255,.78);font-size:12.5px;line-height:1.8;">مقطع تأسيسي واحد يشرح فكرة المهارة، ثم مقاطع قصيرة تعرض نماذج من الأسئلة وطريقة حلها.</div>
-          </div>
-          <div style="background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);border-radius:16px;padding:20px 16px;text-align:center;">
-            <div style="font-size:26px;margin-bottom:10px;">📝</div>
-            <div style="color:#fff;font-weight:700;font-size:14px;margin-bottom:6px;">ملخص علمي مكتوب</div>
-            <div style="color:rgba(255,255,255,.78);font-size:12.5px;line-height:1.8;">يوضح أهم قواعد المهارة وأفكارها بصيغة مركّزة وسهلة المراجعة.</div>
-          </div>
-          <div style="background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);border-radius:16px;padding:20px 16px;text-align:center;">
-            <div style="font-size:26px;margin-bottom:10px;">✅</div>
-            <div style="color:#fff;font-weight:700;font-size:14px;margin-bottom:6px;">تدريبات قصيرة</div>
-            <div style="color:rgba(255,255,255,.78);font-size:12.5px;line-height:1.8;">نماذج من 10 أسئلة، مع تغذية راجعة فورية: درجتك من 10، علامة صح على الإجابة الصحيحة، ومقطع حل قصير لكل إجابة خاطئة.</div>
-          </div>
-        </div>
-
-        <div style="margin-top:26px;background:rgba(255,255,255,.1);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);border-radius:16px;padding:18px 20px;text-align:center;color:rgba(255,255,255,.9);font-size:13px;line-height:1.9;">
-          💡 بهذه الآلية تجمع البوابة بين <strong>التشخيص</strong>، و<strong>التدريب</strong>، و<strong>التقويم</strong>، وإعادة الدعم في دورة تعليمية متكاملة — تساعدك على تنمية مهاراتك في القسمين الكمي واللفظي، ورفع جاهزيتك لاختبار القدرات بصورة منهجية ومتدرجة.
-        </div>
-
-        <button onclick="show('screen-school')"
-          style="width:100%;margin-top:28px;background:#fff;color:var(--primary);border:none;
-                 border-radius:14px;padding:15px;font-size:15.5px;font-weight:800;
-                 font-family:inherit;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,.2);">
-          ابدأ الآن ←
-        </button>
+              color:#fff;padding:14px 24px;display:flex;align-items:center;
+              justify-content:space-between;gap:12px;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);
+              min-height:64px;">
+    <button onclick="goBack('screen-landing')"
+      style="background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);
+             color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;
+             font-family:inherit;font-weight:700;cursor:pointer;">
+      رجوع
+    </button>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="text-align:left;">
+        <div style="font-size:17px;font-weight:800;">عن البوابة</div>
+        <div style="font-size:12px;opacity:.85;">بوابة دعم التعلم</div>
       </div>
+      <img src="logo-white.png" alt="وزارة التعليم" style="height:34px;opacity:.92;">
+    </div>
+  </div>
+  <div style="background:#f4f8fb;min-height:calc(100vh - 64px);padding:24px 20px 56px;">
+    <div style="max-width:760px;margin:0 auto;">
+
+      <div class="about-hero">
+        <strong>بوابة دعم التعلم</strong> بوابة تعليمية موجهة لطلاب المرحلة الثانوية، تهدف إلى مساعدتهم على اكتساب المهارات اللازمة في المواد الدراسية، والاستعداد للاختبارات الوطنية، وبخاصة <strong>اختبار القدرات</strong> و<strong>الاختبار التحصيلي</strong>.
+      </div>
+
+      <h3 class="about-section-title">🧭 كيف يعمل مسار الاستعداد لاختبار القدرات؟</h3>
+      <div class="about-steps">
+        <div class="about-step">
+          <div class="about-step-num">١</div>
+          <div>
+            <div class="about-step-title">اختبار تشخيصي شامل</div>
+            <div class="about-step-desc">يبدأ المسار باختبار تشخيصي من 50 سؤالًا يغطي المهارات الأساسية في القسمين اللفظي والكمي — هدفه تحديد المهارات التي تحتاج تنمية، وليس إصدار حكم نهائي على مستواك.</div>
+          </div>
+        </div>
+        <div class="about-step">
+          <div class="about-step-num">٢</div>
+          <div>
+            <div class="about-step-title">خطة دعم شخصية</div>
+            <div class="about-step-desc">بعد الاختبار، تُنشئ البوابة خطة دعم خاصة بك وفق نتيجتك، تركّز على المهارات التي تحتاج إلى تحسين.</div>
+          </div>
+        </div>
+        <div class="about-step">
+          <div class="about-step-num">٣</div>
+          <div>
+            <div class="about-step-title">تدريب على كل مهارة بثلاث طرق مكمّلة</div>
+            <div class="about-step-desc">مقاطع تعليمية، وملخص علمي مكتوب، وتدريبات قصيرة مع تغذية راجعة فورية (التفاصيل بالأسفل).</div>
+          </div>
+        </div>
+        <div class="about-step">
+          <div class="about-step-num">٤</div>
+          <div>
+            <div class="about-step-title">اختبارات محاكية وتقويمية</div>
+            <div class="about-step-desc">بعد إتمام التدريب على كل المهارات المستهدفة، تنتقل لاختبارات محاكية مختصرة لمقارنة مستواك قبل التدريب وبعده وقياس مقدار تقدمك.</div>
+          </div>
+        </div>
+        <div class="about-step">
+          <div class="about-step-num">٥</div>
+          <div>
+            <div class="about-step-title">إعادة التشخيص والاستمرار</div>
+            <div class="about-step-desc">يمكنك إعادة الاختبار التشخيصي لتحديث خطة الدعم وفق مستواك الجديد، والاستمرار في التدريب حتى تصل لمستوى أعلى من الإتقان.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="about-section-title">📚 أنواع الدعم الثلاثة لكل مهارة</h3>
+      <div class="about-support-grid">
+        <div class="about-support-card">
+          <div class="about-support-icon">🎬</div>
+          <div class="about-support-name">مقاطع تعليمية</div>
+          <div class="about-support-desc">مقطع تأسيسي واحد يشرح فكرة المهارة، ثم مقاطع قصيرة تعرض نماذج من الأسئلة وطريقة حلها.</div>
+        </div>
+        <div class="about-support-card">
+          <div class="about-support-icon">📝</div>
+          <div class="about-support-name">ملخص علمي مكتوب</div>
+          <div class="about-support-desc">يوضح أهم قواعد المهارة وأفكارها بصيغة مركّزة وسهلة المراجعة.</div>
+        </div>
+        <div class="about-support-card">
+          <div class="about-support-icon">✅</div>
+          <div class="about-support-name">تدريبات قصيرة</div>
+          <div class="about-support-desc">نماذج من 10 أسئلة، مع تغذية راجعة فورية: درجتك من 10، علامة صح على الإجابة الصحيحة، ومقطع حل قصير لكل إجابة خاطئة.</div>
+        </div>
+      </div>
+
+      <div class="about-cycle">
+        💡 بهذه الآلية تجمع البوابة بين <strong>التشخيص</strong>، و<strong>التدريب</strong>، و<strong>التقويم</strong>، وإعادة الدعم في دورة تعليمية متكاملة — تساعدك على تنمية مهاراتك في القسمين الكمي واللفظي، ورفع جاهزيتك لاختبار القدرات بصورة منهجية ومتدرجة.
+      </div>
+
+      <button onclick="show('screen-school')"
+        style="width:100%;margin-top:28px;background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+               color:#fff;border:none;border-radius:14px;padding:15px;font-size:15.5px;
+               font-weight:800;font-family:inherit;cursor:pointer;">
+        ابدأ الآن ←
+      </button>
     </div>
   </div>
 </div>

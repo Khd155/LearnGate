@@ -582,12 +582,20 @@
   <div style="background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);min-height:100vh;width:100%;display:flex;flex-direction:column;overflow:hidden;">
     <!-- Header bar -->
     <div style="padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
-      <button onclick="show('screen-about')"
-        style="background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.3);
-               color:#fff;border-radius:99px;padding:7px 16px;font-size:12.5px;
-               font-family:inherit;font-weight:600;cursor:pointer;">
-        ℹ️ عن البوابة
-      </button>
+      <div style="display:flex;gap:8px;">
+        <button onclick="show('screen-about')"
+          style="background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.3);
+                 color:#fff;border-radius:99px;padding:7px 16px;font-size:12.5px;
+                 font-family:inherit;font-weight:600;cursor:pointer;">
+          ℹ️ عن البوابة
+        </button>
+        <button onclick="App.openFaq()"
+          style="background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.3);
+                 color:#fff;border-radius:99px;padding:7px 16px;font-size:12.5px;
+                 font-family:inherit;font-weight:600;cursor:pointer;">
+          ❓ الأسئلة الشائعة
+        </button>
+      </div>
       <button onclick="show('screen-school')"
         style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.35);
                color:#fff;border-radius:99px;padding:8px 20px;font-size:13px;
@@ -805,14 +813,23 @@
      SCREEN 0d: FAQ ("الأسئلة الشائعة")
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-faq" class="screen">
-  <div class="topbar">
-    <img class="topbar-logo" src="logo-white.png" alt="">
-    <div>
-      <div class="topbar-title">الأسئلة الشائعة</div>
-      <div class="topbar-sub">بوابة دعم التعلم</div>
+  <div style="background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+              color:#fff;padding:14px 24px;display:flex;align-items:center;
+              justify-content:space-between;gap:12px;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);
+              min-height:64px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <img src="logo-white.png" alt="وزارة التعليم" style="height:34px;opacity:.92;">
+      <div>
+        <div style="font-size:17px;font-weight:800;">بوابة دعم التعلم</div>
+        <div style="font-size:12px;opacity:.85;">الأسئلة الشائعة</div>
+      </div>
     </div>
-    <div style="flex:1;min-width:8px;"></div>
-    <button class="topbar-back" onclick="goBack('screen-landing')">رجوع</button>
+    <button onclick="goBack('screen-landing')"
+      style="background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);
+             color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;
+             font-family:inherit;font-weight:700;cursor:pointer;">
+      رجوع
+    </button>
   </div>
   <div class="page-wrap" style="max-width:760px;">
     <div id="faq-list"></div>

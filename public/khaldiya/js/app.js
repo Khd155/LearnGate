@@ -611,9 +611,9 @@ const App = {
       _restoreBtn(); showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
     try {
+      _authToken = token;
       ActivityLog.success(`🎓 تسجيل دخول طالب: ${student.name} (${code}) — ${student.school || '—'}`);
       serverLog('success', 'login', `تسجيل دخول طالب: ${student.name}`, { user_name: student.name, user_role: 'student', school: student.school || '' });
-      _authToken = token;
       State.student = student;
       State.role = 'student';
       if (student.school) { State.school = student.school; App._updateSchoolDisplay(student.school); }
@@ -700,9 +700,9 @@ const App = {
       _restoreBtn(); showAlert(errEl, 'تعذّر الاتصال بالخادم — حاول مرة أخرى. (رمز: ' + (e?.status || '؟') + ')'); return;
     }
     try {
+      _authToken = token;
       ActivityLog.success(`👨‍💼 تسجيل دخول مشرف: ${admin.name || code} (${code}) — ${admin.school || '—'} — دور: ${admin.role || 'admin'}`);
       serverLog('success', 'login', `تسجيل دخول مشرف: ${admin.name || code}`, { user_name: admin.name || '', user_role: admin.role || 'admin', school: admin.school || '' });
-      _authToken = token;
       State.role  = admin.role === 'director' ? 'director' : 'admin';
       State.admin = { ...admin, code };
       if (admin.school && admin.school !== '*') { State.school = admin.school; App._updateSchoolDisplay(admin.school); }
@@ -4942,6 +4942,25 @@ async function _quickRestoreSession(sess) {
 }
 
 function _autoLogin(role, code, token, school) {
+  // Admin/director auto-login redirects to /admin/ (a full page navigation) on
+  // success. If that dashboard ever bounces back to '/' right after (stale
+  // token, a failed data fetch, whatever the cause), the remembered session
+  // here would otherwise retrigger this same auto-login on every reload —
+  // an infinite '/' <-> '/admin/' loop. This guard breaks that loop after
+  // one retry instead of hammering the login endpoint forever.
+  if (role !== 'student') {
+    const guardKey = 'lg_admin_autologin_ts';
+    const last = parseInt(sessionStorage.getItem(guardKey) || '0', 10);
+    if (Date.now() - last < 8000) {
+      sessionStorage.removeItem(guardKey);
+      try { localStorage.removeItem(_skey('lg_remember', role)); } catch(_) {}
+      show('screen-landing');
+      document.documentElement.style.visibility = '';
+      showToast('تعذّر الدخول التلقائي — الرجاء تسجيل الدخول يدويًا');
+      return;
+    }
+    sessionStorage.setItem(guardKey, String(Date.now()));
+  }
   show('screen-loading');
   if (token) _authToken = token;
   if (role === 'student') {

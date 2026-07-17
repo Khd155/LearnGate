@@ -30,6 +30,70 @@ function sortBySkillOrder(gaps) {
   });
 }
 
+// ── Frequently Asked Questions ──────────────────────────────────────────
+// Each item's `action` (when present) is resolved lazily via App.runFaqAction()
+// so this array can be declared before App exists — closures aren't called
+// until the student actually taps the button.
+const FAQ_DATA = [
+  { title: '📌 التعريف بالبوابة', items: [
+    { q: 'ما هي بوابة دعم التعلم؟', a: 'بوابة تعليمية موجهة لطلاب الثانوية تساعدهم على اكتساب المهارات اللازمة والاستعداد لاختبار القدرات والاختبار التحصيلي.', action: 'about', label: '🔗 التعرف على البوابة' },
+    { q: 'ما الهدف من البوابة؟', a: 'رفع جاهزيتك لاختبار القدرات عبر دورة متكاملة من التشخيص، والتدريب، والتقويم.', action: 'about', label: '🔗 التعرف على البوابة' },
+    { q: 'كيف أبدأ استخدام البوابة؟', a: 'سجّل الدخول برقمك، ثم ابدأ بالاختبار التشخيصي — تُبنى خطة الدعم تلقائيًا على نتيجتك.', action: 'diagnostic', label: '🚀 بدء الاختبار التشخيصي' },
+    { q: 'هل يوجد فيديو يشرح فكرة البوابة؟', a: 'حاليًا التعريف متاح كنص مفصّل في صفحة "عن البوابة"، وسيُضاف فيديو تعريفي لاحقًا.', action: 'about', label: '🔗 التعرف على البوابة' },
+    { q: 'كيف أستفيد من البوابة بأفضل طريقة؟', a: 'اتبع خطة التدريب المقترحة بالترتيب: شروحات، ثم تدريبات قصيرة، ثم اختبارات محاكية لكل مهارة تحتاجها.', action: 'training-plan', label: '📅 الجدول الزمني للتدريب' },
+    { q: 'هل أبدأ بالشروحات أم بالاختبار التشخيصي؟', a: 'ابدأ بالاختبار التشخيصي أولًا؛ لأنه يحدد المهارات التي تحتاج إلى دعم، ثم ينشئ لك خطة دعم تتضمن الشروحات والتدريبات المناسبة.', action: 'diagnostic', label: '🚀 بدء الاختبار التشخيصي' },
+    { q: 'هل تكفي البوابة وحدها للاستعداد لاختبار القدرات؟', a: 'البوابة تقدم برنامجًا مركزًا لإتقان المهارات الأساسية، لكنها لا تغني عن الاستفادة من المصادر الأخرى، خاصة لمن يستهدفون الدرجات المرتفعة جدًا.' },
+  ]},
+  { title: '🔑 الحساب والدخول', items: [
+    { q: 'كيف أحصل على رمز الدخول؟', a: 'رمز الدخول يصدره المشرف لكل طالب. إن لم يصلك، تواصل مع الدعم الفني.', action: 'guest-support', label: '📩 تواصل مع الدعم الفني' },
+    { q: 'ماذا أفعل إذا نسيت رمز الدخول؟', a: 'تواصل مع الدعم الفني لاستعادته.', action: 'guest-support', label: '📩 تواصل مع الدعم الفني' },
+    { q: 'لا أستطيع تسجيل الدخول، ماذا أفعل؟', a: 'تأكد من صحة الرقم، وإن استمرت المشكلة تواصل مع الدعم الفني.', action: 'guest-support', label: '📩 تواصل مع الدعم الفني' },
+    { q: 'هل أستطيع الدخول من الجوال؟', a: 'نعم، يمكن الدخول من الجوال.' },
+    { q: 'هل أستطيع الدخول من الكمبيوتر؟', a: 'نعم، يمكن الدخول من الكمبيوتر.' },
+    { q: 'هل يمكن استخدام الحساب في أكثر من جهاز؟', a: 'نعم، مع مراعاة ضوابط الاستخدام.' },
+  ]},
+  { title: '🧠 الاختبار التشخيصي', items: [
+    { q: 'ما الاختبار التشخيصي؟', a: 'اختبار يقيس الحد الأدنى لإتقان المهارات الأساسية، ثم يحدد المهارات التي تحتاج إلى دعم ويقترح لك خطة دعم مناسبة.' },
+    { q: 'ماذا أستفيد من نتيجة الاختبار التشخيصي؟', a: 'تحصل على خطة دعم دقيقة تناسب مستواك.', action: 'level-analysis', label: '📊 عرض تحليل مستواك' },
+    { q: 'هل يمكن إعادة الاختبار التشخيصي؟', a: 'نعم، بعد فترة مناسبة من التدريب على المهارات المطلوبة.', action: 'diagnostic', label: '🚀 إعادة الاختبار' },
+    { q: 'متى أعيد الاختبار التشخيصي؟', a: 'في الموعد المحدد داخل البوابة، وإن أنهيت التدريب قبل ذلك فيمكنك طلب إعادة الاختبار من المشرف.', action: 'chat', label: '💬 تواصل مع المشرف' },
+    { q: 'هل تظهر المهارات التي أحتاجها بعد الاختبار؟', a: 'نعم، تظهر لك خطة دعم كاملة تشمل المهارات والمواد العلمية الخاصة بها.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
+    { q: 'ماذا أفعل بعد انتهاء الاختبار؟', a: 'انتقل إلى خطة الدعم، ثم ابدأ بالشروحات، وبعدها التدريبات القصيرة.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
+  ]},
+  { title: '🗓️ خطة التدريب', items: [
+    { q: 'كيف أصمم خطة التدريب؟', a: 'البوابة تقترح لك خطة تدريب مناسبة، ويمكنك الاطلاع على طريقة الاستفادة منها.', action: 'training-plan', label: '📅 الجدول الزمني للتدريب' },
+    { q: 'هل تختلف خطة التدريب من طالب لآخر؟', a: 'نعم، لأنها تعتمد على نتائج الاختبار التشخيصي لكل طالب.' },
+    { q: 'كم ساعة أحتاج يوميًا؟', a: 'يختلف ذلك بحسب مستواك وعدد المهارات التي تحتاج إلى دعم.' },
+    { q: 'كيف أعرف المهارة التي أبدأ بها؟', a: 'ابدأ بالمهارات التي تقترحها لك خطة الدعم حسب نتائج الاختبار التشخيصي.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
+    { q: 'هل أستطيع تعديل خطة التدريب؟', a: 'نعم، بإعادة الاختبار التشخيصي أو باختيار المهارات التي ترغب في التركيز عليها.' },
+    { q: 'ماذا أفعل إذا أنهيت جميع المهارات؟', a: 'انتقل إلى الاختبارات التقويمية والمحاكية لقياس مدى تقدمك.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
+  ]},
+  { title: '🎬 الشروحات والتدريبات', items: [
+    { q: 'كيف أصل إلى الشروحات؟', a: 'من خلال خطة الدعم، أو مباشرة من الصفحة الرئيسية.', action: 'lessons', label: '📚 فتح الشروحات' },
+    { q: 'كم مدة مقاطع الشرح؟', a: 'المقاطع التأسيسية غالبًا من 5 إلى 10 دقائق، وقد يصل بعضها إلى 20 دقيقة، أما المقاطع التدريبية فمن دقيقة إلى دقيقتين تقريبًا.' },
+    { q: 'هل يجب مشاهدة جميع المقاطع؟', a: 'يُنصح بمشاهدة 3 إلى 7 مقاطع في كل جولة تدريبية، ثم الانتقال إلى المهارة التالية والعودة لاحقًا لاستكمال بقية المقاطع.' },
+    { q: 'هل أعيد مشاهدة المقطع أكثر من مرة؟', a: 'نعم، إذا احتجت إلى ذلك حتى تتقن المهارة.' },
+    { q: 'كيف أصل إلى التدريبات القصيرة؟', a: 'من خطة الدعم، ثم اختر المهارة، وبعدها اضغط على أيقونة "التدريبات".', action: 'support-plan', label: '📋 عرض خطة الدعم' },
+    { q: 'لماذا أؤدي التدريبات القصيرة؟', a: 'لتنمية المهارة والتدرب على سرعة الإجابة بطريقة مختصرة وغير مملة.' },
+    { q: 'هل أكرر التدريب؟', a: 'نعم، فالتكرار يساعد على إتقان المهارة.' },
+    { q: 'كم تدريبًا يكفي لكل مهارة؟', a: 'يختلف ذلك من طالب لآخر بحسب مستوى إتقانه للمهارة.' },
+  ]},
+  { title: '🧪 الاختبارات المحاكية', items: [
+    { q: 'ما الفرق بين الاختبار التشخيصي والاختبار المحاكي؟', a: 'الاختبار التشخيصي يشبه الاختبار المحاكي، لكنه يركز على قياس الحد الأدنى من المهارات لتحديد جوانب القوة والاحتياج، أما الاختبار المحاكي فيقيس مستوى الاستعداد بصورة أشمل.' },
+    { q: 'متى أبدأ الاختبارات المحاكية؟', a: 'بعد الانتهاء من دراسة المهارات ومشاهدة المقاطع وأداء التدريبات القصيرة.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
+    { q: 'كم اختبارًا محاكيًا أحتاج؟', a: 'يختلف ذلك بحسب مستوى إتقانك والدرجة التي حصلت عليها في الاختبارات السابقة.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
+    { q: 'هل يمكن إعادة الاختبار المحاكي؟', a: 'نعم، يمكن إعادة الاختبار من خلال صفحة الاختبارات المحاكية.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
+    { q: 'كيف أستفيد من نتائج الاختبار المحاكي؟', a: 'ركز على المهارات التي ظهر فيها ضعف، ثم ارجع إلى خطة الدعم وأعد التدريب عليها قبل أداء اختبار جديد.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
+    { q: 'ما الدرجة التي تدل على جاهزيتي؟', a: 'كلما ارتفعت درجتك دل ذلك على تحسن مستواك، أما الدرجة الكاملة فتدل على إتقان مهارات البوابة، لكنها لا تعني بالضرورة ضمان الحصول على الدرجة نفسها في الاختبار الفعلي.' },
+  ]},
+  { title: '🎧 الدعم الفني', items: [
+    { q: 'كيف أتواصل مع المشرف؟', a: 'تواصل مع المشرف مباشرة عبر شاشة الدردشة داخل حسابك، وستصلك ردوده هناك.', action: 'chat', label: '💬 فتح الدردشة مع المشرف' },
+    { q: 'كيف أطلب إعادة فتح الاختبار؟', a: 'أرسل طلبك للمشرف عبر الدردشة، وسيعيد فتح الاختبار لك إذا كان الطلب مناسبًا.', action: 'chat', label: '💬 فتح الدردشة مع المشرف' },
+    { q: 'واجهت مشكلة تقنية، ماذا أفعل؟', a: 'ارفع طلب دعم فني موضحًا فيه المشكلة بالتفصيل، وسيتواصل معك المشرف لحلها.', action: 'tickets', label: '🎫 فتح نموذج الدعم الفني' },
+    { q: 'كيف أبلغ عن خطأ أو أرسل ملاحظة؟', a: 'يمكنك إرسال ملاحظتك أو الإبلاغ عن أي خطأ عبر نموذج الدعم الفني، وسنأخذها بعين الاعتبار.', action: 'tickets', label: '🎫 فتح نموذج الدعم الفني' },
+  ]},
+];
+
 // ── Lazy-load xlsx — only when Excel import/export is used ────────────────
 async function _loadXlsx() {
   if (window.XLSX) return;
@@ -372,6 +436,8 @@ const State = {
   navStack: [], // screens visited, for goBack() — lets "رجوع" return to
                 // wherever the student actually came from instead of a
                 // single hardcoded target
+  pendingAction: null, // set by App.requireAuth() when a gated FAQ action is
+                       // triggered while logged out — run once right after login
 };
 
 // ── Screen router ─────────────────────────────────────────────────────────
@@ -389,6 +455,7 @@ const _SCREEN_PATHS = {
   'screen-level-analysis':'/capabilities/results',
   'screen-general-tests': '/quiz',
   'screen-about':         '/about',
+  'screen-faq':           '/faq',
   'screen-landing':       '/login',
   'screen-school':        '/login',
   'screen-identity':      '/login',
@@ -570,7 +637,11 @@ const App = {
       document.documentElement.style.visibility = '';
       show('screen-student-home');
       App._checkPhoneGate();
-      if (State.student.phone) {
+      if (State.pendingAction) {
+        const fn = State.pendingAction;
+        State.pendingAction = null;
+        fn();
+      } else if (State.student.phone) {
         routeHash();
         setTimeout(() => App._checkBroadcasts(), 1500);
       }
@@ -755,6 +826,16 @@ const App = {
       btn.disabled = true;
       setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2000);
     }).catch(() => {});
+  },
+
+  // Runs `fn` immediately if a student is logged in; otherwise remembers it
+  // and sends the student to log in first — once they're in, the FAQ screen's
+  // requested action fires automatically instead of just landing on home.
+  requireAuth(fn) {
+    if (State.student) { fn(); return; }
+    State.pendingAction = fn;
+    showToast('سجّل الدخول أولاً للمتابعة');
+    show('screen-student-login');
   },
 
   // Show/hide a password field and swap the eye / eye-off icon inside the button
@@ -3944,6 +4025,56 @@ const App = {
     }
   },
 
+  // ── FAQ ───────────────────────────────────────────────────────────────────
+  openFaq() {
+    App.renderFaq();
+    show('screen-faq');
+  },
+
+  renderFaq() {
+    const el = document.getElementById('faq-list');
+    if (!el) return;
+    el.innerHTML = FAQ_DATA.map((cat, ci) => `
+      <div class="faq-cat">
+        <div class="faq-cat-title">${cat.title}</div>
+        ${cat.items.map((it, qi) => `
+          <div class="faq-item" id="faq-item-${ci}-${qi}">
+            <div class="faq-q" onclick="App.toggleFaqItem(${ci},${qi})">
+              <span>${escapeHtml(it.q)}</span>
+              <span class="faq-q-chevron">▾</span>
+            </div>
+            <div class="faq-a">
+              <div class="faq-a-text">${escapeHtml(it.a)}</div>
+              ${it.action ? `<button class="faq-a-btn" onclick="event.stopPropagation();App.runFaqAction('${it.action}')">${escapeHtml(it.label || 'فتح')}</button>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>`).join('');
+  },
+
+  toggleFaqItem(ci, qi) {
+    const el = document.getElementById(`faq-item-${ci}-${qi}`);
+    if (el) el.classList.toggle('open');
+  },
+
+  // Central dispatch for FAQ action buttons — screens/actions that need a
+  // logged-in student go through App.requireAuth() so a logged-out visitor
+  // is sent to log in first, then lands exactly where they asked to go.
+  runFaqAction(key) {
+    const routes = {
+      'about':        () => show('screen-about'),
+      'guest-support': () => App.openGuestSupport(),
+      'lessons':       () => { window.location.href = 'study/index.html'; },
+      'diagnostic':    () => App.requireAuth(() => show('screen-intro')),
+      'support-plan':  () => App.requireAuth(() => App.showSupportPlan()),
+      'training-plan': () => App.requireAuth(() => show('screen-training-plan')),
+      'level-analysis':() => App.requireAuth(() => App.viewStudentPlan()),
+      'general-tests': () => App.requireAuth(() => App.openGeneralTests()),
+      'chat':          () => App.requireAuth(() => App.goToChat()),
+      'tickets':       () => App.requireAuth(() => App.goToTickets()),
+    };
+    (routes[key] || (() => {}))();
+  },
+
   // ── Guest Support (contact support without an account) ────────────────────
   _guestCat: '',
 
@@ -4707,9 +4838,13 @@ function routeHash() {
     show('screen-chat');
     return;
   }
-  // Public info page — no login required, works as a direct shareable link.
+  // Public info pages — no login required, work as direct shareable links.
   if (path === '/about') {
     show('screen-about');
+    return;
+  }
+  if (path === '/faq') {
+    App.openFaq();
     return;
   }
   // /login while already authenticated → go home
@@ -4914,6 +5049,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.documentElement.style.visibility = '';
   } else if (location.pathname === '/about') {
     show('screen-about');
+    document.documentElement.style.visibility = '';
+  } else if (location.pathname === '/faq') {
+    App.openFaq();
     document.documentElement.style.visibility = '';
   } else {
     show('screen-landing');

@@ -364,6 +364,39 @@
       font-size:13.5px; line-height:1.9; color:#0f172a; text-align:center;
     }
 
+    /* ── FAQ ("الأسئلة الشائعة") ─────────────────────── */
+    .faq-cat { margin-bottom:22px; }
+    .faq-cat-title {
+      font-size:15px; font-weight:800; color:var(--primary);
+      margin-bottom:10px; padding-right:12px;
+      border-right:3px solid var(--accent);
+      display:flex; align-items:center; gap:8px;
+    }
+    .faq-item {
+      background:var(--surface); border:1.5px solid var(--border);
+      border-radius:12px; margin-bottom:8px; overflow:hidden;
+      transition:border-color .15s;
+    }
+    .faq-item.open { border-color:var(--primary-lt); }
+    .faq-q {
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:13px 16px; cursor:pointer; user-select:none;
+      font-size:13.5px; font-weight:700; color:var(--text);
+    }
+    .faq-q:hover { background:var(--bg-tint); }
+    .faq-q-chevron { color:var(--muted); font-size:16px; transition:transform .2s; flex-shrink:0; }
+    .faq-item.open .faq-q-chevron { transform:rotate(180deg); }
+    .faq-a { display:none; padding:0 16px 16px; }
+    .faq-item.open .faq-a { display:block; }
+    .faq-a-text { font-size:13px; color:var(--muted); line-height:1.85; margin-bottom:10px; }
+    .faq-a-btn {
+      display:inline-flex; align-items:center; gap:6px;
+      background:var(--primary); color:#fff; border:none; border-radius:9px;
+      padding:8px 16px; font-size:12.5px; font-weight:700;
+      font-family:inherit; cursor:pointer; transition:opacity .15s;
+    }
+    .faq-a-btn:hover { opacity:.88; }
+
     .print-only { display:none; }
     @media print {
       @page { margin:1.5cm 1.8cm; size:A4; }
@@ -758,7 +791,31 @@
                font-weight:800;font-family:inherit;cursor:pointer;">
         ابدأ الآن ←
       </button>
+      <button onclick="App.openFaq()"
+        style="width:100%;margin-top:12px;background:rgba(255,255,255,.12);color:#fff;
+               border:1.5px solid rgba(255,255,255,.35);border-radius:14px;padding:13px;
+               font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">
+        ❓ الأسئلة الشائعة
+      </button>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 0d: FAQ ("الأسئلة الشائعة")
+═══════════════════════════════════════════════════════ -->
+<div id="screen-faq" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">الأسئلة الشائعة</div>
+      <div class="topbar-sub">بوابة دعم التعلم</div>
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="goBack('screen-landing')">رجوع</button>
+  </div>
+  <div class="page-wrap" style="max-width:760px;">
+    <div id="faq-list"></div>
   </div>
 </div>
 
@@ -1080,6 +1137,10 @@
         <span class="quick-btn-icon">💬</span>
         <span>تواصل مع المشرف</span>
         <span class="notif-badge" id="chat-unread-badge" style="display:none;"></span>
+      </button>
+      <button class="quick-btn" onclick="App.openFaq()">
+        <span class="quick-btn-icon">❓</span>
+        <span>الأسئلة الشائعة</span>
       </button>
       <button class="quick-btn" onclick="App.goToTickets()">
         <span class="quick-btn-icon">🎫</span>

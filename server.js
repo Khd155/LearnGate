@@ -22,7 +22,7 @@ const SECURITY_HEADERS = {
 // '/admin' is intentionally excluded — it's a real static directory
 // (public/khaldiya/admin/, the React admin dashboard), not an SPA route, and
 // must fall through to express.static below instead of being rewritten here.
-const SPA_REWRITES = ['/capabilities', '/history', '/chat', '/login', '/quiz', '/about'];
+const SPA_REWRITES = ['/capabilities', '/history', '/chat', '/login', '/quiz', '/about', '/faq'];
 
 async function readRawBody(req) {
   const chunks = [];

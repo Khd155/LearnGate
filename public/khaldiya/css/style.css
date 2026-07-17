@@ -81,6 +81,9 @@ html, body {
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Safety net: a single overflowing element should never let the whole page
+     scroll sideways — wide content should scroll in its own container instead. */
+  overflow-x: hidden;
 }
 
 h1,h2,h3,h4 {
@@ -858,6 +861,11 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   .intro-box p { font-size: 14px; line-height: 1.8; }
   .intro-step { padding: 13px; gap: 12px; }
   .step-text  { font-size: 13.5px; }
+  /* quick actions: 4 buttons don't fit in one non-wrapping row on a phone —
+     wrap to a 2x2 grid instead of overflowing the viewport horizontally. */
+  .quick-actions { flex-wrap: wrap; }
+  .quick-btn { flex: 1 1 calc(50% - 6px); padding: 12px 8px; font-size: 12.5px; gap: 6px; }
+  .quick-btn-icon { font-size: 18px; }
 }
 
 /* Very small phones (≤ 360px) — keep diag table from clipping */

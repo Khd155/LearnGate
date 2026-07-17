@@ -4062,7 +4062,11 @@ const App = {
     const routes = {
       'about':        () => show('screen-about'),
       'guest-support': () => App.openGuestSupport(),
-      'lessons':       () => { window.location.href = 'study/index.html'; },
+      // study/index.html has its own guard that bounces straight back to '/'
+      // if there's no valid student session — so this must go through
+      // requireAuth() too, or a logged-out visitor would just get dumped
+      // back on the landing screen with no memory of where they were headed.
+      'lessons':       () => App.requireAuth(() => { window.location.href = 'study/index.html'; }),
       'diagnostic':    () => App.requireAuth(() => show('screen-intro')),
       'support-plan':  () => App.requireAuth(() => App.showSupportPlan()),
       'training-plan': () => App.requireAuth(() => show('screen-training-plan')),

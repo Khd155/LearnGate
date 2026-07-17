@@ -834,7 +834,9 @@ const App = {
     if (State.student) { fn(); return; }
     State.pendingAction = fn;
     showToast('سجّل الدخول أولاً للمتابعة');
-    show('screen-student-login');
+    // Keep the normal onboarding order (اختيار المدرسة ← اختيار الدور ← الدخول)
+    // instead of dropping the visitor straight into the login form.
+    show('screen-school');
   },
 
   // Show/hide a password field and swap the eye / eye-off icon inside the button

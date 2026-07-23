@@ -155,6 +155,17 @@ function normalizeSaudiPhone(phone) {
   return '+966' + p.replace(/^0/, '');
 }
 
+// The inverse of normalizeSaudiPhone — converts any incoming form
+// (+9665XXXXXXXX, 9665XXXXXXXX, 5XXXXXXXX, 05XXXXXXXX) back to the
+// 05XXXXXXXX form the students table stores, so a WhatsApp contact's raw
+// phone number can be matched against it directly.
+function toLocalSaudiPhone(phone) {
+  let p = String(phone || '').trim().replace(/[\s-]/g, '').replace(/^\+/, '');
+  if (p.startsWith('966')) p = '0' + p.slice(3);
+  else if (/^5\d{8}$/.test(p)) p = '0' + p;
+  return p;
+}
+
 function sanitizeWaComponents(components) {
   return (components || []).map(c => ({
     ...c,
@@ -406,6 +417,31 @@ export async function onRequest({ request, env }) {
         if (!student) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
         await DB.prepare('UPDATE access_tokens SET used_at = ? WHERE token = ?').bind(new Date().toISOString(), t).run();
         return ok({ name: student.name, code: student.code, school: student.school || '' }, 200, CORS);
+      }
+
+      // GET /api/auth/recover-link?phone=... — public, self-service login-code
+      // recovery for the WhatsApp bot flow: given the phone number of the
+      // WhatsApp conversation itself (so only the account's real owner can
+      // trigger it), mints a single-use access-token link the same way the
+      // dev panel does and hands it back for the bot to show as a button.
+      // Rate-limited per phone (not just per IP) since SendPulse's own IP is
+      // shared across every user of the bot.
+      if (sub === 'recover-link' && method === 'GET') {
+        if (!await rateLimit(DB, ip, 'recover-link', 20)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+        const rawPhone = url.searchParams.get('phone') || '';
+        const localPhone = toLocalSaudiPhone(rawPhone);
+        if (!await rateLimit(DB, 'phone:' + localPhone, 'recover-link-phone', 5)) return err('طلبات كثيرة — أعد المحاولة لاحقًا', 429, CORS);
+        if (!/^05\d{8}$/.test(localPhone)) return err('رقم جوال غير صالح', 400, CORS);
+        const student = await DB.prepare('SELECT id, name FROM students WHERE phone = ?').bind(localPhone).first();
+        if (!student) return err('لا يوجد حساب مرتبط بهذا الرقم', 404, CORS);
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        const randBytes = crypto.getRandomValues(new Uint8Array(14));
+        const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
+        await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, student.id, new Date().toISOString()).run();
+        const link = `${new URL(request.url).origin}/?t=${token}`;
+        await logEvent(DB, { level: 'info', category: 'auth', message: `استعادة رابط الدخول عبر بوت واتساب — ${student.name}`, user_name: student.name, user_role: 'student', ip });
+        return ok({ link, name: student.name }, 200, CORS);
       }
 
       // POST /api/auth/student-login

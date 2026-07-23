@@ -386,7 +386,12 @@
           <select id="filter-school" class="form-select" style="margin-right:auto;width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadStudents()">
             <option value="">كل المدارس</option>
           </select>
+          <button class="btn btn-success btn-sm" onclick="Dev.sendWelcomeToAll()"
+                  title="يرسل رابط الحساب عبر واتساب لكل طالب لديه رقم جوال مسجّل (حسب فلتر المدرسة الحالي)">
+            📲 إرسال الرسالة للجميع
+          </button>
         </div>
+        <div id="bulk-wa-progress" style="display:none;margin-bottom:10px;font-size:13px;color:var(--muted);"></div>
         <div id="students-list"><div class="empty">جارٍ التحميل...</div></div>
       </div>
     </div>
@@ -1427,6 +1432,64 @@ const Dev = {
     } catch (e) {
       showToast('تعذّر الإرسال: ' + e.message, true);
     }
+  },
+
+  // Sends the account-access WhatsApp message to every student (respecting the
+  // current المدرسة filter) who has a phone number on file — one confirm, one
+  // button, instead of clicking "📲 واتساب" per row. Runs sequentially with a
+  // small delay between sends to avoid hammering SendPulse's API.
+  async sendWelcomeToAll() {
+    const school = document.getElementById('filter-school')?.value || '';
+    const progressEl = document.getElementById('bulk-wa-progress');
+    let students;
+    try {
+      ({ students } = await apiDev('/dev/students' + (school ? '?school=' + encodeURIComponent(school) : '')));
+    } catch (e) {
+      showToast('تعذّر جلب قائمة الطلاب: ' + e.message, true);
+      return;
+    }
+    const targets = students.filter(s => s.phone);
+    if (!targets.length) {
+      showToast('لا يوجد طلاب لديهم رقم جوال مسجّل' + (school ? ' في هذه المدرسة' : ''), true);
+      return;
+    }
+    const label = school ? `مدرسة "${school}"` : 'كل المدارس';
+    if (!await confirmDialog(
+      `سيتم إرسال رسالة الترحيب (رابط الحساب) عبر واتساب لـ ${targets.length} طالب — ${label}. متابعة؟`,
+      { title: 'إرسال جماعي عبر واتساب', okText: `إرسال لـ ${targets.length}` }
+    )) return;
+
+    let sent = 0, failed = 0;
+    progressEl.style.display = 'block';
+    for (let i = 0; i < targets.length; i++) {
+      const s = targets[i];
+      progressEl.textContent = `جارٍ الإرسال… (${i + 1}/${targets.length}) — ${s.name} — نجح ${sent} / فشل ${failed}`;
+      try {
+        const { token } = await apiDev('/dev/access-tokens', { method: 'POST', body: JSON.stringify({ studentId: s.id }) });
+        const parts = (s.name || '').trim().split(/\s+/).filter(Boolean);
+        const displayName = parts.length <= 2 ? parts.join(' ') : parts[0] + ' ' + parts[parts.length - 1];
+        const sendRes = await apiDev('/sendpulse/send', {
+          method: 'POST',
+          body: JSON.stringify({
+            phones: [s.phone],
+            template_name: 'student_account_access_template_1',
+            language_code: 'ar',
+            components: [
+              { type: 'body', parameters: [{ type: 'text', text: displayName }] },
+              { type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: token }] },
+            ],
+          }),
+        });
+        const r0 = sendRes?.results?.[0];
+        const spError = r0?.error || r0?.data?.error || r0?.errors;
+        if (r0?.success === false || spError) failed++; else sent++;
+      } catch (e) {
+        failed++;
+      }
+      await new Promise(r => setTimeout(r, 400));
+    }
+    progressEl.textContent = `اكتمل الإرسال — نجح ${sent} / فشل ${failed} من أصل ${targets.length}`;
+    showToast(`تم الإرسال للجميع — نجح ${sent} / فشل ${failed}`, failed > 0);
   },
 
   async showAccessTokenHistory(studentId, name) {

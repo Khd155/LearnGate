@@ -4852,6 +4852,10 @@ function routeHash() {
     App.openFaq();
     return;
   }
+  if (path === '/support') {
+    App.openGuestSupport();
+    return;
+  }
   // /login while already authenticated → go home
   if (path === '/login') {
     if (State.student) { show('screen-student-home'); App._checkPhoneGate(); return; }
@@ -5076,6 +5080,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.documentElement.style.visibility = '';
   } else if (location.pathname === '/faq') {
     App.openFaq();
+    document.documentElement.style.visibility = '';
+  } else if (location.pathname === '/support') {
+    show('screen-landing');
+    App.openGuestSupport();
     document.documentElement.style.visibility = '';
   } else {
     show('screen-landing');

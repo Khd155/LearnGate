@@ -427,20 +427,32 @@ export async function onRequest({ request, env }) {
       // Rate-limited per phone (not just per IP) since SendPulse's own IP is
       // shared across every user of the bot.
       if (sub === 'recover-link' && method === 'GET') {
-        if (!await rateLimit(DB, ip, 'recover-link', 20)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         const rawPhone = url.searchParams.get('phone') || '';
+        if (!await rateLimit(DB, ip, 'recover-link', 20)) {
+          await logEvent(DB, { level: 'warn', category: 'recover-link', message: `طلب مرفوض (تجاوز الحد) — الرقم المُرسَل: "${rawPhone}"`, ip });
+          return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+        }
         const localPhone = toLocalSaudiPhone(rawPhone);
-        if (!await rateLimit(DB, 'phone:' + localPhone, 'recover-link-phone', 5)) return err('طلبات كثيرة — أعد المحاولة لاحقًا', 429, CORS);
-        if (!/^05\d{8}$/.test(localPhone)) return err('رقم جوال غير صالح', 400, CORS);
+        if (!await rateLimit(DB, 'phone:' + localPhone, 'recover-link-phone', 5)) {
+          await logEvent(DB, { level: 'warn', category: 'recover-link', message: `طلب مرفوض (تكرار على نفس الرقم) — الرقم المُرسَل: "${rawPhone}"`, ip });
+          return err('طلبات كثيرة — أعد المحاولة لاحقًا', 429, CORS);
+        }
+        if (!/^05\d{8}$/.test(localPhone)) {
+          await logEvent(DB, { level: 'warn', category: 'recover-link', message: `صيغة رقم غير صالحة — الرقم المُرسَل: "${rawPhone}"`, ip });
+          return err('رقم جوال غير صالح', 400, CORS);
+        }
         const student = await DB.prepare('SELECT id, name FROM students WHERE phone = ?').bind(localPhone).first();
-        if (!student) return err('لا يوجد حساب مرتبط بهذا الرقم', 404, CORS);
+        if (!student) {
+          await logEvent(DB, { level: 'warn', category: 'recover-link', message: `لا يوجد حساب لهذا الرقم — الرقم المُرسَل: "${rawPhone}" (بعد التطبيع: ${localPhone})`, ip });
+          return err('لا يوجد حساب مرتبط بهذا الرقم', 404, CORS);
+        }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
         const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
         const randBytes = crypto.getRandomValues(new Uint8Array(14));
         const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
         await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, student.id, new Date().toISOString()).run();
         const link = `${new URL(request.url).origin}/?t=${token}`;
-        await logEvent(DB, { level: 'info', category: 'auth', message: `استعادة رابط الدخول عبر بوت واتساب — ${student.name}`, user_name: student.name, user_role: 'student', ip });
+        await logEvent(DB, { level: 'success', category: 'recover-link', message: `تم إرسال رابط الدخول — ${student.name} — الرقم المُرسَل: "${rawPhone}"`, user_name: student.name, user_role: 'student', ip });
         return ok({ link, name: student.name }, 200, CORS);
       }
 

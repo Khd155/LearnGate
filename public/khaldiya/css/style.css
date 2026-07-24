@@ -1482,6 +1482,11 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   border-radius: 14px; border: 2.5px solid #fff;
   box-shadow: 0 0 0 4px var(--primary), 0 0 40px rgba(0,0,0,.5);
   transition: top .35s ease, left .35s ease, width .35s ease, height .35s ease;
+  animation: tour-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tour-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px var(--primary), 0 0 40px rgba(0,0,0,.5); }
+  50%      { box-shadow: 0 0 0 7px var(--primary), 0 0 46px rgba(0,0,0,.5); }
 }
 .tour-bubble {
   position: fixed; z-index: 302; background: var(--surface);

@@ -504,6 +504,15 @@ const ONBOARDING_TOUR_STEPS = [
 ];
 
 function startOnboardingTour() {
+  // .tb-theme-btn (and, less critically, the others) exist once per screen —
+  // an unscoped querySelector grabs whichever copy comes first in the whole
+  // document, which is almost never the one on the visible home screen and
+  // collapses to a zero-size rect (display:none ancestor), throwing the
+  // spotlight/bubble into the top-left corner. Scope every lookup to the
+  // home screen's own subtree instead.
+  const root = document.getElementById('screen-student-home');
+  if (!root) return;
+
   const overlay = document.createElement('div');
   overlay.className = 'tour-overlay';
   const spotlight = document.createElement('div');
@@ -523,17 +532,20 @@ function startOnboardingTour() {
     spotlight.style.height = (r.height + pad * 2) + 'px';
 
     const bw = bubble.offsetWidth || 300, bh = bubble.offsetHeight || 140;
-    const spaceBelow = window.innerHeight - r.bottom;
-    let top = spaceBelow > bh + 24 ? r.bottom + 16 : Math.max(12, r.top - bh - 16);
-    let left = Math.min(Math.max(12, r.left + r.width / 2 - bw / 2), window.innerWidth - bw - 12);
-    bubble.style.top = top + 'px';
+    const margin = 12;
+    const spaceBelow = window.innerHeight - (r.bottom + pad);
+    const top = spaceBelow > bh + 24
+      ? Math.min(r.bottom + pad + 16, window.innerHeight - bh - margin)
+      : Math.max(margin, r.top - pad - bh - 16);
+    const left = Math.min(Math.max(margin, r.left + r.width / 2 - bw / 2), window.innerWidth - bw - margin);
+    bubble.style.top = Math.max(margin, top) + 'px';
     bubble.style.left = left + 'px';
   }
 
   function renderStep() {
     const step = ONBOARDING_TOUR_STEPS[i];
-    const el = step && document.querySelector(step.selector);
     if (!step) { endTour(); return; }
+    const el = root.querySelector(step.selector);
     if (!el) { i++; renderStep(); return; }
 
     const isLast = i === ONBOARDING_TOUR_STEPS.length - 1;
@@ -549,11 +561,22 @@ function startOnboardingTour() {
     bubble.querySelector('.tour-next').onclick = () => { i++; renderStep(); };
 
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    setTimeout(() => position(el), 300);
+    // Two rAFs (not a fixed timeout) so we measure right after the browser's
+    // own smooth-scroll has actually settled, regardless of scroll distance/device speed.
+    let tries = 0;
+    const settle = () => {
+      position(el);
+      if (tries++ < 6) requestAnimationFrame(() => setTimeout(settle, 60));
+    };
+    requestAnimationFrame(settle);
   }
+
+  function onKeydown(e) { if (e.key === 'Escape') endTour(); }
+  document.addEventListener('keydown', onKeydown);
 
   function endTour() {
     overlay.remove(); spotlight.remove(); bubble.remove();
+    document.removeEventListener('keydown', onKeydown);
     try { localStorage.setItem(_skey('lg_tour_seen', 'student'), '1'); } catch (_) {}
   }
 

@@ -1471,3 +1471,23 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 }
 .screen-home-entered .welcome-banner { animation: bannerIn .4s cubic-bezier(.22,1,.36,1) .05s both; }
 .screen-home-entered .sh-perf-card  { animation: bannerIn .4s cubic-bezier(.22,1,.36,1) .08s both; }
+
+/* ── Onboarding Tour (first visit to student home) ─────── */
+.tour-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55);
+  z-index: 300; animation: bannerIn .25s ease both;
+}
+.tour-spotlight {
+  position: fixed; z-index: 301; pointer-events: none;
+  border-radius: 14px; border: 2.5px solid #fff;
+  box-shadow: 0 0 0 4px var(--primary), 0 0 40px rgba(0,0,0,.5);
+  transition: top .35s ease, left .35s ease, width .35s ease, height .35s ease;
+}
+.tour-bubble {
+  position: fixed; z-index: 302; background: var(--surface);
+  border-radius: 16px; box-shadow: var(--shadow-lg);
+  max-width: 300px; width: calc(100vw - 24px); padding: 18px 20px;
+  animation: panel-in .18s ease; transition: top .35s ease, left .35s ease;
+}
+.tour-bubble .tour-skip { font-size: 13px; color: var(--muted); text-decoration: none; }
+.tour-bubble .tour-skip:hover { color: var(--text); text-decoration: underline; }

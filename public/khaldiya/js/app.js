@@ -488,7 +488,76 @@ function show(id) {
       sc.classList.remove('animate');
       requestAnimationFrame(() => requestAnimationFrame(() => sc.classList.add('animate')));
     }
+    // First-ever visit to home — show the onboarding tour once, then never again.
+    if (!localStorage.getItem(_skey('lg_tour_seen', 'student'))) {
+      setTimeout(startOnboardingTour, 500);
+    }
   }
+}
+
+// ── Onboarding Tour (first visit to student home only) ────────────────────
+const ONBOARDING_TOUR_STEPS = [
+  { selector: '#notif-bell-student', title: '🔔 الإشعارات', text: 'هنا تصلك كل إشعاراتك — رسائل المشرف، ردود الدعم الفني، وتنبيهات الاختبارات.' },
+  { selector: '.tb-theme-btn', title: '🌙 المظهر', text: 'بدّل بين الوضع الفاتح والداكن حسب راحتك.' },
+  { selector: '.service-cards', title: '📚 مسارات الدعم', text: 'هنا مسارات الدعم التعليمي — ابدأ بالاستعداد لاختبار القدرات.' },
+  { selector: '.quick-actions', title: '⚡ إجراءات سريعة', text: 'الشروحات، التواصل مع المشرف، الأسئلة الشائعة، والدعم الفني — كلها من هنا.' },
+];
+
+function startOnboardingTour() {
+  const overlay = document.createElement('div');
+  overlay.className = 'tour-overlay';
+  const spotlight = document.createElement('div');
+  spotlight.className = 'tour-spotlight';
+  const bubble = document.createElement('div');
+  bubble.className = 'tour-bubble';
+  document.body.append(overlay, spotlight, bubble);
+
+  let i = 0;
+
+  function position(el) {
+    const r = el.getBoundingClientRect();
+    const pad = 8;
+    spotlight.style.top = (r.top - pad) + 'px';
+    spotlight.style.left = (r.left - pad) + 'px';
+    spotlight.style.width = (r.width + pad * 2) + 'px';
+    spotlight.style.height = (r.height + pad * 2) + 'px';
+
+    const bw = bubble.offsetWidth || 300, bh = bubble.offsetHeight || 140;
+    const spaceBelow = window.innerHeight - r.bottom;
+    let top = spaceBelow > bh + 24 ? r.bottom + 16 : Math.max(12, r.top - bh - 16);
+    let left = Math.min(Math.max(12, r.left + r.width / 2 - bw / 2), window.innerWidth - bw - 12);
+    bubble.style.top = top + 'px';
+    bubble.style.left = left + 'px';
+  }
+
+  function renderStep() {
+    const step = ONBOARDING_TOUR_STEPS[i];
+    const el = step && document.querySelector(step.selector);
+    if (!step) { endTour(); return; }
+    if (!el) { i++; renderStep(); return; }
+
+    const isLast = i === ONBOARDING_TOUR_STEPS.length - 1;
+    bubble.innerHTML = `
+      <div style="font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:6px;">${i + 1} من ${ONBOARDING_TOUR_STEPS.length}</div>
+      <div style="font-weight:800;font-size:15px;margin-bottom:6px;">${escapeHtml(step.title)}</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">${escapeHtml(step.text)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <a href="#" class="tour-skip">تخطي</a>
+        <button type="button" class="btn btn-primary btn-sm tour-next">${isLast ? 'إنهاء ✓' : 'التالي ←'}</button>
+      </div>`;
+    bubble.querySelector('.tour-skip').onclick = (e) => { e.preventDefault(); endTour(); };
+    bubble.querySelector('.tour-next').onclick = () => { i++; renderStep(); };
+
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    setTimeout(() => position(el), 300);
+  }
+
+  function endTour() {
+    overlay.remove(); spotlight.remove(); bubble.remove();
+    try { localStorage.setItem(_skey('lg_tour_seen', 'student'), '1'); } catch (_) {}
+  }
+
+  renderStep();
 }
 
 // Returns to the screen actually visited before this one; falls back to a

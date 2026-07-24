@@ -236,11 +236,11 @@ function detectDevice(userAgent) {
   return 'desktop';
 }
 
-async function logEvent(DB, { level = 'info', category = 'system', message, user_name = '', user_role = '', school = '', ip = '', device = '' }) {
+async function logEvent(DB, { level = 'info', category = 'system', message, user_name = '', user_role = '', school = '', ip = '', device = '', student_id = '' }) {
   try {
     await DB.prepare(
-      'INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,device,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
-    ).bind(crypto.randomUUID(), level, category, message, user_name, user_role, school, ip, device, new Date().toISOString()).run();
+      'INSERT INTO logs (id,level,category,message,user_name,user_role,school,ip,device,student_id,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+    ).bind(crypto.randomUUID(), level, category, message, user_name, user_role, school, ip, device, student_id, new Date().toISOString()).run();
   } catch {}
 }
 
@@ -477,7 +477,7 @@ export async function onRequest({ request, env }) {
         await clearFailedAttempts(DB, ip, 'student-login');
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const token = await jwtSign({ sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
-        await logEvent(DB, { level: 'success', category: 'login', message: 'تسجيل دخول طالب', user_name: student.name, user_role: 'student', school: student.school || '', ip });
+        await logEvent(DB, { level: 'success', category: 'login', message: 'تسجيل دخول طالب', user_name: student.name, user_role: 'student', school: student.school || '', ip, student_id: student.id });
         return ok({ token, student: { id: student.id, name: student.name, school: student.school, phone: student.phone || '' } }, 200, CORS);
       }
 
@@ -1056,6 +1056,277 @@ export async function onRequest({ request, env }) {
       }
     }
 
+    // ── ADVANCED ANALYTICS (admin dashboard → "الإحصائيات" tab only) ───────────
+    // Every endpoint here follows the same auth + school-scoping rule as
+    // /api/stats above: admin/director/dev only, and a non-super admin/director
+    // (school !== '*') is always locked to their own school's students.
+    if (resource === 'analytics') {
+      const _devAuth = authDev(request, env);
+      const anClaims = _devAuth ? { role: 'dev', sub: 'dev', school: '*' } : await verifyToken(request, env);
+      if (!anClaims) return err('غير مصرح', 401, CORS);
+      if (!['admin', 'director', 'dev'].includes(anClaims.role)) return err('غير مسموح', 403, CORS);
+      const anSchool = (['admin', 'director'].includes(anClaims.role) && anClaims.school && anClaims.school !== '*')
+        ? anClaims.school : (school || null);
+      const sCond  = anSchool ? ' AND school = ?' : '';
+      const sWhere = anSchool ? ' WHERE school = ?' : '';
+      const sArgs  = anSchool ? [anSchool] : [];
+
+      try { await DB.prepare(`ALTER TABLE logs ADD COLUMN student_id TEXT DEFAULT ''`).run(); } catch {}
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_student ON logs(student_id)`).run(); } catch {}
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_plans_student ON plans(student_id)`).run(); } catch {}
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_gtr_student ON general_test_results(student_id)`).run(); } catch {}
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_gt_test_qnum ON general_tests(test_num, qnum)`).run(); } catch {}
+
+      // Shared building block: students in scope + their per-attempt diagnostic
+      // scores (one row per plans attempt, avg pct across that attempt's
+      // skills) + their most recent activity timestamp from any of three
+      // sources (login, diagnostic attempt, general-test attempt) in ONE pass
+      // each — no N+1, three queries total regardless of student count.
+      async function _loadStudentActivityAndScores() {
+        const [studentsRows, planRows, loginRows, gtrRows] = await Promise.all([
+          DB.prepare(`SELECT id, name, school, created_at FROM students${sWhere}`).bind(...sArgs).all(),
+          DB.prepare(`SELECT student_id, gaps, created_at FROM plans${sWhere} ORDER BY student_id, created_at ASC`).bind(...sArgs).all(),
+          DB.prepare(`SELECT student_id, MAX(created_at) as last FROM logs WHERE category = 'login' AND student_id != ''${sCond} GROUP BY student_id`).bind(...sArgs).all(),
+          DB.prepare(`SELECT student_id, MAX(created_at) as last FROM general_test_results${sWhere} GROUP BY student_id`).bind(...sArgs).all(),
+        ]);
+
+        // Per-attempt average score, in chronological order per student
+        const scoresByStudent = new Map();
+        for (const row of (planRows?.results || [])) {
+          let gaps = [];
+          try { gaps = JSON.parse(row.gaps || '[]'); } catch {}
+          const nums = gaps.map(g => g.pct).filter(n => typeof n === 'number');
+          if (!nums.length) continue;
+          const avg = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+          const list = scoresByStudent.get(row.student_id) || [];
+          list.push({ pct: avg, created_at: row.created_at });
+          scoresByStudent.set(row.student_id, list);
+        }
+
+        const lastLoginByStudent = new Map((loginRows?.results || []).map(r => [r.student_id, r.last]));
+        const lastGtrByStudent   = new Map((gtrRows?.results   || []).map(r => [r.student_id, r.last]));
+
+        const students = (studentsRows?.results || []).map(s => {
+          const attempts = scoresByStudent.get(s.id) || [];
+          const lastPlanAt  = attempts.length ? attempts[attempts.length - 1].created_at : null;
+          const candidates = [lastLoginByStudent.get(s.id), lastPlanAt, lastGtrByStudent.get(s.id)].filter(Boolean);
+          const lastActive = candidates.length ? candidates.sort().at(-1) : null;
+          const firstScore = attempts.length ? attempts[0].pct : null;
+          const lastScore  = attempts.length ? attempts[attempts.length - 1].pct : null;
+          const improvementPct = (firstScore !== null && lastScore !== null) ? (lastScore - firstScore) : null;
+          return { id: s.id, name: s.name, school: s.school, attempts: attempts.length, firstScore, lastScore, improvementPct, lastActive };
+        });
+        return students;
+      }
+
+      const daysSince = (iso) => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : Infinity;
+
+      // GET /api/analytics/at-risk
+      if (sub === 'at-risk' && method === 'GET') {
+        const students = await _loadStudentActivityAndScores();
+        const flagged = students.map(s => {
+          const inactive       = daysSince(s.lastActive) > 3;
+          const lowPerformance = s.lastScore !== null && s.lastScore < 50;
+          const noImprovement  = s.attempts >= 2 && s.improvementPct !== null && s.improvementPct <= 0;
+          const reasons = [
+            ...(inactive ? ['inactive'] : []),
+            ...(lowPerformance ? ['low_performance'] : []),
+            ...(noImprovement ? ['no_improvement'] : []),
+          ];
+          return { ...s, inactive, lowPerformance, noImprovement, reasons };
+        }).filter(s => s.reasons.length > 0);
+
+        return ok({
+          total: flagged.length,
+          inactive_count: flagged.filter(s => s.inactive).length,
+          low_performance_count: flagged.filter(s => s.lowPerformance).length,
+          no_improvement_count: flagged.filter(s => s.noImprovement).length,
+          students: flagged.map(s => ({
+            id: s.id, name: s.name, school: s.school,
+            lastActive: s.lastActive, daysSinceActive: daysSince(s.lastActive) === Infinity ? null : daysSince(s.lastActive),
+            lastScore: s.lastScore, improvementPct: s.improvementPct, reasons: s.reasons,
+          })),
+        }, 200, CORS);
+      }
+
+      // GET /api/analytics/progress
+      if (sub === 'progress' && method === 'GET') {
+        const students = await _loadStudentActivityAndScores();
+        const withScores = students.filter(s => s.firstScore !== null);
+        const classify = (s) => {
+          if (s.attempts < 2) return 'stable';
+          if (s.improvementPct > 5) return 'improving';
+          if (s.improvementPct < -5) return 'declining';
+          return 'stable';
+        };
+        const result = withScores.map(s => ({
+          id: s.id, name: s.name, school: s.school,
+          firstScore: s.firstScore, lastScore: s.lastScore,
+          improvementPct: s.improvementPct, attempts: s.attempts,
+          classification: classify(s),
+        }));
+        return ok({
+          total: result.length,
+          improving: result.filter(s => s.classification === 'improving').length,
+          stable:    result.filter(s => s.classification === 'stable').length,
+          declining: result.filter(s => s.classification === 'declining').length,
+          students: result,
+        }, 200, CORS);
+      }
+
+      // GET /api/analytics/skills — per-skill average across all diagnostic
+      // attempts in scope, weakest first (ties broken by more attempts = more reliable average)
+      if (sub === 'skills' && method === 'GET') {
+        const { results: planRows } = await DB.prepare(`SELECT gaps FROM plans${sWhere} ORDER BY created_at DESC LIMIT 5000`).bind(...sArgs).all();
+        const totals = new Map();
+        for (const row of planRows || []) {
+          let gaps = [];
+          try { gaps = JSON.parse(row.gaps || '[]'); } catch {}
+          for (const g of gaps) {
+            const key = g.skillId || g.skillName || '';
+            if (!key || typeof g.pct !== 'number') continue;
+            const acc = totals.get(key) || { skillId: g.skillId || '', skillName: g.skillName || key, sum: 0, count: 0 };
+            acc.sum += g.pct; acc.count += 1;
+            totals.set(key, acc);
+          }
+        }
+        const skills = [...totals.values()]
+          .map(t => ({ skillId: t.skillId, skillName: t.skillName, avgPct: Math.round(t.sum / t.count), sampleSize: t.count }))
+          .sort((a, b) => a.avgPct - b.avgPct);
+        return ok({ skills, weakest: skills.slice(0, 5) }, 200, CORS);
+      }
+
+      // GET /api/analytics/errors — from general-test answers: which skills and
+      // which specific questions get missed most often, in scope.
+      if (sub === 'errors' && method === 'GET') {
+        const [{ results: gtrRows }, { results: gtRows }] = await Promise.all([
+          DB.prepare(`SELECT test_num, answers FROM general_test_results${sWhere}`).bind(...sArgs).all(),
+          DB.prepare(`SELECT test_num, qnum, skill_id, text FROM general_tests`).all(),
+        ]);
+        const qMeta = new Map(gtRows.map(q => [`${q.test_num}:${q.qnum}`, q]));
+        const skillWrong = new Map();   // skillId -> { wrong, total }
+        const questionWrong = new Map(); // "test_num:qnum" -> { wrong, total, text, skillId }
+
+        for (const row of gtrRows || []) {
+          let answers = [];
+          try { answers = JSON.parse(row.answers || '[]'); } catch {}
+          for (const a of answers) {
+            const key = `${row.test_num}:${a.q}`;
+            const meta = qMeta.get(key);
+            const skillId = meta?.skill_id || '';
+            const isWrong = a.a !== a.corr;
+
+            const sAcc = skillWrong.get(skillId) || { skillId, wrong: 0, total: 0 };
+            sAcc.total++; if (isWrong) sAcc.wrong++;
+            skillWrong.set(skillId, sAcc);
+
+            const qAcc = questionWrong.get(key) || { testNum: row.test_num, qnum: a.q, text: meta?.text || '', skillId, wrong: 0, total: 0 };
+            qAcc.total++; if (isWrong) qAcc.wrong++;
+            questionWrong.set(key, qAcc);
+          }
+        }
+        const topSkills = [...skillWrong.values()]
+          .map(s => ({ ...s, wrongPct: s.total ? Math.round((s.wrong / s.total) * 100) : 0 }))
+          .sort((a, b) => b.wrongPct - a.wrongPct)
+          .slice(0, 10);
+        const topQuestions = [...questionWrong.values()]
+          .map(q => ({ ...q, wrongPct: q.total ? Math.round((q.wrong / q.total) * 100) : 0 }))
+          .sort((a, b) => b.wrongPct - a.wrongPct)
+          .slice(0, 20);
+        return ok({ topSkills, topQuestions }, 200, CORS);
+      }
+
+      // GET /api/analytics/activity — active (0-1d) / medium (2-3d) / inactive (4+d)
+      if (sub === 'activity' && method === 'GET') {
+        const students = await _loadStudentActivityAndScores();
+        const buckets = { active: [], medium: [], inactive: [] };
+        for (const s of students) {
+          const d = daysSince(s.lastActive);
+          if (d <= 1) buckets.active.push(s);
+          else if (d <= 3) buckets.medium.push(s);
+          else buckets.inactive.push(s);
+        }
+        return ok({
+          active:   { count: buckets.active.length,   students: buckets.active.map(s => ({ id: s.id, name: s.name, lastActive: s.lastActive })) },
+          medium:   { count: buckets.medium.length,   students: buckets.medium.map(s => ({ id: s.id, name: s.name, lastActive: s.lastActive })) },
+          inactive: { count: buckets.inactive.length, students: buckets.inactive.map(s => ({ id: s.id, name: s.name, lastActive: s.lastActive })) },
+        }, 200, CORS);
+      }
+
+      // GET /api/analytics/health — health_score = 30% activity + 40% performance + 30% improvement
+      if (sub === 'health' && method === 'GET') {
+        const students = await _loadStudentActivityAndScores();
+        const activityScore = (s) => {
+          const d = daysSince(s.lastActive);
+          if (d === Infinity) return 0;
+          if (d <= 1) return 100;
+          if (d <= 3) return 70;
+          if (d <= 7) return 40;
+          return 10;
+        };
+        const performanceScore = (s) => s.lastScore ?? 0;
+        const improvementScore = (s) => {
+          if (s.improvementPct === null) return 50; // neutral — no history yet
+          return Math.max(0, Math.min(100, 50 + s.improvementPct));
+        };
+        const result = students.map(s => {
+          const act = activityScore(s), perf = performanceScore(s), imp = improvementScore(s);
+          const health = Math.round(act * 0.3 + perf * 0.4 + imp * 0.3);
+          return { id: s.id, name: s.name, school: s.school, healthScore: health, activityScore: act, performanceScore: perf, improvementScore: imp };
+        }).sort((a, b) => a.healthScore - b.healthScore);
+        return ok({ students: result }, 200, CORS);
+      }
+
+      return err('غير موجود', 404, CORS);
+    }
+
+    // ── STUDENT PROGRESS (lesson/summary/quiz completion tracking) ─────────────
+    if (resource === 'progress') {
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS student_progress (
+        id           TEXT PRIMARY KEY,
+        student_id   TEXT NOT NULL,
+        lesson_id    TEXT NOT NULL,
+        type         TEXT NOT NULL DEFAULT 'video',
+        completed    INTEGER NOT NULL DEFAULT 1,
+        completed_at TEXT NOT NULL
+      )`).run(); } catch {}
+      try { await DB.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_unique ON student_progress(student_id, lesson_id, type)`).run(); } catch {}
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_progress_student ON student_progress(student_id)`).run(); } catch {}
+
+      // POST /api/progress/complete { studentId, lessonId, type }
+      if (!sub && method === 'POST') {
+        const prClaims = await verifyToken(request, env);
+        if (!prClaims) return err('غير مصرح', 401, CORS);
+        const { studentId, lessonId, type } = await request.json();
+        const sid = prClaims.role === 'student' ? prClaims.sub : studentId;
+        if (!sid || !lessonId) return err('حقول مفقودة', 400, CORS);
+        const t = ['video', 'summary', 'quiz'].includes(type) ? type : 'video';
+        await DB.prepare(
+          `INSERT INTO student_progress (id, student_id, lesson_id, type, completed, completed_at)
+           VALUES (?, ?, ?, ?, 1, ?)
+           ON CONFLICT (student_id, lesson_id, type) DO UPDATE SET completed = 1, completed_at = EXCLUDED.completed_at`
+        ).bind(crypto.randomUUID(), sid, lessonId, t, new Date().toISOString()).run();
+        return ok({ ok: true }, 201, CORS);
+      }
+
+      // GET /api/progress/:studentId
+      if (sub && method === 'GET') {
+        const prClaims = await verifyToken(request, env);
+        if (!prClaims) return err('غير مصرح', 401, CORS);
+        if (prClaims.role === 'student' && prClaims.sub !== sub) return err('غير مسموح', 403, CORS);
+        const { results } = await DB.prepare(
+          `SELECT lesson_id, type, completed_at FROM student_progress WHERE student_id = ? ORDER BY completed_at DESC`
+        ).bind(sub).all();
+        return ok({
+          total: results.length,
+          byType: { video: results.filter(r => r.type === 'video').length, summary: results.filter(r => r.type === 'summary').length, quiz: results.filter(r => r.type === 'quiz').length },
+          items: results,
+        }, 200, CORS);
+      }
+
+      return err('غير موجود', 404, CORS);
+    }
+
     // ── BIOLOGY G1 — scoring / behavior analytics / anti-cheating ──────────────
     // Strict layer separation:
     //   1) CORE SCORING   — final_score = correct/total*100, nothing else feeds it
@@ -1319,6 +1590,7 @@ export async function onRequest({ request, env }) {
         if (!isDevKey && !logClaims) return err('غير مصرح', 401, CORS);
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', device TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
         try { await DB.prepare(`ALTER TABLE logs ADD COLUMN device TEXT DEFAULT ''`).run(); } catch {}
+        try { await DB.prepare(`ALTER TABLE logs ADD COLUMN student_id TEXT DEFAULT ''`).run(); } catch {}
         try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category)`).run(); } catch {}
         try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)`).run(); } catch {}
         const body = await request.json();
@@ -1347,6 +1619,7 @@ export async function onRequest({ request, env }) {
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', device TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
         try { await DB.prepare(`ALTER TABLE logs ADD COLUMN device TEXT DEFAULT ''`).run(); } catch {}
+        try { await DB.prepare(`ALTER TABLE logs ADD COLUMN student_id TEXT DEFAULT ''`).run(); } catch {}
         try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category)`).run(); } catch {}
         try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)`).run(); } catch {}
         const level    = url.searchParams.get('level') || '';

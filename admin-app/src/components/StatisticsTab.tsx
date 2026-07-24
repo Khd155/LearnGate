@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import ChartsSection from './ChartsSection';
+import AdvancedAnalytics from './AdvancedAnalytics';
 
 export default function StatisticsTab() {
   const students = useStore((s) => s.students);
@@ -87,6 +88,7 @@ export default function StatisticsTab() {
           )}
         </div>
       </div>
+      <AdvancedAnalytics />
     </div>
   );
 }

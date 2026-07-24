@@ -559,6 +559,9 @@ export async function onRequest({ request, env }) {
 
         if (Array.isArray(body)) {
           const now = new Date().toISOString();
+          // Non-dev admins/directors scoped to a specific school can't use a
+          // row's own `school` (or ?school=) to plant students in another school.
+          const effectiveSchool = postClaims.school && postClaims.school !== '*' ? postClaims.school : null;
           const valid = body.filter(r => r.name && r.code && typeof r.name === 'string' && /^\d{10}$/.test(r.code) && r.name.length <= 100);
 
           // Fetch existing codes in one query
@@ -577,7 +580,7 @@ export async function onRequest({ request, env }) {
           if (toAdd.length) {
             const stmts = toAdd.map(({ name, code, school: s, phone }) =>
               DB.prepare('INSERT INTO students (id, code, name, school, phone, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (code) DO NOTHING')
-                .bind(crypto.randomUUID(), code, name, s || school, phone || '', now)
+                .bind(crypto.randomUUID(), code, name, effectiveSchool || s || school, phone || '', now)
             );
             const results = await DB.batch(stmts);
             added = results.filter(r => r.changes).length;
@@ -587,30 +590,33 @@ export async function onRequest({ request, env }) {
           if (upsert && toUpdate.length) {
             const stmts = toUpdate.map(({ name, code, school: s, phone }) =>
               DB.prepare('UPDATE students SET name = ?, school = ?, phone = COALESCE(?, phone) WHERE code = ?')
-                .bind(name, s || school, phone || null, code)
+                .bind(name, effectiveSchool || s || school, phone || null, code)
             );
             const results = await DB.batch(stmts);
             updated = results.filter(r => r.changes).length;
           }
 
-          await logEvent(DB, { level: 'info', category: 'student', message: `استيراد طلاب جماعي — ${added} مضاف، ${updated} معدّل`, user_name: postClaims.name || '', user_role: postClaims.role, school: school || '' });
+          await logEvent(DB, { level: 'info', category: 'student', message: `استيراد طلاب جماعي — ${added} مضاف، ${updated} معدّل`, user_name: postClaims.name || '', user_role: postClaims.role, school: effectiveSchool || school || '' });
           return ok({ added, updated, skipped: valid.length - added - updated, total: valid.length }, 200, CORS);
         }
 
         const { name, code, school: bodySchool, phone } = body;
+        // Non-dev admins/directors scoped to a specific school can't override
+        // it via body/query — only dev or a school='*' director may pick freely.
+        const effectiveSchool = postClaims.school && postClaims.school !== '*' ? postClaims.school : (bodySchool || school);
         const sid = crypto.randomUUID();
         const now = new Date().toISOString();
         try {
           await DB.prepare(
             'INSERT INTO students (id, code, name, school, phone, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-          ).bind(sid, code, name, bodySchool || school, phone || '', now).run();
+          ).bind(sid, code, name, effectiveSchool, phone || '', now).run();
         } catch (e) {
           if (e.message && e.message.includes('UNIQUE'))
             return err('السجل المدني مسجّل مسبقاً', 409, CORS);
           throw e;
         }
-        await logEvent(DB, { level: 'info', category: 'student', message: `إضافة طالب جديد: ${name}`, user_name: postClaims.name || '', user_role: postClaims.role, school: bodySchool || school || '' });
-        return ok({ student: { id: sid, code, name, school: bodySchool || school, phone: phone || '', created_at: now } }, 201, CORS);
+        await logEvent(DB, { level: 'info', category: 'student', message: `إضافة طالب جديد: ${name}`, user_name: postClaims.name || '', user_role: postClaims.role, school: effectiveSchool || '' });
+        return ok({ student: { id: sid, code, name, school: effectiveSchool, phone: phone || '', created_at: now } }, 201, CORS);
       }
 
       if (method === 'PATCH' && sub) {

@@ -1766,7 +1766,12 @@ export async function onRequest({ request, env }) {
         const { results } = await DB.prepare(
           `SELECT ws.*,
             (SELECT COUNT(*) FROM access_tokens WHERE wa_send_id = ws.id) as sent_count,
-            (SELECT COUNT(*) FROM access_tokens WHERE wa_send_id = ws.id AND used_at IS NOT NULL) as opened_count
+            (SELECT COUNT(*) FROM access_tokens WHERE wa_send_id = ws.id AND used_at IS NOT NULL) as opened_count,
+            (SELECT COUNT(DISTINCT at2.student_id) FROM access_tokens at2
+               WHERE at2.wa_send_id = ws.id AND EXISTS (
+                 SELECT 1 FROM logs l WHERE l.student_id = at2.student_id
+                   AND l.category = 'login' AND l.level = 'success' AND l.created_at >= ws.created_at
+               )) as entered_count
           FROM wa_sends ws${wsCond} ORDER BY created_at DESC`
         ).bind(...wsArgs).all();
         return ok({ sends: results }, 200, CORS);
@@ -1782,11 +1787,16 @@ export async function onRequest({ request, env }) {
           if (!wsRClaims || wsRClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         try { await DB.prepare(`ALTER TABLE access_tokens ADD COLUMN wa_send_id TEXT`).run(); } catch {}
+        const waSendRow = await DB.prepare('SELECT created_at FROM wa_sends WHERE id = ?').bind(subsub).first();
+        if (!waSendRow) return err('الدفعة غير موجودة', 404, CORS);
+        const waSendCreatedAt = waSendRow.created_at;
         const { results } = await DB.prepare(
-          `SELECT s.id, s.name, at.used_at, at.created_at
+          `SELECT s.id, s.name, at.used_at, at.created_at,
+             (SELECT MIN(l.created_at) FROM logs l WHERE l.student_id = s.id
+                AND l.category = 'login' AND l.level = 'success' AND l.created_at >= ?) as entered_at
            FROM access_tokens at JOIN students s ON s.id = at.student_id
            WHERE at.wa_send_id = ? ORDER BY at.used_at DESC NULLS LAST, at.created_at DESC`
-        ).bind(subsub).all();
+        ).bind(waSendCreatedAt, subsub).all();
         return ok({ recipients: results }, 200, CORS);
       }
 

@@ -2210,6 +2210,7 @@ const Dev = {
       el.innerHTML = list.map(s => {
         const sent = s.sent_count || 0;
         const opened = s.opened_count || 0;
+        const entered = s.entered_count || 0;
         const notOpened = Math.max(0, sent - opened);
         const pct = sent ? Math.round(opened / sent * 100) : 0;
         const date = new Date(s.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
@@ -2223,6 +2224,7 @@ const Dev = {
           </div>
           <div style="padding:12px 16px;background:rgba(255,255,255,.03);">
             <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">
+              <span style="font-size:13px;"><span style="color:#a855f7;font-weight:700;">${entered}</span> <span style="color:var(--muted)">دخلوا المنصة</span></span>
               <span style="font-size:13px;"><span style="color:#4FA877;font-weight:700;">${opened}</span> <span style="color:var(--muted)">فتحوها</span></span>
               <span style="font-size:13px;"><span style="color:#f59e0b;font-weight:700;">${notOpened}</span> <span style="color:var(--muted)">لم يفتحوها</span></span>
               <span style="font-size:13px;"><span style="color:#3b82f6;font-weight:700;">${sent}</span> <span style="color:var(--muted)">إجمالي</span></span>
@@ -2233,7 +2235,7 @@ const Dev = {
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-sm" style="font-size:12px;padding:5px 12px;" onclick="Dev.toggleWaSendRecipients('${s.id}', this)">
-                👁 عرض من فتحها
+                👁 عرض المسار الكامل
               </button>
             </div>
             <div id="wa-recipients-${s.id}" style="display:none;margin-top:10px;"></div>
@@ -2248,20 +2250,40 @@ const Dev = {
   async toggleWaSendRecipients(id, btn) {
     const el = document.getElementById('wa-recipients-' + id);
     if (!el) return;
-    if (el.style.display !== 'none') { el.style.display = 'none'; btn.textContent = '👁 عرض من فتحها'; return; }
+    if (el.style.display !== 'none') { el.style.display = 'none'; btn.textContent = '👁 عرض المسار الكامل'; return; }
     el.style.display = 'block';
     btn.textContent = '▲ إخفاء';
     if (el.dataset.loaded) return;
     el.innerHTML = '<div style="color:var(--muted);font-size:12px;">جارٍ التحميل...</div>';
     try {
       const data = await apiDev(`/dev/wa-sends/${id}`);
-      const recipients = (data.recipients || []).filter(r => r.used_at);
-      if (!recipients.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12px;">لم يفتحها أحد بعد</div>'; return; }
-      el.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">الطلاب اللي فتحوها (${recipients.length}):</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">
-          ${recipients.map(r => {
-            const t = new Date(r.used_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-            return `<span style="background:rgba(79,168,119,.15);border:1px solid rgba(79,168,119,.3);border-radius:8px;padding:4px 10px;font-size:12px;color:#e2e8f0;" title="${t}">${escapeHtml(r.name)}</span>`;
+      const recipients = data.recipients || [];
+      if (!recipients.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12px;">لا يوجد مستلمون بهذه الدفعة</div>'; return; }
+      const fmt = (iso) => new Date(iso).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+      // دخل المنصة أولاً، ثم فتح الرابط فقط، ثم لم يفتح بعد.
+      const rank = (r) => r.entered_at ? 0 : (r.used_at ? 1 : 2);
+      const sorted = [...recipients].sort((a, b) => rank(a) - rank(b));
+      el.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">المسار الكامل (${recipients.length}):</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${sorted.map(r => {
+            let badge, sub;
+            if (r.entered_at) {
+              badge = `<span style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.35);color:#c084fc;border-radius:100px;padding:2px 10px;font-size:11px;font-weight:700;white-space:nowrap;">🟣 دخل المنصة</span>`;
+              sub = fmt(r.entered_at);
+            } else if (r.used_at) {
+              badge = `<span style="background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.35);color:#60a5fa;border-radius:100px;padding:2px 10px;font-size:11px;font-weight:700;white-space:nowrap;">🔵 فتح الرابط فقط</span>`;
+              sub = fmt(r.used_at);
+            } else {
+              badge = `<span style="background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.3);color:#94a3b8;border-radius:100px;padding:2px 10px;font-size:11px;font-weight:700;white-space:nowrap;">⚪ لم يفتح بعد</span>`;
+              sub = '—';
+            }
+            return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:6px 10px;">
+              <span style="font-size:13px;color:#e2e8f0;">${escapeHtml(r.name)}</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:11px;color:var(--muted);">${sub}</span>
+                ${badge}
+              </div>
+            </div>`;
           }).join('')}
         </div>`;
       el.dataset.loaded = '1';

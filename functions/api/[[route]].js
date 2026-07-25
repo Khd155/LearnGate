@@ -1756,6 +1756,10 @@ export async function onRequest({ request, env }) {
           if (!wsListClaims || wsListClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_sends (id TEXT PRIMARY KEY, label TEXT NOT NULL, school TEXT, template_name TEXT, admin_name TEXT, total_targeted INTEGER DEFAULT 0, created_at TEXT NOT NULL)`).run(); } catch {}
+        // access_tokens may predate the wa_send_id column (added for this
+        // feature) — ensure it exists before the correlated subqueries below
+        // reference it, same as the access-tokens POST/GET handlers do.
+        try { await DB.prepare(`ALTER TABLE access_tokens ADD COLUMN wa_send_id TEXT`).run(); } catch {}
         const wsSchool = url.searchParams.get('school') || '';
         const wsCond = wsSchool ? ' WHERE school = ?' : '';
         const wsArgs = wsSchool ? [wsSchool] : [];
@@ -1777,6 +1781,7 @@ export async function onRequest({ request, env }) {
           const wsRClaims = await verifyToken(request, env);
           if (!wsRClaims || wsRClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
+        try { await DB.prepare(`ALTER TABLE access_tokens ADD COLUMN wa_send_id TEXT`).run(); } catch {}
         const { results } = await DB.prepare(
           `SELECT s.id, s.name, at.used_at, at.created_at
            FROM access_tokens at JOIN students s ON s.id = at.student_id

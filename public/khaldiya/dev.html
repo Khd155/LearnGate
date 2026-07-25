@@ -297,6 +297,7 @@
         <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')"><span class="tab-ic">📋</span> سجل النشاط</button>
         <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')"><span class="tab-ic">🧠</span> تحليل السلوك</button>
         <button class="tab-btn"        data-tab="broadcasts" onclick="Dev.setTab('broadcasts')"><span class="tab-ic">📢</span> الرسائل الجماعية</button>
+        <button class="tab-btn"        data-tab="wa-stats"  onclick="Dev.setTab('wa-stats')"><span class="tab-ic">📲</span> إحصائيات واتساب</button>
       </nav>
       <div class="sidebar-foot">LearnGate v2.0</div>
     </aside>
@@ -714,6 +715,18 @@
       <div id="bc-list"><div class="empty">اختر مدرسة أو اضغط تحديث</div></div>
     </div>
 
+      <!-- ── WhatsApp Send Stats ── -->
+    <div id="tab-wa-stats" class="tab-pane">
+      <div class="section-title" style="margin-bottom:16px;"><span>📲</span> إحصائيات واتساب</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <select id="wa-school-filter" class="form-select" style="width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadWaSends()">
+          <option value="">كل المدارس</option>
+        </select>
+        <button class="btn btn-warn btn-sm" onclick="Dev.loadWaSends()">🔄 تحديث</button>
+      </div>
+      <div id="wa-sends-list"><div class="empty">اختر مدرسة أو اضغط تحديث</div></div>
+    </div>
+
       </div><!-- /content -->
     </div><!-- /main -->
   </div><!-- /shell -->
@@ -881,6 +894,7 @@ const Dev = {
     if (tab === 'diff')        { Dev.loadDiff(); return; }
     if (tab === 'permissions') { Dev.loadPermissions(); return; }
     if (tab === 'broadcasts')  { Dev.loadBroadcasts(); return; }
+    if (tab === 'wa-stats')    { Dev.loadWaSends(); return; }
   },
 
   async loadAll() {
@@ -1238,6 +1252,10 @@ const Dev = {
     // Broadcasts school filter
     document.getElementById('bc-school-filter').innerHTML =
       `<option value="">كل المدارس</option>` + schoolOpts;
+
+    // WhatsApp send-stats school filter
+    document.getElementById('wa-school-filter').innerHTML =
+      `<option value="">كل المدارس</option>` + schoolOpts;
   },
 
   async loadStudents() {
@@ -1460,13 +1478,25 @@ const Dev = {
       { title: 'إرسال جماعي عبر واتساب', okText: `إرسال لـ ${targets.length}` }
     )) return;
 
+    // One "wa_sends" batch row per bulk-send run, so /dev/wa-sends can later
+    // show aggregate sent/opened stats for this specific run (dev.html's
+    // "إحصائيات واتساب" tab). Best-effort: if this call fails, the send
+    // itself still proceeds — it just won't show up grouped in the stats tab.
+    let waSendId = null;
+    try {
+      ({ id: waSendId } = await apiDev('/dev/wa-sends', {
+        method: 'POST',
+        body: JSON.stringify({ label: 'رابط الحساب (ترحيب)', school, template_name: 'student_account_access_template_1', total_targeted: targets.length }),
+      }));
+    } catch (_) {}
+
     let sent = 0, failed = 0;
     progressEl.style.display = 'block';
     for (let i = 0; i < targets.length; i++) {
       const s = targets[i];
       progressEl.textContent = `جارٍ الإرسال… (${i + 1}/${targets.length}) — ${s.name} — نجح ${sent} / فشل ${failed}`;
       try {
-        const { token } = await apiDev('/dev/access-tokens', { method: 'POST', body: JSON.stringify({ studentId: s.id }) });
+        const { token } = await apiDev('/dev/access-tokens', { method: 'POST', body: JSON.stringify({ studentId: s.id, waSendId }) });
         const parts = (s.name || '').trim().split(/\s+/).filter(Boolean);
         const displayName = parts.length <= 2 ? parts.join(' ') : parts[0] + ' ' + parts[parts.length - 1];
         const sendRes = await apiDev('/sendpulse/send', {
@@ -2149,6 +2179,79 @@ const Dev = {
           ${viewers.map(v => {
             const t = new Date(v.seen_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
             return `<span style="background:rgba(79,168,119,.15);border:1px solid rgba(79,168,119,.3);border-radius:8px;padding:4px 10px;font-size:12px;color:#e2e8f0;" title="${t}">${escapeHtml(v.name)}</span>`;
+          }).join('')}
+        </div>`;
+      el.dataset.loaded = '1';
+    } catch(e) {
+      el.innerHTML = `<div style="color:var(--danger);font-size:12px;">تعذّر التحميل</div>`;
+    }
+  },
+
+  // ── WhatsApp Send Stats Tab ──────────────────────────────────────────
+  async loadWaSends() {
+    const el = document.getElementById('wa-sends-list');
+    const school = document.getElementById('wa-school-filter')?.value || '';
+    if (el) el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
+    try {
+      const params = school ? `?school=${encodeURIComponent(school)}` : '';
+      const data = await apiDev('/dev/wa-sends' + params);
+      const list = data.sends || [];
+      if (!list.length) { el.innerHTML = '<div class="empty">لا توجد إرسالات جماعية بعد</div>'; return; }
+      el.innerHTML = list.map(s => {
+        const sent = s.sent_count || 0;
+        const opened = s.opened_count || 0;
+        const notOpened = Math.max(0, sent - opened);
+        const pct = sent ? Math.round(opened / sent * 100) : 0;
+        const date = new Date(s.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        return `<div class="section" style="margin-bottom:14px;padding:0;overflow:hidden;">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:8px;">${escapeHtml(s.label)}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted);">
+              <span>🏫 ${escapeHtml(s.school || 'كل المدارس')}</span>
+              <span>🕐 ${date}</span>
+            </div>
+          </div>
+          <div style="padding:12px 16px;background:rgba(255,255,255,.03);">
+            <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">
+              <span style="font-size:13px;"><span style="color:#4FA877;font-weight:700;">${opened}</span> <span style="color:var(--muted)">فتحوها</span></span>
+              <span style="font-size:13px;"><span style="color:#f59e0b;font-weight:700;">${notOpened}</span> <span style="color:var(--muted)">لم يفتحوها</span></span>
+              <span style="font-size:13px;"><span style="color:#3b82f6;font-weight:700;">${sent}</span> <span style="color:var(--muted)">إجمالي</span></span>
+              ${sent ? `<span style="font-size:12px;color:var(--muted);">(${pct}% فتحوها)</span>` : ''}
+            </div>
+            <div style="background:rgba(255,255,255,.07);border-radius:6px;height:6px;overflow:hidden;margin-bottom:10px;">
+              <div style="height:100%;background:#4FA877;width:${pct}%;transition:width .4s;border-radius:6px;"></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-sm" style="font-size:12px;padding:5px 12px;" onclick="Dev.toggleWaSendRecipients('${s.id}', this)">
+                👁 عرض من فتحها
+              </button>
+            </div>
+            <div id="wa-recipients-${s.id}" style="display:none;margin-top:10px;"></div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
+    }
+  },
+
+  async toggleWaSendRecipients(id, btn) {
+    const el = document.getElementById('wa-recipients-' + id);
+    if (!el) return;
+    if (el.style.display !== 'none') { el.style.display = 'none'; btn.textContent = '👁 عرض من فتحها'; return; }
+    el.style.display = 'block';
+    btn.textContent = '▲ إخفاء';
+    if (el.dataset.loaded) return;
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px;">جارٍ التحميل...</div>';
+    try {
+      const data = await apiDev(`/dev/wa-sends/${id}`);
+      const recipients = (data.recipients || []).filter(r => r.used_at);
+      if (!recipients.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12px;">لم يفتحها أحد بعد</div>'; return; }
+      el.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">الطلاب اللي فتحوها (${recipients.length}):</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${recipients.map(r => {
+            const t = new Date(r.used_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+            return `<span style="background:rgba(79,168,119,.15);border:1px solid rgba(79,168,119,.3);border-radius:8px;padding:4px 10px;font-size:12px;color:#e2e8f0;" title="${t}">${escapeHtml(r.name)}</span>`;
           }).join('')}
         </div>`;
       el.dataset.loaded = '1';

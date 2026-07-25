@@ -1689,6 +1689,7 @@ export async function onRequest({ request, env }) {
           if (!atClaims || atClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        try { await DB.prepare(`ALTER TABLE access_tokens ADD COLUMN wa_send_id TEXT`).run(); } catch {}
         const atBody = await request.json();
         const studentId = String(atBody.studentId || '');
         if (!studentId) return err('studentId مطلوب', 400, CORS);
@@ -1697,7 +1698,12 @@ export async function onRequest({ request, env }) {
         const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
         const randBytes = crypto.getRandomValues(new Uint8Array(14));
         const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
-        await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, studentId, new Date().toISOString()).run();
+        // waSendId (optional): links this token to a bulk "إرسال جماعي" batch
+        // (see resource === 'dev' && sub === 'wa-sends' below) so dev.html can
+        // show aggregate sent/opened stats per batch. Individual one-off sends
+        // (generateTestAccessLink/sendAccountLinkWhatsApp) omit it, same as before.
+        const waSendId = atBody.waSendId ? String(atBody.waSendId) : null;
+        await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at, wa_send_id) VALUES (?, ?, ?, ?)').bind(token, studentId, new Date().toISOString(), waSendId).run();
         return ok({ token }, 201, CORS);
       }
 
@@ -1716,6 +1722,67 @@ export async function onRequest({ request, env }) {
           'SELECT token, used_at, created_at FROM access_tokens WHERE student_id = ? ORDER BY created_at DESC'
         ).bind(studentId).all();
         return ok({ tokens: results }, 200, CORS);
+      }
+
+      // POST /api/dev/wa-sends { label, school, template_name, total_targeted }
+      // — creates one row per bulk "إرسال جماعي" run (e.g. sendWelcomeToAll),
+      // so the access_tokens minted during that run can be grouped and their
+      // aggregate open rate shown in the dev panel.
+      if (sub === 'wa-sends' && !subsub && method === 'POST') {
+        const isDevKeyWs = authDev(request, env);
+        let wsClaims = null;
+        if (!isDevKeyWs) {
+          wsClaims = await verifyToken(request, env);
+          if (!wsClaims || wsClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_sends (id TEXT PRIMARY KEY, label TEXT NOT NULL, school TEXT, template_name TEXT, admin_name TEXT, total_targeted INTEGER DEFAULT 0, created_at TEXT NOT NULL)`).run(); } catch {}
+        const wsBody = await request.json();
+        const label = String(wsBody.label || '').trim();
+        if (!label) return err('label مطلوب', 400, CORS);
+        const wsId = crypto.randomUUID();
+        await DB.prepare(
+          'INSERT INTO wa_sends (id, label, school, template_name, admin_name, total_targeted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).bind(wsId, label, wsBody.school || '', wsBody.template_name || '', wsClaims?.name || '', Number(wsBody.total_targeted) || 0, new Date().toISOString()).run();
+        return ok({ id: wsId }, 201, CORS);
+      }
+
+      // GET /api/dev/wa-sends?school=... — lists past bulk WhatsApp send
+      // batches with aggregate sent/opened counts (opened = access_tokens
+      // whose link was actually redeemed, i.e. used_at is set).
+      if (sub === 'wa-sends' && !subsub && method === 'GET') {
+        const isDevKeyWsList = authDev(request, env);
+        if (!isDevKeyWsList) {
+          const wsListClaims = await verifyToken(request, env);
+          if (!wsListClaims || wsListClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_sends (id TEXT PRIMARY KEY, label TEXT NOT NULL, school TEXT, template_name TEXT, admin_name TEXT, total_targeted INTEGER DEFAULT 0, created_at TEXT NOT NULL)`).run(); } catch {}
+        const wsSchool = url.searchParams.get('school') || '';
+        const wsCond = wsSchool ? ' WHERE school = ?' : '';
+        const wsArgs = wsSchool ? [wsSchool] : [];
+        const { results } = await DB.prepare(
+          `SELECT ws.*,
+            (SELECT COUNT(*) FROM access_tokens WHERE wa_send_id = ws.id) as sent_count,
+            (SELECT COUNT(*) FROM access_tokens WHERE wa_send_id = ws.id AND used_at IS NOT NULL) as opened_count
+          FROM wa_sends ws${wsCond} ORDER BY created_at DESC`
+        ).bind(...wsArgs).all();
+        return ok({ sends: results }, 200, CORS);
+      }
+
+      // GET /api/dev/wa-sends/:id — per-student open status for one batch.
+      // (The router only parses resource/sub/subsub — 3 segments — so this
+      // stays at /dev/wa-sends/:id rather than a deeper /:id/recipients path.)
+      if (sub === 'wa-sends' && subsub && method === 'GET') {
+        const isDevKeyWsR = authDev(request, env);
+        if (!isDevKeyWsR) {
+          const wsRClaims = await verifyToken(request, env);
+          if (!wsRClaims || wsRClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        const { results } = await DB.prepare(
+          `SELECT s.id, s.name, at.used_at, at.created_at
+           FROM access_tokens at JOIN students s ON s.id = at.student_id
+           WHERE at.wa_send_id = ? ORDER BY at.used_at DESC NULLS LAST, at.created_at DESC`
+        ).bind(subsub).all();
+        return ok({ recipients: results }, 200, CORS);
       }
 
       // POST /api/dev/ticket-link { ticketId } — mints a random opaque token for

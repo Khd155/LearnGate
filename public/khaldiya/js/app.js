@@ -1149,7 +1149,7 @@ const App = {
     const selected = State.testAnswers[q.id];
     const opts = [...q.opts.map((opt, i) => `
       <div class="q-opt${selected === i ? ' selected' : ''}" onclick="App.selectAnswer(${i})">
-        <div class="opt-circle"></div><span>${opt}</span>
+        <div class="opt-circle"></div><span>${escapeHtml(opt)}</span>
       </div>`),
       `<div class="q-opt dont-know${selected === 'dk' ? ' selected' : ''}" onclick="App.selectAnswer('dk')">
         <div class="opt-circle"></div><span>لا أعرف الإجابة</span>
@@ -1301,7 +1301,7 @@ const App = {
     const selected = answers[q.qnum];
     document.getElementById('gt-q-opts').innerHTML = [...q.opts.map((opt, i) => `
       <div class="q-opt${selected === i ? ' selected' : ''}" onclick="App.gtSelect(${i})">
-        <div class="opt-circle"></div><span>${opt}</span>
+        <div class="opt-circle"></div><span>${escapeHtml(opt)}</span>
       </div>`),
       `<div class="q-opt dont-know${selected === 'dk' ? ' selected' : ''}" onclick="App.gtSelect('dk')">
         <div class="opt-circle"></div><span>لا أعرف الإجابة</span>
@@ -2614,7 +2614,7 @@ const App = {
     opts.innerHTML = ['opt1','opt2','opt3','opt4'].map((k, i) => `
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="min-width:22px;font-weight:700;color:var(--primary);">${i+1}.</span>
-        <input type="text" id="eq-${k}" class="form-input" value="${q[k] || ''}" placeholder="الخيار ${i+1}" style="flex:1;font-size:13px;">
+        <input type="text" id="eq-${k}" class="form-input" value="${escapeHtml(q[k] || '')}" placeholder="الخيار ${i+1}" style="flex:1;font-size:13px;">
       </div>`).join('');
     document.getElementById('edit-q-modal').classList.add('open');
   },

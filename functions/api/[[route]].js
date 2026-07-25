@@ -340,7 +340,10 @@ async function rateLimit(DB, ip, action, maxPerMin) {
 }
 
 // ── Failed Login Lockout (D1-based, 15-minute lockout after 5 failures) ──
-async function recordFailedAttempt(DB, ip, action) {
+// `accountKey` (e.g. the login code itself) is optional; when given, a
+// second lockout counter is tracked per-account alongside the per-IP one,
+// so rotating IPs can't be used to brute-force a single known account.
+async function recordFailedAttempt(DB, ip, action, accountKey) {
   try {
     const lockKey   = `lock:${action}:${ip}`;
     const lockUntil = Math.floor(Date.now() / 1000) + 900; // 15 min from now
@@ -351,22 +354,40 @@ async function recordFailedAttempt(DB, ip, action) {
     } else {
       await DB.prepare('INSERT INTO rate_limits (key, count, win) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET count = EXCLUDED.count, win = EXCLUDED.win').bind(lockKey, count, Math.floor(Date.now() / 1000) + 900).run();
     }
+    if (accountKey) {
+      const acctKey = `lock:${action}:acct:${accountKey}`;
+      const acctRow = await DB.prepare('SELECT count, win FROM rate_limits WHERE key = ?').bind(acctKey).first();
+      const acctCount = (acctRow && acctRow.win > Math.floor(Date.now() / 1000)) ? (acctRow.count + 1) : 1;
+      if (acctCount >= 5) {
+        await DB.prepare('INSERT INTO rate_limits (key, count, win) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET count = EXCLUDED.count, win = EXCLUDED.win').bind(acctKey, acctCount, lockUntil).run();
+      } else {
+        await DB.prepare('INSERT INTO rate_limits (key, count, win) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET count = EXCLUDED.count, win = EXCLUDED.win').bind(acctKey, acctCount, Math.floor(Date.now() / 1000) + 900).run();
+      }
+    }
   } catch {}
 }
 
-async function isLockedOut(DB, ip, action) {
+async function isLockedOut(DB, ip, action, accountKey) {
   try {
     const lockKey = `lock:${action}:${ip}`;
     const row = await DB.prepare('SELECT count, win FROM rate_limits WHERE key = ?').bind(lockKey).first();
     if (row && row.count >= 5 && row.win > Math.floor(Date.now() / 1000)) return true;
+    if (accountKey) {
+      const acctKey = `lock:${action}:acct:${accountKey}`;
+      const acctRow = await DB.prepare('SELECT count, win FROM rate_limits WHERE key = ?').bind(acctKey).first();
+      if (acctRow && acctRow.count >= 5 && acctRow.win > Math.floor(Date.now() / 1000)) return true;
+    }
     return false;
   } catch { return false; }
 }
 
-async function clearFailedAttempts(DB, ip, action) {
+async function clearFailedAttempts(DB, ip, action, accountKey) {
   try {
     const lockKey = `lock:${action}:${ip}`;
     await DB.prepare('DELETE FROM rate_limits WHERE key = ?').bind(lockKey).run();
+    if (accountKey) {
+      await DB.prepare('DELETE FROM rate_limits WHERE key = ?').bind(`lock:${action}:acct:${accountKey}`).run();
+    }
   } catch {}
 }
 
@@ -465,16 +486,19 @@ export async function onRequest({ request, env }) {
         const { code, school: bodySchool } = rawBody;
         if (Object.keys(rawBody).some(k => !['code','school'].includes(k))) return err('حقول غير مسموحة', 400, CORS);
         if (!code || !/^\d{10}$/.test(code)) return err('رمز غير صالح', 400, CORS);
+        // Account-level lockout (by code) in addition to the IP-level check
+        // above, so rotating IPs can't be used to brute-force one account.
+        if (await isLockedOut(DB, ip, 'student-login', code)) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
         const sc = bodySchool || school;
         const student = sc
           ? await DB.prepare('SELECT id, code, name, school, phone FROM students WHERE code = ? AND school = ?').bind(code, sc).first()
           : await DB.prepare('SELECT id, code, name, school, phone FROM students WHERE code = ?').bind(code).first();
         if (!student) {
-          await recordFailedAttempt(DB, ip, 'student-login');
+          await recordFailedAttempt(DB, ip, 'student-login', code);
           await logEvent(DB, { level: 'warn', category: 'login', message: 'محاولة دخول طالب فاشلة — بيانات غير صحيحة أو الحساب غير موجود', user_role: 'student', school: sc, ip });
           return err('بيانات الدخول غير صحيحة', 401, CORS);
         }
-        await clearFailedAttempts(DB, ip, 'student-login');
+        await clearFailedAttempts(DB, ip, 'student-login', code);
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const token = await jwtSign({ sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
         await logEvent(DB, { level: 'success', category: 'login', message: 'تسجيل دخول طالب', user_name: student.name, user_role: 'student', school: student.school || '', ip, student_id: student.id });
@@ -489,15 +513,18 @@ export async function onRequest({ request, env }) {
         if (Object.keys(rawAdminBody).some(k => !['code','school'].includes(k))) return err('حقول غير مسموحة', 400, CORS);
         const { code: adminCode, school: bodySchool } = rawAdminBody;
         if (!adminCode || !/^\d{10}$/.test(adminCode)) return err('رمز غير صالح', 400, CORS);
+        // Account-level lockout (by code) in addition to the IP-level check
+        // above, so rotating IPs can't be used to brute-force one account.
+        if (await isLockedOut(DB, ip, 'admin-login', adminCode)) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
         try { await DB.prepare("ALTER TABLE admins ADD COLUMN permissions TEXT DEFAULT '[]'").run(); } catch {}
         const admin = await DB.prepare('SELECT * FROM admins WHERE code = ?').bind(adminCode).first();
         const sc = bodySchool || school;
         if (!admin || (admin.school !== '*' && sc && admin.school !== sc)) {
-          await recordFailedAttempt(DB, ip, 'admin-login');
+          await recordFailedAttempt(DB, ip, 'admin-login', adminCode);
           await logEvent(DB, { level: 'warn', category: 'login', message: 'محاولة دخول مشرف فاشلة — بيانات غير صحيحة أو الحساب غير موجود', user_role: 'admin', school: sc, ip });
           return err('بيانات الدخول غير صحيحة', 401, CORS);
         }
-        await clearFailedAttempts(DB, ip, 'admin-login');
+        await clearFailedAttempts(DB, ip, 'admin-login', adminCode);
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const adminName = admin.admin_name || admin.name || '';
         // Normalize role: only 'director' keeps its value, everything else becomes 'admin'
@@ -512,9 +539,14 @@ export async function onRequest({ request, env }) {
       // POST /api/auth/dev
       if (sub === 'dev' && method === 'POST') {
         if (!await rateLimit(DB, ip, 'dev-login', 5)) return err('طلبات كثيرة', 429, CORS);
+        if (await isLockedOut(DB, ip, 'dev-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
         const { key } = await request.json();
         const devKey = env.DEV_KEY;
-        if (!devKey || key !== devKey) return err('غير مصرح', 401, CORS);
+        if (!devKey || key !== devKey) {
+          await recordFailedAttempt(DB, ip, 'dev-login');
+          return err('غير مصرح', 401, CORS);
+        }
+        await clearFailedAttempts(DB, ip, 'dev-login');
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const token = await jwtSign({ role: 'dev', exp: Math.floor(Date.now() / 1000) + 4 * 3600 }, env.JWT_SECRET);
         return ok({ token }, 200, CORS);
@@ -617,6 +649,9 @@ export async function onRequest({ request, env }) {
 
         if (Array.isArray(body)) {
           const now = new Date().toISOString();
+          // Non-dev admins/directors scoped to a specific school can't use a
+          // row's own `school` (or ?school=) to plant students in another school.
+          const effectiveSchool = postClaims.school && postClaims.school !== '*' ? postClaims.school : null;
           const valid = body.filter(r => r.name && r.code && typeof r.name === 'string' && /^\d{10}$/.test(r.code) && r.name.length <= 100);
 
           // Fetch existing codes in one query
@@ -635,7 +670,7 @@ export async function onRequest({ request, env }) {
           if (toAdd.length) {
             const stmts = toAdd.map(({ name, code, school: s, phone }) =>
               DB.prepare('INSERT INTO students (id, code, name, school, phone, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (code) DO NOTHING')
-                .bind(crypto.randomUUID(), code, name, s || school, phone || '', now)
+                .bind(crypto.randomUUID(), code, name, effectiveSchool || s || school, phone || '', now)
             );
             const results = await DB.batch(stmts);
             added = results.filter(r => r.changes).length;
@@ -645,30 +680,36 @@ export async function onRequest({ request, env }) {
           if (upsert && toUpdate.length) {
             const stmts = toUpdate.map(({ name, code, school: s, phone }) =>
               DB.prepare('UPDATE students SET name = ?, school = ?, phone = COALESCE(?, phone) WHERE code = ?')
-                .bind(name, s || school, phone || null, code)
+                .bind(name, effectiveSchool || s || school, phone || null, code)
             );
             const results = await DB.batch(stmts);
             updated = results.filter(r => r.changes).length;
           }
 
-          await logEvent(DB, { level: 'info', category: 'student', message: `استيراد طلاب جماعي — ${added} مضاف، ${updated} معدّل`, user_name: postClaims.name || '', user_role: postClaims.role, school: school || '' });
+          await logEvent(DB, { level: 'info', category: 'student', message: `استيراد طلاب جماعي — ${added} مضاف، ${updated} معدّل`, user_name: postClaims.name || '', user_role: postClaims.role, school: effectiveSchool || school || '' });
           return ok({ added, updated, skipped: valid.length - added - updated, total: valid.length }, 200, CORS);
         }
 
         const { name, code, school: bodySchool, phone } = body;
+        // Same field constraints already enforced on the bulk-import path above.
+        if (!code || !/^\d{10}$/.test(code)) return err('رمز غير صالح', 400, CORS);
+        if (!name || typeof name !== 'string' || name.length > 100) return err('اسم غير صالح', 400, CORS);
+        // Non-dev admins/directors scoped to a specific school can't override
+        // it via body/query — only dev or a school='*' director may pick freely.
+        const effectiveSchool = postClaims.school && postClaims.school !== '*' ? postClaims.school : (bodySchool || school);
         const sid = crypto.randomUUID();
         const now = new Date().toISOString();
         try {
           await DB.prepare(
             'INSERT INTO students (id, code, name, school, phone, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-          ).bind(sid, code, name, bodySchool || school, phone || '', now).run();
+          ).bind(sid, code, name, effectiveSchool, phone || '', now).run();
         } catch (e) {
           if (e.message && e.message.includes('UNIQUE'))
             return err('السجل المدني مسجّل مسبقاً', 409, CORS);
           throw e;
         }
-        await logEvent(DB, { level: 'info', category: 'student', message: `إضافة طالب جديد: ${name}`, user_name: postClaims.name || '', user_role: postClaims.role, school: bodySchool || school || '' });
-        return ok({ student: { id: sid, code, name, school: bodySchool || school, phone: phone || '', created_at: now } }, 201, CORS);
+        await logEvent(DB, { level: 'info', category: 'student', message: `إضافة طالب جديد: ${name}`, user_name: postClaims.name || '', user_role: postClaims.role, school: effectiveSchool || '' });
+        return ok({ student: { id: sid, code, name, school: effectiveSchool, phone: phone || '', created_at: now } }, 201, CORS);
       }
 
       if (method === 'PATCH' && sub) {
@@ -2506,14 +2547,20 @@ export async function onRequest({ request, env }) {
 
     // ── TICKETS ──────────────────────────────────────────────────────────────
     if (resource === 'tickets') {
+      const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
       // POST /api/tickets/guest — unauthenticated: lets someone without an
       // account (or who can't log into theirs) reach support directly from
       // the login screen, since the normal POST /api/tickets requires a JWT.
       if (sub === 'guest' && method === 'POST') {
+        if (!await rateLimit(DB, ip, 'ticket-guest', 5)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         try { await DB.prepare("ALTER TABLE tickets ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
         const { name, phone, school: guestSchool, category, body: tkBody } = await request.json().catch(() => ({}));
         if (!name || !phone || !guestSchool || !tkBody) return err('حقول مفقودة', 400, CORS);
         if (tkBody.length > 3000) return err('النص طويل جداً', 400, CORS);
+        // Same length caps already enforced client-side on the guest form.
+        if (name.length > 100) return err('الاسم طويل جداً', 400, CORS);
+        if (phone.length > 15) return err('رقم الجوال طويل جداً', 400, CORS);
+        if (guestSchool.length > 120) return err('اسم المدرسة طويل جداً', 400, CORS);
         const studentId = 'guest-' + crypto.randomUUID();
         const countRow = await DB.prepare('SELECT COUNT(*) as c FROM tickets').first();
         const ticketNum = 'T-' + String(((countRow?.c) || 0) + 1).padStart(5, '0');
@@ -2619,6 +2666,8 @@ export async function onRequest({ request, env }) {
         const { subject, body: tkBody, school: bodySchool, category, priority, phone: bodyPhone } = await request.json();
         if (!subject || !tkBody) return err('حقول مفقودة', 400, CORS);
         if (tkBody.length > 3000) return err('النص طويل جداً', 400, CORS);
+        // Same length cap already enforced client-side on the ticket subject field.
+        if (subject.length > 120) return err('الموضوع طويل جداً', 400, CORS);
         const studentId = tkClaims.sub;
         const studentName = tkClaims.name || '';
         const effectiveSchool = tkClaims.school || school || bodySchool || '';

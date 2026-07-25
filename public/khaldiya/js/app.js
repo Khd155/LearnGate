@@ -560,7 +560,16 @@ function startOnboardingTour() {
     bubble.querySelector('.tour-skip').onclick = (e) => { e.preventDefault(); endTour(); };
     bubble.querySelector('.tour-next').onclick = () => { i++; renderStep(); };
 
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // Skip the scroll for a target that's already fully in view (e.g. the
+    // notif bell / theme toggle, both inside the sticky topbar) — calling
+    // scrollIntoView on an already-visible element still triggers mobile
+    // Safari's address-bar collapse, which changes window.innerHeight right
+    // as we're about to measure it and throws the spotlight/bubble off.
+    const preRect = el.getBoundingClientRect();
+    const alreadyVisible = preRect.top >= 0 && preRect.bottom <= window.innerHeight;
+    if (!alreadyVisible) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
     // Two rAFs (not a fixed timeout) so we measure right after the browser's
     // own smooth-scroll has actually settled, regardless of scroll distance/device speed.
     let tries = 0;

@@ -1280,7 +1280,7 @@ const Dev = {
             <td><span class="badge badge-school">${escapeHtml(s.school) || '—'}</span></td>
             <td style="white-space:nowrap;">
               <button class="btn btn-outline btn-sm" title="توليد رابط اختبار لمرة واحدة" onclick="Dev.generateTestAccessLink('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔗 اختبار</button>
-              <button class="btn btn-outline btn-sm" title="إرسال رابط الحساب عبر واتساب" onclick="Dev.sendAccountLinkWhatsApp('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}','${escapeHtml(s.phone || '')}')">📲 واتساب</button>
+              <button class="btn btn-outline btn-sm" title="إرسال رابط الحساب عبر واتساب" onclick="Dev.sendAccountLinkWhatsApp('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}','${escapeHtml(s.phone || '')}','${escapeHtml(s.school || '')}')">📲 واتساب</button>
               <button class="btn btn-outline btn-sm" title="هل فتح الطالب رابط الحساب؟" onclick="Dev.showAccessTokenHistory('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">📋 حالة الرسالة</button>
               <button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">حذف</button>
             </td>
@@ -1418,13 +1418,23 @@ const Dev = {
     }
   },
 
-  async sendAccountLinkWhatsApp(studentId, name, phone) {
+  async sendAccountLinkWhatsApp(studentId, name, phone, school) {
     if (!phone) { showToast('لا يوجد رقم جوال مسجّل لهذا الطالب', true); return; }
     if (!await confirmDialog(`إرسال رسالة الواتساب الآن لـ "${name}"؟`, { title: 'إرسال واتساب', okText: 'إرسال' })) return;
     try {
+      // Same batch-grouping as sendWelcomeToAll(), sized 1, so a single-row
+      // "📲 واتساب" send also shows up in the "إحصائيات واتساب" stats tab
+      // instead of only being visible one-by-one via "📋 حالة الرسالة".
+      let waSendId = null;
+      try {
+        ({ id: waSendId } = await apiDev('/dev/wa-sends', {
+          method: 'POST',
+          body: JSON.stringify({ label: `رابط الحساب — ${name}`, school: school || '', template_name: 'student_account_access_template_1', total_targeted: 1 }),
+        }));
+      } catch (_) {}
       const { token } = await apiDev('/dev/access-tokens', {
         method: 'POST',
-        body: JSON.stringify({ studentId }),
+        body: JSON.stringify({ studentId, waSendId }),
       });
       const parts = (name || '').trim().split(/\s+/).filter(Boolean);
       const displayName = parts.length <= 2 ? parts.join(' ') : parts[0] + ' ' + parts[parts.length - 1];

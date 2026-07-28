@@ -189,6 +189,13 @@ function firstLastName(fullName) {
   return parts[0] + ' ' + parts[parts.length - 1];
 }
 
+// ── "أ | <name>" honorific prefix wherever an admin/supervisor's name is
+// displayed (chat, broadcasts, topbar chip) — display-only, never applied
+// to the underlying stored name so lookups/comparisons stay unaffected.
+function adminLabel(name) {
+  return name ? `أ | ${name}` : name;
+}
+
 // ── Single-use account-access link ("?t=") — dev test tool ─────────────────
 (function initAccessTokenLanding() {
   const t = new URLSearchParams(window.location.search).get('t');
@@ -820,7 +827,7 @@ const App = {
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();
-      App._setTopbarUser(adminName);
+      App._setTopbarUser(adminLabel(adminName));
       document.querySelectorAll('.director-tab').forEach(el => {
         el.style.display = State.role === 'director' ? '' : 'none';
       });
@@ -866,7 +873,7 @@ const App = {
 
   // ── Inject logo + name into all ghost topbar slots ───────────────────────
   _fillTopbarGhosts() {
-    const name = State.student?.name || State.admin?.name || '';
+    const name = State.student?.name || (State.admin?.name ? adminLabel(State.admin.name) : '');
     const chip = name
       ? `<span class="tb-chip"><span class="tb-dot"></span>${escapeHtml(name)}</span>`
       : '';
@@ -3880,11 +3887,14 @@ const App = {
     const hdr   = document.getElementById('wachat-conv-header');
     if (empty) empty.style.display = 'none';
     if (conv)  { conv.style.display = 'flex'; }
+    // Avatar initial always uses the plain name (not the "أ | " prefix), only
+    // the visible label gets it, and only when this is an admin conversation.
+    const displayName = role === 'مشرف' ? adminLabel(name) : name;
     if (hdr) hdr.innerHTML = `
       <button class="wachat-back-btn" onclick="App._chatShowSidebar()" style="${window.innerWidth<=640?'':'display:none'}">→</button>
       <div class="wachat-contact-avatar" style="width:36px;height:36px;font-size:14px;">${escapeHtml(name.charAt(0))}</div>
       <div>
-        <div class="wachat-conv-name">${escapeHtml(name)}</div>
+        <div class="wachat-conv-name">${escapeHtml(displayName)}</div>
         <div class="wachat-conv-sub">${role}</div>
       </div>`;
   },
@@ -3932,7 +3942,7 @@ const App = {
     if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>'; App._chatMsgCount = 0; return; }
     el.innerHTML = msgs.map(m => {
       const isMine = (State.role === 'admin' || State.role === 'director' || State.role === 'support') ? m.sender_type === 'admin' : m.sender_type === 'student';
-      const senderName = isMine ? 'أنت' : ((State.role === 'admin' || State.role === 'director' || State.role === 'support') ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(m.admin_name || State.chatAdminName || 'المشرف'));
+      const senderName = isMine ? 'أنت' : ((State.role === 'admin' || State.role === 'director' || State.role === 'support') ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(adminLabel(m.admin_name || State.chatAdminName || 'المشرف')));
       const time = new Date(m.created_at).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
       return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};">
         <div class="chat-bubble ${isMine ? 'sent' : 'received'}">${escapeHtml(m.body)}</div>
@@ -4629,7 +4639,7 @@ const App = {
         return `
         <div style="border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;background:var(--bg);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="font-size:12.5px;font-weight:700;color:var(--primary);">📢 ${escapeHtml(b.admin_name)}</span>
+            <span style="font-size:12.5px;font-weight:700;color:var(--primary);">📢 ${escapeHtml(adminLabel(b.admin_name))}</span>
             <span style="font-size:11px;color:var(--muted);">${new Date(b.created_at).toLocaleString('ar-SA',{dateStyle:'short',timeStyle:'short'})}</span>
           </div>
           <div style="font-size:14px;line-height:1.7;color:var(--text);margin-bottom:12px;white-space:pre-line;">${escapeHtml(b.message)}</div>
@@ -5046,7 +5056,7 @@ async function _quickRestoreSession(sess) {
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();
-      App._setTopbarUser(sess.name);
+      App._setTopbarUser(adminLabel(sess.name));
       document.querySelectorAll('.director-tab').forEach(el => {
         el.style.display = State.role === 'director' ? '' : 'none';
       });

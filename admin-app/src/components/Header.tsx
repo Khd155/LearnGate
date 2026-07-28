@@ -3,6 +3,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { useStore } from '../store/useStore';
 import { api, ApiError, clearSession } from '../lib/api';
+import { adminLabel } from '../lib/adminLabel';
 
 interface ImpersonateResponse {
   token: string;
@@ -197,7 +198,7 @@ export default function Header() {
                 </div>
                 <div className="hidden text-right sm:block">
                   <p className="max-w-[110px] truncate text-sm font-bold leading-tight text-white">
-                    {session?.name}
+                    {adminLabel(session?.name)}
                   </p>
                   <p className="text-[11px] leading-tight text-white/70">
                     {session?.role === 'director' ? 'مدير عام' : 'مشرف'}
@@ -250,7 +251,7 @@ export default function Header() {
             <div className="mb-3">
               <p className="mb-1 text-sm font-medium text-slate-500 dark:text-slate-400">الاسم</p>
               <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200">
-                {session?.name || '—'}
+                {session?.name ? adminLabel(session.name) : '—'}
               </p>
             </div>
             <div className="mb-5">

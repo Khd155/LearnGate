@@ -780,6 +780,12 @@
 const API = '/api';
 let devKey = '';
 
+// Display-only "أ | <name>" prefix wherever an admin/supervisor's name is
+// shown in this panel — never applied to the stored name itself.
+function adminLabel(name) {
+  return name ? `أ | ${name}` : name;
+}
+
 function apiDev(path, opts = {}) {
   return fetch(API + path, {
     headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
@@ -963,7 +969,7 @@ const Dev = {
       <thead><tr><th>الاسم</th><th>رقم السجل</th><th>الدور</th><th>المدرسة</th><th></th></tr></thead>
       <tbody>${admins.map(a => `
         <tr>
-          <td>${escapeHtml(a.name)}</td>
+          <td>${escapeHtml(adminLabel(a.name))}</td>
           <td style="direction:ltr;text-align:right">${escapeHtml(a.code)}</td>
           <td>${a.role === 'director'
             ? '<span class="badge badge-super">👑 مدير</span>'
@@ -994,7 +1000,7 @@ const Dev = {
         const chkWa   = perms.includes('send_whatsapp')  ? 'checked' : '';
         const autoCell = '<span style="font-size:12px;color:var(--muted)">✅ تلقائي (مدير)</span>';
         return `<tr>
-          <td>${escapeHtml(a.name)}${isDirector ? ' <span class="badge">مدير</span>' : ''}</td>
+          <td>${escapeHtml(adminLabel(a.name))}${isDirector ? ' <span class="badge">مدير</span>' : ''}</td>
           <td>${a.school === '*' ? '<span class="badge badge-super">⭐ كل المدارس</span>' : escapeHtml(a.school || '—')}</td>
           <td>${isDirector ? autoCell : `<label style="display:flex;align-items:center;gap:6px;cursor:pointer">
             <input type="checkbox" ${chkQ} onchange="Dev.togglePermission('${a.id}','edit_questions',this.checked)">
@@ -2091,7 +2097,7 @@ const Dev = {
             <div class="log-body">
               <div class="log-msg">${l.message}</div>
               <div class="log-meta">
-                ${l.user_name ? `<span>👤 ${l.user_name}</span>` : ''}
+                ${l.user_name ? `<span>👤 ${['admin','director','support'].includes(l.user_role) ? escapeHtml(adminLabel(l.user_name)) : l.user_name}</span>` : ''}
                 ${l.school    ? `<span>🏫 ${l.school}</span>` : ''}
                 ${l.ip        ? `<span>🌐 ${l.ip}</span>` : ''}
                 ${l.device === 'mobile'  ? `<span>📱 جوال</span>` : ''}
@@ -2141,7 +2147,7 @@ const Dev = {
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted);">
               <span>🏫 ${escapeHtml(b.school)}</span>
-              <span>👤 ${escapeHtml(b.admin_name || '—')}</span>
+              <span>👤 ${b.admin_name ? escapeHtml(adminLabel(b.admin_name)) : '—'}</span>
               <span>🕐 ${date}</span>
             </div>
           </div>

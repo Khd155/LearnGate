@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useStore } from '../store/useStore';
 import ConfirmDialog from './ConfirmDialog';
+import { adminLabel } from '../lib/adminLabel';
 
 const MAX_LEN = 500;
 
@@ -171,7 +172,7 @@ export default function BroadcastTab() {
                   </button>
                 </div>
                 <p className="mt-1 text-xs text-slate-400">
-                  {b.admin_name} · {new Date(b.created_at).toLocaleString('ar-SA')}
+                  {adminLabel(b.admin_name)} · {new Date(b.created_at).toLocaleString('ar-SA')}
                   {typeof b.targetCount === 'number' && b.targetCount > 0 ? ` · ${b.targetCount} طالب محدد` : ''}
                 </p>
               </div>

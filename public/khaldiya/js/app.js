@@ -1388,6 +1388,14 @@ const App = {
 
   // ── Gap Analysis ──────────────────────────────────────────────────────────
   async processResults() {
+    // window.QUESTION_BANK never has `q.ans` for a student (GET /api/questions
+    // strips it server-side to stop answers leaking over the network), so
+    // `State.testAnswers[q.id] === q.ans` below is comparing against
+    // `undefined` for every question — this client-side "score" is always
+    // 0% and must never be trusted as the real result. It only exists to
+    // pre-render *something* instantly; the actual grading that becomes the
+    // saved plan happens server-side in POST /api/plans, which has the real
+    // `ans` values and grades from the raw `answers`/`selfDiag` sent below.
     const scores = {};
     SKILLS.forEach(sk => { scores[sk.id] = { correct: 0, total: 0 }; });
     window.QUESTION_BANK.forEach(q => {
@@ -1410,14 +1418,16 @@ const App = {
     }); // order follows SKILL_ORDER (SKILLS array is already ordered)
 
     App._pendingGaps = gaps;
+    App._pendingAnswers = { ...State.testAnswers };
+    App._pendingSelfDiag = { ...State.selfDiag };
     const _loadEl = document.getElementById('processing-loading');
     const _errEl  = document.getElementById('processing-error');
     if (_loadEl) _loadEl.style.display = '';
     if (_errEl)  _errEl.style.display  = 'none';
-    await App._submitPlan(gaps);
+    await App._submitPlan(gaps, App._pendingAnswers, App._pendingSelfDiag);
   },
 
-  async _submitPlan(gaps) {
+  async _submitPlan(gaps, answers, selfDiag) {
     const loadEl = document.getElementById('processing-loading');
     const errEl  = document.getElementById('processing-error');
     if (loadEl) loadEl.style.display = '';
@@ -1431,7 +1441,10 @@ const App = {
     const RETRY_DELAYS_MS = [1200, 2500];
     for (let attempt = 0; ; attempt++) {
       try {
-        plan = await DB.addAttempt({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, adminNote: '' });
+        // `answers`/`selfDiag` (raw per-question picks) let the server grade
+        // with the real `ans` values it has access to — `gaps` is sent too,
+        // only as a fallback for non-student roles that don't send answers.
+        plan = await DB.addAttempt({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, answers, selfDiag, adminNote: '' });
         break;
       } catch (e) {
         const isNetworkIssue = !e?.status && (String(e?.message || '').startsWith('NETWORK_ERROR') || e?.message === 'TIMEOUT');
@@ -1453,9 +1466,11 @@ const App = {
   },
 
   _pendingGaps: null,
+  _pendingAnswers: null,
+  _pendingSelfDiag: null,
 
   async retryProcessResults() {
-    if (App._pendingGaps) await App._submitPlan(App._pendingGaps);
+    if (App._pendingGaps) await App._submitPlan(App._pendingGaps, App._pendingAnswers, App._pendingSelfDiag);
   },
 
   // ── Level Analysis ───────────────────────────────────────────────────────
@@ -3929,8 +3944,15 @@ const App = {
         if (msgs.some(m => m.sender_type === 'student' && !m.is_read))
           readPatch = { studentId: State.chatStudentId, readerType: 'admin' };
       } else if (State.student) {
-        const adminParam = State.chatAdminId ? `&adminId=${encodeURIComponent(State.chatAdminId)}` : '';
-        const data = await apiFetch(`/messages?studentId=${State.student.id}${adminParam}`);
+        // Never scope the student's own view to a single admin: replies get
+        // stored under whichever admin actually answered (recipient_admin_id
+        // = that admin's own id, set in sendChatMsg() below), which can
+        // differ from admins[0] — the admin State.chatAdminId defaults to
+        // when the chat is first opened. Filtering by that one id made a
+        // reply from any *other* admin invisible to the student. Always show
+        // the full thread with the school's whole admin team instead, same
+        // as the "support" branch above already does.
+        const data = await apiFetch(`/messages?studentId=${State.student.id}`);
         msgs = data.messages || [];
         if (msgs.some(m => m.sender_type === 'admin' && !m.is_read))
           readPatch = { studentId: State.student.id, readerType: 'student' };
@@ -3969,8 +3991,10 @@ const App = {
         } else if (State.role === 'support' && State.chatStudentId) {
           const d = await apiFetch(`/messages?studentId=${State.chatStudentId}`);
           count = (d.messages || []).length;
-        } else if (State.chatAdminId && State.student) {
-          const d = await apiFetch(`/messages?studentId=${State.student.id}&adminId=${State.chatAdminId}`);
+        } else if (State.student) {
+          // Same full-thread fetch as loadChatMessages() — see the comment
+          // there for why this must not be scoped to a single admin id.
+          const d = await apiFetch(`/messages?studentId=${State.student.id}`);
           count = (d.messages || []).length;
         }
         if (count !== App._chatMsgCount) App.loadChatMessages();

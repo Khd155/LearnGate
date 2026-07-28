@@ -1416,14 +1416,29 @@ const App = {
     if (loadEl) loadEl.style.display = '';
     if (errEl)  errEl.style.display  = 'none';
     let plan;
-    try {
-      plan = await DB.addAttempt({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, adminNote: '' });
-    } catch (e) {
-      ActivityLog.error('✗ حفظ الخطة فشل: ' + (e?.message || e));
-      serverLog('error', 'plan', '✗ حفظ الخطة فشل: ' + (e?.message || e));
-      if (loadEl) loadEl.style.display = 'none';
-      if (errEl)  errEl.style.display  = '';
-      return;
+    // A student can lose their whole 50-question diagnostic to a single
+    // mobile-network blip (cell tower handoff mid-request) — apiFetch throws
+    // a plain NETWORK_ERROR/TIMEOUT (no `.status`) when the request never
+    // reached the server, as opposed to a real HTTP error response. Retry
+    // only that case a couple of times before giving up.
+    const RETRY_DELAYS_MS = [1200, 2500];
+    for (let attempt = 0; ; attempt++) {
+      try {
+        plan = await DB.addAttempt({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, adminNote: '' });
+        break;
+      } catch (e) {
+        const isNetworkIssue = !e?.status && (String(e?.message || '').startsWith('NETWORK_ERROR') || e?.message === 'TIMEOUT');
+        if (isNetworkIssue && attempt < RETRY_DELAYS_MS.length) {
+          ActivityLog.warn(`⏳ إعادة محاولة حفظ الخطة (${attempt + 1}/${RETRY_DELAYS_MS.length}) بعد خطأ شبكة`);
+          await new Promise(r => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+          continue;
+        }
+        ActivityLog.error('✗ حفظ الخطة فشل: ' + (e?.message || e));
+        serverLog('error', 'plan', '✗ حفظ الخطة فشل: ' + (e?.message || e));
+        if (loadEl) loadEl.style.display = 'none';
+        if (errEl)  errEl.style.display  = '';
+        return;
+      }
     }
     State.currentPlan = plan;
     App.renderLevelAnalysis(plan);

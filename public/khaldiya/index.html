@@ -1921,14 +1921,36 @@
       <div class="topbar-title">نتيجة الاختبار</div>
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="App.openGeneralTests()">رجوع</button>
   </div>
   <div class="page-wrap" style="text-align:center;">
     <div id="gt-result-score" style="font-size:48px;font-weight:900;color:var(--primary);margin:24px 0 8px;"></div>
-    <div id="gt-result-detail" style="font-size:15px;color:var(--muted);margin-bottom:20px;"></div>
-    <div id="gt-result-skills" style="text-align:right;margin-bottom:24px;"></div>
-    <button class="btn btn-primary" style="width:100%;" onclick="App.openGeneralTests()">
-      ← العودة إلى قائمة الاختبارات
-    </button>
+    <div id="gt-result-detail" style="font-size:15px;color:var(--muted);margin-bottom:24px;"></div>
+
+    <div class="analysis-intro" style="text-align:right;">
+      هذه نتيجة أدائك بالاختبار، موزّعة حسب المهارة المستهدفة في كل سؤال.
+    </div>
+
+    <h3 class="section-heading">📊 النتيجة حسب المهارة</h3>
+    <div class="table-scroll">
+      <table class="analysis-table">
+        <thead>
+          <tr>
+            <th>المهارة</th>
+            <th style="width:76px;text-align:center;">الدرجة</th>
+            <th>تحليل المستوى</th>
+          </tr>
+        </thead>
+        <tbody id="gt-result-skills"></tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:28px;">
+      <button class="btn btn-primary btn-full" onclick="App.openGeneralTests()">
+        ← العودة إلى قائمة الاختبارات
+      </button>
+    </div>
   </div>
 </div>
 

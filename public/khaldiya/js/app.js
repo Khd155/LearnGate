@@ -1363,14 +1363,14 @@ const App = {
       document.getElementById('gt-result-detail').textContent = `${res.correct} إجابة صحيحة من ${res.total}`;
       const skillsEl = document.getElementById('gt-result-skills');
       if (skillsEl) {
-        const rows = (res.skillBreakdown || []).map(s => {
+        skillsEl.innerHTML = (res.skillBreakdown || []).map(s => {
           const cls = s.pct >= 71 ? 'score-high' : s.pct >= 50 ? 'score-mid' : 'score-low';
-          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">
-            <span style="font-weight:700;font-size:14px;">${escapeHtml(s.skillName)}</span>
-            <span class="gap-score ${cls}">${s.pct}%</span>
-          </div>`;
+          return `<tr>
+            <td>${escapeHtml(s.skillName)}</td>
+            <td style="text-align:center;"><span class="gap-score ${cls}">${s.pct}%</span></td>
+            <td>${App.levelLabel(s.pct)}</td>
+          </tr>`;
         }).join('');
-        skillsEl.innerHTML = rows ? `<div style="font-weight:800;font-size:14px;margin-bottom:10px;">النتيجة حسب المهارة</div>${rows}` : '';
       }
       show('screen-general-test-result');
     } catch (e) {

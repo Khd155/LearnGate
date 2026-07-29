@@ -298,6 +298,7 @@
         <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')"><span class="tab-ic">🧠</span> تحليل السلوك</button>
         <button class="tab-btn"        data-tab="broadcasts" onclick="Dev.setTab('broadcasts')"><span class="tab-ic">📢</span> الرسائل الجماعية</button>
         <button class="tab-btn"        data-tab="wa-stats"  onclick="Dev.setTab('wa-stats')"><span class="tab-ic">📲</span> إحصائيات واتساب</button>
+        <button class="tab-btn"        data-tab="wa-issue"  onclick="Dev.setTab('wa-issue')"><span class="tab-ic">📨</span> إشعار مشكلة</button>
       </nav>
       <div class="sidebar-foot">LearnGate v2.0</div>
     </aside>
@@ -727,6 +728,50 @@
       <div id="wa-sends-list"><div class="empty">اختر مدرسة أو اضغط تحديث</div></div>
     </div>
 
+      <!-- ── WhatsApp Issue Notification (template send) ── -->
+    <div id="tab-wa-issue" class="tab-pane">
+      <div class="section-title" style="margin-bottom:16px;"><span>📨</span> إشعار مشكلة عبر واتساب</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+        <!-- Student picker -->
+        <div class="section" style="padding:16px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+            <select id="wi-school-filter" class="form-select" style="width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadWaIssueStudents()">
+              <option value="">كل المدارس</option>
+            </select>
+            <input type="text" id="wi-search" class="form-input" placeholder="🔍 بحث بالاسم" style="width:auto;font-size:13px;padding:6px 12px;flex:1;min-width:140px;" oninput="Dev.filterWaIssueStudents()">
+            <button class="btn btn-warn btn-sm" onclick="Dev.loadWaIssueStudents()">🔄 تحديث</button>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" id="wi-select-all" onchange="Dev.toggleAllWaIssueStudents(this.checked)"> تحديد الكل
+          </label>
+          <div id="wi-student-count" style="font-size:12.5px;color:var(--muted);margin-bottom:8px;">0 طالب محدد</div>
+          <div id="wi-students-list" style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;">
+            <div class="empty">اختر مدرسة أو اضغط تحديث</div>
+          </div>
+        </div>
+
+        <!-- Variables + preview -->
+        <div class="section" style="padding:16px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;">تفاصيل الإشعار</div>
+          <label style="font-size:12.5px;color:var(--muted);">نوع المشكلة</label>
+          <input type="text" id="wi-var-type" class="form-input" style="margin-bottom:10px;" oninput="Dev.updateWaIssuePreview()">
+          <label style="font-size:12.5px;color:var(--muted);">تفاصيل المشكلة</label>
+          <textarea id="wi-var-details" class="form-input" rows="2" style="margin-bottom:10px;resize:vertical;" oninput="Dev.updateWaIssuePreview()"></textarea>
+          <label style="font-size:12.5px;color:var(--muted);">الإجراء المتاح</label>
+          <input type="text" id="wi-var-action" class="form-input" style="margin-bottom:10px;" oninput="Dev.updateWaIssuePreview()">
+          <label style="font-size:12.5px;color:var(--muted);">ملاحظة مهمة</label>
+          <input type="text" id="wi-var-note" class="form-input" style="margin-bottom:14px;" oninput="Dev.updateWaIssuePreview()">
+
+          <div style="font-size:12.5px;color:var(--muted);margin-bottom:6px;">👁 معاينة (باسم افتراضي "أحمد")</div>
+          <div id="wi-preview" style="white-space:pre-line;background:rgba(255,255,255,.04);border:1px dashed var(--border);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.9;margin-bottom:14px;"></div>
+
+          <button class="btn btn-primary btn-full" onclick="Dev.sendWaIssueNotification()">🚀 إرسال الرسالة</button>
+          <div id="wi-result" style="margin-top:12px;"></div>
+        </div>
+      </div>
+    </div>
+
       </div><!-- /content -->
     </div><!-- /main -->
   </div><!-- /shell -->
@@ -901,6 +946,7 @@ const Dev = {
     if (tab === 'permissions') { Dev.loadPermissions(); return; }
     if (tab === 'broadcasts')  { Dev.loadBroadcasts(); return; }
     if (tab === 'wa-stats')    { Dev.loadWaSends(); return; }
+    if (tab === 'wa-issue')    { Dev.loadWaIssueStudents(); return; }
   },
 
   async loadAll() {
@@ -1261,6 +1307,10 @@ const Dev = {
 
     // WhatsApp send-stats school filter
     document.getElementById('wa-school-filter').innerHTML =
+      `<option value="">كل المدارس</option>` + schoolOpts;
+
+    // WhatsApp issue-notification school filter
+    document.getElementById('wi-school-filter').innerHTML =
       `<option value="">كل المدارس</option>` + schoolOpts;
   },
 
@@ -2295,6 +2345,125 @@ const Dev = {
       el.dataset.loaded = '1';
     } catch(e) {
       el.innerHTML = `<div style="color:var(--danger);font-size:12px;">تعذّر التحميل</div>`;
+    }
+  },
+
+  // ── WhatsApp Issue Notification (template send) ───────────────────────
+  _waIssueStudents: [],       // full list fetched from the server for the current school
+  _waIssueSelected: new Set(),
+
+  async loadWaIssueStudents() {
+    const el = document.getElementById('wi-students-list');
+    const school = document.getElementById('wi-school-filter')?.value || '';
+    Dev._waIssueSelected.clear();
+    const selectAll = document.getElementById('wi-select-all');
+    if (selectAll) selectAll.checked = false;
+    Dev.updateWaIssuePreview();
+    el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
+    try {
+      const url = '/dev/students' + (school ? '?school=' + encodeURIComponent(school) : '');
+      const { students } = await apiDev(url);
+      Dev._waIssueStudents = students || [];
+      Dev._renderWaIssueStudents(Dev._waIssueStudents);
+    } catch (e) {
+      el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
+    }
+  },
+
+  filterWaIssueStudents() {
+    const q = (document.getElementById('wi-search')?.value || '').trim().toLowerCase();
+    const filtered = q ? Dev._waIssueStudents.filter(s => (s.name || '').toLowerCase().includes(q)) : Dev._waIssueStudents;
+    Dev._renderWaIssueStudents(filtered);
+  },
+
+  _renderWaIssueStudents(list) {
+    const el = document.getElementById('wi-students-list');
+    if (!list.length) { el.innerHTML = '<div class="empty">لا يوجد طلاب</div>'; return; }
+    el.innerHTML = list.map(s => `
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;">
+        <input type="checkbox" data-wi-id="${s.id}" ${Dev._waIssueSelected.has(s.id) ? 'checked' : ''} onchange="Dev.toggleWaIssueStudent('${s.id}', this.checked)">
+        <span style="flex:1;">${escapeHtml(s.name)}</span>
+        <span style="color:var(--muted);font-size:12px;direction:ltr;">${s.phone ? escapeHtml(s.phone) : '— بدون جوال'}</span>
+      </label>`).join('');
+    Dev._updateWaIssueCount();
+  },
+
+  toggleWaIssueStudent(id, checked) {
+    if (checked) Dev._waIssueSelected.add(id); else Dev._waIssueSelected.delete(id);
+    Dev._updateWaIssueCount();
+  },
+
+  toggleAllWaIssueStudents(checked) {
+    const visibleIds = [...document.querySelectorAll('#wi-students-list input[data-wi-id]')].map(el => el.dataset.wiId);
+    visibleIds.forEach(id => { if (checked) Dev._waIssueSelected.add(id); else Dev._waIssueSelected.delete(id); });
+    document.querySelectorAll('#wi-students-list input[data-wi-id]').forEach(el => { el.checked = checked; });
+    Dev._updateWaIssueCount();
+  },
+
+  _updateWaIssueCount() {
+    const el = document.getElementById('wi-student-count');
+    if (el) el.textContent = `${Dev._waIssueSelected.size} طالب محدد`;
+  },
+
+  updateWaIssuePreview() {
+    const type    = document.getElementById('wi-var-type')?.value || '—';
+    const details = document.getElementById('wi-var-details')?.value || '—';
+    const action  = document.getElementById('wi-var-action')?.value || '—';
+    const note    = document.getElementById('wi-var-note')?.value || '—';
+    const el = document.getElementById('wi-preview');
+    if (!el) return;
+    el.textContent =
+`عزيزي الطالب أحمد
+
+نود إشعارك بوجود ملاحظة بخصوص: ${type}
+
+📌 تفاصيل المشكلة:
+${details}
+
+🎯 الإجراء المتاح لك:
+${action}
+
+⏳ ملاحظة مهمة:
+${note}
+
+في حال واجهت أي صعوبة، تواصل معنا مباشرة.
+بالتوفيق 🌟`;
+  },
+
+  async sendWaIssueNotification() {
+    const studentIds = [...Dev._waIssueSelected];
+    const resultEl = document.getElementById('wi-result');
+    resultEl.innerHTML = '';
+    if (!studentIds.length) { showToast('اختر طالبًا واحدًا على الأقل', true); return; }
+    const issueType    = document.getElementById('wi-var-type')?.value.trim() || '';
+    const issueDetails = document.getElementById('wi-var-details')?.value.trim() || '';
+    const action       = document.getElementById('wi-var-action')?.value.trim() || '';
+    const note         = document.getElementById('wi-var-note')?.value.trim() || '';
+    if (!issueType || !issueDetails || !action || !note) { showToast('عبّئ كل الحقول الأربعة أولاً', true); return; }
+
+    if (!await confirmDialog(`هل أنت متأكد من إرسال الرسالة إلى ${studentIds.length} طالب؟`, { title: 'إرسال إشعار مشكلة', okText: `إرسال لـ ${studentIds.length}` })) return;
+
+    resultEl.innerHTML = '<div style="color:var(--muted);font-size:13px;">⏳ جارٍ الإرسال...</div>';
+    try {
+      const data = await apiDev('/sendpulse/template-send', {
+        method: 'POST',
+        body: JSON.stringify({ studentIds, vars: { issueType, issueDetails, action, note } }),
+      });
+      const failedRows = (data.results || []).filter(r => r.status === 'failed');
+      resultEl.innerHTML = `
+        <div style="font-size:13px;margin-bottom:8px;">
+          <span style="color:#4FA877;font-weight:700;">✅ نجح ${data.sent}</span>
+          &nbsp;·&nbsp;
+          <span style="color:#ef4444;font-weight:700;">❌ فشل ${data.failed}</span>
+          &nbsp;من ${data.total}
+        </div>
+        ${failedRows.length ? `<div style="font-size:12px;color:var(--muted);">
+          ${failedRows.map(r => `<div>• ${escapeHtml(r.name || r.studentId)} — ${escapeHtml(r.error || 'فشل غير معروف')}</div>`).join('')}
+        </div>` : ''}`;
+      showToast(`تم الإرسال — نجح ${data.sent} / فشل ${data.failed}`, data.failed > 0);
+    } catch (e) {
+      resultEl.innerHTML = `<div style="color:var(--danger);font-size:13px;">تعذّر الإرسال: ${e.message}</div>`;
+      showToast('تعذّر الإرسال: ' + e.message, true);
     }
   },
 

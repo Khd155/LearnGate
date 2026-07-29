@@ -3298,6 +3298,115 @@ export async function onRequest({ request, env }) {
         return ok({ sent_to: phones.length, results }, 200, CORS);
       }
 
+      // POST /api/sendpulse/template-send — bulk-send the fixed
+      // 'student_issue_notification' template to a list of students.
+      // {{1}} (name) is always filled server-side from the students table —
+      // the caller never supplies it, only {{2}}..{{5}}.
+      if (sub === 'template-send' && method === 'POST') {
+        const _isDevTpl = authDev(request, env);
+        const _claimsTpl = _isDevTpl ? null : await verifyToken(request, env);
+        if (!_isDevTpl && (!_claimsTpl || !['admin','director'].includes(_claimsTpl.role))) return err('غير مصرح', 401, CORS);
+        if (!_isDevTpl && _claimsTpl.role !== 'dev' && !(Array.isArray(_claimsTpl.permissions) && _claimsTpl.permissions.includes('send_whatsapp'))) {
+          return err('لا تملك صلاحية إرسال الواتساب', 403, CORS);
+        }
+        const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
+        if (!await rateLimit(DB, ip, 'wa-template-send', 5)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+
+        const tplBody = await request.json();
+        const studentIds = Array.isArray(tplBody.studentIds) ? [...new Set(tplBody.studentIds)] : [];
+        const vars = tplBody.vars || {};
+        const { issueType, issueDetails, action: issueAction, note } = vars;
+        if (!studentIds.length) return err('studentIds مطلوب', 400, CORS);
+        if (![issueType, issueDetails, issueAction, note].every(v => typeof v === 'string' && v.trim())) {
+          return err('كل متغيرات القالب (2-5) مطلوبة', 400, CORS);
+        }
+
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_template_logs (
+          id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
+          template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
+        )`).run(); } catch {}
+
+        const placeholders = studentIds.map(() => '?').join(',');
+        const { results: rawStudents } = await DB.prepare(
+          `SELECT id, name, phone, school FROM students WHERE id IN (${placeholders})`
+        ).bind(...studentIds).all();
+        // Non-dev admins/directors scoped to one school can only message their own students.
+        const scopedSchool = (_claimsTpl && _claimsTpl.role !== 'dev' && _claimsTpl.school && _claimsTpl.school !== '*')
+          ? _claimsTpl.school : null;
+        const targets = scopedSchool ? rawStudents.filter(s => s.school === scopedSchool) : rawStudents;
+
+        const botId = env.SENDPULSE_BOT_ID;
+        const templateName = 'student_issue_notification';
+        const variablesJson = JSON.stringify({ issueType, issueDetails, action: issueAction, note });
+        const batchId = crypto.randomUUID();
+        const results = [];
+
+        async function sendOne(student) {
+          const now = () => new Date().toISOString();
+          if (!student.phone) {
+            await DB.prepare(
+              'INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
+            ).bind(crypto.randomUUID(), batchId, student.id, student.name, '', templateName, variablesJson, 'failed', 'رقم جوال غير صالح', now()).run();
+            results.push({ studentId: student.id, name: student.name, status: 'failed', error: 'رقم جوال غير صالح' });
+            return;
+          }
+          const components = sanitizeWaComponents([{
+            type: 'body',
+            parameters: [
+              { type: 'text', text: student.name || 'الطالب' },
+              { type: 'text', text: issueType },
+              { type: 'text', text: issueDetails },
+              { type: 'text', text: issueAction },
+              { type: 'text', text: note },
+            ],
+          }]);
+          const payload = {
+            bot_id: botId,
+            phone: normalizeSaudiPhone(student.phone),
+            template: { name: templateName, language: { code: 'ar', policy: 'deterministic' }, components },
+          };
+          let lastError = null;
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              const res = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', payload);
+              const r0 = res?.results?.[0] ?? res;
+              const spError = r0?.error || r0?.data?.error || r0?.errors;
+              if (r0?.success === false || spError) throw new Error(JSON.stringify(spError || r0));
+              await DB.prepare(
+                'INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
+              ).bind(crypto.randomUUID(), batchId, student.id, student.name, student.phone, templateName, variablesJson, 'sent', '', now()).run();
+              results.push({ studentId: student.id, name: student.name, status: 'sent' });
+              return;
+            } catch (e) {
+              lastError = e?.message || String(e);
+              if (attempt < 3) await new Promise(r => setTimeout(r, 300));
+            }
+          }
+          await DB.prepare(
+            'INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
+          ).bind(crypto.randomUUID(), batchId, student.id, student.name, student.phone, templateName, variablesJson, 'failed', lastError, now()).run();
+          results.push({ studentId: student.id, name: student.name, status: 'failed', error: lastError });
+        }
+
+        // ~10 messages/sec: chunks of 10 sent in parallel, short pause between chunks.
+        const CHUNK = 10;
+        for (let i = 0; i < targets.length; i += CHUNK) {
+          const chunk = targets.slice(i, i + CHUNK);
+          await Promise.all(chunk.map(sendOne));
+          if (i + CHUNK < targets.length) await new Promise(r => setTimeout(r, 1000));
+        }
+
+        const sentCount = results.filter(r => r.status === 'sent').length;
+        const failedCount = results.length - sentCount;
+        await logEvent(DB, {
+          level: failedCount > 0 ? 'warn' : 'success',
+          category: 'whatsapp',
+          message: `إرسال إشعار مشكلة جماعي — template=${templateName} | نجح ${sentCount} / فشل ${failedCount} من ${targets.length}`,
+          user_name: _claimsTpl?.name || '', user_role: _claimsTpl?.role || 'dev', school: scopedSchool || '',
+        });
+        return ok({ total: targets.length, sent: sentCount, failed: failedCount, results }, 200, CORS);
+      }
+
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
 
       // GET /api/sendpulse/templates — list available WA templates

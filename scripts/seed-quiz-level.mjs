@@ -1,10 +1,9 @@
-// One-off importer for the "easy" level of the new quiz-skills system
-// (10 skills × 5 questions = 50 questions, authored in
-// scripts/seed-data/quiz-easy-level.json). Mirrors the admin bulk-import
-// pattern already used for general-tests.
+// One-off importer for a quiz-skills level's question bank (10 skills × 5
+// questions = 50 questions per level), authored under scripts/seed-data/.
+// Mirrors the admin bulk-import pattern already used for general-tests.
 //
 // Usage:
-//   API_BASE=https://learngate.khormi.site/api DEV_KEY=xxxx node scripts/seed-quiz-easy-level.mjs
+//   API_BASE=https://learngate.khormi.site/api DEV_KEY=xxxx node scripts/seed-quiz-level.mjs seed-data/quiz-easy-level.json
 //
 // Safe to re-run: uses action:'append' and the server skips any qnum that
 // already exists for that skill, so it will never duplicate questions.
@@ -17,13 +16,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const API_BASE = process.env.API_BASE || 'http://localhost:8788/api';
 const DEV_KEY = process.env.DEV_KEY;
+const seedFile = process.argv[2];
 
 if (!DEV_KEY) {
   console.error('Set DEV_KEY env var (the same DEV_KEY configured on the server).');
   process.exit(1);
 }
+if (!seedFile) {
+  console.error('Usage: node scripts/seed-quiz-level.mjs <path-to-seed-json>');
+  process.exit(1);
+}
 
-const seed = JSON.parse(readFileSync(join(__dirname, 'seed-data/quiz-easy-level.json'), 'utf8'));
+const seed = JSON.parse(readFileSync(join(__dirname, seedFile), 'utf8'));
 
 async function main() {
   const devRes = await fetch(`${API_BASE}/auth/dev`, {

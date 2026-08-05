@@ -487,6 +487,16 @@ const _SCREEN_PATHS = {
 const _NAV_STACK_EXCLUDE = new Set(['screen-loading', 'screen-processing']);
 let _isBackNav = false;
 
+// screen-loading is a shared full-screen spinner reused for several unrelated
+// waits (session restore, capabilities/plan load, quiz/test submission) — its
+// caption is set per-call so it never says "جارٍ تسجيل الدخول" (logging in)
+// for something that isn't actually a login.
+function showLoadingScreen(text) {
+  const el = document.getElementById('screen-loading-text');
+  if (el) el.textContent = text;
+  show('screen-loading');
+}
+
 function show(id) {
   const current = document.querySelector('.screen.active');
   if (current && current.id !== id && !_isBackNav && !_NAV_STACK_EXCLUDE.has(current.id)) {
@@ -1036,7 +1046,7 @@ const App = {
   },
 
   async startCapabilities() {
-    show('screen-loading');
+    showLoadingScreen('جارٍ التحميل…');
     try { await DB.loadStudentData(); } catch (e) {}
     const plans = DB.studentPlans(State.student.id);
     const latest = plans[0];
@@ -1344,7 +1354,7 @@ const App = {
   },
 
   async startGeneralTest(num) {
-    show('screen-loading');
+    showLoadingScreen('جارٍ تحميل الاختبار…');
     try {
       const { questions } = await apiFetch(`/general-tests/${num}/questions`);
       State.gt = { num, questions, idx: 0, answers: {} };
@@ -1442,7 +1452,7 @@ const App = {
   async gtFinish() {
     App.stopGTTimer();
     const { questions, answers } = State.gt;
-    show('screen-loading');
+    showLoadingScreen('جارٍ تصحيح الاختبار…');
     try {
       const payload = questions.map(q => ({ qnum: q.qnum, selected: answers[q.qnum] }));
       const res = await apiFetch(`/general-tests/${State.gt.num}/submit`, {
@@ -1614,7 +1624,7 @@ const App = {
   },
 
   async startQuizSkill(quizSkillId) {
-    show('screen-loading');
+    showLoadingScreen('جارٍ تحميل الأسئلة…');
     try {
       const { skill, questions } = await apiFetch(`/quiz-skills/${quizSkillId}/questions`);
       State.qz = { quizSkillId, skill, questions, idx: 0, answers: {} };
@@ -1685,7 +1695,7 @@ const App = {
 
   async quizFinish() {
     const { quizSkillId, questions, answers } = State.qz;
-    show('screen-loading');
+    showLoadingScreen('جارٍ تصحيح الإجابات…');
     try {
       const payload = questions.map(q => ({ qnum: q.qnum, selected: answers[q.qnum] }));
       const res = await apiFetch(`/quiz-skills/${quizSkillId}/submit`, {
@@ -5370,7 +5380,7 @@ function routeHash() {
 async function _quickRestoreSession(sess) {
   // If returning from an academic/lesson/quiz sub-page, skip loading screen entirely
   const _fromSubPage = /\/(academic|lessons|quizzes)\//.test(document.referrer);
-  if (!_fromSubPage) show('screen-loading');
+  if (!_fromSubPage) showLoadingScreen('جارٍ تسجيل الدخول…');
 
   const _minDelay = new Promise(r => setTimeout(r, _fromSubPage ? 0 : 700));
   const _maxDelay = new Promise(r => setTimeout(r, 5000));
@@ -5470,7 +5480,7 @@ function _autoLogin(role, code, token, school) {
     }
     sessionStorage.setItem(guardKey, String(Date.now()));
   }
-  show('screen-loading');
+  showLoadingScreen('جارٍ تسجيل الدخول…');
   if (token) _authToken = token;
   if (role === 'student') {
     if (school) { State.school = school; App._updateSchoolDisplay(school); }

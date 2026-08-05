@@ -829,7 +829,7 @@ export async function onRequest({ request, env }) {
         if (!claims || !['student','admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const body = await request.json();
         // Mass assignment guard: only accept allowed fields
-        const { gaps: clientGaps, answers, selfDiag, school: bodySchool } = body;
+        const { gaps: clientGaps, answers, selfDiag, school: bodySchool, skipDiagnostic, section } = body;
         let { studentId, studentName } = body;
         // Students can only create plans for themselves — never trust body studentId
         if (claims.role === 'student') {
@@ -837,23 +837,29 @@ export async function onRequest({ request, env }) {
           studentName = claims.name || '';
         }
 
+        const SKILL_META = {
+          v1: { name: 'الاستيعاب القرائي',   category: 'verbal' },
+          v2: { name: 'الخطأ السياقي',        category: 'verbal' },
+          v3: { name: 'المفردة الشاذة',       category: 'verbal' },
+          v4: { name: 'التناظر اللفظي',       category: 'verbal' },
+          v5: { name: 'إكمال الجمل',          category: 'verbal' },
+          q1: { name: 'الحساب',               category: 'quantitative' },
+          q2: { name: 'الجبر',                category: 'quantitative' },
+          q3: { name: 'الهندسة والقياس',      category: 'quantitative' },
+          q4: { name: 'المقارنات الكمية',     category: 'quantitative' },
+          q5: { name: 'الإحصاء والاحتمالات',  category: 'quantitative' },
+        };
+        const validSection = ['verbal', 'quantitative', 'both'].includes(section) ? section : 'both';
+
         let gaps;
-        if (answers && typeof answers === 'object' && claims.role === 'student') {
+        if (skipDiagnostic && claims.role === 'student') {
+          // Student opted out of the diagnostic entirely — trust the client's all-weak
+          // gaps as-is (every skill forced to level:'low') without touching `answers`.
+          gaps = Array.isArray(clientGaps) ? clientGaps : [];
+        } else if (answers && typeof answers === 'object' && Object.keys(answers).length && claims.role === 'student') {
           // Grade server-side: the GET /questions endpoint strips `ans` from students,
           // so client-side scoring always produces 0%. We compute gaps here where we
           // have the full question bank including correct answers.
-          const SKILL_META = {
-            v1: { name: 'الاستيعاب القرائي',   category: 'verbal' },
-            v2: { name: 'الخطأ السياقي',        category: 'verbal' },
-            v3: { name: 'المفردة الشاذة',       category: 'verbal' },
-            v4: { name: 'التناظر اللفظي',       category: 'verbal' },
-            v5: { name: 'إكمال الجمل',          category: 'verbal' },
-            q1: { name: 'الحساب',               category: 'quantitative' },
-            q2: { name: 'الجبر',                category: 'quantitative' },
-            q3: { name: 'الهندسة والقياس',      category: 'quantitative' },
-            q4: { name: 'المقارنات الكمية',     category: 'quantitative' },
-            q5: { name: 'الإحصاء والاحتمالات',  category: 'quantitative' },
-          };
           const { results: questions } = await DB.prepare(
             'SELECT qnum, skill_id, ans FROM questions ORDER BY qnum ASC'
           ).all();
@@ -867,20 +873,23 @@ export async function onRequest({ request, env }) {
             }
           }
           const sd = (selfDiag && typeof selfDiag === 'object') ? selfDiag : {};
-          // Always include ALL defined skills — even if no questions exist for that skill in the bank
-          gaps = Object.entries(SKILL_META).map(([skillId, meta]) => {
-            const s     = scores[skillId] || { correct: 0, total: 0 };
-            const pct   = s.total ? Math.round((s.correct / s.total) * 100) : 0;
-            const self  = sd[skillId] || 'need';
-            const level = pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low';
-            const overconfident = self === 'mastered' && level === 'low';
-            const rec = overconfident
-              ? 'مهارة تحتاج مراجعة عاجلة — أجبت أنك متقن لها لكن أداءك كان ضعيفاً.'
-              : level === 'low'  ? 'مهارة ضعيفة — تحتاج تدريباً مكثفاً وأساسيات.'
-              : level === 'mid'  ? 'مهارة متوسطة — تحتاج تعزيزاً وتدريباً إضافياً.'
-              : 'مهارة جيدة — الاستمرار في التطوير مستحسن.';
-            return { skillId, skillName: meta.name, category: meta.category, pct, level, selfAssess: self, recommendation: rec, overconfident };
-          }).sort((a, b) => a.pct - b.pct);
+          // Include all skills in the chosen section (or all skills for 'both') — even if
+          // no questions were answered for that skill in the bank.
+          gaps = Object.entries(SKILL_META)
+            .filter(([, meta]) => validSection === 'both' || meta.category === validSection)
+            .map(([skillId, meta]) => {
+              const s     = scores[skillId] || { correct: 0, total: 0 };
+              const pct   = s.total ? Math.round((s.correct / s.total) * 100) : 0;
+              const self  = sd[skillId] || 'need';
+              const level = pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low';
+              const overconfident = self === 'mastered' && level === 'low';
+              const rec = overconfident
+                ? 'مهارة تحتاج مراجعة عاجلة — أجبت أنك متقن لها لكن أداءك كان ضعيفاً.'
+                : level === 'low'  ? 'مهارة ضعيفة — تحتاج تدريباً مكثفاً وأساسيات.'
+                : level === 'mid'  ? 'مهارة متوسطة — تحتاج تعزيزاً وتدريباً إضافياً.'
+                : 'مهارة جيدة — الاستمرار في التطوير مستحسن.';
+              return { skillId, skillName: meta.name, category: meta.category, pct, level, selfAssess: self, recommendation: rec, overconfident };
+            }).sort((a, b) => a.pct - b.pct);
         } else {
           gaps = Array.isArray(clientGaps) ? clientGaps : [];
         }
@@ -1587,6 +1596,161 @@ export async function onRequest({ request, env }) {
         return { qnum: Number(a.qnum), skill_id: q?.skill_id || null, correct: q ? Number(a.ans) === Number(q.ans) : false };
       });
       return ok({ results: graded }, 200, CORS);
+    }
+
+    // ── QUIZ SKILLS (hierarchical short-tests: section → level → skill) ───────
+    // Runs alongside the older flat `general-tests` system without replacing it.
+    if (resource === 'quiz-structure' || resource === 'quiz-skills') {
+      await DB.prepare(`CREATE TABLE IF NOT EXISTS quiz_skills (
+        id TEXT PRIMARY KEY, section TEXT NOT NULL, level TEXT NOT NULL,
+        skill_id TEXT NOT NULL, skill_name TEXT NOT NULL, order_idx INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )`).run();
+      await DB.prepare(`CREATE TABLE IF NOT EXISTS quiz_skill_questions (
+        id TEXT PRIMARY KEY, quiz_skill_id TEXT NOT NULL, qnum INTEGER NOT NULL,
+        text TEXT NOT NULL, opt1 TEXT NOT NULL, opt2 TEXT NOT NULL, opt3 TEXT NOT NULL, opt4 TEXT NOT NULL,
+        ans INTEGER NOT NULL, created_at TEXT NOT NULL
+      )`).run();
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_qsq_skill ON quiz_skill_questions(quiz_skill_id, qnum)`).run(); } catch {}
+      await DB.prepare(`CREATE TABLE IF NOT EXISTS skill_progress (
+        id TEXT PRIMARY KEY, student_id TEXT NOT NULL, quiz_skill_id TEXT NOT NULL,
+        section TEXT NOT NULL, level TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'not_started',
+        best_correct INTEGER NOT NULL DEFAULT 0, best_total INTEGER NOT NULL DEFAULT 5,
+        attempts INTEGER NOT NULL DEFAULT 0, last_attempt_at TEXT, created_at TEXT NOT NULL,
+        UNIQUE(student_id, quiz_skill_id)
+      )`).run();
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_sp_student ON skill_progress(student_id, section, level)`).run(); } catch {}
+
+      // Seed the 2 sections × 3 levels × 5 skills = 30 rows once, matching data.js SKILLS.
+      const QS_SKILLS = {
+        verbal:       [['v1','الاستيعاب القرائي'], ['v2','الخطأ السياقي'], ['v3','المفردة الشاذة'], ['v4','التناظر اللفظي'], ['v5','إكمال الجمل']],
+        quantitative: [['q1','الحساب'], ['q2','الجبر'], ['q3','الهندسة والقياس'], ['q4','المقارنات الكمية'], ['q5','الإحصاء والاحتمالات']],
+      };
+      const QS_LEVELS = ['easy', 'medium', 'advanced'];
+      const qsCountRow = await DB.prepare('SELECT COUNT(*) as c FROM quiz_skills').first();
+      if (!qsCountRow || Number(qsCountRow.c) === 0) {
+        const seedNow = new Date().toISOString();
+        const seedStmt = DB.prepare(
+          `INSERT INTO quiz_skills (id, section, level, skill_id, skill_name, order_idx, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`
+        );
+        for (const [section, skills] of Object.entries(QS_SKILLS)) {
+          for (const level of QS_LEVELS) {
+            for (let i = 0; i < skills.length; i++) {
+              const [skillId, skillName] = skills[i];
+              await seedStmt.bind(`${section}-${level}-${skillId}`, section, level, skillId, skillName, i, seedNow).run();
+            }
+          }
+        }
+      }
+
+      // GET /api/quiz-structure — full tree + this student's progress + level lock flags
+      if (resource === 'quiz-structure' && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        const { results: skills } = await DB.prepare('SELECT * FROM quiz_skills ORDER BY section, level, order_idx').all();
+        const { results: progressRows } = await DB.prepare('SELECT * FROM skill_progress WHERE student_id = ?').bind(claims.sub).all();
+        const { results: qCounts } = await DB.prepare('SELECT quiz_skill_id, COUNT(*) as c FROM quiz_skill_questions GROUP BY quiz_skill_id').all();
+        const qCountMap = Object.fromEntries(qCounts.map(r => [r.quiz_skill_id, Number(r.c)]));
+        const progressMap = Object.fromEntries(progressRows.map(r => [r.quiz_skill_id, r]));
+        const LEVEL_ORDER = ['easy', 'medium', 'advanced'];
+
+        const bySectionLevel = {};
+        for (const s of skills) {
+          const key = `${s.section}|${s.level}`;
+          if (!bySectionLevel[key]) bySectionLevel[key] = [];
+          bySectionLevel[key].push(s);
+        }
+        const levelPassed = (section, level) => {
+          const list = bySectionLevel[`${section}|${level}`] || [];
+          return list.length > 0 && list.every(s => progressMap[s.id]?.status === 'passed');
+        };
+
+        const tree = { verbal: [], quantitative: [] };
+        for (const section of ['verbal', 'quantitative']) {
+          for (const level of LEVEL_ORDER) {
+            const levelIdx = LEVEL_ORDER.indexOf(level);
+            const locked = levelIdx > 0 && !levelPassed(section, LEVEL_ORDER[levelIdx - 1]);
+            const skillList = (bySectionLevel[`${section}|${level}`] || []).map(s => {
+              const p = progressMap[s.id];
+              return {
+                quizSkillId: s.id, skillId: s.skill_id, skillName: s.skill_name,
+                status: p?.status || 'not_started',
+                bestCorrect: p?.best_correct || 0, bestTotal: p?.best_total || 5,
+                attempts: p?.attempts || 0, hasQuestions: (qCountMap[s.id] || 0) > 0,
+              };
+            });
+            const passedCount = skillList.filter(s => s.status === 'passed').length;
+            tree[section].push({
+              level, locked,
+              progressPct: skillList.length ? Math.round((passedCount / skillList.length) * 100) : 0,
+              skills: skillList,
+            });
+          }
+        }
+        return ok({ tree }, 200, CORS);
+      }
+
+      // GET /api/quiz-skills/:quizSkillId/questions — sanitized (no `ans`); 403 if level locked
+      if (resource === 'quiz-skills' && sub && subsub === 'questions' && method === 'GET') {
+        const claims = await verifyToken(request, env);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        const skillRow = await DB.prepare('SELECT * FROM quiz_skills WHERE id = ?').bind(sub).first();
+        if (!skillRow) return err('المهارة غير موجودة', 404, CORS);
+        if (skillRow.level !== 'easy') {
+          const prevLevel = skillRow.level === 'advanced' ? 'medium' : 'easy';
+          const { results: prevSkills } = await DB.prepare(
+            'SELECT id FROM quiz_skills WHERE section = ? AND level = ?'
+          ).bind(skillRow.section, prevLevel).all();
+          const { results: prevProgress } = await DB.prepare(
+            `SELECT quiz_skill_id, status FROM skill_progress WHERE student_id = ? AND quiz_skill_id IN (${prevSkills.map(() => '?').join(',') || "''"})`
+          ).bind(claims.sub, ...prevSkills.map(s => s.id)).all();
+          const passedSet = new Set(prevProgress.filter(p => p.status === 'passed').map(p => p.quiz_skill_id));
+          const unlocked = prevSkills.length > 0 && prevSkills.every(s => passedSet.has(s.id));
+          if (!unlocked) return err('هذا المستوى مقفل حتى تكمل المستوى السابق', 403, CORS);
+        }
+        const { results: questions } = await DB.prepare(
+          'SELECT id, qnum, text, opt1, opt2, opt3, opt4 FROM quiz_skill_questions WHERE quiz_skill_id = ? ORDER BY qnum ASC'
+        ).bind(sub).all();
+        return ok({ skill: { id: skillRow.id, section: skillRow.section, level: skillRow.level, skillName: skillRow.skill_name }, questions }, 200, CORS);
+      }
+
+      // POST /api/quiz-skills/:quizSkillId/submit — grade (pure correct-count, no timing/anti-cheat)
+      if (resource === 'quiz-skills' && sub && subsub === 'submit' && method === 'POST') {
+        const claims = await verifyToken(request, env);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        const skillRow = await DB.prepare('SELECT * FROM quiz_skills WHERE id = ?').bind(sub).first();
+        if (!skillRow) return err('المهارة غير موجودة', 404, CORS);
+        const { answers: submitted } = await request.json();
+        if (!Array.isArray(submitted)) return err('إجابات مطلوبة', 400, CORS);
+        const { results: questions } = await DB.prepare(
+          'SELECT qnum, ans FROM quiz_skill_questions WHERE quiz_skill_id = ?'
+        ).bind(sub).all();
+        const ansMap = Object.fromEntries(submitted.map(a => [Number(a.qnum), a.selected]));
+        let correct = 0;
+        for (const q of questions) {
+          const selected = ansMap[q.qnum];
+          if (selected !== undefined && selected !== null && selected !== 'dk' && Number(selected) === Number(q.ans)) correct++;
+        }
+        const total = questions.length;
+        const pass = total > 0 && correct >= 4;
+        const now = new Date().toISOString();
+        const existing = await DB.prepare('SELECT * FROM skill_progress WHERE student_id = ? AND quiz_skill_id = ?').bind(claims.sub, sub).first();
+        const bestCorrect = Math.max(correct, existing?.best_correct || 0);
+        const attempts = (existing?.attempts || 0) + 1;
+        const status = pass ? 'passed' : 'failed';
+        if (existing) {
+          await DB.prepare(
+            'UPDATE skill_progress SET status = ?, best_correct = ?, best_total = ?, attempts = ?, last_attempt_at = ? WHERE id = ?'
+          ).bind(status, bestCorrect, total, attempts, now, existing.id).run();
+        } else {
+          await DB.prepare(
+            `INSERT INTO skill_progress (id, student_id, quiz_skill_id, section, level, status, best_correct, best_total, attempts, last_attempt_at, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(crypto.randomUUID(), claims.sub, sub, skillRow.section, skillRow.level, status, bestCorrect, total, attempts, now, now).run();
+        }
+        return ok({ correct, total, pass, level: skillRow.level, section: skillRow.section }, 200, CORS);
+      }
     }
 
     // ── ADMINS ───────────────────────────────────────────────────────────────

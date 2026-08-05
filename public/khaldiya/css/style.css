@@ -582,7 +582,7 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   margin-bottom: 16px;
 }
 .q-num { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
-.q-text { font-size: 16px; font-weight: 600; line-height: 1.7; margin-bottom: 22px; }
+.q-text { font-size: 16px; font-weight: 600; line-height: 1.7; margin-bottom: 22px; white-space: pre-line; }
 .q-options { display: flex; flex-direction: column; gap: 10px; }
 .q-opt {
   display: flex; align-items: center; gap: 12px;

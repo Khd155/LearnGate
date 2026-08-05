@@ -1715,6 +1715,33 @@ export async function onRequest({ request, env }) {
         return ok({ skill: { id: skillRow.id, section: skillRow.section, level: skillRow.level, skillName: skillRow.skill_name }, questions }, 200, CORS);
       }
 
+      // POST /api/quiz-skills/:quizSkillId/import — admin/dev upload {action:'replace'|'append', questions:[{text,opt1..4,ans}]}
+      if (resource === 'quiz-skills' && sub && subsub === 'import' && method === 'POST') {
+        const claims = await verifyToken(request, env);
+        const isDev = claims?.role === 'dev' || authDev(request, env);
+        if (!isDev && (!claims || !['admin', 'director'].includes(claims.role))) return err('غير مصرح', 401, CORS);
+        const skillRow = await DB.prepare('SELECT * FROM quiz_skills WHERE id = ?').bind(sub).first();
+        if (!skillRow) return err('المهارة غير موجودة', 404, CORS);
+        const { action = 'append', questions: rows } = await request.json();
+        if (!Array.isArray(rows) || !rows.length) return err('أسئلة مطلوبة', 400, CORS);
+        if (action === 'replace') await DB.prepare('DELETE FROM quiz_skill_questions WHERE quiz_skill_id = ?').bind(sub).run();
+        const { results: existing } = await DB.prepare('SELECT qnum FROM quiz_skill_questions WHERE quiz_skill_id = ?').bind(sub).all();
+        const existingNums = new Set(existing.map(r => r.qnum));
+        const now = new Date().toISOString();
+        const stmt = DB.prepare(
+          `INSERT INTO quiz_skill_questions (id, quiz_skill_id, qnum, text, opt1, opt2, opt3, opt4, ans, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        );
+        let added = 0;
+        for (const q of rows) {
+          if (existingNums.has(q.qnum)) continue;
+          await stmt.bind(crypto.randomUUID(), sub, q.qnum, q.text, q.opts[0], q.opts[1], q.opts[2], q.opts[3], q.ans, now).run();
+          added++;
+        }
+        await logEvent(DB, { level: 'info', category: 'quiz-skills', message: `استيراد أسئلة المهارة ${skillRow.skill_name} (${skillRow.section}/${skillRow.level}) — ${added} مضافة`, user_name: claims?.name || '', user_role: claims?.role || 'dev', school: claims?.school || '' });
+        return ok({ added, skipped: rows.length - added }, 200, CORS);
+      }
+
       // POST /api/quiz-skills/:quizSkillId/submit — grade (pure correct-count, no timing/anti-cheat)
       if (resource === 'quiz-skills' && sub && subsub === 'submit' && method === 'POST') {
         const claims = await verifyToken(request, env);

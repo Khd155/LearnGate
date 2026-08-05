@@ -1108,6 +1108,7 @@ const App = {
 
   // ── Test Timer (50 min) ───────────────────────────────────────────────────
   _testTimer: null,
+  _advanceTimer: null,
   startTestTimer() {
     clearInterval(App._testTimer);
     const SECS = 50 * 60;
@@ -1190,14 +1191,18 @@ const App = {
 
   selectAnswer(idx) {
     const QBANK = window.QUESTION_BANK;
-    State.testAnswers[QBANK[State.currentQ].id] = idx;
+    const qIdxAtSelect = State.currentQ;
+    State.testAnswers[QBANK[qIdxAtSelect].id] = idx;
     App.renderQuestion();
     App._saveTestState();
-    if (State.currentQ < QBANK.length - 1) {
-      setTimeout(() => {
-        State.currentQ++;
-        App.renderQuestion();
-        App._saveTestState();
+    clearTimeout(App._advanceTimer);
+    if (qIdxAtSelect < QBANK.length - 1) {
+      App._advanceTimer = setTimeout(() => {
+        if (State.currentQ === qIdxAtSelect) {
+          State.currentQ++;
+          App.renderQuestion();
+          App._saveTestState();
+        }
       }, 300);
     }
   },
@@ -1336,9 +1341,10 @@ const App = {
     const { questions, idx } = State.gt;
     State.gt.answers[questions[idx].qnum] = i;
     App.renderGTQuestion();
+    clearTimeout(App._advanceTimer);
     if (idx < questions.length - 1) {
-      setTimeout(() => {
-        if (State.gt.idx < questions.length - 1) { State.gt.idx++; App.renderGTQuestion(); }
+      App._advanceTimer = setTimeout(() => {
+        if (State.gt.idx === idx) { State.gt.idx++; App.renderGTQuestion(); }
       }, 300);
     }
   },

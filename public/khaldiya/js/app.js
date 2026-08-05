@@ -1489,6 +1489,39 @@ const App = {
     }
   },
 
+  // "Back" navigation inside the quiz hierarchy uses goBack() (pop, not push) so the
+  // shared State.navStack doesn't grow forever from hub<->levels<->skills round-trips —
+  // App.openQuizHub()/openQuizLevels()/openQuizSkills() are for *forward* navigation
+  // only (clicking a card), each re-renders with the latest cached State._quizTree
+  // (already patched in-memory by quizFinish()) before popping back.
+  backToQuizHub() {
+    App.renderQuizHub();
+    goBack('screen-quiz-hub');
+  },
+
+  backToQuizLevels() {
+    App.renderQuizLevels();
+    goBack('screen-quiz-levels');
+  },
+
+  // Used by the take-screen's own exit button (abandoning mid-quiz, no extra hop).
+  backToQuizSkills() {
+    App.renderQuizSkills();
+    goBack('screen-quiz-skills');
+  },
+
+  // Used by the result screen: finishing a quiz pushes an extra 'screen-quiz-take'
+  // entry (the take->result transition), so a single goBack() would land back on
+  // the just-finished questions instead of the skills list — discard that one
+  // stale entry first, then pop the real previous screen underneath it.
+  backFromQuizResult() {
+    State.navStack.pop();
+    const target = State.navStack.pop() || 'screen-quiz-skills';
+    App.renderQuizSkills();
+    _isBackNav = true;
+    show(target);
+  },
+
   renderQuizHub() {
     const tree = State._quizTree;
     const sections = [
@@ -1554,7 +1587,6 @@ const App = {
     State._quizLevel = level;
     const LEVEL_LABEL = { easy: 'سهل', medium: 'متوسط', advanced: 'متقدم' };
     document.getElementById('qz-skills-title').textContent = `مهارات المستوى ${LEVEL_LABEL[level]}`;
-    document.getElementById('qz-skills-back').setAttribute('onclick', `App.openQuizLevels('${section}')`);
     App.renderQuizSkills();
     show('screen-quiz-skills');
   },

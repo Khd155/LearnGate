@@ -2112,7 +2112,7 @@
       <div class="topbar-sub">أنهِ المستوى لفتح ما بعده</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
-    <button class="topbar-back" onclick="App.openQuizHub()">رجوع</button>
+    <button class="topbar-back" onclick="App.backToQuizHub()">رجوع</button>
   </div>
   <div class="page-wrap">
     <div id="qz-levels-cards" class="qz-grid"></div>
@@ -2130,7 +2130,7 @@
       <div class="topbar-sub">اختر أي مهارة بالترتيب الذي تريد</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
-    <button class="topbar-back" id="qz-skills-back" onclick="App.openQuizHub()">رجوع</button>
+    <button class="topbar-back" id="qz-skills-back" onclick="App.backToQuizLevels()">رجوع</button>
   </div>
   <div class="page-wrap">
     <div id="qz-skills-cards" class="qz-grid"></div>
@@ -2148,7 +2148,7 @@
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
-    <button class="topbar-back" onclick="App.openQuizSkills(State._quizSection, State._quizLevel)">خروج</button>
+    <button class="topbar-back" onclick="App.backToQuizSkills()">خروج</button>
   </div>
   <div class="page-wrap">
     <div class="test-progress-bar-wrap">
@@ -2180,7 +2180,7 @@
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
-    <button class="topbar-back" onclick="App.openQuizSkills(State._quizSection, State._quizLevel)">خروج</button>
+    <button class="topbar-back" onclick="App.backFromQuizResult()">خروج</button>
   </div>
   <div class="page-wrap" style="text-align:center;">
     <div id="qt-result-icon" style="font-size:48px;margin:16px 0 8px;"></div>
@@ -2188,7 +2188,7 @@
     <div id="qt-result-detail" style="font-size:15px;color:var(--muted);margin-bottom:24px;"></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
       <button class="btn btn-primary btn-full" id="qt-retry-btn" onclick="App.retakeQuizSkill()">🔁 إعادة المحاولة</button>
-      <button class="btn btn-outline btn-full" onclick="App.openQuizSkills(State._quizSection, State._quizLevel)">
+      <button class="btn btn-outline btn-full" onclick="App.backFromQuizResult()">
         رجوع لقائمة المهارات
       </button>
     </div>
@@ -3115,6 +3115,6 @@
 </div>
 
 <script src="js/data.js?v=a1b2c3d" defer></script>
-<script src="js/app.js?v=quiz3" defer></script>
+<script src="js/app.js?v=quiz4" defer></script>
 </body>
 </html>

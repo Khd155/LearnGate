@@ -1309,7 +1309,7 @@ const App = {
   async openGeneralTests() {
     show('screen-general-tests');
     const list = document.getElementById('gt-list');
-    list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;">جاري التحميل…</div>';
+    list.innerHTML = '<div class="inline-loading"><span class="inline-spinner"></span>جاري التحميل…</div>';
     try {
       const { tests } = await apiFetch('/general-tests');
       App.renderGeneralTestsList(tests);
@@ -1479,7 +1479,7 @@ const App = {
   async openQuizHub() {
     show('screen-quiz-hub');
     const el = document.getElementById('qz-hub-cards');
-    el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;">جاري التحميل…</div>';
+    el.innerHTML = '<div class="inline-loading"><span class="inline-spinner"></span>جاري التحميل…</div>';
     try {
       const { tree } = await apiFetch('/quiz-structure');
       State._quizTree = tree;
@@ -2243,7 +2243,7 @@ const App = {
   },
 
   async loadGTResults(container) {
-    container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);">جاري التحميل…</div>';
+    container.innerHTML = '<div class="inline-loading"><span class="inline-spinner"></span>جاري التحميل…</div>';
     try {
       const { results } = await apiFetch('/general-tests/results');
       if (!results.length) {
@@ -2791,7 +2791,7 @@ const App = {
         schoolSel.disabled = true;
       }
     }
-    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">جاري التحميل…</div>';
+    listEl.innerHTML = '<div class="inline-loading"><span class="inline-spinner"></span>جاري التحميل…</div>';
     try {
       const school = encodeURIComponent(State.school || '');
       const data   = await apiFetch(`/director/admins?school=${school}`);
@@ -2857,7 +2857,7 @@ const App = {
     const listEl  = document.getElementById('questions-list');
     const badgeEl = document.getElementById('q-count-badge');
     if (!listEl) return;
-    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">جاري التحميل…</div>';
+    listEl.innerHTML = '<div class="inline-loading"><span class="inline-spinner"></span>جاري التحميل…</div>';
     try {
       let data = await apiFetch('/questions');
       // Auto-seed from hardcoded questions if DB is empty
@@ -3701,7 +3701,7 @@ const App = {
     // Load General Test results async
     const gtEl = document.getElementById('sdm-gt-content');
     if (gtEl) {
-      gtEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);">جاري التحميل…</div>';
+      gtEl.innerHTML = '<div class="inline-loading" style="padding:12px;"><span class="inline-spinner"></span>جاري التحميل…</div>';
       apiFetch(`/general-tests/results?studentId=${encodeURIComponent(studentId)}`).then(({ results }) => {
         if (!results.length) { gtEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);">لا توجد نتائج</div>'; return; }
         const labels = ['أ','ب','ج','د'];
@@ -4821,7 +4821,7 @@ const App = {
     const el = document.getElementById('sa-log-list');
     if (!el) return;
     const active = el.dataset.filter || 'all';
-    el.innerHTML = '<span style="color:#64748b;">جاري التحميل...</span>';
+    el.innerHTML = '<span class="inline-loading" style="display:inline-flex;padding:0;"><span class="inline-spinner"></span>جاري التحميل...</span>';
     try {
       const qs = active === 'all' ? '' : `?level=${encodeURIComponent(active)}`;
       const { logs } = await apiFetch(`/dev/logs${qs}`);
@@ -4855,7 +4855,7 @@ const App = {
 
   async renderSupportTickets() {
     const listEl = document.getElementById('support-admin-list');
-    listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جاري التحميل...</div>';
+    listEl.innerHTML = '<div class="inline-loading"><span class="inline-spinner"></span>جاري التحميل...</div>';
     try {
       const [{ tickets }, stats] = await Promise.all([
         apiFetch('/tickets'),
@@ -4919,7 +4919,7 @@ const App = {
   async renderSupportMessages() {
     document.getElementById('support-filter-bar').style.display = 'none';
     const listEl = document.getElementById('support-admin-list');
-    listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">جاري التحميل...</div>';
+    listEl.innerHTML = '<div class="inline-loading"><span class="inline-spinner"></span>جاري التحميل...</div>';
     try {
       const { counts } = await apiFetch('/messages/unread');
       if (!counts || !counts.length) {

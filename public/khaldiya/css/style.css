@@ -447,6 +447,19 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   border-radius: 50%; animation: btn-spin .7s linear infinite; flex-shrink: 0;
 }
 @keyframes btn-spin { to { transform: rotate(360deg); } }
+
+/* Standard in-content loading state — every screen that fetches data before
+   rendering should show this instead of static text, so "loading" always
+   reads as visibly in-progress rather than a frozen page. */
+.inline-loading {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  text-align: center; color: var(--muted); padding: 28px;
+}
+.inline-spinner {
+  display: inline-block; width: 18px; height: 18px; flex-shrink: 0;
+  border: 2.5px solid var(--border); border-top-color: var(--primary);
+  border-radius: 50%; animation: btn-spin .7s linear infinite;
+}
 .btn-success { background: var(--success); color: #fff; box-shadow: 0 10px 24px -10px rgba(5,150,105,.5); }
 .btn-success:hover { filter: brightness(1.05); transform: translateY(-1px); }
 .btn-danger  { background: var(--danger);  color: #fff; }

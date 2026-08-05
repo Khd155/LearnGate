@@ -294,6 +294,9 @@ const DB = {
     } else if (typeof QUESTIONS !== 'undefined') {
       window.QUESTION_BANK = QUESTIONS.slice();
     }
+    // Keep the unfiltered bank so section-choice (verbal/quant/both) — and any
+    // retake that re-enters section-choice — can always re-filter from the full set.
+    window._fullQuestionBank = window.QUESTION_BANK;
   },
 
   async addStudent({ name, code, phone }) {
@@ -434,6 +437,7 @@ const State = {
   chatAdminId: null,    // selected supervisor for chat
   chatAdminName: null,
   selfDiag: {},
+  diagSection: null, // 'verbal' | 'quantitative' | 'both' — chosen on screen-section-choice
   testAnswers: {},
   currentQ: 0,
   tab: 'students',
@@ -455,6 +459,7 @@ const _SCREEN_PATHS = {
   'screen-intro':         '/capabilities',
   'screen-cooldown':      '/capabilities/cooldown',
   'screen-selfdiag':      '/capabilities/self-assessment',
+  'screen-section-choice':'/capabilities/section-choice',
   'screen-pretest-intro': '/capabilities/diagnostic-intro',
   'screen-pretest':       '/capabilities/diagnostic',
   'screen-processing':    '/capabilities/processing',
@@ -1096,14 +1101,76 @@ const App = {
     }
     State.currentQ   = 0;
     State.testAnswers = {};
+    App.renderSectionChoice();
+    show('screen-section-choice');
+  },
+
+  skipSelfDiag(e) {
+    if (e) e.preventDefault();
+    State.selfDiag = {};
+    State.currentQ = 0;
+    State.testAnswers = {};
+    App.renderSectionChoice();
+    show('screen-section-choice');
+  },
+
+  // ── Diagnostic Section Choice (verbal / quantitative / both) ───────────────
+  renderSectionChoice() {
+    State.diagSection = null;
+    document.querySelectorAll('.section-choice-card').forEach(c => c.classList.remove('selected'));
+    const btn = document.getElementById('section-choice-start');
+    if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
+  },
+
+  selectSection(section) {
+    State.diagSection = section;
+    document.querySelectorAll('.section-choice-card').forEach(c => {
+      c.classList.toggle('selected', c.dataset.section === section);
+    });
+    const btn = document.getElementById('section-choice-start');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  },
+
+  confirmSectionChoice() {
+    if (!State.diagSection) return;
     show('screen-pretest-intro');
   },
 
+  async skipDiagnostic(e) {
+    if (e) e.preventDefault();
+    const gaps = SKILLS.map(sk => ({
+      skillId: sk.id, skillName: sk.name, category: sk.category,
+      pct: 0, level: 'low', selfAssess: 'need',
+      recommendation: 'مهارة ضعيفة — تحتاج تدريباً مكثفاً وأساسيات.',
+      overconfident: false,
+    }));
+    App._pendingGaps = gaps;
+    App._pendingAnswers = {};
+    App._pendingSelfDiag = {};
+    show('screen-processing');
+    await App._submitPlan(gaps, {}, {}, { skipDiagnostic: true });
+  },
+
   startPretest() {
+    const sec = State.diagSection || 'both';
+    const fullBank = window._fullQuestionBank || window.QUESTION_BANK;
+    window.QUESTION_BANK = sec === 'both' ? fullBank.slice() : fullBank.filter(q => q.type === sec);
+    State.currentQ = 0;
+    State.testAnswers = {};
     App.renderQuestion();
     App.startTestTimer();
     App._saveTestState();
     show('screen-pretest');
+  },
+
+  retakeDiagnostic() {
+    State.selfDiag = {};
+    State.testAnswers = {};
+    State.currentQ = 0;
+    State.diagSection = null;
+    App.stopTestTimer();
+    App.renderSectionChoice();
+    show('screen-section-choice');
   },
 
   // ── Test Timer (50 min) ───────────────────────────────────────────────────
@@ -1430,10 +1497,10 @@ const App = {
     const _errEl  = document.getElementById('processing-error');
     if (_loadEl) _loadEl.style.display = '';
     if (_errEl)  _errEl.style.display  = 'none';
-    await App._submitPlan(gaps, App._pendingAnswers, App._pendingSelfDiag);
+    await App._submitPlan(gaps, App._pendingAnswers, App._pendingSelfDiag, { section: State.diagSection || 'both' });
   },
 
-  async _submitPlan(gaps, answers, selfDiag) {
+  async _submitPlan(gaps, answers, selfDiag, opts = {}) {
     const loadEl = document.getElementById('processing-loading');
     const errEl  = document.getElementById('processing-error');
     if (loadEl) loadEl.style.display = '';
@@ -1450,7 +1517,12 @@ const App = {
         // `answers`/`selfDiag` (raw per-question picks) let the server grade
         // with the real `ans` values it has access to — `gaps` is sent too,
         // only as a fallback for non-student roles that don't send answers.
-        plan = await DB.addAttempt({ studentId: State.student.id, studentName: State.student.name, status: 'active', gaps, answers, selfDiag, adminNote: '' });
+        plan = await DB.addAttempt({
+          studentId: State.student.id, studentName: State.student.name, status: 'active',
+          gaps, answers, selfDiag, adminNote: '',
+          section: opts.section || State.diagSection || 'both',
+          skipDiagnostic: !!opts.skipDiagnostic,
+        });
         break;
       } catch (e) {
         const isNetworkIssue = !e?.status && (String(e?.message || '').startsWith('NETWORK_ERROR') || e?.message === 'TIMEOUT');
@@ -1476,7 +1548,9 @@ const App = {
   _pendingSelfDiag: null,
 
   async retryProcessResults() {
-    if (App._pendingGaps) await App._submitPlan(App._pendingGaps, App._pendingAnswers, App._pendingSelfDiag);
+    if (App._pendingGaps) {
+      await App._submitPlan(App._pendingGaps, App._pendingAnswers, App._pendingSelfDiag, { section: State.diagSection || 'both' });
+    }
   },
 
   // ── Level Analysis ───────────────────────────────────────────────────────
@@ -1530,6 +1604,11 @@ const App = {
     };
     document.getElementById('la-verbal-body').innerHTML = verbal.map(buildRow).join('');
     document.getElementById('la-quant-body').innerHTML  = quant.map(buildRow).join('');
+    // A section-scoped diagnostic (verbal-only or quant-only) legitimately produces
+    // zero gaps for the other category — hide that whole block instead of showing
+    // an empty table.
+    document.querySelectorAll('#screen-level-analysis .la-verbal-block').forEach(el => el.style.display = verbal.length ? '' : 'none');
+    document.querySelectorAll('#screen-level-analysis .la-quant-block').forEach(el => el.style.display = quant.length ? '' : 'none');
     State.currentPlan = plan;
   },
 
@@ -1660,6 +1739,8 @@ const App = {
     const quant  = sortedGaps.filter(g => g.category === 'quantitative');
     document.getElementById('sp-verbal-cards').innerHTML = verbal.map((g, i) => buildCard(g, i)).join('');
     document.getElementById('sp-quant-cards').innerHTML  = quant.map((g, i) => buildCard(g, i)).join('');
+    document.querySelectorAll('#screen-support-plan .sp-verbal-block').forEach(el => el.style.display = verbal.length ? '' : 'none');
+    document.querySelectorAll('#screen-support-plan .sp-quant-block').forEach(el => el.style.display = quant.length ? '' : 'none');
 
     // Print table
     document.getElementById('sp-print-body').innerHTML = sortedGaps.map((g, i) => {

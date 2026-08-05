@@ -2107,13 +2107,15 @@
 <!-- ═══════════════════════════════════════════════════════
      SCREEN: QUIZ TAKE — 5-question skill quiz
 ═══════════════════════════════════════════════════════ -->
-<div id="screen-quiz-take" class="screen">
+<div id="screen-quiz-take" class="screen" oncopy="return false" oncontextmenu="return false" onselectstart="return false" oncut="return false" style="-webkit-user-select:none;user-select:none;">
   <div class="topbar">
     <img class="topbar-logo" src="logo-white.png" alt="">
     <div>
       <div class="topbar-title" id="qt-title">اختبار مهارة</div>
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="App.openQuizSkills(State._quizSection, State._quizLevel)">خروج</button>
   </div>
   <div class="page-wrap">
     <div class="test-progress-bar-wrap">
@@ -2144,6 +2146,8 @@
       <div class="topbar-title">نتيجة المهارة</div>
       <div class="topbar-sub">بوابة دعم التعلم</div>
     </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="App.openQuizSkills(State._quizSection, State._quizLevel)">خروج</button>
   </div>
   <div class="page-wrap" style="text-align:center;">
     <div id="qt-result-icon" style="font-size:48px;margin:16px 0 8px;"></div>
@@ -3078,6 +3082,6 @@
 </div>
 
 <script src="js/data.js?v=a1b2c3d" defer></script>
-<script src="js/app.js?v=quiz1" defer></script>
+<script src="js/app.js?v=quiz2" defer></script>
 </body>
 </html>

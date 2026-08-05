@@ -222,6 +222,39 @@
     /* Not-started status pill — pairs with existing .score-low/.score-mid/.score-high */
     .score-gray { background:#f1f5f9; color:#64748b; }
 
+    /* ── Quiz hub / levels / skills cards ─────────────── */
+    .qz-grid {
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
+      gap:14px;
+    }
+    .qz-row-card {
+      background:var(--surface); border:1.5px solid var(--border);
+      border-radius:var(--radius); padding:18px 20px;
+      display:flex; align-items:center; gap:16px;
+      cursor:pointer; transition:box-shadow .2s, border-color .2s, transform .15s;
+    }
+    .qz-row-card:hover { border-color:var(--primary-lt); box-shadow:var(--shadow); transform:translateY(-2px); }
+    .qz-row-card.locked { cursor:not-allowed; opacity:.6; }
+    .qz-row-card.locked:hover { transform:none; box-shadow:none; border-color:var(--border); }
+    .qz-row-icon {
+      width:52px; height:52px; border-radius:14px; flex-shrink:0;
+      background:var(--grad-soft); display:flex; align-items:center; justify-content:center;
+      font-size:26px;
+    }
+    .qz-row-body { flex:1; min-width:0; }
+    .qz-row-title { font-weight:800; font-size:15.5px; margin-bottom:9px; }
+    .qz-row-pct {
+      font-size:13px; font-weight:800; flex-shrink:0; min-width:40px; text-align:center;
+    }
+    .qz-lock-icon { font-size:20px; flex-shrink:0; opacity:.7; }
+
+    .qz-skill-card {
+      text-align:center; padding:22px 14px;
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+    }
+    .qz-skill-name { font-weight:800; font-size:14.5px; }
+    .qz-skill-score { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+
     /* Tabs inside card */
     .skill-tabs {
       display:flex; border-bottom:2px solid var(--border);
@@ -2062,7 +2095,7 @@
     <button class="topbar-back" onclick="goBack('screen-support-plan')">رجوع</button>
   </div>
   <div class="page-wrap">
-    <div id="qz-hub-cards" style="display:flex;flex-direction:column;gap:14px;">
+    <div id="qz-hub-cards" class="qz-grid">
       <div style="text-align:center;color:var(--muted);padding:24px;">جاري التحميل…</div>
     </div>
   </div>
@@ -2082,7 +2115,7 @@
     <button class="topbar-back" onclick="App.openQuizHub()">رجوع</button>
   </div>
   <div class="page-wrap">
-    <div id="qz-levels-cards" style="display:flex;flex-direction:column;gap:14px;"></div>
+    <div id="qz-levels-cards" class="qz-grid"></div>
   </div>
 </div>
 
@@ -2100,7 +2133,7 @@
     <button class="topbar-back" id="qz-skills-back" onclick="App.openQuizHub()">رجوع</button>
   </div>
   <div class="page-wrap">
-    <div id="qz-skills-cards" style="display:flex;flex-direction:column;gap:12px;"></div>
+    <div id="qz-skills-cards" class="qz-grid"></div>
   </div>
 </div>
 
@@ -3082,6 +3115,6 @@
 </div>
 
 <script src="js/data.js?v=a1b2c3d" defer></script>
-<script src="js/app.js?v=quiz2" defer></script>
+<script src="js/app.js?v=quiz3" defer></script>
 </body>
 </html>

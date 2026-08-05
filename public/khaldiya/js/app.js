@@ -1498,18 +1498,17 @@ const App = {
     document.getElementById('qz-hub-cards').innerHTML = sections.map(s => {
       const levels = tree[s.key] || [];
       const avgPct = levels.length ? Math.round(levels.reduce((a, l) => a + l.progressPct, 0) / levels.length) : 0;
+      const cls = avgPct === 100 ? 'score-high' : avgPct > 0 ? 'score-mid' : 'score-gray';
       return `
-        <div class="skill-card" style="padding:18px;cursor:pointer;" onclick="App.openQuizLevels('${s.key}')">
-          <div style="display:flex;align-items:center;gap:14px;">
-            <span style="font-size:28px;">${s.icon}</span>
-            <div style="flex:1;">
-              <div style="font-weight:800;font-size:16px;margin-bottom:8px;">${s.title}</div>
-              <div class="test-progress-bar-wrap" style="margin-bottom:0;">
-                <div class="test-progress-bar" style="width:${avgPct}%"></div>
-              </div>
+        <div class="qz-row-card" onclick="App.openQuizLevels('${s.key}')">
+          <div class="qz-row-icon">${s.icon}</div>
+          <div class="qz-row-body">
+            <div class="qz-row-title">${s.title}</div>
+            <div class="test-progress-bar-wrap" style="margin-bottom:0;">
+              <div class="test-progress-bar" style="width:${avgPct}%"></div>
             </div>
-            <span class="gap-score ${avgPct === 100 ? 'score-high' : avgPct > 0 ? 'score-mid' : 'score-gray'}">${avgPct}%</span>
           </div>
+          <span class="gap-score qz-row-pct ${cls}">${avgPct}%</span>
         </div>`;
     }).join('');
   },
@@ -1524,25 +1523,28 @@ const App = {
 
   renderQuizLevels() {
     const levels = (State._quizTree && State._quizTree[State._quizSection]) || [];
-    const LEVEL_LABEL = { easy: 'سهل', medium: 'متوسط', advanced: 'متقدم' };
+    const LEVEL_META = {
+      easy:     { label: 'سهل',    icon: '🟢' },
+      medium:   { label: 'متوسط',  icon: '🟡' },
+      advanced: { label: 'متقدم',  icon: '🔴' },
+    };
     document.getElementById('qz-levels-cards').innerHTML = levels.map(l => {
+      const meta = LEVEL_META[l.level];
       const cls = l.progressPct === 100 ? 'score-high' : l.progressPct > 0 ? 'score-mid' : 'score-gray';
-      const lockedHtml = l.locked
-        ? `<span style="font-size:20px;">🔒</span>`
-        : `<span class="gap-score ${cls}">${l.progressPct}%</span>`;
+      const rightHtml = l.locked
+        ? `<span class="qz-lock-icon">🔒</span>`
+        : `<span class="gap-score qz-row-pct ${cls}">${l.progressPct}%</span>`;
       return `
-        <div class="skill-card" style="padding:18px;${l.locked ? 'opacity:.6;' : 'cursor:pointer;'}"
+        <div class="qz-row-card${l.locked ? ' locked' : ''}"
              ${l.locked ? '' : `onclick="App.openQuizSkills('${State._quizSection}','${l.level}')"`}>
-          <div style="display:flex;align-items:center;gap:14px;">
-            <div style="flex:1;">
-              <div style="font-weight:800;font-size:15px;margin-bottom:8px;">${LEVEL_LABEL[l.level]}</div>
-              <div class="test-progress-bar-wrap" style="margin-bottom:0;">
-                <div class="test-progress-bar" style="width:${l.progressPct}%"></div>
-              </div>
+          <div class="qz-row-icon">${meta.icon}</div>
+          <div class="qz-row-body">
+            <div class="qz-row-title">${meta.label}${l.locked ? ' <span style="font-weight:600;font-size:11.5px;color:var(--muted);">— أنهِ المستوى السابق</span>' : ''}</div>
+            <div class="test-progress-bar-wrap" style="margin-bottom:0;">
+              <div class="test-progress-bar" style="width:${l.progressPct}%"></div>
             </div>
-            ${lockedHtml}
           </div>
-          ${l.locked ? '<div style="font-size:12px;color:var(--muted);margin-top:8px;">أنهِ المستوى السابق أولاً لفتح هذا المستوى</div>' : ''}
+          ${rightHtml}
         </div>`;
     }).join('');
   },
@@ -1564,22 +1566,17 @@ const App = {
     document.getElementById('qz-skills-cards').innerHTML = skills.map(sk => {
       const st = App.quizStatusLabel(sk.status);
       const hasQ = sk.hasQuestions;
-      const btnLabel = !hasQ ? 'قريباً' : sk.status === 'passed' ? 'إعادة المحاولة' : sk.status === 'failed' ? 'إعادة المحاولة' : 'ابدأ';
+      const btnLabel = !hasQ ? 'قريباً' : sk.status === 'passed' || sk.status === 'failed' ? 'إعادة المحاولة' : 'ابدأ';
+      const pctText = sk.attempts ? `${sk.bestCorrect}/${sk.bestTotal}` : '—';
       return `
-        <div class="skill-card" style="padding:16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-            <div>
-              <div style="font-weight:800;font-size:15px;">${escapeHtml(sk.skillName)}</div>
-              <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">
-                <span class="gap-score ${st.cls}">${st.text}</span>
-                ${sk.attempts ? ` — أفضل نتيجة: ${sk.bestCorrect}/${sk.bestTotal}` : ''}
-              </div>
-            </div>
-            <button class="btn ${hasQ ? 'btn-primary' : 'btn-outline'}" style="white-space:nowrap;" ${hasQ ? '' : 'disabled'}
-                    onclick="App.startQuizSkill('${sk.quizSkillId}')">
-              ${btnLabel}
-            </button>
-          </div>
+        <div class="skill-card qz-skill-card">
+          <div class="gap-score ${st.cls}">${st.text}</div>
+          <div class="qz-skill-name">${escapeHtml(sk.skillName)}</div>
+          <div class="qz-skill-score">${pctText}</div>
+          <button class="btn btn-sm ${hasQ ? 'btn-outline' : ''}" style="width:auto;" ${hasQ ? '' : 'disabled'}
+                  onclick="App.startQuizSkill('${sk.quizSkillId}')">
+            ${btnLabel}
+          </button>
         </div>`;
     }).join('');
   },

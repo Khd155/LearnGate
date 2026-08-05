@@ -1858,7 +1858,7 @@
       </button>
     </div>
     <div class="no-print" style="margin-top:12px;">
-      <button class="btn btn-primary" style="width:100%;" onclick="App.openGeneralTests()">
+      <button class="btn btn-primary" style="width:100%;" onclick="App.openQuizHub()">
         📝 الانتقال إلى الاختبارات
       </button>
     </div>
@@ -2043,6 +2043,116 @@
     <div style="margin-top:28px;">
       <button class="btn btn-primary btn-full" onclick="App.openGeneralTests()">
         ← العودة إلى قائمة الاختبارات
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: QUIZ HUB — section choice (verbal / quantitative)
+═══════════════════════════════════════════════════════ -->
+<div id="screen-quiz-hub" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">الاختبارات القصيرة</div>
+      <div class="topbar-sub">قسم → مستوى → مهارة</div>
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="goBack('screen-support-plan')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div id="qz-hub-cards" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="text-align:center;color:var(--muted);padding:24px;">جاري التحميل…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: QUIZ LEVELS — easy / medium / advanced for a section
+═══════════════════════════════════════════════════════ -->
+<div id="screen-quiz-levels" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title" id="qz-levels-title">مستويات القسم</div>
+      <div class="topbar-sub">أنهِ المستوى لفتح ما بعده</div>
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="App.openQuizHub()">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div id="qz-levels-cards" style="display:flex;flex-direction:column;gap:14px;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: QUIZ SKILLS — 5 skills for a section+level
+═══════════════════════════════════════════════════════ -->
+<div id="screen-quiz-skills" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title" id="qz-skills-title">مهارات المستوى</div>
+      <div class="topbar-sub">اختر أي مهارة بالترتيب الذي تريد</div>
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" id="qz-skills-back" onclick="App.openQuizHub()">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div id="qz-skills-cards" style="display:flex;flex-direction:column;gap:12px;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: QUIZ TAKE — 5-question skill quiz
+═══════════════════════════════════════════════════════ -->
+<div id="screen-quiz-take" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title" id="qt-title">اختبار مهارة</div>
+      <div class="topbar-sub">بوابة دعم التعلم</div>
+    </div>
+  </div>
+  <div class="page-wrap">
+    <div class="test-progress-bar-wrap">
+      <div class="test-progress-bar" id="qt-progress-bar" style="width:0%"></div>
+    </div>
+    <div class="test-progress-label" id="qt-progress-label">سؤال 1 من 5</div>
+
+    <div class="q-card">
+      <div class="q-num" id="qt-q-num">سؤال 1</div>
+      <div class="q-text" id="qt-q-text"></div>
+      <div class="q-options" id="qt-q-opts"></div>
+    </div>
+
+    <div class="test-nav">
+      <button class="btn btn-outline" id="qt-btn-prev" onclick="App.quizPrev()">السابق →</button>
+      <button class="btn btn-primary" id="qt-btn-next" onclick="App.quizNext()">← التالي</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: QUIZ SKILL RESULT
+═══════════════════════════════════════════════════════ -->
+<div id="screen-quiz-skill-result" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">نتيجة المهارة</div>
+      <div class="topbar-sub">بوابة دعم التعلم</div>
+    </div>
+  </div>
+  <div class="page-wrap" style="text-align:center;">
+    <div id="qt-result-icon" style="font-size:48px;margin:16px 0 8px;"></div>
+    <div id="qt-result-score" style="font-size:40px;font-weight:900;color:var(--primary);margin-bottom:8px;"></div>
+    <div id="qt-result-detail" style="font-size:15px;color:var(--muted);margin-bottom:24px;"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-primary btn-full" id="qt-retry-btn" onclick="App.retakeQuizSkill()">🔁 إعادة المحاولة</button>
+      <button class="btn btn-outline btn-full" onclick="App.openQuizSkills(State._quizSection, State._quizLevel)">
+        رجوع لقائمة المهارات
       </button>
     </div>
   </div>

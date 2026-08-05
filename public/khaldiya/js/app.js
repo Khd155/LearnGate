@@ -442,6 +442,10 @@ const State = {
   currentQ: 0,
   tab: 'students',
   currentPlan: null,
+  _quizTree: null,       // cached GET /api/quiz-structure response for the quiz hub
+  _quizSection: null,    // 'verbal' | 'quantitative' — currently browsed section
+  _quizLevel: null,      // 'easy' | 'medium' | 'advanced' — currently browsed level
+  qz: null,              // { quizSkillId, questions, idx, answers } — active skill quiz
   detailStudentId: null, // student currently open in detail modal
   navStack: [], // screens visited, for goBack() — lets "رجوع" return to
                 // wherever the student actually came from instead of a
@@ -465,6 +469,11 @@ const _SCREEN_PATHS = {
   'screen-processing':    '/capabilities/processing',
   'screen-level-analysis':'/capabilities/results',
   'screen-general-tests': '/quiz',
+  'screen-quiz-hub':          '/quiz-skills',
+  'screen-quiz-levels':       '/quiz-skills/levels',
+  'screen-quiz-skills':       '/quiz-skills/skills',
+  'screen-quiz-take':         '/quiz-skills/take',
+  'screen-quiz-skill-result': '/quiz-skills/result',
   'screen-about':         '/about',
   'screen-faq':           '/faq',
   'screen-landing':       '/login',
@@ -1457,6 +1466,231 @@ const App = {
       showToast('تعذّر إرسال الاختبار');
       show('screen-general-test-take');
     }
+  },
+
+  // ── Quiz Skills Hub (section → level → skill, 5Q/skill, 4/5 pass) ─────────
+  quizStatusLabel(status) {
+    if (status === 'passed')      return { text: 'مكتملة',       cls: 'score-high' };
+    if (status === 'failed')      return { text: 'لم تجتز بعد',  cls: 'score-low'  };
+    if (status === 'in_progress') return { text: 'قيد التنفيذ',  cls: 'score-mid'  };
+    return { text: 'لم تبدأ', cls: 'score-gray' };
+  },
+
+  async openQuizHub() {
+    show('screen-quiz-hub');
+    const el = document.getElementById('qz-hub-cards');
+    el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;">جاري التحميل…</div>';
+    try {
+      const { tree } = await apiFetch('/quiz-structure');
+      State._quizTree = tree;
+      App.renderQuizHub();
+    } catch (e) {
+      el.innerHTML = '<div style="text-align:center;color:#dc2626;padding:24px;">تعذّر تحميل الاختبارات</div>';
+    }
+  },
+
+  renderQuizHub() {
+    const tree = State._quizTree;
+    const sections = [
+      { key: 'verbal',       icon: '📚', title: 'الاختبارات اللفظية' },
+      { key: 'quantitative', icon: '🔢', title: 'الاختبارات الكمية' },
+    ];
+    document.getElementById('qz-hub-cards').innerHTML = sections.map(s => {
+      const levels = tree[s.key] || [];
+      const avgPct = levels.length ? Math.round(levels.reduce((a, l) => a + l.progressPct, 0) / levels.length) : 0;
+      return `
+        <div class="skill-card" style="padding:18px;cursor:pointer;" onclick="App.openQuizLevels('${s.key}')">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <span style="font-size:28px;">${s.icon}</span>
+            <div style="flex:1;">
+              <div style="font-weight:800;font-size:16px;margin-bottom:8px;">${s.title}</div>
+              <div class="test-progress-bar-wrap" style="margin-bottom:0;">
+                <div class="test-progress-bar" style="width:${avgPct}%"></div>
+              </div>
+            </div>
+            <span class="gap-score ${avgPct === 100 ? 'score-high' : avgPct > 0 ? 'score-mid' : 'score-gray'}">${avgPct}%</span>
+          </div>
+        </div>`;
+    }).join('');
+  },
+
+  openQuizLevels(section) {
+    State._quizSection = section;
+    document.getElementById('qz-levels-title').textContent =
+      section === 'verbal' ? '📚 مستويات القسم اللفظي' : '🔢 مستويات القسم الكمي';
+    App.renderQuizLevels();
+    show('screen-quiz-levels');
+  },
+
+  renderQuizLevels() {
+    const levels = (State._quizTree && State._quizTree[State._quizSection]) || [];
+    const LEVEL_LABEL = { easy: 'سهل', medium: 'متوسط', advanced: 'متقدم' };
+    document.getElementById('qz-levels-cards').innerHTML = levels.map(l => {
+      const cls = l.progressPct === 100 ? 'score-high' : l.progressPct > 0 ? 'score-mid' : 'score-gray';
+      const lockedHtml = l.locked
+        ? `<span style="font-size:20px;">🔒</span>`
+        : `<span class="gap-score ${cls}">${l.progressPct}%</span>`;
+      return `
+        <div class="skill-card" style="padding:18px;${l.locked ? 'opacity:.6;' : 'cursor:pointer;'}"
+             ${l.locked ? '' : `onclick="App.openQuizSkills('${State._quizSection}','${l.level}')"`}>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="flex:1;">
+              <div style="font-weight:800;font-size:15px;margin-bottom:8px;">${LEVEL_LABEL[l.level]}</div>
+              <div class="test-progress-bar-wrap" style="margin-bottom:0;">
+                <div class="test-progress-bar" style="width:${l.progressPct}%"></div>
+              </div>
+            </div>
+            ${lockedHtml}
+          </div>
+          ${l.locked ? '<div style="font-size:12px;color:var(--muted);margin-top:8px;">أنهِ المستوى السابق أولاً لفتح هذا المستوى</div>' : ''}
+        </div>`;
+    }).join('');
+  },
+
+  openQuizSkills(section, level) {
+    State._quizSection = section;
+    State._quizLevel = level;
+    const LEVEL_LABEL = { easy: 'سهل', medium: 'متوسط', advanced: 'متقدم' };
+    document.getElementById('qz-skills-title').textContent = `مهارات المستوى ${LEVEL_LABEL[level]}`;
+    document.getElementById('qz-skills-back').setAttribute('onclick', `App.openQuizLevels('${section}')`);
+    App.renderQuizSkills();
+    show('screen-quiz-skills');
+  },
+
+  renderQuizSkills() {
+    const levels = (State._quizTree && State._quizTree[State._quizSection]) || [];
+    const levelData = levels.find(l => l.level === State._quizLevel);
+    const skills = levelData ? levelData.skills : [];
+    document.getElementById('qz-skills-cards').innerHTML = skills.map(sk => {
+      const st = App.quizStatusLabel(sk.status);
+      const hasQ = sk.hasQuestions;
+      const btnLabel = !hasQ ? 'قريباً' : sk.status === 'passed' ? 'إعادة المحاولة' : sk.status === 'failed' ? 'إعادة المحاولة' : 'ابدأ';
+      return `
+        <div class="skill-card" style="padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-weight:800;font-size:15px;">${escapeHtml(sk.skillName)}</div>
+              <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">
+                <span class="gap-score ${st.cls}">${st.text}</span>
+                ${sk.attempts ? ` — أفضل نتيجة: ${sk.bestCorrect}/${sk.bestTotal}` : ''}
+              </div>
+            </div>
+            <button class="btn ${hasQ ? 'btn-primary' : 'btn-outline'}" style="white-space:nowrap;" ${hasQ ? '' : 'disabled'}
+                    onclick="App.startQuizSkill('${sk.quizSkillId}')">
+              ${btnLabel}
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  },
+
+  async startQuizSkill(quizSkillId) {
+    show('screen-loading');
+    try {
+      const { skill, questions } = await apiFetch(`/quiz-skills/${quizSkillId}/questions`);
+      State.qz = { quizSkillId, skill, questions, idx: 0, answers: {} };
+      document.getElementById('qt-title').textContent = skill.skillName;
+      show('screen-quiz-take');
+      App.renderQuizQuestion();
+    } catch (e) {
+      showToast(e?.message || 'تعذّر تحميل أسئلة المهارة');
+      show('screen-quiz-skills');
+    }
+  },
+
+  renderQuizQuestion() {
+    const { questions, idx, answers } = State.qz;
+    const q = questions[idx];
+    const total = questions.length;
+    const pct = Math.round((idx / total) * 100);
+
+    document.getElementById('qt-progress-bar').style.width = pct + '%';
+    document.getElementById('qt-progress-label').textContent = `سؤال ${idx + 1} من ${total}`;
+    document.getElementById('qt-q-num').textContent = `سؤال ${idx + 1}`;
+    document.getElementById('qt-q-text').textContent = q.text;
+
+    const opts = [q.opt1, q.opt2, q.opt3, q.opt4];
+    const selected = answers[q.qnum];
+    document.getElementById('qt-q-opts').innerHTML = [...opts.map((opt, i) => `
+      <div class="q-opt${selected === i ? ' selected' : ''}" onclick="App.quizSelect(${i})">
+        <div class="opt-circle"></div><span>${escapeHtml(opt)}</span>
+      </div>`),
+      `<div class="q-opt dont-know${selected === 'dk' ? ' selected' : ''}" onclick="App.quizSelect('dk')">
+        <div class="opt-circle"></div><span>لا أعرف الإجابة</span>
+      </div>`
+    ].join('');
+
+    document.getElementById('qt-btn-prev').disabled = idx === 0;
+    const isLast = idx === total - 1;
+    const nextBtn = document.getElementById('qt-btn-next');
+    nextBtn.textContent   = isLast ? 'إنهاء' : 'التالي';
+    nextBtn.className     = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
+    nextBtn.style.display = (isLast || selected !== undefined) ? 'inline-flex' : 'none';
+  },
+
+  quizSelect(i) {
+    const { questions, idx } = State.qz;
+    State.qz.answers[questions[idx].qnum] = i;
+    App.renderQuizQuestion();
+    clearTimeout(App._advanceTimer);
+    if (idx < questions.length - 1) {
+      App._advanceTimer = setTimeout(() => {
+        if (State.qz.idx === idx) { State.qz.idx++; App.renderQuizQuestion(); }
+      }, 300);
+    }
+  },
+
+  quizPrev() {
+    if (State.qz.idx > 0) { State.qz.idx--; App.renderQuizQuestion(); }
+  },
+
+  async quizNext() {
+    const { questions, idx, answers } = State.qz;
+    if (answers[questions[idx].qnum] === undefined) {
+      showToast('يرجى اختيار إجابة أو "لا أعرف الإجابة" قبل المتابعة');
+      return;
+    }
+    if (idx < questions.length - 1) { State.qz.idx++; App.renderQuizQuestion(); return; }
+    await App.quizFinish();
+  },
+
+  async quizFinish() {
+    const { quizSkillId, questions, answers } = State.qz;
+    show('screen-loading');
+    try {
+      const payload = questions.map(q => ({ qnum: q.qnum, selected: answers[q.qnum] }));
+      const res = await apiFetch(`/quiz-skills/${quizSkillId}/submit`, {
+        method: 'POST', body: JSON.stringify({ answers: payload }),
+      });
+      document.getElementById('qt-result-icon').textContent = res.pass ? '✅' : '❌';
+      document.getElementById('qt-result-score').textContent = `${res.correct}/${res.total}`;
+      document.getElementById('qt-result-detail').textContent = res.pass
+        ? 'أحسنت! اجتزت هذه المهارة بنجاح.'
+        : 'لم تحقق نسبة النجاح المطلوبة (٤ من ٥) — يمكنك إعادة المحاولة.';
+      // Patch the cached tree in-memory so gating/progress reflect this attempt
+      // immediately without a full re-fetch of /api/quiz-structure.
+      const levels = State._quizTree && State._quizTree[res.section];
+      const levelData = levels && levels.find(l => l.level === res.level);
+      const skillEntry = levelData && levelData.skills.find(s => s.quizSkillId === quizSkillId);
+      if (skillEntry) {
+        skillEntry.status = res.pass ? 'passed' : 'failed';
+        skillEntry.bestCorrect = Math.max(skillEntry.bestCorrect, res.correct);
+        skillEntry.attempts = (skillEntry.attempts || 0) + 1;
+        const passedCount = levelData.skills.filter(s => s.status === 'passed').length;
+        levelData.progressPct = Math.round((passedCount / levelData.skills.length) * 100);
+        const LEVEL_ORDER = ['easy', 'medium', 'advanced'];
+        const nextLevel = levels.find(l => LEVEL_ORDER.indexOf(l.level) === LEVEL_ORDER.indexOf(res.level) + 1);
+        if (nextLevel && levelData.skills.every(s => s.status === 'passed')) nextLevel.locked = false;
+      }
+      show('screen-quiz-skill-result');
+    } catch (e) {
+      showToast(e?.message || 'تعذّر إرسال الإجابات');
+      show('screen-quiz-take');
+    }
+  },
+
+  retakeQuizSkill() {
+    App.startQuizSkill(State.qz.quizSkillId);
   },
 
   // ── Gap Analysis ──────────────────────────────────────────────────────────

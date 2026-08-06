@@ -1232,20 +1232,20 @@
     <div class="quick-actions" style="margin-top:20px;">
       <button class="quick-btn" onclick="window.location.href='study/index.html'">
         <span class="quick-btn-icon">📚</span>
-        <span>الشروحات والاختبارات</span>
+        <span>الشروحات والاختبارات التدريبية</span>
       </button>
-      <button class="quick-btn" onclick="App.goToChat()">
-        <span class="quick-btn-icon">💬</span>
-        <span>تواصل مع المشرف</span>
-        <span class="notif-badge" id="chat-unread-badge" style="display:none;"></span>
+      <button class="quick-btn" onclick="App.openQuizHub()">
+        <span class="quick-btn-icon">🎯</span>
+        <span>الاختبارات التقويمية القصيرة</span>
       </button>
       <button class="quick-btn" onclick="App.openFaq()">
         <span class="quick-btn-icon">❓</span>
         <span>الأسئلة الشائعة</span>
       </button>
-      <button class="quick-btn" onclick="App.goToTickets()">
-        <span class="quick-btn-icon">🎫</span>
-        <span>الدعم الفني</span>
+      <button class="quick-btn" onclick="App.openSupportHub()">
+        <span class="quick-btn-icon">💬</span>
+        <span>الدعم الفني والتواصل</span>
+        <span class="notif-badge" id="chat-unread-badge" style="display:none;"></span>
         <span class="notif-badge" id="ticket-notif-badge" style="display:none;"></span>
       </button>
     </div>
@@ -2692,6 +2692,37 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
+     SCREEN: SUPPORT HUB (chat + tickets entry point)
+═══════════════════════════════════════════════════════ -->
+<div id="screen-support-hub" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">الدعم الفني والتواصل</div>
+      <div class="topbar-sub">اختر طريقة التواصل المناسبة</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div class="section-choice-cards">
+      <div class="section-choice-card" onclick="App.goToChat()">
+        <div class="scc-icon">👨‍🏫</div>
+        <div class="scc-title">التواصل مع المشرف</div>
+        <div class="scc-desc">راسل مشرفك مباشرة لأي استفسار أو متابعة</div>
+      </div>
+      <div class="section-choice-card" onclick="App.goToTickets()">
+        <div class="scc-icon">🛠️</div>
+        <div class="scc-title">الدعم الفني</div>
+        <div class="scc-desc">افتح طلب دعم فني وتابع الردود عليه</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
      SCREEN: STUDENT TICKETS
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-tickets" class="screen">
@@ -3135,6 +3166,6 @@
 </div>
 
 <script src="js/data.js?v=a1b2c3d" defer></script>
-<script src="js/app.js?v=quiz9" defer></script>
+<script src="js/app.js?v=quiz10" defer></script>
 </body>
 </html>

@@ -460,6 +460,7 @@ const _SCREEN_PATHS = {
   'screen-admin':         '/admin',
   'screen-history':       '/history',
   'screen-chat':          '/chat',
+  'screen-support-hub':   '/support',
   'screen-intro':         '/capabilities',
   'screen-cooldown':      '/capabilities/cooldown',
   'screen-selfdiag':      '/capabilities/self-assessment',
@@ -4375,6 +4376,11 @@ const App = {
       }
       App.loadChatMessages();
     } catch { showToast('تعذّر الإرسال'); input.value = body; }
+  },
+
+  // ── Support Hub (chat + tickets entry point) ────────────────────────────
+  openSupportHub() {
+    show('screen-support-hub');
   },
 
   // ── Tickets (Student) ────────────────────────────────────────────────────

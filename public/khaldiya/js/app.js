@@ -1597,8 +1597,8 @@ const App = {
   renderQuizHub() {
     const tree = State._quizTree;
     const sections = [
-      { key: 'verbal',       icon: '📚', title: 'الاختبارات اللفظية' },
-      { key: 'quantitative', icon: '🔢', title: 'الاختبارات الكمية' },
+      { key: 'verbal',       icon: '📚', title: 'الاختبارات التقويمية القصيرة للقسم اللفظي' },
+      { key: 'quantitative', icon: '🔢', title: 'الاختبارات التقويمية القصيرة للقسم الكمي' },
     ];
     document.getElementById('qz-hub-cards').innerHTML = sections.map(s => {
       const levels = tree[s.key] || [];
@@ -1629,27 +1629,40 @@ const App = {
   renderQuizLevels() {
     const levels = (State._quizTree && State._quizTree[State._quizSection]) || [];
     const LEVEL_META = {
-      easy:     { label: 'سهل',    icon: '🟢' },
-      medium:   { label: 'متوسط',  icon: '🟡' },
-      advanced: { label: 'متقدم',  icon: '🔴' },
+      easy: {
+        label: 'المستوى المبدئي — سهل', icon: '🟢',
+        descOpen: 'نقطة البداية — متاح دائمًا',
+      },
+      medium: {
+        label: 'المستوى المتوسط', icon: '🟡',
+        descLocked: 'يمكنك الدخول بعد اجتياز المستوى السهل',
+        descOpen: 'أتقنت المستوى السهل — ابدأ الآن',
+      },
+      advanced: {
+        label: 'المستوى المتقدم', icon: '🔴',
+        descLocked: 'يمكنك الدخول بعد اجتياز المستوى المتوسط',
+        descOpen: 'أتقنت المستوى المتوسط — ابدأ الآن',
+      },
     };
     document.getElementById('qz-levels-cards').innerHTML = levels.map(l => {
       const meta = LEVEL_META[l.level];
+      const desc = l.locked ? meta.descLocked : meta.descOpen;
       const cls = l.progressPct === 100 ? 'score-high' : l.progressPct > 0 ? 'score-mid' : 'score-gray';
-      const rightHtml = l.locked
-        ? `<span class="qz-lock-icon">🔒</span>`
-        : `<span class="gap-score qz-row-pct ${cls}">${l.progressPct}%</span>`;
+      const statusHtml = l.locked
+        ? `<span class="gap-score score-gray">🔒 مغلق</span>`
+        : `<span class="gap-score ${cls}">🔓 مفتوح</span>`;
       return `
-        <div class="qz-row-card${l.locked ? ' locked' : ''}"
+        <div class="qz-level-card${l.locked ? ' locked' : ''}"
              ${l.locked ? '' : `onclick="App.openQuizSkills('${State._quizSection}','${l.level}')"`}>
-          <div class="qz-row-icon">${meta.icon}</div>
-          <div class="qz-row-body">
-            <div class="qz-row-title">${meta.label}${l.locked ? ' <span style="font-weight:600;font-size:11.5px;color:var(--muted);">— أنهِ المستوى السابق</span>' : ''}</div>
-            <div class="test-progress-bar-wrap" style="margin-bottom:0;">
+          <div class="qz-level-icon">${l.locked ? '🔒' : meta.icon}</div>
+          <div class="qz-level-body">
+            <div class="qz-level-title">${meta.label}</div>
+            <div class="qz-level-desc">${desc}</div>
+            <div class="test-progress-bar-wrap" style="margin-bottom:0;margin-top:10px;">
               <div class="test-progress-bar" style="width:${l.progressPct}%"></div>
             </div>
           </div>
-          ${rightHtml}
+          ${statusHtml}
         </div>`;
     }).join('');
   },

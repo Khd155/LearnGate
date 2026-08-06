@@ -2691,45 +2691,39 @@ const App = {
       }).join('')}`;
   },
 
-  // ── مؤشر الأداء — Student view ────────────────────────────────────────────
-  renderStudentPerformanceCard() {
-    const el = document.getElementById('sh-perf-card');
-    if (!el) return;
-    const myPlans = DB.studentPlans(State.student.id);
-    if (myPlans.length < 2) { el.style.display = 'none'; return; }
+  // ── مؤشر الأداء — Student view (split verbal / quantitative) ──────────────
+  // Builds one <svg> line-chart + score-boxes block for the gaps of a single
+  // category ('verbal' | 'quantitative') across the student's plan history.
+  _buildPerfBlock(myPlans, category, title, icon, chartId) {
+    const catScore = p => {
+      const gaps = p.gaps.filter(g => g.category === category);
+      return gaps.length ? Math.round(gaps.reduce((s, g) => s + g.pct, 0) / gaps.length) : null;
+    };
 
-    const planScore = p => p && p.gaps.length
-      ? Math.round(p.gaps.reduce((s,g) => s+g.pct, 0) / p.gaps.length) : null;
+    const scored = myPlans.map(p => ({ plan: p, score: catScore(p) })).filter(x => x.score !== null);
+    if (!scored.length) return '';
 
-    const latest = myPlans[0];
-    const prev   = myPlans[1];
-    const latestSc = planScore(latest);
-    const prevSc   = planScore(prev);
-
-    if (latestSc === null) { el.style.display = 'none'; return; }
-
+    const latestSc = scored[0].score;
+    const prevSc   = scored.length > 1 ? scored[1].score : null;
     const delta = prevSc !== null ? latestSc - prevSc : null;
     const deltaClass = delta === null ? 'sh-delta-same'
                      : delta > 0     ? 'sh-delta-up'
                      : delta < 0     ? 'sh-delta-down' : 'sh-delta-same';
     const deltaArrow = delta === null ? '◉' : delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
     const deltaLabel = delta === null ? '' : delta > 0 ? `+${delta}` : `${delta}`;
-
     const barClass = latestSc >= 71 ? 'pf-high' : latestSc >= 50 ? 'pf-mid' : 'pf-low';
-    const attempts = myPlans.length;
 
-    // ── SVG line chart (all attempts, oldest→newest) ──
-    const allPts = [...myPlans].reverse().map((p, i) => ({
-      i, score: planScore(p) ?? 0,
-      date: new Date(p.createdAt).toLocaleDateString('ar-SA', { day:'numeric', month:'short' })
+    const allPts = [...scored].reverse().map((x, i) => ({
+      i, score: x.score,
+      date: new Date(x.plan.createdAt).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' }),
     }));
-    const W = 320, H = 110, pL = 6, pR = 6, pT = 22, pB = 10;
+    const W = 320, H = 100, pL = 6, pR = 6, pT = 20, pB = 8;
     const cW = W - pL - pR, cH = H - pT - pB;
     const n = allPts.length;
     const xs = i => pL + (n > 1 ? (i / (n - 1)) * cW : cW / 2);
     const ys = s => pT + cH - (s / 100) * cH;
     const linePts = allPts.map((p, i) => `${xs(i)},${ys(p.score)}`).join(' ');
-    const areaPts = `${xs(0)},${pT + cH} ${linePts} ${xs(n-1)},${pT + cH}`;
+    const areaPts = `${xs(0)},${pT + cH} ${linePts} ${xs(n - 1)},${pT + cH}`;
     const gridSvg = [0, 25, 50, 75, 100].map(v => {
       const y = ys(v);
       return `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="rgba(63,124,184,.15)" stroke-width="1" stroke-dasharray="4,3"/>`;
@@ -2737,7 +2731,7 @@ const App = {
     const dotsSvg = allPts.map((p, i) => {
       const isLast = i === n - 1;
       const cx = xs(i), cy = ys(p.score);
-      const lY  = p.score > 80 ? cy + 14 : cy - 8;
+      const lY = p.score > 80 ? cy + 14 : cy - 8;
       return `<g style="cursor:pointer" onclick="_spt(event,'${p.date}',${p.score})" onmouseout="_spth()">
         <circle cx="${cx}" cy="${cy}" r="${isLast ? 5.5 : 4}"
           fill="${isLast ? '#3F7CB8' : '#fff'}" stroke="#3F7CB8" stroke-width="2"/>
@@ -2747,20 +2741,19 @@ const App = {
     }).join('');
     const chartSvg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;margin-bottom:10px;">
       <defs>
-        <linearGradient id="spg" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="${chartId}" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#3F7CB8" stop-opacity=".18"/>
           <stop offset="100%" stop-color="#3F7CB8" stop-opacity="0"/>
         </linearGradient>
       </defs>
       ${gridSvg}
-      <polygon points="${areaPts}" fill="url(#spg)"/>
+      <polygon points="${areaPts}" fill="url(#${chartId})"/>
       <polyline points="${linePts}" fill="none" stroke="#3F7CB8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
       ${dotsSvg}
     </svg>`;
 
-    el.style.display = 'block';
-    el.innerHTML = `<div class="sh-perf-card">
-      <div class="sh-perf-title">📈 مؤشر أدائك</div>
+    return `<div class="sh-perf-card">
+      <div class="sh-perf-title">${icon} ${title}</div>
       ${chartSvg}
       <div class="sh-perf-scores">
         ${prevSc !== null ? `<div class="sh-score-box prev">
@@ -2779,8 +2772,23 @@ const App = {
       <div class="sh-perf-bar-wrap" style="margin-top:14px;">
         <div class="sh-perf-bar-fill ${barClass}" style="width:${latestSc}%"></div>
       </div>
-      <div class="sh-perf-footer">محاولاتك الإجمالية: ${attempts} · استمر وأنت قادر! 💪</div>
-    </div>
+      <div class="sh-perf-footer">محاولاتك: ${scored.length} · استمر وأنت قادر! 💪</div>
+    </div>`;
+  },
+
+  renderStudentPerformanceCard() {
+    const el = document.getElementById('sh-perf-card');
+    if (!el) return;
+    const myPlans = DB.studentPlans(State.student.id);
+    if (myPlans.length < 2) { el.style.display = 'none'; return; }
+
+    const verbalHtml = App._buildPerfBlock(myPlans, 'verbal', 'مؤشر أدائك — اللفظي', '📘', 'spg-verbal');
+    const quantHtml  = App._buildPerfBlock(myPlans, 'quantitative', 'مؤشر أدائك — الكمي', '🔢', 'spg-quant');
+
+    if (!verbalHtml && !quantHtml) { el.style.display = 'none'; return; }
+
+    el.style.display = 'block';
+    el.innerHTML = `<div class="sh-perf-grid">${verbalHtml}${quantHtml}</div>
     <div id="sp-tip" style="display:none;position:fixed;background:#0f172a;color:#fff;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:700;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.25);"></div>`;
   },
 

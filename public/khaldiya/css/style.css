@@ -1362,6 +1362,11 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .perf-filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 /* ── Student: performance card (student home) ── */
+.sh-perf-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px; margin-bottom: 4px;
+}
+.sh-perf-grid .sh-perf-card { margin-bottom: 0; }
 .sh-perf-card {
   background: var(--bg-tint);
   border: 1.5px solid var(--border-strong);

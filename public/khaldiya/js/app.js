@@ -1040,10 +1040,19 @@ const App = {
     const name = user.name || user.admin_name || '';
     const role = State.student ? 'student' : (State.admin ? 'admin' : '');
     localStorage.setItem('lg_academic_user', JSON.stringify({ name, role }));
-    // Fade out smoothly before hard navigation
-    document.body.style.transition = 'opacity .22s ease';
-    document.body.style.opacity = '0';
+    // Same branded spinner screen used everywhere else (startCapabilities,
+    // quiz/test loads, login) instead of a one-off body-opacity fade, so the
+    // transition into academic/index.html (a separate static page) feels
+    // identical to every other in-app loading transition, with no blank flash.
+    showLoadingScreen('جارٍ التحميل…');
     setTimeout(() => { window.location.href = 'academic/index.html'; }, 220);
+  },
+
+  // Same branded loading screen before navigating out to the separate
+  // study/index.html static site — mirrors goToAcademic() exactly.
+  goToStudy() {
+    showLoadingScreen('جارٍ التحميل…');
+    setTimeout(() => { window.location.href = 'study/index.html'; }, 220);
   },
 
   async startCapabilities() {
@@ -4646,7 +4655,7 @@ const App = {
       // if there's no valid student session — so this must go through
       // requireAuth() too, or a logged-out visitor would just get dumped
       // back on the landing screen with no memory of where they were headed.
-      'lessons':       () => App.requireAuth(() => { window.location.href = 'study/index.html'; }),
+      'lessons':       () => App.requireAuth(() => App.goToStudy()),
       'diagnostic':    () => App.requireAuth(() => show('screen-intro')),
       'support-plan':  () => App.requireAuth(() => App.showSupportPlan()),
       'training-plan': () => App.requireAuth(() => show('screen-training-plan')),

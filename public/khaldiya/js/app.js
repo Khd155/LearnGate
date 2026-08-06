@@ -2691,89 +2691,15 @@ const App = {
       }).join('')}`;
   },
 
-  // ── مؤشر الأداء — Student view (split verbal / quantitative) ──────────────
-  // Builds one <svg> line-chart + score-boxes block for the gaps of a single
-  // category ('verbal' | 'quantitative') across the student's plan history.
-  _buildPerfBlock(myPlans, category, title, icon, chartId) {
-    const catScore = p => {
-      const gaps = p.gaps.filter(g => g.category === category);
-      return gaps.length ? Math.round(gaps.reduce((s, g) => s + g.pct, 0) / gaps.length) : null;
-    };
-
-    const scored = myPlans.map(p => ({ plan: p, score: catScore(p) })).filter(x => x.score !== null);
-    if (!scored.length) return '';
-
-    const latestSc = scored[0].score;
-    const prevSc   = scored.length > 1 ? scored[1].score : null;
-    const delta = prevSc !== null ? latestSc - prevSc : null;
-    const deltaClass = delta === null ? 'sh-delta-same'
-                     : delta > 0     ? 'sh-delta-up'
-                     : delta < 0     ? 'sh-delta-down' : 'sh-delta-same';
-    const deltaArrow = delta === null ? '◉' : delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
-    const deltaLabel = delta === null ? '' : delta > 0 ? `+${delta}` : `${delta}`;
-    const barClass = latestSc >= 71 ? 'pf-high' : latestSc >= 50 ? 'pf-mid' : 'pf-low';
-
-    const allPts = [...scored].reverse().map((x, i) => ({
-      i, score: x.score,
-      date: new Date(x.plan.createdAt).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' }),
-    }));
-    const W = 320, H = 100, pL = 6, pR = 6, pT = 20, pB = 8;
-    const cW = W - pL - pR, cH = H - pT - pB;
-    const n = allPts.length;
-    const xs = i => pL + (n > 1 ? (i / (n - 1)) * cW : cW / 2);
-    const ys = s => pT + cH - (s / 100) * cH;
-    const linePts = allPts.map((p, i) => `${xs(i)},${ys(p.score)}`).join(' ');
-    const areaPts = `${xs(0)},${pT + cH} ${linePts} ${xs(n - 1)},${pT + cH}`;
-    const gridSvg = [0, 25, 50, 75, 100].map(v => {
-      const y = ys(v);
-      return `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="rgba(63,124,184,.15)" stroke-width="1" stroke-dasharray="4,3"/>`;
-    }).join('');
-    const dotsSvg = allPts.map((p, i) => {
-      const isLast = i === n - 1;
-      const cx = xs(i), cy = ys(p.score);
-      const lY = p.score > 80 ? cy + 14 : cy - 8;
-      return `<g style="cursor:pointer" onclick="_spt(event,'${p.date}',${p.score})" onmouseout="_spth()">
-        <circle cx="${cx}" cy="${cy}" r="${isLast ? 5.5 : 4}"
-          fill="${isLast ? '#3F7CB8' : '#fff'}" stroke="#3F7CB8" stroke-width="2"/>
-        <text x="${cx}" y="${lY}" text-anchor="middle" font-size="10" font-weight="800"
-          fill="${isLast ? '#1e40af' : '#475569'}">${p.score}%</text>
-      </g>`;
-    }).join('');
-    const chartSvg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;margin-bottom:10px;">
-      <defs>
-        <linearGradient id="${chartId}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#3F7CB8" stop-opacity=".18"/>
-          <stop offset="100%" stop-color="#3F7CB8" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      ${gridSvg}
-      <polygon points="${areaPts}" fill="url(#${chartId})"/>
-      <polyline points="${linePts}" fill="none" stroke="#3F7CB8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-      ${dotsSvg}
-    </svg>`;
-
-    return `<div class="sh-perf-card">
-      <div class="sh-perf-title">${icon} ${title}</div>
-      ${chartSvg}
-      <div class="sh-perf-scores">
-        ${prevSc !== null ? `<div class="sh-score-box prev">
-          <div class="sh-score-num">${prevSc}%</div>
-          <div class="sh-score-lbl">المحاولة السابقة</div>
-        </div>` : ''}
-        ${delta !== null ? `<div class="sh-perf-delta ${deltaClass}">
-          <div class="sh-delta-arrow">${deltaArrow}</div>
-          <div class="sh-delta-val">${deltaLabel}</div>
-        </div>` : ''}
-        <div class="sh-score-box latest">
-          <div class="sh-score-num">${latestSc}%</div>
-          <div class="sh-score-lbl">آخر محاولة</div>
-        </div>
-      </div>
-      <div class="sh-perf-bar-wrap" style="margin-top:14px;">
-        <div class="sh-perf-bar-fill ${barClass}" style="width:${latestSc}%"></div>
-      </div>
-      <div class="sh-perf-footer">محاولاتك: ${scored.length} · استمر وأنت قادر! 💪</div>
-    </div>`;
+  // ── مؤشر الأداء — Student view (one card, verbal + quant as two colored series) ──
+  _catSeries(myPlans, category) {
+    return myPlans
+      .map(p => {
+        const gaps = p.gaps.filter(g => g.category === category);
+        const score = gaps.length ? Math.round(gaps.reduce((s, g) => s + g.pct, 0) / gaps.length) : null;
+        return { plan: p, score };
+      })
+      .filter(x => x.score !== null);
   },
 
   renderStudentPerformanceCard() {
@@ -2782,14 +2708,78 @@ const App = {
     const myPlans = DB.studentPlans(State.student.id);
     if (myPlans.length < 2) { el.style.display = 'none'; return; }
 
-    const verbalHtml = App._buildPerfBlock(myPlans, 'verbal', 'مؤشر أدائك — اللفظي', '📘', 'spg-verbal');
-    const quantHtml  = App._buildPerfBlock(myPlans, 'quantitative', 'مؤشر أدائك — الكمي', '🔢', 'spg-quant');
+    const VERBAL_COLOR = '#3F7CB8';
+    const QUANT_COLOR  = '#4FA877';
+    const verbal = App._catSeries(myPlans, 'verbal');
+    const quant  = App._catSeries(myPlans, 'quantitative');
+    if (!verbal.length && !quant.length) { el.style.display = 'none'; return; }
 
-    if (!verbalHtml && !quantHtml) { el.style.display = 'none'; return; }
+    const statRow = (series, color, icon, label) => {
+      if (!series.length) return '';
+      const latestSc = series[0].score;
+      const prevSc   = series.length > 1 ? series[1].score : null;
+      const delta = prevSc !== null ? latestSc - prevSc : null;
+      const deltaColor = delta === null ? '#94a3b8' : delta > 0 ? '#16a34a' : delta < 0 ? '#dc2626' : '#94a3b8';
+      const deltaArrow = delta === null ? '◉' : delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
+      const deltaLabel = delta === null ? '' : delta > 0 ? `+${delta}` : `${delta}`;
+      return `<div class="sh-perf-row" style="border-inline-start-color:${color};">
+        <div class="sh-perf-row-label" style="color:${color};">${icon} ${label}</div>
+        <div class="sh-perf-row-stats">
+          ${prevSc !== null ? `<span class="sh-perf-row-stat"><b>${prevSc}%</b> سابقة</span>` : ''}
+          ${delta !== null ? `<span class="sh-perf-row-stat" style="color:${deltaColor};font-weight:800;">${deltaArrow}${deltaLabel}</span>` : ''}
+          <span class="sh-perf-row-stat sh-perf-row-latest" style="color:${color};"><b>${latestSc}%</b> آخر محاولة</span>
+        </div>
+      </div>`;
+    };
 
+    // ── Dual-line SVG chart: shared x-axis across all plan attempts, one
+    // polyline per category (only through the attempts that have that category). ──
+    const orderedPlans = [...myPlans].reverse(); // oldest -> newest
+    const W = 320, H = 110, pL = 6, pR = 6, pT = 20, pB = 8;
+    const cW = W - pL - pR, cH = H - pT - pB;
+    const n = orderedPlans.length;
+    const xs = i => pL + (n > 1 ? (i / (n - 1)) * cW : cW / 2);
+    const ys = s => pT + cH - (s / 100) * cH;
+    const gridSvg = [0, 25, 50, 75, 100].map(v => {
+      const y = ys(v);
+      return `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="rgba(63,124,184,.12)" stroke-width="1" stroke-dasharray="4,3"/>`;
+    }).join('');
+
+    const buildSeriesSvg = (category, color) => {
+      const idxScored = orderedPlans.map((p, i) => {
+        const gaps = p.gaps.filter(g => g.category === category);
+        const score = gaps.length ? Math.round(gaps.reduce((s, g) => s + g.pct, 0) / gaps.length) : null;
+        return { i, score };
+      }).filter(x => x.score !== null);
+      if (!idxScored.length) return '';
+      const linePts = idxScored.map(p => `${xs(p.i)},${ys(p.score)}`).join(' ');
+      const dotsSvg = idxScored.map((p, k) => {
+        const isLast = k === idxScored.length - 1;
+        const cx = xs(p.i), cy = ys(p.score);
+        return `<circle cx="${cx}" cy="${cy}" r="${isLast ? 5 : 3.5}" fill="${isLast ? color : '#fff'}" stroke="${color}" stroke-width="2"/>`;
+      }).join('');
+      return `<polyline points="${linePts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dotsSvg}`;
+    };
+
+    const chartSvg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;margin-bottom:6px;">
+      ${gridSvg}
+      ${buildSeriesSvg('verbal', VERBAL_COLOR)}
+      ${buildSeriesSvg('quantitative', QUANT_COLOR)}
+    </svg>`;
+
+    const totalAttempts = Math.max(verbal.length, quant.length);
     el.style.display = 'block';
-    el.innerHTML = `<div class="sh-perf-grid">${verbalHtml}${quantHtml}</div>
-    <div id="sp-tip" style="display:none;position:fixed;background:#0f172a;color:#fff;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:700;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.25);"></div>`;
+    el.innerHTML = `<div class="sh-perf-card">
+      <div class="sh-perf-title">📈 مؤشر أدائك</div>
+      <div class="sh-perf-legend">
+        <span class="sh-legend-item"><span class="sh-legend-dot" style="background:${VERBAL_COLOR};"></span>اللفظي</span>
+        <span class="sh-legend-item"><span class="sh-legend-dot" style="background:${QUANT_COLOR};"></span>الكمي</span>
+      </div>
+      ${chartSvg}
+      ${statRow(verbal, VERBAL_COLOR, '📘', 'اللفظي')}
+      ${statRow(quant, QUANT_COLOR, '🔢', 'الكمي')}
+      <div class="sh-perf-footer">محاولاتك: ${totalAttempts} · استمر وأنت قادر! 💪</div>
+    </div>`;
   },
 
   // ── Director: Supervisors Management ─────────────────────────────────────

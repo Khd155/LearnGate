@@ -1362,11 +1362,6 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .perf-filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 /* ── Student: performance card (student home) ── */
-.sh-perf-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px; margin-bottom: 4px;
-}
-.sh-perf-grid .sh-perf-card { margin-bottom: 0; }
 .sh-perf-card {
   background: var(--bg-tint);
   border: 1.5px solid var(--border-strong);
@@ -1388,60 +1383,35 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .sh-perf-title {
   font-family: 'Cairo', sans-serif;
   font-size: 15px; font-weight: 800;
-  color: var(--primary); margin-bottom: 14px;
+  color: var(--primary); margin-bottom: 10px;
   display: flex; align-items: center; gap: 6px;
 }
-.sh-perf-scores {
-  display: flex; align-items: center; justify-content: center;
-  gap: 16px; flex-wrap: wrap;
+.sh-perf-legend {
+  display: flex; gap: 16px; margin-bottom: 10px;
 }
-.sh-score-box {
+.sh-legend-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700; color: var(--muted);
+}
+.sh-legend-dot {
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+}
+.sh-perf-row {
   background: var(--surface);
-  border-radius: 14px;
-  padding: 14px 18px;
-  text-align: center;
-  min-width: 110px;
-  box-shadow: 0 2px 10px rgba(63,124,184,.10);
-  flex: 1;
+  border-radius: 12px;
+  border-inline-start: 4px solid transparent;
+  padding: 10px 14px;
+  margin-top: 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 6px 14px;
+  box-shadow: 0 2px 8px rgba(63,124,184,.08);
 }
-.sh-score-num {
-  font-family: 'Cairo', sans-serif;
-  font-size: 32px; font-weight: 900; line-height: 1.1;
-}
-.sh-score-lbl { font-size: 11.5px; color: var(--muted); font-weight: 700; margin-top: 2px; }
-.sh-score-box.latest .sh-score-num { color: var(--primary); }
-.sh-score-box.prev   .sh-score-num { color: var(--muted); }
-
-.sh-perf-delta {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-}
-.sh-delta-arrow {
-  font-size: 28px; line-height: 1;
-}
-.sh-delta-val {
-  font-family: 'Cairo', sans-serif;
-  font-size: 15px; font-weight: 900;
-}
-.sh-delta-up   .sh-delta-arrow { color: #16a34a; }
-.sh-delta-up   .sh-delta-val   { color: #16a34a; }
-.sh-delta-down .sh-delta-arrow { color: #dc2626; }
-.sh-delta-down .sh-delta-val   { color: #dc2626; }
-.sh-delta-same .sh-delta-arrow { color: #94a3b8; }
-.sh-delta-same .sh-delta-val   { color: #94a3b8; }
-
-.sh-perf-bar-wrap {
-  margin-top: 14px;
-  background: #e2e8f0; border-radius: 99px; height: 8px; overflow: hidden;
-}
-.sh-perf-bar-fill {
-  height: 100%; border-radius: 99px;
-  transition: width .8s cubic-bezier(.4,0,.2,1);
-}
-.sh-perf-bar-fill.pf-high { background: linear-gradient(90deg,#4FA877,#22d3a5); }
-.sh-perf-bar-fill.pf-mid  { background: linear-gradient(90deg,#f59e0b,#fbbf24); }
-.sh-perf-bar-fill.pf-low  { background: linear-gradient(90deg,#ef4444,#f87171); }
+.sh-perf-row-label { font-size: 13px; font-weight: 800; flex-shrink: 0; }
+.sh-perf-row-stats { display: flex; align-items: center; gap: 14px; font-size: 12.5px; color: var(--muted); }
+.sh-perf-row-stat b { font-family: 'Cairo', sans-serif; font-size: 15px; }
+.sh-perf-row-latest { font-weight: 700; }
 .sh-perf-footer {
-  margin-top: 10px; font-size: 12px; color: var(--muted);
+  margin-top: 12px; font-size: 12px; color: var(--muted);
   font-weight: 600; text-align: center;
 }
 

@@ -2734,53 +2734,117 @@ const App = {
     };
 
     // ── Dual-line SVG chart: shared x-axis across all plan attempts, one
-    // polyline per category (only through the attempts that have that category). ──
+    // smooth curve per category (only through the attempts that have that category). ──
     const orderedPlans = [...myPlans].reverse(); // oldest -> newest
-    const W = 320, H = 110, pL = 6, pR = 6, pT = 20, pB = 8;
+    const W = 320, H = 130, pL = 8, pR = 8, pT = 26, pB = 10;
     const cW = W - pL - pR, cH = H - pT - pB;
     const n = orderedPlans.length;
     const xs = i => pL + (n > 1 ? (i / (n - 1)) * cW : cW / 2);
     const ys = s => pT + cH - (s / 100) * cH;
     const gridSvg = [0, 25, 50, 75, 100].map(v => {
       const y = ys(v);
-      return `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="rgba(63,124,184,.12)" stroke-width="1" stroke-dasharray="4,3"/>`;
+      return `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="rgba(100,116,139,.14)" stroke-width="1" stroke-dasharray="3,4"/>`;
     }).join('');
 
-    const buildSeriesSvg = (category, color) => {
-      const idxScored = orderedPlans.map((p, i) => {
-        const gaps = p.gaps.filter(g => g.category === category);
-        const score = gaps.length ? Math.round(gaps.reduce((s, g) => s + g.pct, 0) / gaps.length) : null;
-        return { i, score };
-      }).filter(x => x.score !== null);
+    const catScoreAt = (plan, category) => {
+      const gaps = plan.gaps.filter(g => g.category === category);
+      return gaps.length ? Math.round(gaps.reduce((s, g) => s + g.pct, 0) / gaps.length) : null;
+    };
+
+    const buildSeriesSvg = (category, color, animDelay) => {
+      const idxScored = orderedPlans
+        .map((p, i) => ({ i, score: catScoreAt(p, category) }))
+        .filter(x => x.score !== null);
       if (!idxScored.length) return '';
-      const linePts = idxScored.map(p => `${xs(p.i)},${ys(p.score)}`).join(' ');
+      const pathPts = idxScored.map(p => ({ x: xs(p.i), y: ys(p.score) }));
+      const pathD = App._smoothPath(pathPts);
       const dotsSvg = idxScored.map((p, k) => {
         const isLast = k === idxScored.length - 1;
         const cx = xs(p.i), cy = ys(p.score);
-        return `<circle cx="${cx}" cy="${cy}" r="${isLast ? 5 : 3.5}" fill="${isLast ? color : '#fff'}" stroke="${color}" stroke-width="2"/>`;
+        const halo = isLast ? `<circle cx="${cx}" cy="${cy}" r="10" fill="${color}" opacity=".16" class="sh-perf-halo"/>` : '';
+        return `${halo}<circle cx="${cx}" cy="${cy}" r="${isLast ? 6 : 4}" fill="${isLast ? color : 'var(--surface)'}" stroke="${color}" stroke-width="2.2"/>`;
       }).join('');
-      return `<polyline points="${linePts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dotsSvg}`;
+      return `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"
+                pathLength="1" class="sh-perf-line" style="animation-delay:${animDelay}s"/>${dotsSvg}`;
     };
 
-    const chartSvg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;margin-bottom:6px;">
-      ${gridSvg}
-      ${buildSeriesSvg('verbal', VERBAL_COLOR)}
-      ${buildSeriesSvg('quantitative', QUANT_COLOR)}
-    </svg>`;
+    // Invisible full-height hover bands (one per attempt) driving a combined tooltip.
+    const bandW = n > 1 ? cW / (n - 1) : cW;
+    const hoverSvg = orderedPlans.map((p, i) => {
+      const v = catScoreAt(p, 'verbal');
+      const q = catScoreAt(p, 'quantitative');
+      if (v === null && q === null) return '';
+      const cx = xs(i);
+      const bx = Math.max(pL, cx - bandW / 2);
+      const parts = [];
+      if (v !== null) parts.push(`اللفظي: ${v}%`);
+      if (q !== null) parts.push(`الكمي: ${q}%`);
+      const tip = parts.join(' • ');
+      return `<rect x="${bx}" y="${pT - 10}" width="${bandW}" height="${cH + 20}" fill="transparent"
+                onmouseenter="App._perfTip(event,'${tip.replace(/'/g, "\\'")}')" onmouseleave="App._perfTipHide()"
+                style="cursor:pointer"/>`;
+    }).join('');
+
+    const chartSvg = `<div style="position:relative;">
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;">
+        ${gridSvg}
+        ${buildSeriesSvg('verbal', VERBAL_COLOR, 0)}
+        ${buildSeriesSvg('quantitative', QUANT_COLOR, .15)}
+        ${hoverSvg}
+      </svg>
+      <div id="sh-perf-tip" class="sh-perf-tip" style="display:none;"></div>
+    </div>`;
 
     const totalAttempts = Math.max(verbal.length, quant.length);
     el.style.display = 'block';
     el.innerHTML = `<div class="sh-perf-card">
-      <div class="sh-perf-title">📈 مؤشر أدائك</div>
-      <div class="sh-perf-legend">
-        <span class="sh-legend-item"><span class="sh-legend-dot" style="background:${VERBAL_COLOR};"></span>اللفظي</span>
-        <span class="sh-legend-item"><span class="sh-legend-dot" style="background:${QUANT_COLOR};"></span>الكمي</span>
+      <div class="sh-perf-head">
+        <div class="sh-perf-title">📈 مؤشر أدائك</div>
+        <div class="sh-perf-legend">
+          <span class="sh-legend-item"><span class="sh-legend-dot" style="background:${VERBAL_COLOR};"></span>لفظي</span>
+          <span class="sh-legend-item"><span class="sh-legend-dot" style="background:${QUANT_COLOR};"></span>كمي</span>
+        </div>
       </div>
       ${chartSvg}
-      ${statRow(verbal, VERBAL_COLOR, '📘', 'اللفظي')}
-      ${statRow(quant, QUANT_COLOR, '🔢', 'الكمي')}
+      <div class="sh-perf-rows">
+        ${statRow(verbal, VERBAL_COLOR, '📘', 'اللفظي')}
+        ${statRow(quant, QUANT_COLOR, '🔢', 'الكمي')}
+      </div>
       <div class="sh-perf-footer">محاولاتك: ${totalAttempts} · استمر وأنت قادر! 💪</div>
     </div>`;
+  },
+
+  // Catmull-Rom -> cubic-bezier smoothing for the performance chart's line paths.
+  _smoothPath(pts) {
+    if (pts.length < 2) return '';
+    if (pts.length === 2) return `M${pts[0].x},${pts[0].y} L${pts[1].x},${pts[1].y}`;
+    const t = 0.18;
+    let d = `M${pts[0].x},${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2] || p2;
+      const c1x = p1.x + (p2.x - p0.x) * t, c1y = p1.y + (p2.y - p0.y) * t;
+      const c2x = p2.x - (p3.x - p1.x) * t, c2y = p2.y - (p3.y - p1.y) * t;
+      d += ` C${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+    }
+    return d;
+  },
+
+  _perfTip(e, text) {
+    const tip = document.getElementById('sh-perf-tip');
+    if (!tip) return;
+    tip.textContent = text;
+    tip.style.display = 'block';
+    const wrap = tip.parentElement.getBoundingClientRect();
+    const x = e.clientX - wrap.left;
+    tip.style.left = Math.min(Math.max(x, 8), wrap.width - 8) + 'px';
+  },
+
+  _perfTipHide() {
+    const tip = document.getElementById('sh-perf-tip');
+    if (tip) tip.style.display = 'none';
   },
 
   // ── Director: Supervisors Management ─────────────────────────────────────

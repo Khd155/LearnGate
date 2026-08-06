@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import Header from './Header';
 import StatsCards from './StatsCards';
+import TopImprovingStudents from './TopImprovingStudents';
 import TabsNavigation from './TabsNavigation';
 import StudentsTable from './StudentsTable';
 import StatisticsTab from './StatisticsTab';
@@ -36,6 +37,7 @@ export default function DashboardLayout() {
       <Header />
       <main className="mx-auto max-w-7xl space-y-6 px-6 py-6">
         <StatsCards />
+        <TopImprovingStudents />
         <TabsNavigation />
         <div key={tab} className="animate-tab-enter">
           {tab === 'students' && <StudentsTable />}

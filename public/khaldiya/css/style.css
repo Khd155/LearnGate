@@ -478,6 +478,22 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 }
 .page-sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
 
+/* ── Quiz-progress slim banner (student home) ────────── */
+.sh-quiz-progress-banner {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: var(--bg-tint); border: 1.5px solid var(--border-strong);
+  border-radius: 14px; padding: 14px 18px; margin-bottom: 20px;
+  cursor: pointer; font-family: inherit; text-align: right;
+  transition: border-color .2s, box-shadow .2s, transform .15s;
+}
+.sh-quiz-progress-banner:hover {
+  border-color: var(--primary-lt); box-shadow: var(--shadow); transform: translateY(-1px);
+}
+.sh-quiz-progress-banner:active { transform: scale(.99); }
+.sh-qpb-icon { font-size: 22px; flex-shrink: 0; }
+.sh-qpb-text { flex: 1; font-size: 13.5px; font-weight: 700; color: var(--text); }
+.sh-qpb-arrow { font-size: 16px; color: var(--primary); flex-shrink: 0; }
+
 /* ── Service Cards (Home) ────────────────────────────── */
 .service-section-title {
   font-size: 15px; font-weight: 800; margin-bottom: 16px; color: var(--text);
@@ -1361,13 +1377,16 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 }
 .perf-filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-/* ── Student: performance card (student home) ── */
+/* ── Student: performance cards (student home) — one per category, never merged ── */
+.sh-perf-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px; margin-bottom: 20px;
+}
 .sh-perf-card {
   background: var(--bg-tint);
   border: 1.5px solid var(--border-strong);
   border-radius: 18px;
   padding: 20px 20px 18px;
-  margin-bottom: 20px;
   position: relative;
   overflow: hidden;
 }
@@ -1380,25 +1399,11 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   pointer-events: none;
   line-height: 1;
 }
-.sh-perf-head {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
-}
 .sh-perf-title {
   font-family: 'Cairo', sans-serif;
   font-size: 15px; font-weight: 800;
-  color: var(--primary); margin: 0;
+  margin: 0 0 16px;
   display: flex; align-items: center; gap: 6px;
-}
-.sh-perf-legend {
-  display: flex; gap: 14px;
-}
-.sh-legend-item {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 700; color: var(--muted);
-}
-.sh-legend-dot {
-  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
 }
 
 /* Line-draw entrance animation (pathLength="1" normalizes stroke length to 1) */
@@ -1429,15 +1434,12 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   border: 5px solid transparent; border-top-color: #0f172a;
 }
 
-.sh-perf-rows { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
-.sh-perf-rows .sh-perf-row { margin-top: 0; }
-
 .sh-perf-row {
   background: var(--surface);
   border-radius: 12px;
   border-inline-start: 4px solid transparent;
   padding: 10px 14px;
-  margin-top: 8px;
+  margin-top: 14px;
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 6px 14px;
   box-shadow: 0 2px 8px rgba(63,124,184,.08);

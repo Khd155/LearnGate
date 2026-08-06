@@ -14,7 +14,7 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="css/style.css?v=quiz5">
+  <link rel="stylesheet" href="css/style.css?v=quiz6">
   <style>
     .diag-radio { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
     .diag-radio input { display:none; }
@@ -1176,6 +1176,13 @@
     <!-- Performance indicator (shown from 2nd test onwards) -->
     <div id="sh-perf-card" style="display:none;"></div>
 
+    <!-- Quick link to the quiz-skills progress breakdown -->
+    <button class="sh-quiz-progress-banner" onclick="App.openQuizProgress()">
+      <span class="sh-qpb-icon">📊</span>
+      <span class="sh-qpb-text">مؤشر الإنجاز والتقدم في الاختبارات التقويمية القصيرة</span>
+      <span class="sh-qpb-arrow">←</span>
+    </button>
+
     <div class="service-section-title">مسارات الدعم التعليمي</div>
     <div class="service-cards">
       <div class="service-card active" onclick="App.goToAcademic()">
@@ -2087,6 +2094,28 @@
       <button class="btn btn-primary btn-full" onclick="App.openGeneralTests()">
         ← العودة إلى قائمة الاختبارات
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: QUIZ PROGRESS — level 1/2/3 breakdown by skill
+═══════════════════════════════════════════════════════ -->
+<div id="screen-quiz-progress" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">📊 مؤشرات الاختبارات القصيرة</div>
+      <div class="topbar-sub">تقدّمك في كل مهارة بكل مستوى</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div id="qzp-content">
+      <div class="inline-loading"><span class="inline-spinner"></span>جاري التحميل…</div>
     </div>
   </div>
 </div>
@@ -3166,6 +3195,6 @@
 </div>
 
 <script src="js/data.js?v=a1b2c3d" defer></script>
-<script src="js/app.js?v=quiz12" defer></script>
+<script src="js/app.js?v=quiz13" defer></script>
 </body>
 </html>

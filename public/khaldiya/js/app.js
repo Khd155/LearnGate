@@ -470,6 +470,7 @@ const _SCREEN_PATHS = {
   'screen-processing':    '/capabilities/processing',
   'screen-level-analysis':'/capabilities/results',
   'screen-general-tests': '/quiz',
+  'screen-quiz-progress':     '/quiz-skills/progress',
   'screen-quiz-hub':          '/quiz-skills',
   'screen-quiz-levels':       '/quiz-skills/levels',
   'screen-quiz-skills':       '/quiz-skills/skills',
@@ -1494,6 +1495,57 @@ const App = {
     if (status === 'failed')      return { text: 'لم تجتز بعد',  cls: 'score-low'  };
     if (status === 'in_progress') return { text: 'قيد التنفيذ',  cls: 'score-mid'  };
     return { text: 'لم تبدأ', cls: 'score-gray' };
+  },
+
+  // ── Quiz Progress (read-only breakdown: level 1/2/3 → skill % + bar) ──────
+  async openQuizProgress() {
+    show('screen-quiz-progress');
+    const el = document.getElementById('qzp-content');
+    el.innerHTML = '<div class="inline-loading"><span class="inline-spinner"></span>جاري التحميل…</div>';
+    try {
+      const { tree } = await apiFetch('/quiz-structure');
+      State._quizTree = tree;
+      App.renderQuizProgress();
+    } catch (e) {
+      el.innerHTML = '<div style="text-align:center;color:#dc2626;padding:24px;">تعذّر تحميل المؤشرات</div>';
+    }
+  },
+
+  renderQuizProgress() {
+    const tree = State._quizTree;
+    const LEVELS = [
+      { key: 'easy',     num: 1, label: 'المستوى الأول — سهل' },
+      { key: 'medium',   num: 2, label: 'المستوى الثاني — متوسط' },
+      { key: 'advanced', num: 3, label: 'المستوى الثالث — متقدم' },
+    ];
+    const html = LEVELS.map(lv => {
+      const verbalLevel = (tree.verbal || []).find(l => l.level === lv.key);
+      const quantLevel  = (tree.quantitative || []).find(l => l.level === lv.key);
+      const skills = [...(verbalLevel?.skills || []), ...(quantLevel?.skills || [])];
+      if (!skills.length) return '';
+      const skillsHtml = skills.map(sk => {
+        const pct = sk.bestTotal ? Math.round((sk.bestCorrect / sk.bestTotal) * 100) : 0;
+        const cls = sk.status === 'passed' ? 'score-high' : sk.status === 'failed' ? 'score-mid' : 'score-gray';
+        return `<div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin-bottom:4px;">
+            <span>${escapeHtml(sk.skillName)}</span>
+            <span class="gap-score ${cls}">${sk.attempts ? pct + '%' : 'لم تبدأ'}</span>
+          </div>
+          <div class="test-progress-bar-wrap" style="margin-bottom:0;">
+            <div class="test-progress-bar" style="width:${sk.attempts ? pct : 0}%"></div>
+          </div>
+        </div>`;
+      }).join('');
+      const locked = (verbalLevel?.locked ?? true) && (quantLevel?.locked ?? true);
+      return `<div class="skill-card" style="padding:18px;margin-bottom:14px;${locked ? 'opacity:.6;' : ''}">
+        <div style="font-weight:800;font-size:14.5px;margin-bottom:14px;">
+          ${lv.label} ${locked ? '🔒' : ''}
+        </div>
+        ${skillsHtml}
+      </div>`;
+    }).join('');
+    document.getElementById('qzp-content').innerHTML = html
+      || '<div style="text-align:center;color:var(--muted);padding:24px;">لا توجد بيانات بعد</div>';
   },
 
   async openQuizHub() {
@@ -2712,42 +2764,24 @@ const App = {
       .filter(x => x.score !== null);
   },
 
-  renderStudentPerformanceCard() {
-    const el = document.getElementById('sh-perf-card');
-    if (!el) return;
-    const myPlans = DB.studentPlans(State.student.id);
-    if (myPlans.length < 2) { el.style.display = 'none'; return; }
+  // Builds one independent .sh-perf-card (own title, own single-line smooth
+  // chart with hover tooltip + line-draw animation, own stat row) for a
+  // single category. Two of these render side by side, never merged.
+  _buildPerfCard(myPlans, category, title, icon, color, tipLabel, tipId) {
+    const series = App._catSeries(myPlans, category);
+    if (!series.length) return '';
 
-    const VERBAL_COLOR = '#3F7CB8';
-    const QUANT_COLOR  = '#4FA877';
-    const verbal = App._catSeries(myPlans, 'verbal');
-    const quant  = App._catSeries(myPlans, 'quantitative');
-    if (!verbal.length && !quant.length) { el.style.display = 'none'; return; }
+    const latestSc = series[0].score;
+    const prevSc   = series.length > 1 ? series[1].score : null;
+    const delta = prevSc !== null ? latestSc - prevSc : null;
+    const deltaColor = delta === null ? '#94a3b8' : delta > 0 ? '#16a34a' : delta < 0 ? '#dc2626' : '#94a3b8';
+    const deltaArrow = delta === null ? '◉' : delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
+    const deltaLabel = delta === null ? '' : delta > 0 ? `+${delta}` : `${delta}`;
 
-    const statRow = (series, color, icon, label) => {
-      if (!series.length) return '';
-      const latestSc = series[0].score;
-      const prevSc   = series.length > 1 ? series[1].score : null;
-      const delta = prevSc !== null ? latestSc - prevSc : null;
-      const deltaColor = delta === null ? '#94a3b8' : delta > 0 ? '#16a34a' : delta < 0 ? '#dc2626' : '#94a3b8';
-      const deltaArrow = delta === null ? '◉' : delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
-      const deltaLabel = delta === null ? '' : delta > 0 ? `+${delta}` : `${delta}`;
-      return `<div class="sh-perf-row" style="border-inline-start-color:${color};">
-        <div class="sh-perf-row-label" style="color:${color};">${icon} ${label}</div>
-        <div class="sh-perf-row-stats">
-          ${prevSc !== null ? `<span class="sh-perf-row-stat"><b>${prevSc}%</b> سابقة</span>` : ''}
-          ${delta !== null ? `<span class="sh-perf-row-stat" style="color:${deltaColor};font-weight:800;">${deltaArrow}${deltaLabel}</span>` : ''}
-          <span class="sh-perf-row-stat sh-perf-row-latest" style="color:${color};"><b>${latestSc}%</b> آخر محاولة</span>
-        </div>
-      </div>`;
-    };
-
-    // ── Dual-line SVG chart: shared x-axis across all plan attempts, one
-    // smooth curve per category (only through the attempts that have that category). ──
-    const orderedPlans = [...myPlans].reverse(); // oldest -> newest
-    const W = 320, H = 130, pL = 8, pR = 8, pT = 26, pB = 10;
+    const ordered = [...series].reverse(); // oldest -> newest
+    const W = 300, H = 120, pL = 8, pR = 8, pT = 22, pB = 10;
     const cW = W - pL - pR, cH = H - pT - pB;
-    const n = orderedPlans.length;
+    const n = ordered.length;
     const xs = i => pL + (n > 1 ? (i / (n - 1)) * cW : cW / 2);
     const ys = s => pT + cH - (s / 100) * cH;
     const gridSvg = [0, 25, 50, 75, 100].map(v => {
@@ -2755,72 +2789,60 @@ const App = {
       return `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="rgba(100,116,139,.14)" stroke-width="1" stroke-dasharray="3,4"/>`;
     }).join('');
 
-    const catScoreAt = (plan, category) => {
-      const gaps = plan.gaps.filter(g => g.category === category);
-      return gaps.length ? Math.round(gaps.reduce((s, g) => s + g.pct, 0) / gaps.length) : null;
-    };
-
-    const buildSeriesSvg = (category, color, animDelay) => {
-      const idxScored = orderedPlans
-        .map((p, i) => ({ i, score: catScoreAt(p, category) }))
-        .filter(x => x.score !== null);
-      if (!idxScored.length) return '';
-      const pathPts = idxScored.map(p => ({ x: xs(p.i), y: ys(p.score) }));
-      const pathD = App._smoothPath(pathPts);
-      const dotsSvg = idxScored.map((p, k) => {
-        const isLast = k === idxScored.length - 1;
-        const cx = xs(p.i), cy = ys(p.score);
-        const halo = isLast ? `<circle cx="${cx}" cy="${cy}" r="10" fill="${color}" opacity=".16" class="sh-perf-halo"/>` : '';
-        return `${halo}<circle cx="${cx}" cy="${cy}" r="${isLast ? 6 : 4}" fill="${isLast ? color : 'var(--surface)'}" stroke="${color}" stroke-width="2.2"/>`;
-      }).join('');
-      return `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"
-                pathLength="1" class="sh-perf-line" style="animation-delay:${animDelay}s"/>${dotsSvg}`;
-    };
-
-    // Invisible full-height hover bands (one per attempt) driving a combined tooltip.
+    const pathPts = ordered.map((p, i) => ({ x: xs(i), y: ys(p.score) }));
+    const pathD = App._smoothPath(pathPts);
+    const dotsSvg = ordered.map((p, i) => {
+      const isLast = i === n - 1;
+      const cx = xs(i), cy = ys(p.score);
+      const halo = isLast ? `<circle cx="${cx}" cy="${cy}" r="10" fill="${color}" opacity=".16" class="sh-perf-halo"/>` : '';
+      return `${halo}<circle cx="${cx}" cy="${cy}" r="${isLast ? 6 : 4}" fill="${isLast ? color : 'var(--surface)'}" stroke="${color}" stroke-width="2.2"/>`;
+    }).join('');
     const bandW = n > 1 ? cW / (n - 1) : cW;
-    const hoverSvg = orderedPlans.map((p, i) => {
-      const v = catScoreAt(p, 'verbal');
-      const q = catScoreAt(p, 'quantitative');
-      if (v === null && q === null) return '';
+    const hoverSvg = ordered.map((p, i) => {
       const cx = xs(i);
       const bx = Math.max(pL, cx - bandW / 2);
-      const parts = [];
-      if (v !== null) parts.push(`اللفظي: ${v}%`);
-      if (q !== null) parts.push(`الكمي: ${q}%`);
-      const tip = parts.join(' • ');
-      return `<rect x="${bx}" y="${pT - 10}" width="${bandW}" height="${cH + 20}" fill="transparent"
-                onmouseenter="App._perfTip(event,'${tip.replace(/'/g, "\\'")}')" onmouseleave="App._perfTipHide()"
+      return `<rect x="${bx}" y="${pT - 8}" width="${bandW}" height="${cH + 16}" fill="transparent"
+                onmouseenter="App._perfTip(event,'${tipId}','${tipLabel}: ${p.score}%')" onmouseleave="App._perfTipHide('${tipId}')"
                 style="cursor:pointer"/>`;
     }).join('');
 
     const chartSvg = `<div style="position:relative;">
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;">
         ${gridSvg}
-        ${buildSeriesSvg('verbal', VERBAL_COLOR, 0)}
-        ${buildSeriesSvg('quantitative', QUANT_COLOR, .15)}
+        <path d="${pathD}" fill="none" stroke="${color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"
+              pathLength="1" class="sh-perf-line"/>
+        ${dotsSvg}
         ${hoverSvg}
       </svg>
-      <div id="sh-perf-tip" class="sh-perf-tip" style="display:none;"></div>
+      <div id="sh-perf-tip-${tipId}" class="sh-perf-tip" style="display:none;"></div>
     </div>`;
 
-    const totalAttempts = Math.max(verbal.length, quant.length);
-    el.style.display = 'block';
-    el.innerHTML = `<div class="sh-perf-card">
-      <div class="sh-perf-head">
-        <div class="sh-perf-title">📈 مؤشر أدائك</div>
-        <div class="sh-perf-legend">
-          <span class="sh-legend-item"><span class="sh-legend-dot" style="background:${VERBAL_COLOR};"></span>لفظي</span>
-          <span class="sh-legend-item"><span class="sh-legend-dot" style="background:${QUANT_COLOR};"></span>كمي</span>
-        </div>
-      </div>
+    return `<div class="sh-perf-card">
+      <div class="sh-perf-title" style="color:${color};">${icon} ${title}</div>
       ${chartSvg}
-      <div class="sh-perf-rows">
-        ${statRow(verbal, VERBAL_COLOR, '📘', 'اللفظي')}
-        ${statRow(quant, QUANT_COLOR, '🔢', 'الكمي')}
+      <div class="sh-perf-row" style="border-inline-start-color:${color};">
+        <div class="sh-perf-row-stats">
+          ${prevSc !== null ? `<span class="sh-perf-row-stat"><b>${prevSc}%</b> سابقة</span>` : ''}
+          ${delta !== null ? `<span class="sh-perf-row-stat" style="color:${deltaColor};font-weight:800;">${deltaArrow}${deltaLabel}</span>` : ''}
+        </div>
+        <span class="sh-perf-row-stat sh-perf-row-latest" style="color:${color};"><b>${latestSc}%</b> آخر محاولة</span>
       </div>
-      <div class="sh-perf-footer">محاولاتك: ${totalAttempts} · استمر وأنت قادر! 💪</div>
+      <div class="sh-perf-footer">محاولاتك: ${series.length} · استمر وأنت قادر! 💪</div>
     </div>`;
+  },
+
+  renderStudentPerformanceCard() {
+    const el = document.getElementById('sh-perf-card');
+    if (!el) return;
+    const myPlans = DB.studentPlans(State.student.id);
+    if (myPlans.length < 2) { el.style.display = 'none'; return; }
+
+    const verbalCard = App._buildPerfCard(myPlans, 'verbal', 'مؤشر أدائك — اللفظي', '📘', '#3F7CB8', 'اللفظي', 'v');
+    const quantCard  = App._buildPerfCard(myPlans, 'quantitative', 'مؤشر أدائك — الكمي', '📗', '#4FA877', 'الكمي', 'q');
+    if (!verbalCard && !quantCard) { el.style.display = 'none'; return; }
+
+    el.style.display = 'block';
+    el.innerHTML = `<div class="sh-perf-grid">${verbalCard}${quantCard}</div>`;
   },
 
   // Catmull-Rom -> cubic-bezier smoothing for the performance chart's line paths.
@@ -2841,8 +2863,8 @@ const App = {
     return d;
   },
 
-  _perfTip(e, text) {
-    const tip = document.getElementById('sh-perf-tip');
+  _perfTip(e, tipId, text) {
+    const tip = document.getElementById('sh-perf-tip-' + tipId);
     if (!tip) return;
     tip.textContent = text;
     tip.style.display = 'block';
@@ -2851,8 +2873,8 @@ const App = {
     tip.style.left = Math.min(Math.max(x, 8), wrap.width - 8) + 'px';
   },
 
-  _perfTipHide() {
-    const tip = document.getElementById('sh-perf-tip');
+  _perfTipHide(tipId) {
+    const tip = document.getElementById('sh-perf-tip-' + tipId);
     if (tip) tip.style.display = 'none';
   },
 

@@ -1171,31 +1171,50 @@ export async function onRequest({ request, env }) {
 
       const daysSince = (iso) => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : Infinity;
 
-      // GET /api/analytics/at-risk
+      // GET /api/analytics/at-risk — only ever flags a student who has actually
+      // started (logged in at least once AND has some recorded activity);
+      // a student with lastActive === null (account exists, never touched it)
+      // is reported separately under `neverStarted`, never under `students`.
       if (sub === 'at-risk' && method === 'GET') {
         const students = await _loadStudentActivityAndScores();
-        const flagged = students.map(s => {
-          const inactive       = daysSince(s.lastActive) > 3;
-          const lowPerformance = s.lastScore !== null && s.lastScore < 50;
-          const noImprovement  = s.attempts >= 2 && s.improvementPct !== null && s.improvementPct <= 0;
+        const started = students.filter(s => s.lastActive !== null);
+        const neverStarted = students.filter(s => s.lastActive === null);
+
+        const flagged = started.map(s => {
+          const days            = daysSince(s.lastActive);
+          const inactive        = days > 3;
+          const lowPerformance  = s.lastScore !== null && s.lastScore < 50;
+          const noImprovement   = s.attempts >= 2 && s.improvementPct !== null && s.improvementPct <= 0;
           const reasons = [
             ...(inactive ? ['inactive'] : []),
             ...(lowPerformance ? ['low_performance'] : []),
             ...(noImprovement ? ['no_improvement'] : []),
           ];
-          return { ...s, inactive, lowPerformance, noImprovement, reasons };
-        }).filter(s => s.reasons.length > 0);
+          // Simple severity score to rank "top priority" first: capped days
+          // inactive + how far below 50% the last score is + a flat bump for
+          // stalled improvement — good enough for sorting, not shown to admins.
+          const severity = Math.min(days, 30) + (lowPerformance ? (50 - s.lastScore) : 0) + (noImprovement ? 10 : 0);
+          return { ...s, inactive, lowPerformance, noImprovement, reasons, daysSinceActive: days, severity };
+        }).filter(s => s.reasons.length > 0)
+          .sort((a, b) => b.severity - a.severity);
+
+        const LIMIT = Math.min(Number(url.searchParams.get('limit')) || 15, 50);
 
         return ok({
           total: flagged.length,
+          shown: Math.min(flagged.length, LIMIT),
           inactive_count: flagged.filter(s => s.inactive).length,
           low_performance_count: flagged.filter(s => s.lowPerformance).length,
           no_improvement_count: flagged.filter(s => s.noImprovement).length,
-          students: flagged.map(s => ({
+          students: flagged.slice(0, LIMIT).map(s => ({
             id: s.id, name: s.name, school: s.school,
-            lastActive: s.lastActive, daysSinceActive: daysSince(s.lastActive) === Infinity ? null : daysSince(s.lastActive),
+            lastActive: s.lastActive, daysSinceActive: s.daysSinceActive,
             lastScore: s.lastScore, improvementPct: s.improvementPct, reasons: s.reasons,
           })),
+          neverStarted: {
+            count: neverStarted.length,
+            students: neverStarted.map(s => ({ id: s.id, name: s.name, school: s.school })),
+          },
         }, 200, CORS);
       }
 

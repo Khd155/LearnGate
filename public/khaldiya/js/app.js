@@ -4336,6 +4336,7 @@ const App = {
     App._chatOpenConv(adminName, 'مشرف');
     App._chatMsgCount = 0;
     App.loadChatMessages();
+    App.startChatPoll();
   },
 
   openAdminChatWith(studentId, studentName) {
@@ -4345,6 +4346,7 @@ const App = {
     App._chatOpenConv(studentName, 'طالب');
     App._chatMsgCount = 0;
     App.loadChatMessages();
+    App.startChatPoll();
   },
 
   // Support panel (dev-key login): open a student's full message thread across all admins
@@ -5286,7 +5288,17 @@ const App = {
       ws.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
-          if (data.type === 'new_message' || data.type === 'ticket_reply') App._checkNotifications();
+          if (data.type === 'new_message' || data.type === 'ticket_reply') {
+            App._checkNotifications();
+            // If a chat thread is open right now, refresh it immediately too —
+            // otherwise the badge count updates but the open conversation
+            // itself only catches up on its next 6s poll (or on re-entering
+            // the screen), which reads as "message doesn't show until I leave
+            // and come back in".
+            if (data.type === 'new_message' && document.getElementById('screen-chat')?.classList.contains('active')) {
+              App.loadChatMessages();
+            }
+          }
         } catch {}
       };
       ws.onclose = () => {

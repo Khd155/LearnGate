@@ -50,6 +50,14 @@ export default function Header() {
           const data = JSON.parse(e.data);
           if (data.type === 'new_message' || data.type === 'new_ticket' || data.type === 'ticket_reply') {
             loadUnreadCounts();
+            // If the admin currently has this student's conversation open,
+            // refresh it too — otherwise the unread badge updates instantly
+            // but the open thread only catches up on next manual reopen.
+            if (data.type === 'new_message') {
+              const store = useStore.getState();
+              if (store.activeThreadStudentId) store.loadMessages(store.activeThreadStudentId);
+              store.loadThreads();
+            }
           }
         } catch { /* ignore malformed frames */ }
       };

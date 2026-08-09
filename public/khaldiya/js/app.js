@@ -4431,6 +4431,16 @@ const App = {
     if (readPatch) apiFetch('/messages/read', { method:'PATCH', body: JSON.stringify(readPatch) }).catch(() => {});
 
     if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>'; App._chatMsgCount = 0; return; }
+    // Rebuilding innerHTML always resets scrollTop to 0, and this function is
+    // called on every poll/WebSocket tick — so without this guard, scrolling
+    // up to read older messages while a background refresh lands would snap
+    // the view back to the top. Only rebuild (and only auto-scroll to the
+    // newest message) when the admin/student is already near the bottom, or
+    // this is the conversation's very first render.
+    const wasEmpty = App._chatMsgCount === 0;
+    const nearBottom = wasEmpty || (el.scrollHeight - el.scrollTop - el.clientHeight < 150);
+    if (!nearBottom && msgs.length === App._chatMsgCount) { App._chatMsgCount = msgs.length; return; }
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     el.innerHTML = msgs.map(m => {
       const isMine = (State.role === 'admin' || State.role === 'director' || State.role === 'support') ? m.sender_type === 'admin' : m.sender_type === 'student';
       const senderName = isMine ? 'أنت' : ((State.role === 'admin' || State.role === 'director' || State.role === 'support') ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(adminLabel(m.admin_name || State.chatAdminName || 'المشرف')));
@@ -4440,7 +4450,10 @@ const App = {
         <div class="chat-time">${senderName} · ${time}</div>
       </div>`;
     }).join('');
-    el.scrollTop = el.scrollHeight;
+    // Rebuilding innerHTML always resets scrollTop to 0 — restore the
+    // reader's position (by distance from bottom) unless they were already
+    // near the bottom, in which case snap to the newest message as before.
+    el.scrollTop = nearBottom ? el.scrollHeight : (el.scrollHeight - el.clientHeight - distanceFromBottom);
     App._chatMsgCount = msgs.length;
     const badge = document.getElementById('chat-unread-badge');
     if (badge) badge.style.display = 'none';
@@ -5295,7 +5308,9 @@ const App = {
             // itself only catches up on its next 6s poll (or on re-entering
             // the screen), which reads as "message doesn't show until I leave
             // and come back in".
-            if (data.type === 'new_message' && document.getElementById('screen-chat')?.classList.contains('active')) {
+            const chatScreenOpen = document.getElementById('screen-chat')?.classList.contains('active');
+            const chatModalOpen  = App._chatIsModal && document.getElementById('student-chat-modal')?.style.display !== 'none';
+            if (data.type === 'new_message' && (chatScreenOpen || chatModalOpen)) {
               App.loadChatMessages();
             }
           }

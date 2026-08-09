@@ -2863,9 +2863,6 @@ export async function onRequest({ request, env }) {
         }
         await DB.prepare('DELETE FROM messages WHERE id = ?').bind(sub).run();
         await logEvent(DB, { level: 'warn', category: 'message', message: `حذف رسالة (${sub}) — الطالب: ${target.student_name}`, user_name: msgClaims?.name || 'dev', user_role: msgClaims?.role || 'dev', school: target.school || '' });
-        wsNotify(target.sender_type === 'admin'
-          ? { studentId: target.student_id, event: { type: 'message_deleted', id: sub } }
-          : { admins: true, event: { type: 'message_deleted', id: sub, studentId: target.student_id } });
         return ok({ ok: true }, 200, CORS);
       }
     }

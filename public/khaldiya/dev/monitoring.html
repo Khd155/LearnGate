@@ -37,6 +37,14 @@
   <div id="app">
     <h1>📊 Dev Monitoring</h1>
     <div class="row" id="cards"></div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="label">🔌 اختبار WebSocket</div>
+      <div id="wsStatus" style="margin:6px 0;">غير متصل</div>
+      <button onclick="sendWsTest()" style="padding:6px 14px; background:#4f7cff; border:none; border-radius:6px; color:#fff; cursor:pointer;">إرسال حدث تجريبي</button>
+      <ul id="wsLog" style="margin:10px 0 0; padding:0; list-style:none; font-size:12px; max-height:120px; overflow:auto;"></ul>
+    </div>
+
     <p class="muted">آخر السجلات (يتحدّث كل 5 ثوانٍ)</p>
     <table>
       <thead><tr><th>الوقت</th><th>النوع</th><th>method</th><th>path</th><th>status</th><th>ms</th><th>IP</th></tr></thead>
@@ -52,6 +60,7 @@
     if (!KEY) return;
     localStorage.setItem('dev_monitor_key', KEY);
     boot();
+    connectWs();
   }
 
   async function boot() {
@@ -104,7 +113,53 @@
     }
   }
 
-  if (KEY) boot();
+  // ── WebSocket experiment ──────────────────────────────────────────────
+  let ws = null;
+  let wsReconnectDelay = 1000;
+
+  function wsLog(text) {
+    const li = document.createElement('li');
+    li.textContent = `${new Date().toLocaleTimeString('ar-SA', { hour12: false })} — ${text}`;
+    const box = document.getElementById('wsLog');
+    box.prepend(li);
+    while (box.children.length > 20) box.removeChild(box.lastChild);
+  }
+
+  function connectWs() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws?devkey=${encodeURIComponent(KEY)}`);
+
+    ws.onopen = () => {
+      document.getElementById('wsStatus').textContent = '🟢 متصل';
+      wsReconnectDelay = 1000;
+      wsLog('تم الاتصال');
+    };
+    ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        wsLog(`استلام: ${data.type} — ${data.message || data.role || ''}`);
+      } catch { wsLog('استلام: ' + e.data); }
+    };
+    ws.onclose = () => {
+      document.getElementById('wsStatus').textContent = '🔴 غير متصل — إعادة محاولة...';
+      wsLog('انقطع الاتصال، إعادة محاولة خلال ' + (wsReconnectDelay / 1000) + 'ث');
+      setTimeout(connectWs, wsReconnectDelay);
+      wsReconnectDelay = Math.min(wsReconnectDelay * 2, 15000);
+    };
+    ws.onerror = () => { ws.close(); };
+  }
+
+  async function sendWsTest() {
+    const res = await fetch('/api/dev/monitoring/ws-test', {
+      method: 'POST',
+      headers: { 'X-Dev-Key': KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'مرحبا من لوحة المراقبة 👋' }),
+    });
+    const data = await res.json();
+    wsLog(`تم الإرسال إلى ${data.delivered} عميل متصل`);
+  }
+
+  if (KEY) { boot(); connectWs(); }
 </script>
 </body>
 </html>

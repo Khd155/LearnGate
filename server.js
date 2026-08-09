@@ -3,9 +3,11 @@
 // only the request/response transport and the env source (process.env) differ.
 import express from 'express';
 import path from 'node:path';
+import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { onRequest } from './functions/api/[[route]].js';
 import { recordRequest, recordException, getStats, getLogs } from './lib/monitoring.js';
+import { setupWebSocket, broadcastToAll, getConnectionCount } from './lib/ws.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public', 'khaldiya');
@@ -88,6 +90,15 @@ app.get('/api/dev/monitoring/logs', (req, res) => {
   res.json({ logs: getLogs(limit) });
 });
 
+// Experimental: broadcasts a test event to every connected WS client, to
+// verify the hosting platform keeps long-lived WebSocket connections alive
+// in production before any real feature depends on it.
+app.post('/api/dev/monitoring/ws-test', express.json(), (req, res) => {
+  if (!devAuthorized(req)) return res.status(403).json({ error: 'غير مسموح' });
+  const delivered = broadcastToAll({ type: 'test', message: req.body?.message || 'ping', time: new Date().toISOString() });
+  res.json({ delivered, connections: getConnectionCount() });
+});
+
 app.use('/api', async (req, res) => {
   try {
     const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
@@ -129,4 +140,6 @@ app.use((req, res) => {
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`LearnGate server listening on port ${port}`));
+const httpServer = http.createServer(app);
+setupWebSocket(httpServer, process.env);
+httpServer.listen(port, () => console.log(`LearnGate server listening on port ${port} (WS on /ws)`));

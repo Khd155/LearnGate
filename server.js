@@ -74,6 +74,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── Developer monitoring APIs (protected by X-Dev-Key / ?key=) ────────────
+// Registered before the generic '/api' catch-all below, since that handler
+// responds to every /api/* request itself and would otherwise shadow these.
+app.get('/api/dev/monitoring/stats', (req, res) => {
+  if (!devAuthorized(req)) return res.status(403).json({ error: 'غير مسموح' });
+  res.json(getStats());
+});
+
+app.get('/api/dev/monitoring/logs', (req, res) => {
+  if (!devAuthorized(req)) return res.status(403).json({ error: 'غير مسموح' });
+  const limit = Math.min(Number(req.query.limit) || 100, 500);
+  res.json({ logs: getLogs(limit) });
+});
+
 app.use('/api', async (req, res) => {
   try {
     const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
@@ -89,18 +103,6 @@ app.use('/api', async (req, res) => {
     recordException(e, { path: req.originalUrl, method: req.method });
     res.status(500).json({ error: 'خطأ في الخادم' });
   }
-});
-
-// ── Developer monitoring APIs (protected by X-Dev-Key / ?key=) ────────────
-app.get('/api/dev/monitoring/stats', (req, res) => {
-  if (!devAuthorized(req)) return res.status(403).json({ error: 'غير مسموح' });
-  res.json(getStats());
-});
-
-app.get('/api/dev/monitoring/logs', (req, res) => {
-  if (!devAuthorized(req)) return res.status(403).json({ error: 'غير مسموح' });
-  const limit = Math.min(Number(req.query.limit) || 100, 500);
-  res.json({ logs: getLogs(limit) });
 });
 
 for (const route of SPA_REWRITES) {

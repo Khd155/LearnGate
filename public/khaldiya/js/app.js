@@ -4336,6 +4336,7 @@ const App = {
     App._chatOpenConv(adminName, 'مشرف');
     App._chatMsgCount = 0;
     App.loadChatMessages();
+    App.startChatPoll();
   },
 
   openAdminChatWith(studentId, studentName) {
@@ -4345,6 +4346,7 @@ const App = {
     App._chatOpenConv(studentName, 'طالب');
     App._chatMsgCount = 0;
     App.loadChatMessages();
+    App.startChatPoll();
   },
 
   // Support panel (dev-key login): open a student's full message thread across all admins
@@ -4429,6 +4431,16 @@ const App = {
     if (readPatch) apiFetch('/messages/read', { method:'PATCH', body: JSON.stringify(readPatch) }).catch(() => {});
 
     if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>'; App._chatMsgCount = 0; return; }
+    // Rebuilding innerHTML always resets scrollTop to 0, and this function is
+    // called on every poll/WebSocket tick — so without this guard, scrolling
+    // up to read older messages while a background refresh lands would snap
+    // the view back to the top. Only rebuild (and only auto-scroll to the
+    // newest message) when the admin/student is already near the bottom, or
+    // this is the conversation's very first render.
+    const wasEmpty = App._chatMsgCount === 0;
+    const nearBottom = wasEmpty || (el.scrollHeight - el.scrollTop - el.clientHeight < 150);
+    if (!nearBottom && msgs.length === App._chatMsgCount) { App._chatMsgCount = msgs.length; return; }
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     el.innerHTML = msgs.map(m => {
       const isMine = (State.role === 'admin' || State.role === 'director' || State.role === 'support') ? m.sender_type === 'admin' : m.sender_type === 'student';
       const senderName = isMine ? 'أنت' : ((State.role === 'admin' || State.role === 'director' || State.role === 'support') ? escapeHtml(m.student_name || 'الطالب') : escapeHtml(adminLabel(m.admin_name || State.chatAdminName || 'المشرف')));
@@ -4438,7 +4450,10 @@ const App = {
         <div class="chat-time">${senderName} · ${time}</div>
       </div>`;
     }).join('');
-    el.scrollTop = el.scrollHeight;
+    // Rebuilding innerHTML always resets scrollTop to 0 — restore the
+    // reader's position (by distance from bottom) unless they were already
+    // near the bottom, in which case snap to the newest message as before.
+    el.scrollTop = nearBottom ? el.scrollHeight : (el.scrollHeight - el.clientHeight - distanceFromBottom);
     App._chatMsgCount = msgs.length;
     const badge = document.getElementById('chat-unread-badge');
     if (badge) badge.style.display = 'none';
@@ -5258,14 +5273,62 @@ const App = {
   startNotifPolling() {
     App.stopNotifPolling();
     App._checkNotifications();
+    // 30s polling stays as a fallback even when the WebSocket is connected —
+    // if the socket silently drops (e.g. a network path that kills idle
+    // connections) this still catches up within half a minute.
     App._notifTimer = setInterval(() => {
       if (document.visibilityState === 'visible') App._checkNotifications();
     }, 30000);
+    App._connectRealtime();
   },
 
   stopNotifPolling() {
     clearInterval(App._notifTimer);
     App._notifTimer = null;
+    App._disconnectRealtime();
+  },
+
+  // Experimental real-time layer (see /dev/monitoring): opens a WebSocket so
+  // new messages/ticket replies trigger an immediate unread-count refresh
+  // instead of waiting for the next 30s poll. Falls back silently to polling
+  // alone if the socket can't connect — no behavior regresses either way.
+  _connectRealtime() {
+    if (!_authToken) return;
+    try {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(_authToken)}`);
+      App._realtimeSocket = ws;
+      ws.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.type === 'new_message' || data.type === 'ticket_reply') {
+            App._checkNotifications();
+            // If a chat thread is open right now, refresh it immediately too —
+            // otherwise the badge count updates but the open conversation
+            // itself only catches up on its next 6s poll (or on re-entering
+            // the screen), which reads as "message doesn't show until I leave
+            // and come back in".
+            const chatScreenOpen = document.getElementById('screen-chat')?.classList.contains('active');
+            const chatModalOpen  = App._chatIsModal && document.getElementById('student-chat-modal')?.style.display !== 'none';
+            if (data.type === 'new_message' && (chatScreenOpen || chatModalOpen)) {
+              App.loadChatMessages();
+            }
+          }
+        } catch {}
+      };
+      ws.onclose = () => {
+        if (App._realtimeSocket !== ws) return; // superseded by a newer connection/explicit disconnect
+        const delay = App._realtimeBackoff = Math.min((App._realtimeBackoff || 1000) * 2, 30000);
+        App._realtimeReconnectTimer = setTimeout(() => App._connectRealtime(), delay);
+      };
+      ws.onerror = () => ws.close();
+    } catch {}
+  },
+
+  _disconnectRealtime() {
+    clearTimeout(App._realtimeReconnectTimer);
+    App._realtimeBackoff = 1000;
+    if (App._realtimeSocket) { App._realtimeSocket.onclose = null; App._realtimeSocket.close(); App._realtimeSocket = null; }
   },
 
   async _checkNotifications() {

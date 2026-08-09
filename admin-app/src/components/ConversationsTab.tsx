@@ -19,6 +19,7 @@ export default function ConversationsTab() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadThreads();
@@ -37,9 +38,18 @@ export default function ConversationsTab() {
 
   const messages = activeThreadStudentId ? messagesByStudent[activeThreadStudentId] || [] : [];
 
+  const prevThreadRef = useRef<string | null>(null);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+    // Always jump to the bottom when switching to a different thread, but
+    // for a refresh within the same thread (real-time event, poll) only
+    // auto-scroll if the admin is already near the bottom — otherwise it
+    // yanks them back down while they're scrolled up reading older messages.
+    const switchedThread = prevThreadRef.current !== activeThreadStudentId;
+    prevThreadRef.current = activeThreadStudentId;
+    const el = messagesScrollRef.current;
+    const nearBottom = !el || el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    if (switchedThread || nearBottom) bottomRef.current?.scrollIntoView({ behavior: switchedThread ? 'auto' : 'smooth' });
+  }, [messages.length, activeThreadStudentId]);
 
   const activeStudentName =
     threads.find((t) => t.student_id === activeThreadStudentId)?.student_name ||
@@ -61,7 +71,7 @@ export default function ConversationsTab() {
 
   return (
     <div className="grid h-[600px] grid-cols-1 overflow-hidden rounded-2xl border border-slate-200 bg-white md:grid-cols-[280px_1fr] dark:border-slate-800 dark:bg-slate-900">
-      <div className="overflow-y-auto border-e border-slate-200 dark:border-slate-800">
+      <div className="overflow-y-auto overscroll-contain border-e border-slate-200 dark:border-slate-800">
         {threadsLoading ? (
           <div className="space-y-2 p-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -105,7 +115,7 @@ export default function ConversationsTab() {
             <div className="border-b border-slate-200 px-4 py-3 font-bold text-slate-800 dark:border-slate-800 dark:text-white">
               {activeStudentName}
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3" ref={messagesScrollRef}>
               {messagesLoading ? (
                 <div className="space-y-2">
                   <div className="skeleton h-10 w-2/3 rounded-xl" />

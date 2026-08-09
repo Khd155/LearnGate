@@ -30,8 +30,51 @@ export default function Header() {
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') loadUnreadCounts();
     }, 30000);
-    return () => clearInterval(id);
-  }, [loadUnreadCounts]);
+
+    // Experimental real-time layer (see /dev/monitoring): refresh unread
+    // counts immediately when a new message/ticket event arrives instead of
+    // waiting for the next poll. Silently does nothing if it can't connect.
+    let ws: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let backoff = 1000;
+    let stopped = false;
+
+    const connect = () => {
+      if (stopped || !session?.token) return;
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(session.token)}`);
+      ws.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.type === 'new_message' || data.type === 'new_ticket' || data.type === 'ticket_reply') {
+            loadUnreadCounts();
+            // If the admin currently has this student's conversation open,
+            // refresh it too — otherwise the unread badge updates instantly
+            // but the open thread only catches up on next manual reopen.
+            if (data.type === 'new_message') {
+              const store = useStore.getState();
+              if (store.activeThreadStudentId) store.loadMessages(store.activeThreadStudentId);
+              store.loadThreads();
+            }
+          }
+        } catch { /* ignore malformed frames */ }
+      };
+      ws.onclose = () => {
+        if (stopped) return;
+        backoff = Math.min(backoff * 2, 30000);
+        reconnectTimer = setTimeout(connect, backoff);
+      };
+      ws.onerror = () => ws?.close();
+    };
+    connect();
+
+    return () => {
+      clearInterval(id);
+      stopped = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws) { ws.onclose = null; ws.close(); }
+    };
+  }, [loadUnreadCounts, session?.token]);
 
   const totalUnread = unreadCounts.reduce((sum, c) => sum + (c.cnt || 0), 0);
 

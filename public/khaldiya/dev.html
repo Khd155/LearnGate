@@ -488,6 +488,13 @@
         <button class="sp-sub-btn active" id="sp-btn-tickets"  onclick="Dev.setSupportTab('tickets')">🎫 التذاكر <span id="sp-ticket-count" style="background:rgba(59,130,246,.25);border-radius:99px;padding:1px 8px;font-size:11px;margin-right:4px;display:none"></span></button>
         <button class="sp-sub-btn"        id="sp-btn-messages" onclick="Dev.setSupportTab('messages')">💬 الرسائل غير المقروءة</button>
       </div>
+      <!-- Search any student's conversation (not just unread threads) so a
+           message can be found and deleted regardless of read state. -->
+      <div id="sp-msg-search-row" style="display:none;gap:8px;margin-bottom:14px;position:relative;">
+        <input type="text" id="sp-msg-search" class="search-input" style="flex:1;" placeholder="🔍 ابحث عن طالب بالاسم أو الكود لفتح محادثته…" oninput="Dev.searchMsgStudents(this.value)">
+        <div id="sp-msg-search-results" style="display:none;position:absolute;top:100%;right:0;left:0;z-index:20;background:var(--card-bg,#1e293b);border:1px solid rgba(255,255,255,.12);border-radius:10px;margin-top:4px;max-height:260px;overflow-y:auto;"></div>
+      </div>
+      <div id="sp-msg-search-thread"></div>
       <!-- Ticket filters row -->
       <div id="sp-ticket-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
         <select id="sp-school-filter" class="form-select" style="width:auto;font-size:13px;padding:7px 12px;" onchange="Dev.loadTickets()">
@@ -2622,8 +2629,73 @@ ${note}
     document.getElementById('sp-btn-messages').classList.toggle('active', tab === 'messages');
     const filtersEl = document.getElementById('sp-ticket-filters');
     if (filtersEl) filtersEl.style.display = tab === 'tickets' ? 'flex' : 'none';
+    const searchRow = document.getElementById('sp-msg-search-row');
+    if (searchRow) searchRow.style.display = tab === 'messages' ? 'flex' : 'none';
     if (tab === 'tickets') Dev.loadTickets();
     else Dev.loadUnreadMessages();
+  },
+
+  // Search all students by name/code so any conversation can be opened and
+  // moderated regardless of unread status — the list below only shows
+  // threads with unread student messages.
+  _msgSearchStudents: null,
+  async searchMsgStudents(q) {
+    const resultsEl = document.getElementById('sp-msg-search-results');
+    q = (q || '').trim();
+    if (!q) { resultsEl.style.display = 'none'; return; }
+    if (!Dev._msgSearchStudents) {
+      try {
+        const { students } = await apiDev('/dev/students');
+        Dev._msgSearchStudents = students || [];
+      } catch { Dev._msgSearchStudents = []; }
+    }
+    const ql = q.toLowerCase();
+    const matches = Dev._msgSearchStudents
+      .filter(s => (s.name || '').toLowerCase().includes(ql) || (s.code || '').toLowerCase().includes(ql))
+      .slice(0, 12);
+    if (!matches.length) { resultsEl.innerHTML = '<div style="padding:10px;color:var(--text-muted,#94a3b8);font-size:13px;">لا نتائج</div>'; resultsEl.style.display = 'block'; return; }
+    resultsEl.innerHTML = matches.map(s => `
+      <div style="padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;"
+           onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='transparent'"
+           onclick="Dev.openAnyStudentThread('${s.id}','${(s.name||'').replace(/'/g, "\\'")}','${(s.school||'').replace(/'/g, "\\'")}')">
+        <b>${escapeHtml(s.name || '—')}</b> <span style="color:var(--text-muted,#94a3b8)">— ${escapeHtml(s.school || '')}</span>
+      </div>`).join('');
+    resultsEl.style.display = 'block';
+  },
+
+  async openAnyStudentThread(studentId, studentName, school) {
+    document.getElementById('sp-msg-search-results').style.display = 'none';
+    document.getElementById('sp-msg-search').value = studentName || '';
+    const wrap = document.getElementById('sp-msg-search-thread');
+    wrap.innerHTML = `
+      <div class="ticket-item expanded" id="mi-${studentId}" data-name="${escapeHtml(studentName||'')}" data-school="${escapeHtml(school||'')}" style="margin-bottom:14px;">
+        <div class="ticket-top">
+          <div class="msg-row" style="flex:1;border:none;padding:0;margin-bottom:0;background:transparent">
+            <div class="msg-avatar">${(studentName || '؟').charAt(0)}</div>
+            <div class="msg-info">
+              <div class="msg-name">${escapeHtml(studentName || '')}</div>
+              <div class="msg-school">🏫 ${escapeHtml(school || '—')}</div>
+            </div>
+          </div>
+        </div>
+        <div class="ticket-body" style="display:block;" id="mb-${studentId}">
+          <div class="thread-wrap" id="mw-${studentId}"><div class="empty" style="padding:16px">جارٍ التحميل...</div></div>
+          <div class="reply-row">
+            <input type="text" id="mr-${studentId}" class="reply-input" placeholder="رد للطالب..." onkeydown="if(event.key==='Enter'){Dev.replyMsg('${studentId}')}">
+            <button class="btn btn-primary btn-sm" onclick="Dev.replyMsg('${studentId}')">إرسال</button>
+          </div>
+        </div>
+      </div>`;
+    await Dev.loadMsgThread(studentId);
+  },
+
+  async deleteMsg(msgId, studentId) {
+    if (!(await confirmDialog('حذف هذه الرسالة نهائيًا؟ لا يمكن التراجع.', { title: 'حذف رسالة', okText: 'حذف', danger: true }))) return;
+    try {
+      await fetch(`/api/messages/${msgId}`, { method: 'DELETE', headers: { 'X-Dev-Key': devKey } });
+      showToast('تم حذف الرسالة');
+      Dev.loadMsgThread(studentId);
+    } catch { showToast('تعذّر الحذف', true); }
   },
 
   async loadTickets() {
@@ -2846,9 +2918,12 @@ ${note}
       el.innerHTML = messages.map(m => {
         const time = new Date(m.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
         const who  = m.sender_type === 'student' ? (studentName || '👤 الطالب') : '🔧 الدعم الفني';
-        return `<div class="thread-msg ${m.sender_type}">
+        return `<div class="thread-msg ${m.sender_type}" style="position:relative;">
+          <button onclick="event.stopPropagation();Dev.deleteMsg('${m.id}','${studentId}')" title="حذف الرسالة"
+                  style="position:absolute;top:4px;left:4px;background:none;border:none;color:var(--danger,#f87171);cursor:pointer;font-size:13px;opacity:.6;padding:2px 4px;"
+                  onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">🗑️</button>
           <div class="thread-who">${who}</div>
-          ${m.body}
+          ${escapeHtml(m.body)}
           <div class="thread-time">${time}</div>
         </div>`;
       }).join('');

@@ -2852,6 +2852,22 @@ export async function onRequest({ request, env }) {
         ).bind(studentId, senderType).run();
         return ok({ ok: true }, 200, CORS);
       }
+
+      // DELETE /api/messages/:id — staff-only (fixing an accidental send, etc.)
+      if (sub && method === 'DELETE') {
+        if (!isPrivileged) return err('غير مسموح', 403, CORS);
+        const target = await DB.prepare('SELECT * FROM messages WHERE id = ?').bind(sub).first();
+        if (!target) return err('غير موجود', 404, CORS);
+        if (isPrivileged && msgClaims?.role !== 'dev' && msgClaims?.school && msgClaims.school !== '*') {
+          if ((target.school || '').trim() !== msgClaims.school.trim()) return err('غير مسموح', 403, CORS);
+        }
+        await DB.prepare('DELETE FROM messages WHERE id = ?').bind(sub).run();
+        await logEvent(DB, { level: 'warn', category: 'message', message: `حذف رسالة (${sub}) — الطالب: ${target.student_name}`, user_name: msgClaims?.name || 'dev', user_role: msgClaims?.role || 'dev', school: target.school || '' });
+        wsNotify(target.sender_type === 'admin'
+          ? { studentId: target.student_id, event: { type: 'message_deleted', id: sub } }
+          : { admins: true, event: { type: 'message_deleted', id: sub, studentId: target.student_id } });
+        return ok({ ok: true }, 200, CORS);
+      }
     }
 
     // ── TICKETS ──────────────────────────────────────────────────────────────

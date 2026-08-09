@@ -27,7 +27,9 @@ export default function Header() {
 
   useEffect(() => {
     loadUnreadCounts();
-    const id = setInterval(loadUnreadCounts, 30000);
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') loadUnreadCounts();
+    }, 30000);
     return () => clearInterval(id);
   }, [loadUnreadCounts]);
 

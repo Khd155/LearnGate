@@ -5258,7 +5258,9 @@ const App = {
   startNotifPolling() {
     App.stopNotifPolling();
     App._checkNotifications();
-    App._notifTimer = setInterval(() => App._checkNotifications(), 30000);
+    App._notifTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') App._checkNotifications();
+    }, 30000);
   },
 
   stopNotifPolling() {

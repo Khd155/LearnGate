@@ -131,6 +131,14 @@ function authDev(request, env) {
 }
 
 // ── SendPulse WhatsApp helpers ─────────────────────────────────────────
+// Schema-migration DDL (CREATE TABLE/ALTER TABLE) is idempotent but still a
+// full DB round-trip — running it on every single request to a hot polling
+// endpoint (e.g. /messages/unread, /tickets/unread, called every 30s per
+// open tab) wastes a query per call for no benefit once the schema already
+// exists. These flags make it run at most once per warm instance.
+let _messagesSchemaEnsured = false;
+let _ticketsSchemaEnsured = false;
+
 let _spToken = null, _spTokenExp = 0;
 async function getSendPulseToken(env) {
   if (_spToken && Date.now() < _spTokenExp) return _spToken;
@@ -2654,25 +2662,33 @@ export async function onRequest({ request, env }) {
       // Defensive create — previously this table only existed if POST /api/dev/migrate
       // had been run once; on a deployment where that never happened, every query here
       // threw "no such table" and the support-admin messages panel looked permanently blank.
-      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY,
-        student_id TEXT NOT NULL,
-        student_name TEXT NOT NULL,
-        school TEXT NOT NULL DEFAULT '',
-        sender_type TEXT NOT NULL,
-        body TEXT NOT NULL,
-        is_read INTEGER DEFAULT 0,
-        recipient_admin_id TEXT DEFAULT '',
-        created_at TEXT NOT NULL
-      )`).run(); } catch {}
+      // Only runs once per warm instance (see _messagesSchemaEnsured) — this resource
+      // is polled every 30s per open tab, so re-running idempotent DDL on every call
+      // was a wasted DB round-trip each time.
+      if (!_messagesSchemaEnsured) {
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS messages (
+          id TEXT PRIMARY KEY,
+          student_id TEXT NOT NULL,
+          student_name TEXT NOT NULL,
+          school TEXT NOT NULL DEFAULT '',
+          sender_type TEXT NOT NULL,
+          body TEXT NOT NULL,
+          is_read INTEGER DEFAULT 0,
+          recipient_admin_id TEXT DEFAULT '',
+          created_at TEXT NOT NULL
+        )`).run(); } catch {}
+        _messagesSchemaEnsured = true;
+      }
       const isDevKeyMsg = authDev(request, env);
       const msgClaims = isDevKeyMsg ? null : await verifyToken(request, env);
       if (!isDevKeyMsg && !msgClaims) return err('غير مصرح', 401, CORS);
       const isPrivileged = isDevKeyMsg || ['admin','director','dev','support'].includes(msgClaims.role);
+      const msgIp = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
 
       // GET /api/messages/unread-student — student checks unread messages from admin
       if (sub === 'unread-student' && method === 'GET') {
         if (msgClaims?.role !== 'student') return err('غير مسموح', 403, CORS);
+        if (!await rateLimit(DB, msgIp, 'msgs-unread', 30)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         const studentId = msgClaims.sub;
         const row = await DB.prepare(
           "SELECT COUNT(*) as count FROM messages WHERE student_id=? AND sender_type='admin' AND is_read=0"
@@ -2683,6 +2699,7 @@ export async function onRequest({ request, env }) {
       // GET /api/messages/unread — admin/director/dev only
       if (sub === 'unread' && method === 'GET') {
         if (!isPrivileged) return err('غير مسموح', 403, CORS);
+        if (!await rateLimit(DB, msgIp, 'msgs-unread', 30)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         // Admins (not dev/super-director) are always scoped to their own school from JWT — never from URL param
         const scopedSchool = (msgClaims?.role !== 'dev' && msgClaims?.school && msgClaims.school !== '*')
           ? msgClaims.school : school;
@@ -2881,12 +2898,19 @@ export async function onRequest({ request, env }) {
       const tkSchoolScope = (['admin','director'].includes(tkClaims.role) && tkClaims.school && tkClaims.school !== '*')
         ? tkClaims.school : null;
 
-      // Idempotent schema migrations
-      try { await DB.prepare("ALTER TABLE tickets ADD COLUMN category TEXT NOT NULL DEFAULT 'أخرى'").run(); } catch {}
-      try { await DB.prepare("ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT 'متوسطة'").run(); } catch {}
-      try { await DB.prepare("ALTER TABLE tickets ADD COLUMN ticket_num TEXT NOT NULL DEFAULT ''").run(); } catch {}
-      try { await DB.prepare("ALTER TABLE tickets ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
-      try { await DB.prepare('ALTER TABLE tickets ADD COLUMN rating INTEGER DEFAULT 0').run(); } catch {}
+      // Idempotent schema migrations — only run once per warm instance (see
+      // _ticketsSchemaEnsured); this resource includes /tickets/unread, polled
+      // every 30s per open tab, so re-running 6 ALTERs on every call wasted
+      // 6 DB round-trips per poll for no benefit once the columns already exist.
+      if (!_ticketsSchemaEnsured) {
+        try { await DB.prepare("ALTER TABLE tickets ADD COLUMN category TEXT NOT NULL DEFAULT 'أخرى'").run(); } catch {}
+        try { await DB.prepare("ALTER TABLE tickets ADD COLUMN priority TEXT NOT NULL DEFAULT 'متوسطة'").run(); } catch {}
+        try { await DB.prepare("ALTER TABLE tickets ADD COLUMN ticket_num TEXT NOT NULL DEFAULT ''").run(); } catch {}
+        try { await DB.prepare("ALTER TABLE tickets ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
+        try { await DB.prepare('ALTER TABLE tickets ADD COLUMN rating INTEGER DEFAULT 0').run(); } catch {}
+        try { await DB.prepare('ALTER TABLE ticket_replies ADD COLUMN is_read INTEGER DEFAULT 0').run(); } catch {}
+        _ticketsSchemaEnsured = true;
+      }
       try { await DB.prepare('ALTER TABLE ticket_replies ADD COLUMN is_read INTEGER DEFAULT 0').run(); } catch {}
 
       // GET /api/tickets/stats — admin only
@@ -2912,6 +2936,7 @@ export async function onRequest({ request, env }) {
         const studentId = url.searchParams.get('studentId');
         if (!studentId) return err('معرّف الطالب مفقود', 400, CORS);
         if (tkClaims.role === 'student' && tkClaims.sub !== studentId) return err('غير مسموح', 403, CORS);
+        if (!await rateLimit(DB, ip, 'tickets-unread', 30)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         const row = await DB.prepare(
           "SELECT COUNT(*) as count FROM ticket_replies tr JOIN tickets t ON tr.ticket_id=t.id WHERE t.student_id=? AND tr.sender_type='admin' AND tr.is_read=0"
         ).bind(studentId).first();

@@ -252,6 +252,22 @@ async function logEvent(DB, { level = 'info', category = 'system', message, user
   } catch {}
 }
 
+// Best-effort real-time push. On the Node/CranL host (server.js), lib/ws.js
+// wires globalThis.__wsBroadcastStudent / __wsBroadcastAdmins to the actual
+// WebSocket rooms; on platforms without a persistent process (Cloudflare
+// Pages Functions) those globals never exist, so this silently no-ops and
+// clients simply keep relying on polling — no behavior change there.
+function wsNotify({ studentId, admins, event }) {
+  try {
+    if (studentId && typeof globalThis.__wsBroadcastStudent === 'function') {
+      globalThis.__wsBroadcastStudent(studentId, event);
+    }
+    if (admins && typeof globalThis.__wsBroadcastAdmins === 'function') {
+      globalThis.__wsBroadcastAdmins(event);
+    }
+  } catch {}
+}
+
 // There are no FK CASCADE constraints in this schema, so deleting a student
 // without this would leave their messages/tickets/plans/etc. as orphaned rows —
 // e.g. a leftover message thread that 403s forever because the by-id school
@@ -2834,6 +2850,9 @@ export async function onRequest({ request, env }) {
           'INSERT INTO messages (id, student_id, student_name, school, sender_type, body, is_read, recipient_admin_id, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)'
         ).bind(id, studentId, studentName, effectiveSchool, senderType, msgBody, recipientAdminId || '', now).run();
         await logEvent(DB, { level: 'info', category: 'message', message: senderType === 'admin' ? `رد المشرف على الطالب: ${studentName}` : `رسالة جديدة من الطالب: ${studentName}`, user_name: senderType === 'admin' ? (msgClaims?.name || '') : studentName, user_role: msgClaims?.role || 'dev', school: effectiveSchool });
+        wsNotify(senderType === 'admin'
+          ? { studentId, event: { type: 'new_message', from: 'admin' } }
+          : { admins: true, event: { type: 'new_message', from: 'student', studentId, studentName, school: effectiveSchool } });
         return ok({ message: { id, student_id: studentId, student_name: studentName, school: effectiveSchool, sender_type: senderType, body: msgBody, is_read: 0, recipient_admin_id: recipientAdminId || '', created_at: now } }, 201, CORS);
       }
 
@@ -2886,6 +2905,7 @@ export async function onRequest({ request, env }) {
         ).bind(rid, tid, 'student', tkBody, 1, now).run();
         await logEvent(DB, { level: 'info', category: 'ticket', message: `تذكرة دعم بدون حساب (${ticketNum})`, user_name: name, user_role: 'guest', school: guestSchool });
         notifyNewTicket(env, DB, { ticketId: tid, studentName: name, school: guestSchool, subject, description: tkBody });
+        wsNotify({ admins: true, event: { type: 'new_ticket', ticketId: tid, studentName: name, school: guestSchool, subject } });
         return ok({ ticket: { id: tid, ticket_num: ticketNum } }, 201, CORS);
       }
 
@@ -3017,6 +3037,7 @@ export async function onRequest({ request, env }) {
         ).bind(rid, tid, 'student', tkBody, 1, now).run();
         await logEvent(DB, { level: 'info', category: 'ticket', message: `تذكرة دعم جديدة (${ticketNum}): ${subject}`, user_name: studentName, user_role: 'student', school: effectiveSchool });
         notifyNewTicket(env, DB, { ticketId: tid, studentName, school: effectiveSchool, subject, description: tkBody });
+        wsNotify({ admins: true, event: { type: 'new_ticket', ticketId: tid, studentName, school: effectiveSchool, subject } });
         return ok({ ticket: { id: tid, subject, status: 'open', category: category||'أخرى', priority: priority||'متوسطة', ticket_num: ticketNum, created_at: now } }, 201, CORS);
       }
 
@@ -3051,6 +3072,9 @@ export async function onRequest({ request, env }) {
           await DB.prepare("UPDATE tickets SET status='in_progress' WHERE id=? AND status='open'").bind(sub).run();
         }
         await logEvent(DB, { level: 'info', category: 'ticket', message: `رد جديد على تذكرة (${ticket.ticket_num || sub}) من ${senderType === 'admin' ? 'المشرف' : 'الطالب'}`, user_name: tkClaims.name || '', user_role: tkClaims.role, school: ticket.school || '' });
+        wsNotify(senderType === 'admin'
+          ? { studentId: ticket.student_id, event: { type: 'ticket_reply', from: 'admin', ticketId: sub } }
+          : { admins: true, event: { type: 'ticket_reply', from: 'student', ticketId: sub, studentName: ticket.student_name, school: ticket.school } });
         return ok({ reply: { id, ticket_id: sub, sender_type: senderType, body: replyBody, created_at: now } }, 201, CORS);
       }
 

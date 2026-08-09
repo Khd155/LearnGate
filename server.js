@@ -5,9 +5,15 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { onRequest } from './functions/api/[[route]].js';
+import { recordRequest, recordException, getStats, getLogs } from './lib/monitoring.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public', 'khaldiya');
+
+function devAuthorized(req) {
+  const key = req.get('X-Dev-Key') || req.query.key || '';
+  return !!process.env.DEV_KEY && key === process.env.DEV_KEY;
+}
 
 const SECURITY_HEADERS = {
   'X-Frame-Options': 'DENY',
@@ -52,6 +58,22 @@ app.use((req, res, next) => {
   next();
 });
 
+// Access/error logging + metrics for /dev/monitoring — records every request's
+// method, path, status, duration and IP into an in-memory rolling window.
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+  res.on('finish', () => {
+    recordRequest({
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      durationMs: Date.now() - startedAt,
+      ip: req.ip || 'unknown',
+    });
+  });
+  next();
+});
+
 app.use('/api', async (req, res) => {
   try {
     const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
@@ -64,8 +86,21 @@ app.use('/api', async (req, res) => {
     res.end(Buffer.from(await response.arrayBuffer()));
   } catch (e) {
     console.error('[server.js API error]', e);
+    recordException(e, { path: req.originalUrl, method: req.method });
     res.status(500).json({ error: 'خطأ في الخادم' });
   }
+});
+
+// ── Developer monitoring APIs (protected by X-Dev-Key / ?key=) ────────────
+app.get('/api/dev/monitoring/stats', (req, res) => {
+  if (!devAuthorized(req)) return res.status(403).json({ error: 'غير مسموح' });
+  res.json(getStats());
+});
+
+app.get('/api/dev/monitoring/logs', (req, res) => {
+  if (!devAuthorized(req)) return res.status(403).json({ error: 'غير مسموح' });
+  const limit = Math.min(Number(req.query.limit) || 100, 500);
+  res.json({ logs: getLogs(limit) });
 });
 
 for (const route of SPA_REWRITES) {

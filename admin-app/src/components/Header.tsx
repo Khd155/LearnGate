@@ -27,48 +27,11 @@ export default function Header() {
 
   useEffect(() => {
     loadUnreadCounts();
-    // 30s polling stays as a fallback even with the WebSocket connected —
-    // see the matching comment in the student app's startNotifPolling.
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') loadUnreadCounts();
     }, 30000);
-
-    // Experimental real-time layer (see /dev/monitoring): refresh unread
-    // counts immediately when a new message/ticket event arrives instead of
-    // waiting for the next poll. Silently does nothing if it can't connect.
-    let ws: WebSocket | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let backoff = 1000;
-    let stopped = false;
-
-    const connect = () => {
-      if (stopped || !session?.token) return;
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(session.token)}`);
-      ws.onmessage = (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          if (data.type === 'new_message' || data.type === 'new_ticket' || data.type === 'ticket_reply') {
-            loadUnreadCounts();
-          }
-        } catch { /* ignore malformed frames */ }
-      };
-      ws.onclose = () => {
-        if (stopped) return;
-        backoff = Math.min(backoff * 2, 30000);
-        reconnectTimer = setTimeout(connect, backoff);
-      };
-      ws.onerror = () => ws?.close();
-    };
-    connect();
-
-    return () => {
-      clearInterval(id);
-      stopped = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (ws) { ws.onclose = null; ws.close(); }
-    };
-  }, [loadUnreadCounts, session?.token]);
+    return () => clearInterval(id);
+  }, [loadUnreadCounts]);
 
   const totalUnread = unreadCounts.reduce((sum, c) => sum + (c.cnt || 0), 0);
 

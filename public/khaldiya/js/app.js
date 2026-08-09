@@ -5258,50 +5258,14 @@ const App = {
   startNotifPolling() {
     App.stopNotifPolling();
     App._checkNotifications();
-    // 30s polling stays as a fallback even when the WebSocket is connected —
-    // if the socket silently drops (e.g. a network path that kills idle
-    // connections) this still catches up within half a minute.
     App._notifTimer = setInterval(() => {
       if (document.visibilityState === 'visible') App._checkNotifications();
     }, 30000);
-    App._connectRealtime();
   },
 
   stopNotifPolling() {
     clearInterval(App._notifTimer);
     App._notifTimer = null;
-    App._disconnectRealtime();
-  },
-
-  // Experimental real-time layer (see /dev/monitoring): opens a WebSocket so
-  // new messages/ticket replies trigger an immediate unread-count refresh
-  // instead of waiting for the next 30s poll. Falls back silently to polling
-  // alone if the socket can't connect — no behavior regresses either way.
-  _connectRealtime() {
-    if (!_authToken) return;
-    try {
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(_authToken)}`);
-      App._realtimeSocket = ws;
-      ws.onmessage = (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          if (data.type === 'new_message' || data.type === 'ticket_reply') App._checkNotifications();
-        } catch {}
-      };
-      ws.onclose = () => {
-        if (App._realtimeSocket !== ws) return; // superseded by a newer connection/explicit disconnect
-        const delay = App._realtimeBackoff = Math.min((App._realtimeBackoff || 1000) * 2, 30000);
-        App._realtimeReconnectTimer = setTimeout(() => App._connectRealtime(), delay);
-      };
-      ws.onerror = () => ws.close();
-    } catch {}
-  },
-
-  _disconnectRealtime() {
-    clearTimeout(App._realtimeReconnectTimer);
-    App._realtimeBackoff = 1000;
-    if (App._realtimeSocket) { App._realtimeSocket.onclose = null; App._realtimeSocket.close(); App._realtimeSocket = null; }
   },
 
   async _checkNotifications() {

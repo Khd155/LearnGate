@@ -94,6 +94,17 @@ export function readSession(): Session | null {
 }
 
 export function clearSession() {
+  // Revoke the token server-side so it can't be replayed if it leaked —
+  // fire-and-forget: logout must complete locally even if this fails
+  // (offline, server down, etc). Read the token before wiping storage below.
+  const token = readSession()?.token;
+  if (token) {
+    fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+  }
   try {
     localStorage.removeItem('lg_xsession_admin');
     sessionStorage.removeItem('lg_session_admin');

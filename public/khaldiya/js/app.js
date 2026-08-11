@@ -5082,6 +5082,10 @@ const App = {
     const _exitingRole = State.role || 'student';
     ActivityLog.warn(`🚪 تسجيل خروج: ${who}`);
     serverLog('info', 'logout', `تسجيل خروج: ${who}`, { user_name: who });
+    // Revoke the token server-side so it can't be replayed if it leaked —
+    // fire-and-forget: logout must complete locally even if this fails
+    // (offline, server down, etc).
+    apiFetch('/auth/logout', { method: 'POST' }).catch(() => {});
     App.stopCooldownTimer();
     clearInterval(App._chatTimer);
     stopIdleWatch();

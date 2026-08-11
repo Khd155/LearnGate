@@ -337,11 +337,38 @@ function getToken(request) {
   return auth.startsWith('Bearer ') ? auth.slice(7) : null;
 }
 
-async function verifyToken(request, env) {
+// Idempotent — only runs its CREATE TABLE once per warm instance, same
+// pattern as the other _*SchemaEnsured flags in this file.
+let _revokedTokensSchemaEnsured = false;
+async function _ensureRevokedTokensTable(DB) {
+  if (_revokedTokensSchemaEnsured) return;
+  try {
+    await DB.prepare(`CREATE TABLE IF NOT EXISTS revoked_tokens (
+      jti TEXT PRIMARY KEY, expires_at INTEGER NOT NULL
+    )`).run();
+  } catch {}
+  _revokedTokensSchemaEnsured = true;
+}
+
+// A stolen/leaked JWT is otherwise valid until its natural expiry (up to 8h)
+// even after the user explicitly logs out. DB is optional so existing call
+// sites that only need auth (not logout enforcement) don't all have to
+// change — but every login-issued token now carries a `jti`, so passing DB
+// lets a caller actually honor an explicit logout.
+async function verifyToken(request, env, DB) {
   const token = getToken(request);
   if (!token) return null;
   if (!env.JWT_SECRET) return null;
-  return jwtVerify(token, env.JWT_SECRET);
+  const payload = await jwtVerify(token, env.JWT_SECRET);
+  if (!payload) return null;
+  if (DB && payload.jti) {
+    try {
+      await _ensureRevokedTokensTable(DB);
+      const revoked = await DB.prepare('SELECT 1 FROM revoked_tokens WHERE jti = ?').bind(payload.jti).first();
+      if (revoked) return null;
+    } catch {}
+  }
+  return payload;
 }
 
 // ── Rate Limiting (D1-based, 1-minute windows) ────────────────────────────
@@ -448,6 +475,26 @@ export async function onRequest({ request, env }) {
     if (resource === 'auth') {
       const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
 
+      // POST /api/auth/logout — revokes the current JWT immediately instead
+      // of leaving it valid until its natural expiry (up to 8h) after an
+      // explicit logout. Requires no role — any valid token can revoke itself.
+      if (sub === 'logout' && method === 'POST') {
+        const token = getToken(request);
+        if (!token || !env.JWT_SECRET) return ok({ ok: true }, 200, CORS);
+        const payload = await jwtVerify(token, env.JWT_SECRET);
+        if (payload?.jti && payload?.exp) {
+          await _ensureRevokedTokensTable(DB);
+          try {
+            await DB.prepare('INSERT INTO revoked_tokens (jti, expires_at) VALUES (?, ?) ON CONFLICT (jti) DO NOTHING').bind(payload.jti, payload.exp).run();
+            // Opportunistic cleanup — logout is infrequent enough that doing
+            // this here (rather than a cron) keeps the table from growing
+            // unbounded without adding a scheduled job just for this.
+            await DB.prepare('DELETE FROM revoked_tokens WHERE expires_at < ?').bind(Math.floor(Date.now() / 1000)).run();
+          } catch {}
+        }
+        return ok({ ok: true }, 200, CORS);
+      }
+
       // GET /api/auth/access-token?t=... — public, single-use, no time expiry.
       // Redeems a dev-minted token once; a second attempt (or an unknown
       // token) reports it as already used so the link can never be replayed.
@@ -524,7 +571,7 @@ export async function onRequest({ request, env }) {
         }
         await clearFailedAttempts(DB, ip, 'student-login', code);
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
-        const token = await jwtSign({ sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
+        const token = await jwtSign({ jti: crypto.randomUUID(), sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
         await logEvent(DB, { level: 'success', category: 'login', message: 'تسجيل دخول طالب', user_name: student.name, user_role: 'student', school: student.school || '', ip, student_id: student.id });
         return ok({ token, student: { id: student.id, name: student.name, school: student.school, phone: student.phone || '' } }, 200, CORS);
       }
@@ -555,7 +602,7 @@ export async function onRequest({ request, env }) {
         const adminRole = admin.role === 'director' ? 'director' : 'admin';
         let permissions = [];
         try { permissions = JSON.parse(admin.permissions || '[]'); } catch {}
-        const token = await jwtSign({ sub: admin.id, role: adminRole, name: adminName, school: admin.school, permissions, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
+        const token = await jwtSign({ jti: crypto.randomUUID(), sub: admin.id, role: adminRole, name: adminName, school: admin.school, permissions, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
         await logEvent(DB, { level: 'success', category: 'login', message: `تسجيل دخول ${adminRole==='director'?'مدير':'مشرف'}`, user_name: adminName, user_role: adminRole, school: admin.school || '', ip });
         return ok({ token, admin: { id: admin.id, name: adminName, school: admin.school, role: adminRole, permissions } }, 200, CORS);
       }
@@ -572,13 +619,13 @@ export async function onRequest({ request, env }) {
         }
         await clearFailedAttempts(DB, ip, 'dev-login');
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
-        const token = await jwtSign({ role: 'dev', exp: Math.floor(Date.now() / 1000) + 4 * 3600 }, env.JWT_SECRET);
+        const token = await jwtSign({ jti: crypto.randomUUID(), role: 'dev', exp: Math.floor(Date.now() / 1000) + 4 * 3600 }, env.JWT_SECRET);
         return ok({ token }, 200, CORS);
       }
 
       // GET /api/auth/profile — returns current admin's profile (including phone after migration)
       if (sub === 'profile' && method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         try { await DB.prepare("ALTER TABLE admins ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
         const admin = await DB.prepare('SELECT id, name, school, role, phone FROM admins WHERE id = ?').bind(claims.sub).first();
@@ -588,7 +635,7 @@ export async function onRequest({ request, env }) {
 
       // PATCH /api/auth/profile — update admin's own phone number
       if (sub === 'profile' && method === 'PATCH') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         try { await DB.prepare("ALTER TABLE admins ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
         const body = await request.json();
@@ -602,14 +649,14 @@ export async function onRequest({ request, env }) {
       // they can preview the student experience ("عرض كطالب") without a real student account.
       // Attempts taken under this token are flagged is_trial=1 in general_test_results.
       if (sub === 'impersonate' && method === 'POST') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const trialId     = 'trial-' + crypto.randomUUID();
         const trialName   = 'زائر تجريبي';
         const trialSchool = claims.school && claims.school !== '*' ? claims.school : (school || '');
         const token = await jwtSign({
-          sub: trialId, role: 'student', name: trialName, school: trialSchool,
+          jti: crypto.randomUUID(), sub: trialId, role: 'student', name: trialName, school: trialSchool,
           trial: true, adminSub: claims.sub, adminName: claims.name || '',
           exp: Math.floor(Date.now() / 1000) + 30 * 60,
         }, env.JWT_SECRET);
@@ -629,7 +676,7 @@ export async function onRequest({ request, env }) {
       try { await DB.prepare("ALTER TABLE students ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
 
       if (method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         let q = 'SELECT * FROM students';
         const params = [];
@@ -653,7 +700,7 @@ export async function onRequest({ request, env }) {
       // (the same OVERRIDE convention app.js's grantRetake() uses). Previous test
       // results and plan history are kept intact — nothing is deleted here.
       if (method === 'POST' && sub && subsub === 'reset-test') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const resetTarget = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(sub).first();
         if (!resetTarget) return err('الطالب غير موجود', 404, CORS);
@@ -667,7 +714,7 @@ export async function onRequest({ request, env }) {
       }
 
       if (method === 'POST' && !sub) {
-        const postClaims = await verifyToken(request, env);
+        const postClaims = await verifyToken(request, env, DB);
         if (!postClaims || !['admin','director','dev'].includes(postClaims.role)) return err('غير مصرح', 401, CORS);
         const body = await request.json();
 
@@ -737,7 +784,7 @@ export async function onRequest({ request, env }) {
       }
 
       if (method === 'PATCH' && sub) {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         // Allow students to update their own phone number only
         if (claims?.role === 'student' && claims.sub === sub) {
           const body = await request.json();
@@ -783,7 +830,7 @@ export async function onRequest({ request, env }) {
       }
 
       if (method === 'DELETE' && sub) {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const delTarget = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(sub).first();
         await cascadeDeleteStudent(DB, sub);
@@ -804,7 +851,7 @@ export async function onRequest({ request, env }) {
     if (resource === 'plans') {
 
       if (method === 'GET' && sub === 'history') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims) return err('غير مصرح', 401, CORS);
         const studentId = url.searchParams.get('studentId');
         if (!studentId) return err('معرّف الطالب مطلوب', 400, CORS);
@@ -822,7 +869,7 @@ export async function onRequest({ request, env }) {
 
       // DELETE /api/plans/:id — admin/director: delete a single plan (scoped to their school)
       if (method === 'DELETE' && sub && sub !== 'history') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const target = await DB.prepare('SELECT student_name, school FROM plans WHERE id = ?').bind(sub).first();
         if (!target) return err('الخطة غير موجودة', 404, CORS);
@@ -836,7 +883,7 @@ export async function onRequest({ request, env }) {
       }
 
       if (method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         let q = 'SELECT * FROM plans';
         const params = [];
@@ -849,7 +896,7 @@ export async function onRequest({ request, env }) {
       }
 
       if (method === 'POST') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['student','admin','director'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const body = await request.json();
         // Mass assignment guard: only accept allowed fields
@@ -934,7 +981,7 @@ export async function onRequest({ request, env }) {
       }
 
       if (method === 'PATCH' && sub) {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const { adminNote } = await request.json();
         const now = new Date().toISOString();
@@ -981,7 +1028,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/test-results — student sees own, admin/director sees by school or studentId
       if (method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims) return err('غير مصرح', 401, CORS);
 
         if (claims.role === 'student') {
@@ -1033,7 +1080,7 @@ export async function onRequest({ request, env }) {
     if (resource === 'stats') {
       if (method === 'GET' && !sub) {
         const _devAuth = authDev(request, env);
-        const stClaims = _devAuth ? { role: 'dev', sub: 'dev', school: '*' } : await verifyToken(request, env);
+        const stClaims = _devAuth ? { role: 'dev', sub: 'dev', school: '*' } : await verifyToken(request, env, DB);
         if (!stClaims) return err('غير مصرح', 401, CORS);
         if (!['admin', 'director', 'dev'].includes(stClaims.role)) return err('غير مسموح', 403, CORS);
         // Admins/directors (not super-director '*') are always scoped to their own school
@@ -1136,7 +1183,7 @@ export async function onRequest({ request, env }) {
     // (school !== '*') is always locked to their own school's students.
     if (resource === 'analytics') {
       const _devAuth = authDev(request, env);
-      const anClaims = _devAuth ? { role: 'dev', sub: 'dev', school: '*' } : await verifyToken(request, env);
+      const anClaims = _devAuth ? { role: 'dev', sub: 'dev', school: '*' } : await verifyToken(request, env, DB);
       if (!anClaims) return err('غير مصرح', 401, CORS);
       if (!['admin', 'director', 'dev'].includes(anClaims.role)) return err('غير مسموح', 403, CORS);
       const anSchool = (['admin', 'director'].includes(anClaims.role) && anClaims.school && anClaims.school !== '*')
@@ -1388,7 +1435,7 @@ export async function onRequest({ request, env }) {
 
       // POST /api/progress/complete { studentId, lessonId, type }
       if (!sub && method === 'POST') {
-        const prClaims = await verifyToken(request, env);
+        const prClaims = await verifyToken(request, env, DB);
         if (!prClaims) return err('غير مصرح', 401, CORS);
         const { studentId, lessonId, type } = await request.json();
         const sid = prClaims.role === 'student' ? prClaims.sub : studentId;
@@ -1404,7 +1451,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/progress/:studentId
       if (sub && method === 'GET') {
-        const prClaims = await verifyToken(request, env);
+        const prClaims = await verifyToken(request, env, DB);
         if (!prClaims) return err('غير مصرح', 401, CORS);
         if (prClaims.role === 'student' && prClaims.sub !== sub) return err('غير مسموح', 403, CORS);
         const { results } = await DB.prepare(
@@ -1470,7 +1517,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/bio/questions?type=pre|post — sanitized for taking the live quiz (no answer key)
       if (sub === 'questions' && method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims) return err('غير مصرح', 401, CORS);
         const testType = url.searchParams.get('type');
         if (testType !== 'pre' && testType !== 'post') return err('نوع الاختبار غير صالح', 400, CORS);
@@ -1484,7 +1531,7 @@ export async function onRequest({ request, env }) {
 
       // POST /api/bio/submit — server grades + records behavior analytics (3 layers, fully separated)
       if (sub === 'submit' && method === 'POST') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
         const { testType, answers } = await request.json();
         if (testType !== 'pre' && testType !== 'post') return err('نوع الاختبار غير صالح', 400, CORS);
@@ -1563,7 +1610,7 @@ export async function onRequest({ request, env }) {
     if (resource === 'questions') {
 
       if (method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         const isPrivileged = (claims && (claims.role === 'admin' || claims.role === 'director' || claims.role === 'dev')) || authDev(request, env);
         const { results } = await DB.prepare('SELECT * FROM questions ORDER BY qnum ASC').all();
         return ok({ questions: results.map(r => {
@@ -1574,7 +1621,7 @@ export async function onRequest({ request, env }) {
       }
 
       if (method === 'POST') {
-        const qClaims = await verifyToken(request, env);
+        const qClaims = await verifyToken(request, env, DB);
         const qCanEdit = qClaims && (qClaims.role === 'director' || qClaims.role === 'dev' ||
           (qClaims.role === 'admin' && Array.isArray(qClaims.permissions) && qClaims.permissions.includes('edit_questions')));
         if (!qCanEdit) return err('غير مصرح', 401, CORS);
@@ -1597,7 +1644,7 @@ export async function onRequest({ request, env }) {
 
       // PATCH /api/questions/:id — edit a single question (director/dev, or admin with edit_questions permission)
       if (sub && method === 'PATCH') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         const canEdit = claims && (claims.role === 'director' || claims.role === 'dev' ||
           (claims.role === 'admin' && Array.isArray(claims.permissions) && claims.permissions.includes('edit_questions')));
         if (!canEdit) return err('غير مصرح', 401, CORS);
@@ -1611,7 +1658,7 @@ export async function onRequest({ request, env }) {
 
       // DELETE /api/questions/:id — delete a single question (director/dev, or admin with edit_questions permission)
       if (sub && method === 'DELETE') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         const canEdit = claims && (claims.role === 'director' || claims.role === 'dev' ||
           (claims.role === 'admin' && Array.isArray(claims.permissions) && claims.permissions.includes('edit_questions')));
         if (!canEdit) return err('غير مصرح', 401, CORS);
@@ -1623,7 +1670,7 @@ export async function onRequest({ request, env }) {
 
     // ── QUIZ GRADING (server-side, requires student JWT) ─────────────────────
     if (resource === 'quiz' && sub === 'grade' && method === 'POST') {
-      const claims = await verifyToken(request, env);
+      const claims = await verifyToken(request, env, DB);
       if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
       const { answers } = await request.json(); // [{qnum, ans}, ...]
       if (!Array.isArray(answers) || answers.length === 0) return err('إجابات مطلوبة', 400, CORS);
@@ -1689,7 +1736,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/quiz-structure — full tree + this student's progress + level lock flags
       if (resource === 'quiz-structure' && method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
         const { results: skills } = await DB.prepare('SELECT * FROM quiz_skills ORDER BY section, level, order_idx').all();
         const { results: progressRows } = await DB.prepare('SELECT * FROM skill_progress WHERE student_id = ?').bind(claims.sub).all();
@@ -1736,7 +1783,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/quiz-skills/:quizSkillId/questions — sanitized (no `ans`); 403 if level locked
       if (resource === 'quiz-skills' && sub && subsub === 'questions' && method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
         const skillRow = await DB.prepare('SELECT * FROM quiz_skills WHERE id = ?').bind(sub).first();
         if (!skillRow) return err('المهارة غير موجودة', 404, CORS);
@@ -1760,7 +1807,7 @@ export async function onRequest({ request, env }) {
 
       // POST /api/quiz-skills/:quizSkillId/import — admin/dev upload {action:'replace'|'append', questions:[{text,opt1..4,ans}]}
       if (resource === 'quiz-skills' && sub && subsub === 'import' && method === 'POST') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         const isDev = claims?.role === 'dev' || authDev(request, env);
         if (!isDev && (!claims || !['admin', 'director'].includes(claims.role))) return err('غير مصرح', 401, CORS);
         const skillRow = await DB.prepare('SELECT * FROM quiz_skills WHERE id = ?').bind(sub).first();
@@ -1787,7 +1834,7 @@ export async function onRequest({ request, env }) {
 
       // POST /api/quiz-skills/:quizSkillId/submit — grade (pure correct-count, no timing/anti-cheat)
       if (resource === 'quiz-skills' && sub && subsub === 'submit' && method === 'POST') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
         const skillRow = await DB.prepare('SELECT * FROM quiz_skills WHERE id = ?').bind(sub).first();
         if (!skillRow) return err('المهارة غير موجودة', 404, CORS);
@@ -1827,7 +1874,7 @@ export async function onRequest({ request, env }) {
 
     // GET /api/admins?school=X — list supervisors for chat (requires JWT)
     if (resource === 'admins' && !sub && method === 'GET' && school) {
-      const admClaims = await verifyToken(request, env);
+      const admClaims = await verifyToken(request, env, DB);
       if (!admClaims) return err('غير مصرح', 401, CORS);
       // Admins can only see admins in their own school; students use JWT school too
       const targetSchool = (admClaims.role === 'dev') ? school
@@ -1842,7 +1889,7 @@ export async function onRequest({ request, env }) {
 
     if (resource === 'admins' && sub && method === 'GET') {
       // Requires valid JWT — used by chat to look up admin info
-      const admClaims = await verifyToken(request, env);
+      const admClaims = await verifyToken(request, env, DB);
       if (!admClaims) return err('غير مصرح', 401, CORS);
       // sub = admin code, school = selected school
       const admin = await DB.prepare('SELECT id, name, school, role FROM admins WHERE code = ?').bind(sub).first();
@@ -1861,7 +1908,7 @@ export async function onRequest({ request, env }) {
       // the frontend's serverLog() helper uses a JWT bearer token and must never receive DEV_KEY.
       if (sub === 'logs' && method === 'POST') {
         const isDevKey = authDev(request, env);
-        const logClaims = isDevKey ? null : await verifyToken(request, env);
+        const logClaims = isDevKey ? null : await verifyToken(request, env, DB);
         if (!isDevKey && !logClaims) return err('غير مصرح', 401, CORS);
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', device TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
         try { await DB.prepare(`ALTER TABLE logs ADD COLUMN device TEXT DEFAULT ''`).run(); } catch {}
@@ -1889,7 +1936,7 @@ export async function onRequest({ request, env }) {
       if (sub === 'logs' && method === 'GET') {
         const isDevKey = authDev(request, env);
         if (!isDevKey) {
-          const logClaims = await verifyToken(request, env);
+          const logClaims = await verifyToken(request, env, DB);
           if (!logClaims || logClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, level TEXT NOT NULL DEFAULT 'info', category TEXT NOT NULL DEFAULT 'system', message TEXT NOT NULL, user_name TEXT DEFAULT '', user_role TEXT DEFAULT '', school TEXT DEFAULT '', ip TEXT DEFAULT '', device TEXT DEFAULT '', created_at TEXT NOT NULL)`).run(); } catch {}
@@ -1919,7 +1966,7 @@ export async function onRequest({ request, env }) {
       if (sub === 'access-tokens' && method === 'POST') {
         const isDevKey = authDev(request, env);
         if (!isDevKey) {
-          const atClaims = await verifyToken(request, env);
+          const atClaims = await verifyToken(request, env, DB);
           if (!atClaims || atClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
@@ -1946,7 +1993,7 @@ export async function onRequest({ request, env }) {
       if (sub === 'access-tokens' && method === 'GET') {
         const isDevKeyRead = authDev(request, env);
         if (!isDevKeyRead) {
-          const atReadClaims = await verifyToken(request, env);
+          const atReadClaims = await verifyToken(request, env, DB);
           if (!atReadClaims || atReadClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         const studentId = url.searchParams.get('studentId') || '';
@@ -1966,7 +2013,7 @@ export async function onRequest({ request, env }) {
         const isDevKeyWs = authDev(request, env);
         let wsClaims = null;
         if (!isDevKeyWs) {
-          wsClaims = await verifyToken(request, env);
+          wsClaims = await verifyToken(request, env, DB);
           if (!wsClaims || wsClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_sends (id TEXT PRIMARY KEY, label TEXT NOT NULL, school TEXT, template_name TEXT, admin_name TEXT, total_targeted INTEGER DEFAULT 0, created_at TEXT NOT NULL)`).run(); } catch {}
@@ -1986,7 +2033,7 @@ export async function onRequest({ request, env }) {
       if (sub === 'wa-sends' && !subsub && method === 'GET') {
         const isDevKeyWsList = authDev(request, env);
         if (!isDevKeyWsList) {
-          const wsListClaims = await verifyToken(request, env);
+          const wsListClaims = await verifyToken(request, env, DB);
           if (!wsListClaims || wsListClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_sends (id TEXT PRIMARY KEY, label TEXT NOT NULL, school TEXT, template_name TEXT, admin_name TEXT, total_targeted INTEGER DEFAULT 0, created_at TEXT NOT NULL)`).run(); } catch {}
@@ -2017,7 +2064,7 @@ export async function onRequest({ request, env }) {
       if (sub === 'wa-sends' && subsub && method === 'GET') {
         const isDevKeyWsR = authDev(request, env);
         if (!isDevKeyWsR) {
-          const wsRClaims = await verifyToken(request, env);
+          const wsRClaims = await verifyToken(request, env, DB);
           if (!wsRClaims || wsRClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         try { await DB.prepare(`ALTER TABLE access_tokens ADD COLUMN wa_send_id TEXT`).run(); } catch {}
@@ -2041,7 +2088,7 @@ export async function onRequest({ request, env }) {
       if (sub === 'ticket-link' && method === 'POST') {
         const isDevKeyTL = authDev(request, env);
         if (!isDevKeyTL) {
-          const tlClaims = await verifyToken(request, env);
+          const tlClaims = await verifyToken(request, env, DB);
           if (!tlClaims || tlClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS ticket_link_tokens (token TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, created_at TEXT NOT NULL)`).run(); } catch {}
@@ -2063,7 +2110,7 @@ export async function onRequest({ request, env }) {
       if (sub === 'ticket-link' && subsub && method === 'GET') {
         const isDevKeyTLR = authDev(request, env);
         if (!isDevKeyTLR) {
-          const tlrClaims = await verifyToken(request, env);
+          const tlrClaims = await verifyToken(request, env, DB);
           if (!tlrClaims || tlrClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS ticket_link_tokens (token TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, created_at TEXT NOT NULL)`).run(); } catch {}
@@ -2094,7 +2141,7 @@ export async function onRequest({ request, env }) {
       // GET /api/dev/test-grading — simulate grading with all-correct answers to verify scoring logic
       if (sub === 'test-grading' && method === 'GET') {
         const tgDev = authDev(request, env);
-        const tgClaims = tgDev ? { role: 'dev' } : await verifyToken(request, env);
+        const tgClaims = tgDev ? { role: 'dev' } : await verifyToken(request, env, DB);
         if (!tgClaims || !['admin','director','dev'].includes(tgClaims.role)) return err('غير مصرح', 401, CORS);
         const { results: questions } = await DB.prepare('SELECT qnum, skill_id, ans FROM questions ORDER BY qnum ASC').all();
         if (!questions.length) return ok({ error: 'لا توجد أسئلة في قاعدة البيانات' }, 200, CORS);
@@ -2554,7 +2601,7 @@ export async function onRequest({ request, env }) {
 
       // Verify director via JWT — no sensitive code in URLs
       async function authDirector(targetSchool) {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims) return null;
         if (!['director','dev'].includes(claims.role)) return null;
         if (claims.role === 'dev') return claims;
@@ -2696,7 +2743,7 @@ export async function onRequest({ request, env }) {
         _messagesSchemaEnsured = true;
       }
       const isDevKeyMsg = authDev(request, env);
-      const msgClaims = isDevKeyMsg ? null : await verifyToken(request, env);
+      const msgClaims = isDevKeyMsg ? null : await verifyToken(request, env, DB);
       if (!isDevKeyMsg && !msgClaims) return err('غير مصرح', 401, CORS);
       const isPrivileged = isDevKeyMsg || ['admin','director','dev','support'].includes(msgClaims.role);
       const msgIp = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
@@ -2927,7 +2974,7 @@ export async function onRequest({ request, env }) {
 
       // Accept either JWT or X-Dev-Key (for dev panel)
       const _devAuth = authDev(request, env);
-      const tkClaims = _devAuth ? { role: 'dev', sub: 'dev' } : await verifyToken(request, env);
+      const tkClaims = _devAuth ? { role: 'dev', sub: 'dev' } : await verifyToken(request, env, DB);
       if (!tkClaims) return err('غير مصرح', 401, CORS);
       const tkPrivileged = ['admin','director','dev','support'].includes(tkClaims.role);
       // Admins and directors (not dev/support, not super-director '*') are always scoped to their own school
@@ -3152,7 +3199,7 @@ export async function onRequest({ request, env }) {
       // present, the broadcast is only visible to those students (still school-scoped);
       // omitted/empty means visible to the whole school as before.
       if (!sub && method === 'POST') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const { message, studentIds } = await request.json();
         if (!message || message.trim().length < 3) return err('الرسالة قصيرة جداً', 400, CORS);
@@ -3180,7 +3227,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/broadcasts/active?school=X — student gets unseen broadcasts
       if (sub === 'active' && method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims) return err('غير مصرح', 401, CORS);
         if (claims.role === 'student') {
           // Students: always use their own school from JWT — never trust URL param
@@ -3215,7 +3262,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/broadcasts/:id/viewers — admin: list students who saw this broadcast
       if (sub && subsub === 'viewers' && method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const bc = await DB.prepare('SELECT school FROM broadcasts WHERE id = ?').bind(sub).first();
         if (!bc) return err('الرسالة غير موجودة', 404, CORS);
@@ -3235,7 +3282,7 @@ export async function onRequest({ request, env }) {
 
       // POST /api/broadcasts/:id/dismiss — student dismisses broadcast
       if (sub && subsub === 'dismiss' && method === 'POST') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
         try { await DB.prepare('INSERT INTO broadcast_dismissals (broadcast_id, student_id) VALUES (?, ?) ON CONFLICT (broadcast_id, student_id) DO NOTHING').bind(sub, claims.sub).run(); } catch {}
         return ok({ ok: true }, 200, CORS);
@@ -3244,7 +3291,7 @@ export async function onRequest({ request, env }) {
       // PATCH /api/broadcasts/:id — edit message text (dev key or scoped admin JWT)
       if (sub && !subsub && method === 'PATCH') {
         const isDevKey = authDev(request, env);
-        const claims = isDevKey ? null : await verifyToken(request, env);
+        const claims = isDevKey ? null : await verifyToken(request, env, DB);
         if (!isDevKey && (!claims || !['admin','director'].includes(claims.role))) return err('غير مصرح', 401, CORS);
         const body = await request.json();
         const message = (body.message || '').trim();
@@ -3261,7 +3308,7 @@ export async function onRequest({ request, env }) {
 
       // DELETE /api/broadcasts/:id — admin deletes broadcast (scoped to own school)
       if (sub && !subsub && method === 'DELETE') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         if (claims.role === 'dev') {
           await DB.prepare('DELETE FROM broadcasts WHERE id = ?').bind(sub).run();
@@ -3401,7 +3448,7 @@ export async function onRequest({ request, env }) {
 
       // GET /api/general-tests — list of the 6 tests (+ student's latest result per test)
       if (!sub && method === 'GET') {
-        const claims = await verifyToken(request, env);
+        const claims = await verifyToken(request, env, DB);
         if (!claims) return err('غير مصرح', 401, CORS);
         const { results: metas }  = await DB.prepare('SELECT * FROM general_test_meta ORDER BY test_num ASC').all();
         const { results: counts } = await DB.prepare('SELECT test_num, COUNT(*) as c FROM general_tests GROUP BY test_num').all();
@@ -3423,7 +3470,7 @@ export async function onRequest({ request, env }) {
       // GET /api/general-tests/results?studentId=...&testNum=N — admin/dev: per-student or all results
       if (sub === 'results' && method === 'GET') {
         const isDevKey = authDev(request, env);
-        const claims = isDevKey ? { role: 'dev' } : await verifyToken(request, env);
+        const claims = isDevKey ? { role: 'dev' } : await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const studentId = url.searchParams.get('studentId');
         const filterTest = url.searchParams.get('testNum');
@@ -3446,7 +3493,7 @@ export async function onRequest({ request, env }) {
 
         // GET /api/general-tests/:num/questions — sanitized (no answer key)
         if (subsub === 'questions' && method === 'GET') {
-          const claims = await verifyToken(request, env);
+          const claims = await verifyToken(request, env, DB);
           if (!claims) return err('غير مصرح', 401, CORS);
           const { results } = await DB.prepare(
             'SELECT qnum, text, opt1, opt2, opt3, opt4, img_url FROM general_tests WHERE test_num = ? ORDER BY qnum ASC'
@@ -3457,7 +3504,7 @@ export async function onRequest({ request, env }) {
 
         // POST /api/general-tests/:num/questions — admin upload {action:'replace'|'append', questions:[...]}
         if (subsub === 'questions' && method === 'POST') {
-          const claims = await verifyToken(request, env);
+          const claims = await verifyToken(request, env, DB);
           if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
           const { action = 'append', questions: rows } = await request.json();
           if (action === 'replace') await DB.prepare('DELETE FROM general_tests WHERE test_num = ?').bind(testNum).run();
@@ -3477,7 +3524,7 @@ export async function onRequest({ request, env }) {
 
         // PATCH /api/general-tests/:num — admin edits meta (skill linkage / display title)
         if (!subsub && method === 'PATCH') {
-          const claims = await verifyToken(request, env);
+          const claims = await verifyToken(request, env, DB);
           if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
           const body = await request.json();
           const sets = [], vals = [];
@@ -3491,7 +3538,7 @@ export async function onRequest({ request, env }) {
 
         // POST /api/general-tests/:num/submit — server-side grading (student/trial-student only)
         if (subsub === 'submit' && method === 'POST') {
-          const claims = await verifyToken(request, env);
+          const claims = await verifyToken(request, env, DB);
           if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
           const { answers } = await request.json();
           if (!Array.isArray(answers) || !answers.length) return err('إجابات مطلوبة', 400, CORS);
@@ -3548,7 +3595,7 @@ export async function onRequest({ request, env }) {
       // POST /api/sendpulse/send — also accepts admin/director JWT (not just dev key)
       if (sub === 'send' && method === 'POST') {
         const _isDevSend = authDev(request, env);
-        const _claimsSend = _isDevSend ? null : await verifyToken(request, env);
+        const _claimsSend = _isDevSend ? null : await verifyToken(request, env, DB);
         if (!_isDevSend && (!_claimsSend || !['admin','director'].includes(_claimsSend.role))) return err('غير مصرح', 401, CORS);
         if (!_isDevSend && _claimsSend.role !== 'dev' && !(Array.isArray(_claimsSend.permissions) && _claimsSend.permissions.includes('send_whatsapp'))) {
           return err('لا تملك صلاحية إرسال الواتساب', 403, CORS);
@@ -3579,7 +3626,7 @@ export async function onRequest({ request, env }) {
       // the caller never supplies it, only {{2}}..{{5}}.
       if (sub === 'template-send' && method === 'POST') {
         const _isDevTpl = authDev(request, env);
-        const _claimsTpl = _isDevTpl ? null : await verifyToken(request, env);
+        const _claimsTpl = _isDevTpl ? null : await verifyToken(request, env, DB);
         if (!_isDevTpl && (!_claimsTpl || !['admin','director'].includes(_claimsTpl.role))) return err('غير مصرح', 401, CORS);
         if (!_isDevTpl && _claimsTpl.role !== 'dev' && !(Array.isArray(_claimsTpl.permissions) && _claimsTpl.permissions.includes('send_whatsapp'))) {
           return err('لا تملك صلاحية إرسال الواتساب', 403, CORS);

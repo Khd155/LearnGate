@@ -384,10 +384,22 @@ async function rateLimit(DB, ip, action, maxPerMin) {
       await DB.prepare('INSERT INTO rate_limits (key, count, win) VALUES (?, 1, ?) ON CONFLICT (key) DO UPDATE SET count = EXCLUDED.count, win = EXCLUDED.win').bind(key, window).run();
       return true;
     }
-    if (row.count >= maxPerMin) return false;
+    if (row.count >= maxPerMin) {
+      _recordSecurityEvent('rate_limit', { action, ip });
+      return false;
+    }
     await DB.prepare('UPDATE rate_limits SET count = count + 1 WHERE key = ?').bind(key).run();
     return true;
   } catch { return false; }
+}
+
+// Same globalThis-hook pattern as wsNotify() — only ever wired up on the
+// Node/CranL host (server.js -> lib/monitoring.js), a no-op everywhere else
+// (Cloudflare Pages Functions has no persistent process to hold this state).
+function _recordSecurityEvent(type, details) {
+  try {
+    if (typeof globalThis.__recordSecurityEvent === 'function') globalThis.__recordSecurityEvent(type, details);
+  } catch {}
 }
 
 // ── Failed Login Lockout (D1-based, 15-minute lockout after 5 failures) ──
@@ -395,6 +407,7 @@ async function rateLimit(DB, ip, action, maxPerMin) {
 // second lockout counter is tracked per-account alongside the per-IP one,
 // so rotating IPs can't be used to brute-force a single known account.
 async function recordFailedAttempt(DB, ip, action, accountKey) {
+  _recordSecurityEvent('failed_login', { action, ip, accountKey: accountKey || '' });
   try {
     const lockKey   = `lock:${action}:${ip}`;
     const lockUntil = Math.floor(Date.now() / 1000) + 900; // 15 min from now

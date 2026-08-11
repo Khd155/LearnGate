@@ -6,11 +6,17 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { onRequest } from './functions/api/[[route]].js';
-import { recordRequest, recordException, getStats, getLogs } from './lib/monitoring.js';
+import { recordRequest, recordException, recordSecurityEvent, getStats, getLogs, getSecuritySummary } from './lib/monitoring.js';
 import { setupWebSocket, broadcastToAll, getConnectionCount } from './lib/ws.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public', 'khaldiya');
+
+// Lets functions/api/[[route]].js report failed logins / rate-limit hits
+// without importing lib/monitoring.js directly — that file also runs under
+// Cloudflare Pages Functions, which has no persistent process to hold this
+// in-memory state (same globalThis-hook pattern as __wsBroadcastStudent).
+globalThis.__recordSecurityEvent = recordSecurityEvent;
 
 function devAuthorized(req) {
   const key = req.get('X-Dev-Key') || req.query.key || '';
@@ -61,9 +67,10 @@ app.use((req, res, next) => {
 });
 
 // Access/error logging + metrics for /dev/monitoring — records every request's
-// method, path, status, duration and IP into an in-memory rolling window.
+// method, path, status, duration, size and IP into an in-memory rolling window.
 app.use((req, res, next) => {
   const startedAt = Date.now();
+  const bytesIn = Number(req.get('content-length')) || 0;
   res.on('finish', () => {
     recordRequest({
       method: req.method,
@@ -71,6 +78,12 @@ app.use((req, res, next) => {
       status: res.statusCode,
       durationMs: Date.now() - startedAt,
       ip: req.ip || 'unknown',
+      bytesIn,
+      // Only reflects an explicit Content-Length header (set by res.json()/
+      // express.static's file serving); chunked/streamed responses without
+      // one are undercounted here rather than measured byte-for-byte — fine
+      // for a rough traffic-volume gauge, not billing-grade accounting.
+      bytesOut: Number(res.get('content-length')) || 0,
     });
   });
   next();
@@ -81,13 +94,22 @@ app.use((req, res, next) => {
 // responds to every /api/* request itself and would otherwise shadow these.
 app.get('/api/dev/monitoring/stats', (req, res) => {
   if (!devAuthorized(req)) return res.status(403).json({ error: 'غير مسموح' });
-  res.json(getStats());
+  res.json({ ...getStats(), wsConnections: getConnectionCount() });
 });
 
 app.get('/api/dev/monitoring/logs', (req, res) => {
   if (!devAuthorized(req)) return res.status(403).json({ error: 'غير مسموح' });
   const limit = Math.min(Number(req.query.limit) || 100, 500);
-  res.json({ logs: getLogs(limit) });
+  const type = req.query.type || null; // 'access' | 'error' | 'exception' | 'failed_login' | 'rate_limit'
+  res.json({ logs: getLogs(limit, type) });
+});
+
+// Failed-login / rate-limit hits grouped by source IP over a recent window —
+// the "is this one IP doing something weird" view, separate from the raw log.
+app.get('/api/dev/monitoring/security', (req, res) => {
+  if (!devAuthorized(req)) return res.status(403).json({ error: 'غير مسموح' });
+  const windowMinutes = Math.min(Number(req.query.window) || 15, 60);
+  res.json(getSecuritySummary(windowMinutes));
 });
 
 // Experimental: broadcasts a test event to every connected WS client, to

@@ -8,21 +8,31 @@
   * { box-sizing: border-box; }
   body { font-family: -apple-system, Segoe UI, Tahoma, sans-serif; background:#0f1115; color:#e6e6e6; margin:0; padding:20px; }
   h1 { font-size:18px; margin:0 0 16px; }
+  h2 { font-size:14px; margin:24px 0 10px; color:#c7ccd6; }
   .row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
-  .card { background:#1a1d24; border:1px solid #2a2e38; border-radius:8px; padding:12px 16px; min-width:150px; }
+  .card { background:#1a1d24; border:1px solid #2a2e38; border-radius:8px; padding:12px 16px; min-width:140px; }
   .card .label { font-size:12px; color:#9aa0ab; margin-bottom:4px; }
   .card .value { font-size:22px; font-weight:700; }
   .value.err { color:#ff6b6b; }
+  .value.warn { color:#ffb347; }
   table { width:100%; border-collapse:collapse; font-size:12px; background:#1a1d24; border:1px solid #2a2e38; border-radius:8px; overflow:hidden; }
   th, td { padding:6px 10px; text-align:right; border-bottom:1px solid #2a2e38; }
   th { color:#9aa0ab; font-weight:600; }
   tr.error td { color:#ff6b6b; }
   tr.exception td { color:#ffb347; }
+  tr.failed_login td, tr.rate_limit td { color:#ffd166; }
   #gate { max-width:360px; margin:80px auto; text-align:center; }
   #gate input { width:100%; padding:8px; margin:8px 0; background:#1a1d24; border:1px solid #2a2e38; color:#fff; border-radius:6px; }
   #gate button { padding:8px 16px; background:#4f7cff; border:none; border-radius:6px; color:#fff; cursor:pointer; }
   #app { display:none; }
   .muted { color:#9aa0ab; font-size:12px; }
+  .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; font-size:13px; display:flex; align-items:center; gap:8px; }
+  .alert.critical { background:#3a1418; border:1px solid #ff6b6b; color:#ffb3b3; }
+  .alert.warning { background:#3a2e10; border:1px solid #ffb347; color:#ffd9a0; }
+  .filter-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+  .filter-row select, .filter-row button { background:#1a1d24; border:1px solid #2a2e38; color:#e6e6e6; border-radius:6px; padding:5px 10px; font-size:12px; }
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:760px) { .two-col { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -36,16 +46,53 @@
 
   <div id="app">
     <h1>📊 Dev Monitoring</h1>
+
+    <div id="alerts"></div>
+
     <div class="row" id="cards"></div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <h2>📈 أكثر endpoints استخدامًا (5 دقائق)</h2>
+    <table>
+      <thead><tr><th>Endpoint</th><th>طلبات</th><th>أخطاء</th><th>متوسط ms</th></tr></thead>
+      <tbody id="endpointsBody"></tbody>
+    </table>
+
+    <div class="two-col" style="margin-top:16px;">
+      <div>
+        <h2>🔢 Status Codes (5 دقائق)</h2>
+        <table>
+          <thead><tr><th>Code</th><th>عدد</th></tr></thead>
+          <tbody id="statusBody"></tbody>
+        </table>
+      </div>
+      <div>
+        <h2>🚨 أعلى مصادر محاولات فاشلة (15 دقيقة)</h2>
+        <table>
+          <thead><tr><th>IP</th><th>دخول فاشل</th><th>rate-limit</th></tr></thead>
+          <tbody id="securityBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin:20px 0;">
       <div class="label">🔌 اختبار WebSocket</div>
       <div id="wsStatus" style="margin:6px 0;">غير متصل</div>
       <button onclick="sendWsTest()" style="padding:6px 14px; background:#4f7cff; border:none; border-radius:6px; color:#fff; cursor:pointer;">إرسال حدث تجريبي</button>
       <ul id="wsLog" style="margin:10px 0 0; padding:0; list-style:none; font-size:12px; max-height:120px; overflow:auto;"></ul>
     </div>
 
-    <p class="muted">آخر السجلات (يتحدّث كل 5 ثوانٍ)</p>
+    <h2>📋 آخر السجلات (يتحدّث كل 5 ثوانٍ)</h2>
+    <div class="filter-row">
+      <span class="muted">تصفية:</span>
+      <select id="logTypeFilter" onchange="refresh()">
+        <option value="">الكل</option>
+        <option value="access">access</option>
+        <option value="error">error</option>
+        <option value="exception">exception</option>
+        <option value="failed_login">failed_login</option>
+        <option value="rate_limit">rate_limit</option>
+      </select>
+    </div>
     <table>
       <thead><tr><th>الوقت</th><th>النوع</th><th>method</th><th>path</th><th>status</th><th>ms</th><th>IP</th></tr></thead>
       <tbody id="logsBody"></tbody>
@@ -79,30 +126,71 @@
     return new Date(iso).toLocaleTimeString('ar-SA', { hour12: false });
   }
 
+  function fmtBytes(n) {
+    if (!n) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let i = 0;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return n.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+  }
+
   async function refresh() {
     try {
-      const [statsRes, logsRes] = await Promise.all([
+      const typeFilter = document.getElementById('logTypeFilter').value;
+      const logsUrl = '/api/dev/monitoring/logs?limit=100' + (typeFilter ? '&type=' + typeFilter : '');
+      const [statsRes, logsRes, securityRes] = await Promise.all([
         fetch('/api/dev/monitoring/stats', { headers: { 'X-Dev-Key': KEY } }),
-        fetch('/api/dev/monitoring/logs?limit=80', { headers: { 'X-Dev-Key': KEY } }),
+        fetch(logsUrl, { headers: { 'X-Dev-Key': KEY } }),
+        fetch('/api/dev/monitoring/security?window=15', { headers: { 'X-Dev-Key': KEY } }),
       ]);
       const stats = await statsRes.json();
       const { logs } = await logsRes.json();
+      const security = await securityRes.json();
+
+      document.getElementById('alerts').innerHTML = (stats.alerts || []).map(a =>
+        `<div class="alert ${a.level}">${a.level === 'critical' ? '🔴' : '🟡'} ${a.message}</div>`
+      ).join('') || '';
 
       document.getElementById('cards').innerHTML = `
         <div class="card"><div class="label">Requests / دقيقة</div><div class="value">${stats.requestsPerMinute}</div></div>
         <div class="card"><div class="label">نسبة الأخطاء (5 دقائق)</div><div class="value ${stats.errorRate5m > 5 ? 'err' : ''}">${stats.errorRate5m}%</div></div>
-        <div class="card"><div class="label">متوسط زمن الاستجابة</div><div class="value">${stats.avgResponseMs5m}ms</div></div>
+        <div class="card"><div class="label">متوسط زمن الاستجابة</div><div class="value ${stats.avgResponseMs5m > 1000 ? 'warn' : ''}">${stats.avgResponseMs5m}ms</div></div>
         <div class="card"><div class="label">طلبات (5 دقائق)</div><div class="value">${stats.requests5m}</div></div>
         <div class="card"><div class="label">أخطاء (5 دقائق)</div><div class="value ${stats.errors5m ? 'err' : ''}">${stats.errors5m}</div></div>
+        <div class="card"><div class="label">حجم الدخول/الخروج (5 د)</div><div class="value" style="font-size:15px;">${fmtBytes(stats.bytesIn5m)} / ${fmtBytes(stats.bytesOut5m)}</div></div>
+        <div class="card"><div class="label">دخول فاشل (5 دقائق)</div><div class="value ${stats.failedLogins5m ? 'warn' : ''}">${stats.failedLogins5m}</div></div>
+        <div class="card"><div class="label">تجاوزات Rate-limit (5 د)</div><div class="value ${stats.rateLimitHits5m ? 'warn' : ''}">${stats.rateLimitHits5m}</div></div>
+        <div class="card"><div class="label">اتصالات WebSocket الحالية</div><div class="value">${stats.wsConnections ?? 0}</div></div>
         <div class="card"><div class="label">Uptime</div><div class="value">${Math.floor(stats.uptimeSeconds / 60)}m</div></div>
       `;
+
+      document.getElementById('endpointsBody').innerHTML = (stats.topEndpoints || []).map(e => `
+        <tr>
+          <td>${e.endpoint}</td>
+          <td>${e.requests}</td>
+          <td style="${e.errors ? 'color:#ff6b6b' : ''}">${e.errors}</td>
+          <td>${e.avgDurationMs}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="4" class="muted">لا بيانات بعد</td></tr>';
+
+      const statusEntries = Object.entries(stats.statusCodes5m || {}).sort((a, b) => b[1] - a[1]);
+      document.getElementById('statusBody').innerHTML = statusEntries.map(([code, count]) => `
+        <tr class="${Number(code) >= 500 ? 'error' : ''}"><td>${code}</td><td>${count}</td></tr>
+      `).join('') || '<tr><td colspan="2" class="muted">لا بيانات بعد</td></tr>';
+
+      const failedMap = Object.fromEntries((security.topFailedLoginIps || []).map(x => [x.ip, x.count]));
+      const rlMap = Object.fromEntries((security.topRateLimitIps || []).map(x => [x.ip, x.count]));
+      const allIps = [...new Set([...Object.keys(failedMap), ...Object.keys(rlMap)])];
+      document.getElementById('securityBody').innerHTML = allIps.length
+        ? allIps.map(ip => `<tr><td>${ip}</td><td>${failedMap[ip] || 0}</td><td>${rlMap[ip] || 0}</td></tr>`).join('')
+        : '<tr><td colspan="3" class="muted">لا نشاط مشبوه خلال آخر 15 دقيقة</td></tr>';
 
       document.getElementById('logsBody').innerHTML = logs.map(l => `
         <tr class="${l.type}">
           <td>${fmtTime(l.time)}</td>
           <td>${l.type}</td>
-          <td>${l.method || '-'}</td>
-          <td>${l.path || l.message || '-'}</td>
+          <td>${l.method || l.action || '-'}</td>
+          <td>${l.path || l.message || l.accountKey || '-'}</td>
           <td>${l.status ?? '-'}</td>
           <td>${l.durationMs ?? '-'}</td>
           <td>${l.ip ?? '-'}</td>

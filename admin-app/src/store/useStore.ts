@@ -13,7 +13,7 @@ import type {
 import { api, readSession } from '../lib/api';
 import type { DerivedStatus } from '../lib/status';
 
-export type TabKey = 'students' | 'stats' | 'conversations' | 'broadcast' | 'questions' | 'diff';
+export type TabKey = 'dashboard' | 'students' | 'testcenter' | 'conversations' | 'broadcast' | 'admin';
 
 export interface Toast {
   id: string;
@@ -103,7 +103,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ dark: next });
   },
 
-  tab: 'students',
+  tab: 'dashboard',
   setTab: (tab) => set({ tab }),
 
   broadcastPrefillIds: null,

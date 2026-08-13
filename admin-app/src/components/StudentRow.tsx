@@ -7,6 +7,9 @@ import { cn } from '../lib/cn';
 interface Props {
   student: Student;
   status: DerivedStatus;
+  score: number | null;
+  lastMessage: string | null;
+  unreadCount: number;
   selected: boolean;
   onToggleSelect: (id: string) => void;
   onOpen: (student: Student) => void;
@@ -18,6 +21,9 @@ interface Props {
 export default function StudentRow({
   student,
   status,
+  score,
+  lastMessage,
+  unreadCount,
   selected,
   onToggleSelect,
   onOpen,
@@ -53,6 +59,19 @@ export default function StudentRow({
           <span className={cn('h-1.5 w-1.5 rounded-full', colors.dot)} />
           {testStatusLabel(status)}
         </span>
+      </td>
+      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
+        {score === null ? '—' : `${score}%`}
+      </td>
+      <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-1.5">
+          <span className="max-w-[160px] truncate">{lastMessage || '—'}</span>
+          {unreadCount > 0 && (
+            <span className="shrink-0 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              {unreadCount}
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3 text-center">
         <button

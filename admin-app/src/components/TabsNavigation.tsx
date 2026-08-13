@@ -4,22 +4,17 @@ import { useStore, type TabKey } from '../store/useStore';
 import { cn } from '../lib/cn';
 
 const BASE_TABS: { key: TabKey; label: string; icon: string }[] = [
+  { key: 'dashboard', label: 'لوحة المعلومات', icon: '🏠' },
+  { key: 'testcenter', label: 'مركز الاختبارات', icon: '🧪' },
   { key: 'students', label: 'الطلاب', icon: '👥' },
-  { key: 'stats', label: 'الإحصائيات', icon: '📊' },
   { key: 'conversations', label: 'المحادثات', icon: '💬' },
-  { key: 'broadcast', label: 'رسالة جماعية', icon: '📢' },
+  { key: 'broadcast', label: 'الرسائل الجماعية', icon: '📢' },
 ];
 
-const DIFF_TAB: { key: TabKey; label: string; icon: string } = {
-  key: 'diff',
-  label: 'مقارنة الإجابات',
-  icon: '🔍',
-};
-
-const QUESTIONS_TAB: { key: TabKey; label: string; icon: string } = {
-  key: 'questions',
-  label: 'الأسئلة',
-  icon: '📝',
+const ADMIN_TAB: { key: TabKey; label: string; icon: string } = {
+  key: 'admin',
+  label: 'الإدارة',
+  icon: '⚙️',
 };
 
 export default function TabsNavigation() {
@@ -33,11 +28,8 @@ export default function TabsNavigation() {
     session?.role === 'director' || session?.role === 'dev' || !!session?.permissions?.includes('view_diff');
   const canEditQuestions =
     session?.role === 'director' || session?.role === 'dev' || !!session?.permissions?.includes('edit_questions');
-  const TABS = [
-    ...BASE_TABS,
-    ...(canViewDiff ? [DIFF_TAB] : []),
-    ...(canEditQuestions ? [QUESTIONS_TAB] : []),
-  ];
+  const showAdmin = canViewDiff || canEditQuestions;
+  const TABS = [...BASE_TABS, ...(showAdmin ? [ADMIN_TAB] : [])];
 
   useEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`);

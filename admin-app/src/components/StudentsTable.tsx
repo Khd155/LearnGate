@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { useDebounce } from '../lib/useDebounce';
 import { exportStudentsCsv } from '../lib/csv';
@@ -32,6 +32,9 @@ export default function StudentsTable() {
   const coreError = useStore((s) => s.coreError);
   const loadCore = useStore((s) => s.loadCore);
   const statusOf = useStore((s) => s.statusOf);
+  const latestScoreOf = useStore((s) => s.latestScoreOf);
+  const threads = useStore((s) => s.threads);
+  const loadThreads = useStore((s) => s.loadThreads);
   const removeStudents = useStore((s) => s.removeStudents);
   const pushToast = useStore((s) => s.pushToast);
   const setTab = useStore((s) => s.setTab);
@@ -52,6 +55,16 @@ export default function StudentsTable() {
 
   const [resetTarget, setResetTarget] = useState<Student | null>(null);
   const [resetting, setResetting] = useState(false);
+  useEffect(() => {
+    loadThreads();
+  }, [loadThreads]);
+
+  const threadByStudent = useMemo(() => {
+    const map = new Map<string, { last_msg: string; unread: number }>();
+    for (const t of threads) map.set(t.student_id, { last_msg: t.last_msg, unread: t.unread });
+    return map;
+  }, [threads]);
+
   const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -238,6 +251,8 @@ export default function StudentsTable() {
               <th className="px-4 py-3 font-medium">رقم الهوية</th>
               <th className="px-4 py-3 font-medium">الجوال</th>
               <th className="px-4 py-3 font-medium">الحالة</th>
+              <th className="px-4 py-3 font-medium">آخر درجة تشخيصي</th>
+              <th className="px-4 py-3 font-medium">آخر رسالة</th>
               <th className="px-4 py-3 text-center font-medium">تعديل</th>
               <th className="px-4 py-3"></th>
             </tr>
@@ -245,7 +260,7 @@ export default function StudentsTable() {
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
                   لا يوجد طلاب مطابقون
                 </td>
               </tr>
@@ -255,6 +270,9 @@ export default function StudentsTable() {
                   key={s.id}
                   student={s}
                   status={statusOf(s.id)}
+                  score={latestScoreOf(s.id)}
+                  lastMessage={threadByStudent.get(s.id)?.last_msg ?? null}
+                  unreadCount={threadByStudent.get(s.id)?.unread ?? 0}
                   selected={selected.has(s.id)}
                   onToggleSelect={toggleSelect}
                   onOpen={setOpenStudent}

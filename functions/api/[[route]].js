@@ -1441,7 +1441,7 @@ export async function onRequest({ request, env }) {
            FROM skill_progress sp
            JOIN students s ON s.id = sp.student_id
            WHERE sp.attempts > 0${engCond}
-           GROUP BY sp.student_id
+           GROUP BY sp.student_id, s.name, s.school
            ORDER BY totalAttempts DESC
            LIMIT 10`
         ).bind(...sArgs).all();

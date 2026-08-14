@@ -1434,15 +1434,15 @@ export async function onRequest({ request, env }) {
         const engCond = anSchool ? ' AND s.school = ?' : '';
         const { results: rows } = await DB.prepare(
           `SELECT sp.student_id as id, s.name as name, s.school as school,
-                  COUNT(*) as skillsTouched,
-                  SUM(sp.attempts) as totalAttempts,
-                  SUM(CASE WHEN sp.status = 'passed' THEN 1 ELSE 0 END) as passedCount,
-                  MAX(sp.last_attempt_at) as lastAttemptAt
+                  COUNT(*) as "skillsTouched",
+                  SUM(sp.attempts) as "totalAttempts",
+                  SUM(CASE WHEN sp.status = 'passed' THEN 1 ELSE 0 END) as "passedCount",
+                  MAX(sp.last_attempt_at) as "lastAttemptAt"
            FROM skill_progress sp
            JOIN students s ON s.id = sp.student_id
            WHERE sp.attempts > 0${engCond}
            GROUP BY sp.student_id, s.name, s.school
-           ORDER BY totalAttempts DESC
+           ORDER BY "totalAttempts" DESC
            LIMIT 10`
         ).bind(...sArgs).all();
 

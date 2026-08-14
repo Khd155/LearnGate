@@ -1414,6 +1414,23 @@ export async function onRequest({ request, env }) {
       // N+1 fan-out. This is ONE grouped, school-scoped query instead —
       // same shape/cost as the other analytics/* aggregates above.
       if (sub === 'quiz-engagement' && method === 'GET') {
+        // quiz_skills/skill_progress are only ever created lazily inside the
+        // quiz-structure/quiz-skills resource block (see below) — on a fresh
+        // deployment where no student has opened a short quiz yet, those
+        // tables don't exist and this query 500s. Idempotent, cheap after
+        // the first call.
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS quiz_skills (
+          id TEXT PRIMARY KEY, section TEXT NOT NULL, level TEXT NOT NULL,
+          skill_id TEXT NOT NULL, skill_name TEXT NOT NULL, order_idx INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        )`).run();
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS skill_progress (
+          id TEXT PRIMARY KEY, student_id TEXT NOT NULL, quiz_skill_id TEXT NOT NULL,
+          section TEXT NOT NULL, level TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'not_started',
+          best_correct INTEGER NOT NULL DEFAULT 0, best_total INTEGER NOT NULL DEFAULT 5,
+          attempts INTEGER NOT NULL DEFAULT 0, last_attempt_at TEXT, created_at TEXT NOT NULL,
+          UNIQUE(student_id, quiz_skill_id)
+        )`).run();
         const engCond = anSchool ? ' AND s.school = ?' : '';
         const { results: rows } = await DB.prepare(
           `SELECT sp.student_id as id, s.name as name, s.school as school,

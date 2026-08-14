@@ -1406,6 +1406,52 @@ export async function onRequest({ request, env }) {
         }, 200, CORS);
       }
 
+      // GET /api/analytics/quiz-engagement — "most engaged with short quizzes"
+      // (round-3 admin dashboard ask). Genuinely new: no existing endpoint
+      // aggregates `skill_progress` across a whole school roster — the only
+      // prior reader of that table (GET /api/quiz-structure) is scoped to one
+      // student at a time, and looping it across 100+ students would be an
+      // N+1 fan-out. This is ONE grouped, school-scoped query instead —
+      // same shape/cost as the other analytics/* aggregates above.
+      if (sub === 'quiz-engagement' && method === 'GET') {
+        const engCond = anSchool ? ' AND s.school = ?' : '';
+        const { results: rows } = await DB.prepare(
+          `SELECT sp.student_id as id, s.name as name, s.school as school,
+                  COUNT(*) as skillsTouched,
+                  SUM(sp.attempts) as totalAttempts,
+                  SUM(CASE WHEN sp.status = 'passed' THEN 1 ELSE 0 END) as passedCount,
+                  MAX(sp.last_attempt_at) as lastAttemptAt
+           FROM skill_progress sp
+           JOIN students s ON s.id = sp.student_id
+           WHERE sp.attempts > 0${engCond}
+           GROUP BY sp.student_id
+           ORDER BY totalAttempts DESC
+           LIMIT 10`
+        ).bind(...sArgs).all();
+
+        const totalSkillsRow = await DB.prepare('SELECT COUNT(*) as c FROM quiz_skills').first();
+        const totalSkills = Number(totalSkillsRow?.c || 30);
+        const totalStudentsRow = await DB.prepare(`SELECT COUNT(*) as c FROM students${sWhere}`).bind(...sArgs).first();
+        const totalStudents = Number(totalStudentsRow?.c || 0);
+        const participantsRow = await DB.prepare(
+          `SELECT COUNT(DISTINCT sp.student_id) as c FROM skill_progress sp JOIN students s ON s.id = sp.student_id WHERE sp.attempts > 0${engCond}`
+        ).bind(...sArgs).first();
+        const participants = Number(participantsRow?.c || 0);
+
+        return ok({
+          totalStudents,
+          participants,
+          participationRate: totalStudents ? Math.round((participants / totalStudents) * 100) : 0,
+          totalSkills,
+          topEngaged: rows.map(r => ({
+            id: r.id, name: r.name, school: r.school,
+            skillsTouched: Number(r.skillsTouched), totalAttempts: Number(r.totalAttempts),
+            passedCount: Number(r.passedCount), lastAttemptAt: r.lastAttemptAt,
+            coveragePct: totalSkills ? Math.round((Number(r.skillsTouched) / totalSkills) * 100) : 0,
+          })),
+        }, 200, CORS);
+      }
+
       // GET /api/analytics/health — health_score = 30% activity + 40% performance + 30% improvement
       if (sub === 'health' && method === 'GET') {
         const students = await _loadStudentActivityAndScores();

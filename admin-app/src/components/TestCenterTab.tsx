@@ -171,28 +171,82 @@ function DiagnosticSection() {
   );
 }
 
+interface EngagedStudent { id: string; name: string; school: string; skillsTouched: number; totalAttempts: number; passedCount: number; lastAttemptAt: string | null; coveragePct: number }
+interface QuizEngagementRes { totalStudents: number; participants: number; participationRate: number; totalSkills: number; topEngaged: EngagedStudent[] }
+
 function QuizSkillsSection() {
+  const session = useStore((s) => s.session);
   const setTab = useStore((s) => s.setTab);
+  const openStudentProfile = useStore((s) => s.openStudentProfile);
+  const [loading, setLoading] = useState(true);
+  const [engagement, setEngagement] = useState<QuizEngagementRes | null>(null);
+
+  useEffect(() => {
+    const schoolQuery = session?.school && session.school !== '*' ? `?school=${encodeURIComponent(session.school)}` : '';
+    let cancelled = false;
+    setLoading(true);
+    api.get<QuizEngagementRes>(`/analytics/quiz-engagement${schoolQuery}`)
+      .then((r) => { if (!cancelled) setEngagement(r); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [session?.school]);
+
   return (
-    <div className={card}>
-      <h3 className="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">🧪 مهارات الاختبارات القصيرة (تشخيصي/ متدرّج)</h3>
-      <p className="text-sm text-slate-500 dark:text-slate-400">
-        لا تتوفر حاليًا واجهة API تجمّع بيانات <code dir="ltr">skill_progress</code> على مستوى المدرسة كاملة (نسب المشاركة،
-        معدل النجاح، متوسط الدرجات لكل مهارة عبر كل الطلاب) — إضافة تجميع من هذا النوع تتطلّب endpoint جديد، خارج نطاق هذا
-        التحديث.
-      </p>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-        بديل متاح الآن: <code dir="ltr">GET /api/quiz-structure</code> صار يقبل <code dir="ltr">studentId</code> لطالب محدد
-        من نفس مدرستك (تعديل بسيط على endpoint موجود، لا endpoint جديد) — تقدر تشوف مؤشرات أي طالب بكل مستوى ومهارة من صفحة
-        ملفه الشخصي مباشرة.
-      </p>
-      <button
-        type="button"
-        onClick={() => setTab('students')}
-        className="mt-3 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300"
-      >
-        👥 اذهب لقائمة الطلاب ←
-      </button>
+    <div className="space-y-4">
+      <div className={card}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">🧩 المشاركة في الاختبارات القصيرة (30 مهارة × 3 مستويات)</h3>
+          {engagement && (
+            <span className="text-[11px] text-slate-400">
+              {engagement.participants} من {engagement.totalStudents} طالب شاركوا ({engagement.participationRate}%)
+            </span>
+          )}
+        </div>
+        {loading ? (
+          <div className="space-y-2">
+            <div className="skeleton h-12 rounded-xl" />
+            <div className="skeleton h-12 rounded-xl" />
+          </div>
+        ) : !engagement?.topEngaged.length ? (
+          <p className="py-6 text-center text-sm text-slate-400">لا توجد بعد أي محاولات مسجّلة في نظام الاختبارات القصيرة</p>
+        ) : (
+          <ul className="space-y-2">
+            {engagement.topEngaged.map((s, i) => (
+              <li key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-800 dark:bg-slate-900/60">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="text-[11px] font-bold text-indigo-500">#{i + 1}</span>
+                  <span className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-3 text-[11px] text-slate-400">
+                  <span>{s.skillsTouched} مهارة ({s.coveragePct}%)</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{s.passedCount} ناجحة</span>
+                  <button
+                    type="button"
+                    onClick={() => openStudentProfile(s.id)}
+                    className="rounded-lg bg-indigo-50 px-2 py-1 font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300"
+                  >
+                    {s.totalAttempts} محاولة
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className={card}>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          لعرض مؤشرات مهارة/مستوى مفصّلة لطالب محدد (تقدّم كل مهارة في القسم اللفظي والكمي) — من صفحة الملف الشخصي لأي طالب.
+        </p>
+        <button
+          type="button"
+          onClick={() => setTab('students')}
+          className="mt-3 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300"
+        >
+          👥 اذهب لقائمة الطلاب ←
+        </button>
+      </div>
     </div>
   );
 }

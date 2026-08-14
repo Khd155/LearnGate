@@ -63,8 +63,24 @@ export default function StudentRow({
           {testStatusLabel(status)}
         </span>
       </td>
-      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
-        {score === null ? '—' : `${score}%`}
+      <td className="px-4 py-3">
+        {score === null ? (
+          <span className="text-sm text-slate-400">—</span>
+        ) : (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold',
+              score >= 70
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
+                : score >= 50
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                  : 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400',
+            )}
+            title={score < 50 ? 'أداء ضعيف — يحتاج متابعة' : score >= 70 ? 'أداء متقدم' : 'أداء متوسط'}
+          >
+            {score >= 70 ? '▲' : score < 50 ? '▼' : '—'} {score}%
+          </span>
+        )}
       </td>
       <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
         <div className="flex items-center gap-1.5">

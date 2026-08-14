@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import { useStore } from '../store/useStore';
 import { api } from '../lib/api';
-import { cn } from '../lib/cn';
+import RadialGauge from './RadialGauge';
 
 interface AtRiskStudent {
   id: string; name: string; school: string;
@@ -30,6 +30,10 @@ interface ProgressStudent { id: string; name: string; school: string; firstScore
 interface ProgressRes { total: number; improving: number; stable: number; declining: number; students: ProgressStudent[] }
 interface SkillRow { skillId: string; skillName: string; avgPct: number; sampleSize: number }
 interface SkillsRes { skills: SkillRow[]; weakest: SkillRow[] }
+interface HealthStudent { id: string; name: string; school: string; healthScore: number; activityScore: number; performanceScore: number; improvementScore: number }
+interface HealthRes { students: HealthStudent[] }
+interface EngagedStudent { id: string; name: string; school: string; skillsTouched: number; totalAttempts: number; passedCount: number; lastAttemptAt: string | null; coveragePct: number }
+interface QuizEngagementRes { totalStudents: number; participants: number; participationRate: number; totalSkills: number; topEngaged: EngagedStudent[] }
 
 const reasonMeta: Record<string, { label: string; chip: string }> = {
   inactive: { label: 'غياب 3+ أيام', chip: '🟠' },
@@ -41,24 +45,6 @@ function severityChip(reasons: string[]) {
   if (reasons.includes('low_performance')) return '🔴';
   if (reasons.includes('inactive')) return '🟠';
   return '🟡';
-}
-
-function KpiCard({ label, value, hint, tone }: { label: string; value: string | number; hint?: string; tone?: 'default' | 'danger' | 'warn' | 'good' }) {
-  const toneClass =
-    tone === 'danger'
-      ? 'text-rose-600 dark:text-rose-400'
-      : tone === 'warn'
-        ? 'text-amber-600 dark:text-amber-400'
-        : tone === 'good'
-          ? 'text-emerald-600 dark:text-emerald-400'
-          : 'text-slate-800 dark:text-white';
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-      <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">{label}</p>
-      <p className={cn('mt-1 text-2xl font-bold leading-none', toneClass)}>{value}</p>
-      {hint && <p className="mt-1 text-[11px] text-slate-400">{hint}</p>}
-    </div>
-  );
 }
 
 export default function DashboardTab() {
@@ -80,6 +66,8 @@ export default function DashboardTab() {
   const [activity, setActivity] = useState<ActivityRes | null>(null);
   const [progress, setProgress] = useState<ProgressRes | null>(null);
   const [skills, setSkills] = useState<SkillsRes | null>(null);
+  const [health, setHealth] = useState<HealthRes | null>(null);
+  const [engagement, setEngagement] = useState<QuizEngagementRes | null>(null);
 
   useEffect(() => {
     loadThreads();
@@ -103,13 +91,17 @@ export default function DashboardTab() {
       api.get<ActivityRes>(`/analytics/activity${schoolQuery}`),
       api.get<ProgressRes>(`/analytics/progress${schoolQuery}`),
       api.get<SkillsRes>(`/analytics/skills${schoolQuery}`),
+      api.get<HealthRes>(`/analytics/health${schoolQuery}`),
+      api.get<QuizEngagementRes>(`/analytics/quiz-engagement${schoolQuery}`),
     ])
-      .then(([a, ac, p, sk]) => {
+      .then(([a, ac, p, sk, h, eng]) => {
         if (cancelled) return;
         setAtRisk(a);
         setActivity(ac);
         setProgress(p);
         setSkills(sk);
+        setHealth(h);
+        setEngagement(eng);
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -154,6 +146,30 @@ export default function DashboardTab() {
   );
 
   const neverMessagedShown = useMemo(() => neverMessaged.slice(0, 6), [neverMessaged]);
+
+  // Top improvers — real server-computed improvementPct (first vs last diagnostic
+  // attempt), named + ranked, so the admin can see WHO is advancing, not just a count.
+  const topImproving = useMemo(
+    () =>
+      (progress?.students ?? [])
+        .filter((s) => s.classification === 'improving')
+        .sort((a, b) => b.improvementPct - a.improvementPct)
+        .slice(0, 6),
+    [progress],
+  );
+
+  // Struggling = advancing's mirror: lowest score + declining/no-improvement,
+  // ranked worst-first — reuses at-risk's severity ordering (already sorted server-side).
+  const strugglingTop = useMemo(() => (atRisk?.students ?? []).slice(0, 6), [atRisk]);
+
+  // Whole-cohort health — average of the server's composite health_score
+  // (30% activity + 40% performance + 30% improvement), a single number
+  // that answers "how is this school doing overall" in one glance.
+  const avgHealth = useMemo(() => {
+    const list = health?.students ?? [];
+    if (!list.length) return null;
+    return Math.round(list.reduce((sum, s) => sum + s.healthScore, 0) / list.length);
+  }, [health]);
 
   const gridColor = dark ? '#1e293b' : '#e2e8f0';
   const textColor = dark ? '#94a3b8' : '#64748b';
@@ -307,23 +323,102 @@ export default function DashboardTab() {
         </div>
       </section>
 
-      {/* ── Zone 2: Command dashboard — rates, not raw counts ── */}
+      {/* ── Zone 2: Command dashboard — circular gauges, not flat numbers ── */}
       <section>
-        <h2 className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">📊 لوحة القيادة (نسب، لا أعداد خام)</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <KpiCard label="نسبة الإكمال (التشخيصي)" value={`${rates.completionRate}%`} hint="من إجمالي الطلاب أنهوا الاختبار" tone={rates.completionRate < 50 ? 'warn' : 'good'} />
-          <KpiCard label="نسبة النشاط" value={`${rates.activeRate}%`} hint="نشطون خلال ٠-٣ أيام" tone={rates.activeRate < 50 ? 'warn' : 'good'} />
-          <KpiCard label="نسبة الخطر" value={`${rates.atRiskRate}%`} hint="يحتاجون تدخلًا الآن" tone={rates.atRiskRate > 20 ? 'danger' : 'default'} />
-          <KpiCard label="نسبة بدء التشخيصي" value={`${rates.diagnosticStartedRate}%`} hint="بدأوا الاختبار ولو جزئيًا" tone={rates.diagnosticStartedRate < 70 ? 'warn' : 'good'} />
-          <KpiCard
-            label="متوسط نسبة التحسن"
-            value={rates.avgImprovement === null ? '—' : `${rates.avgImprovement > 0 ? '+' : ''}${rates.avgImprovement}%`}
-            hint="ذاتيًا: أول محاولة مقابل آخر محاولة"
-            tone={rates.avgImprovement === null ? 'default' : rates.avgImprovement > 0 ? 'good' : rates.avgImprovement < 0 ? 'danger' : 'default'}
+        <h2 className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">📊 لوحة القيادة (مؤشرات دائرية)</h2>
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          <RadialGauge label="صحة المدرسة عمومًا" pct={avgHealth} hint="نشاط + أداء + تحسن (مركّب)" />
+          <RadialGauge label="نسبة الإكمال" pct={rates.completionRate} hint="أنهوا التشخيصي" />
+          <RadialGauge label="نسبة النشاط" pct={rates.activeRate} hint="نشطون ٠-٣ أيام" />
+          <RadialGauge label="نسبة الخطر" pct={rates.atRiskRate} hint="يحتاجون تدخلًا" invert />
+          <RadialGauge label="بدء التشخيصي" pct={rates.diagnosticStartedRate} hint="بدأوا ولو جزئيًا" />
+          <RadialGauge
+            label="متوسط التحسن"
+            pct={rates.avgImprovement === null ? null : Math.max(0, Math.min(100, 50 + rates.avgImprovement))}
+            valueLabel={rates.avgImprovement === null ? '—' : `${rates.avgImprovement > 0 ? '+' : ''}${rates.avgImprovement}%`}
+            hint="أول محاولة ← آخر محاولة"
           />
-          <KpiCard label="بدون تواصل إطلاقًا" value={`${rates.neverMessagedRate}%`} hint={`${neverMessaged.length} طالب`} tone={rates.neverMessagedRate > 30 ? 'warn' : 'default'} />
+          <RadialGauge label="بدون تواصل" pct={rates.neverMessagedRate} hint={`${neverMessaged.length} طالب`} invert />
         </div>
       </section>
+
+      {/* ── Zone 3: who's advancing vs who's struggling, by name ── */}
+      <section className="grid gap-3 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <h3 className="mb-2 text-sm font-bold text-emerald-700 dark:text-emerald-400">🟢 الأكثر تقدمًا (نسبة التحسن)</h3>
+          {topImproving.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">لا توجد بيانات تحسن كافية بعد</p>
+          ) : (
+            <ol className="space-y-1.5">
+              {topImproving.map((s, i) => (
+                <li key={s.id} className="flex items-center justify-between gap-2 rounded-lg bg-emerald-50/60 px-3 py-1.5 text-sm dark:bg-emerald-950/20">
+                  <span className="flex items-center gap-2 truncate font-medium text-slate-700 dark:text-slate-200">
+                    <span className="text-[11px] font-bold text-emerald-500">#{i + 1}</span>
+                    {s.name}
+                  </span>
+                  <span className="shrink-0 font-bold text-emerald-600 dark:text-emerald-400">+{s.improvementPct}%</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <h3 className="mb-2 text-sm font-bold text-rose-700 dark:text-rose-400">🔴 الأكثر احتياجًا (الأعلى خطورة)</h3>
+          {strugglingTop.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">لا يوجد طلاب في خطر حاليًا 🎉</p>
+          ) : (
+            <ol className="space-y-1.5">
+              {strugglingTop.map((s, i) => (
+                <li key={s.id} className="flex items-center justify-between gap-2 rounded-lg bg-rose-50/60 px-3 py-1.5 text-sm dark:bg-rose-950/20">
+                  <span className="flex items-center gap-2 truncate font-medium text-slate-700 dark:text-slate-200">
+                    <span className="text-[11px] font-bold text-rose-500">#{i + 1}</span>
+                    {s.name}
+                  </span>
+                  <span className="shrink-0 text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                    {s.lastScore !== null ? `${s.lastScore}%` : 'بدون درجة'}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      </section>
+
+      {/* ── Zone 4: most engaged with the short-quiz system — real skill_progress aggregate ── */}
+      {!!engagement && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">🧩 الأكثر تفاعلاً مع الاختبارات القصيرة</h3>
+            <span className="text-[11px] text-slate-400">
+              {engagement.participants} من {engagement.totalStudents} طالب خاضوا اختبارًا قصيرًا واحدًا على الأقل ({engagement.participationRate}%)
+            </span>
+          </div>
+          {engagement.topEngaged.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">لا يوجد بعد أي محاولات مسجّلة في نظام الاختبارات القصيرة</p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {engagement.topEngaged.map((s, i) => (
+                <div key={s.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/60">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="text-[11px] font-bold text-indigo-500">#{i + 1}</span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</p>
+                      <p className="truncate text-[10px] text-slate-400">{s.skillsTouched}/{engagement.totalSkills} مهارة · {s.coveragePct}% تغطية</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openStudentProfile(s.id)}
+                    className="shrink-0 rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300"
+                  >
+                    {s.totalAttempts} محاولة
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Weakest skills — decision-relevant, not decorative */}
       {!!skills?.weakest.length && (

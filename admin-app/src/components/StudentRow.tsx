@@ -13,6 +13,7 @@ interface Props {
   selected: boolean;
   onToggleSelect: (id: string) => void;
   onOpen: (student: Student) => void;
+  onOpenProfile: (student: Student) => void;
   onResetTest: (student: Student) => void;
   onDelete: (student: Student) => void;
   onMessage: (student: Student) => void;
@@ -27,6 +28,7 @@ export default function StudentRow({
   selected,
   onToggleSelect,
   onOpen,
+  onOpenProfile,
   onResetTest,
   onDelete,
   onMessage,
@@ -46,7 +48,8 @@ export default function StudentRow({
       <td className="px-4 py-3">
         <button
           type="button"
-          onClick={() => onOpen(student)}
+          onClick={() => onOpenProfile(student)}
+          title="فتح الملف العلمي الكامل"
           className="font-medium text-slate-900 hover:text-indigo-600 hover:underline dark:text-white dark:hover:text-indigo-400"
         >
           {student.name}
@@ -101,6 +104,12 @@ export default function StudentRow({
               sideOffset={4}
               className="z-50 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800"
             >
+              <DropdownMenu.Item
+                onSelect={() => onOpenProfile(student)}
+                className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                🔬 الملف العلمي
+              </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={() => onMessage(student)}
                 className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"

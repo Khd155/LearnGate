@@ -8,6 +8,7 @@ import TestCenterTab from './TestCenterTab';
 import ConversationsTab from './ConversationsTab';
 import BroadcastTab from './BroadcastTab';
 import AdminTab from './AdminTab';
+import StudentProfilePage from './StudentProfilePage';
 import ToastSystem from './ToastSystem';
 
 const STATS_POLL_MS = 45000;
@@ -42,6 +43,7 @@ export default function DashboardLayout() {
           {tab === 'conversations' && <ConversationsTab />}
           {tab === 'broadcast' && <BroadcastTab />}
           {tab === 'admin' && <AdminTab />}
+          {tab === 'studentProfile' && <StudentProfilePage />}
         </div>
       </main>
       <ToastSystem />

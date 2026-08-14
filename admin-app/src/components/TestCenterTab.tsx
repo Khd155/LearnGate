@@ -64,6 +64,8 @@ function DiagnosticSection() {
     return {
       finished, started, notStarted,
       finishedPct: Math.round((finished / total) * 100),
+      startedPct: Math.round((started / total) * 100),
+      notStartedPct: Math.round((notStarted / total) * 100),
     };
   }, [students, statusOf]);
 
@@ -94,10 +96,12 @@ function DiagnosticSection() {
         <div className={card}>
           <p className="text-xs text-slate-400">بدأوا ولم ينهوا</p>
           <p className="mt-1 text-2xl font-bold text-amber-600 dark:text-amber-400">{completion.started}</p>
+          <p className="text-[11px] text-slate-400">{completion.startedPct}% من الإجمالي</p>
         </div>
         <div className={card}>
           <p className="text-xs text-slate-400">لم يبدأوا</p>
           <p className="mt-1 text-2xl font-bold text-slate-500">{completion.notStarted}</p>
+          <p className="text-[11px] text-slate-400">{completion.notStartedPct}% من الإجمالي</p>
         </div>
       </div>
 

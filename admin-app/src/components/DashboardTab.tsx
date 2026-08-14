@@ -12,8 +12,6 @@ import {
 import { useStore } from '../store/useStore';
 import { api } from '../lib/api';
 import { cn } from '../lib/cn';
-import StudentModal from './StudentModal';
-import type { Student } from '../types';
 
 interface AtRiskStudent {
   id: string; name: string; school: string;
@@ -28,6 +26,10 @@ interface AtRiskRes {
 }
 interface ActivityBucket { count: number; students: { id: string; name: string; lastActive: string | null }[] }
 interface ActivityRes { active: ActivityBucket; medium: ActivityBucket; inactive: ActivityBucket }
+interface ProgressStudent { id: string; name: string; school: string; firstScore: number; lastScore: number; improvementPct: number; attempts: number; classification: 'improving' | 'stable' | 'declining' }
+interface ProgressRes { total: number; improving: number; stable: number; declining: number; students: ProgressStudent[] }
+interface SkillRow { skillId: string; skillName: string; avgPct: number; sampleSize: number }
+interface SkillsRes { skills: SkillRow[]; weakest: SkillRow[] }
 
 const reasonMeta: Record<string, { label: string; chip: string }> = {
   inactive: { label: 'غياب 3+ أيام', chip: '🟠' },
@@ -69,18 +71,28 @@ export default function DashboardTab() {
   const setTab = useStore((s) => s.setTab);
   const setConversationFocusStudentId = useStore((s) => s.setConversationFocusStudentId);
   const setBroadcastPrefillIds = useStore((s) => s.setBroadcastPrefillIds);
-  const pushToast = useStore((s) => s.pushToast);
+  const openStudentProfile = useStore((s) => s.openStudentProfile);
   const threads = useStore((s) => s.threads);
   const loadThreads = useStore((s) => s.loadThreads);
 
   const [loading, setLoading] = useState(true);
   const [atRisk, setAtRisk] = useState<AtRiskRes | null>(null);
   const [activity, setActivity] = useState<ActivityRes | null>(null);
-  const [detailStudent, setDetailStudent] = useState<Student | null>(null);
+  const [progress, setProgress] = useState<ProgressRes | null>(null);
+  const [skills, setSkills] = useState<SkillsRes | null>(null);
 
   useEffect(() => {
     loadThreads();
   }, [loadThreads]);
+
+  // Zone 1 signal: students with ZERO conversation history with any admin,
+  // ever — derived client-side as students minus students appearing in
+  // `threads` (threads is already school-scoped, no adminId filter → covers
+  // every admin, not just the one currently logged in). No new API needed.
+  const neverMessaged = useMemo(() => {
+    const withThread = new Set(threads.map((t) => t.student_id));
+    return students.filter((s) => !withThread.has(s.id));
+  }, [students, threads]);
 
   useEffect(() => {
     const schoolQuery = session?.school && session.school !== '*' ? `?school=${encodeURIComponent(session.school)}` : '';
@@ -89,19 +101,25 @@ export default function DashboardTab() {
     Promise.all([
       api.get<AtRiskRes>(`/analytics/at-risk${schoolQuery}`),
       api.get<ActivityRes>(`/analytics/activity${schoolQuery}`),
+      api.get<ProgressRes>(`/analytics/progress${schoolQuery}`),
+      api.get<SkillsRes>(`/analytics/skills${schoolQuery}`),
     ])
-      .then(([a, ac]) => {
+      .then(([a, ac, p, sk]) => {
         if (cancelled) return;
         setAtRisk(a);
         setActivity(ac);
+        setProgress(p);
+        setSkills(sk);
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [session?.school]);
 
-  const kpis = useMemo(() => {
-    const total = students.length;
+  // Zone 2: every figure here is a rate, not a raw count — "what does this
+  // number mean" rather than "what is the number".
+  const rates = useMemo(() => {
+    const total = students.length || 1;
     let finished = 0;
     let notStarted = 0;
     for (const s of students) {
@@ -109,24 +127,33 @@ export default function DashboardTab() {
       if (st === 'finished') finished++;
       if (st === 'not_started') notStarted++;
     }
-    // "active" = logged in / touched activity within 0-3 days per /analytics/activity buckets
     const activeCount = (activity?.active.count ?? 0) + (activity?.medium.count ?? 0);
-    const neverLoggedIn = atRisk?.neverStarted.count ?? 0;
+    const atRiskCount = atRisk?.total ?? 0;
+    const withScores = progress?.total || 0;
+    const avgImprovement = withScores
+      ? Math.round((progress?.students ?? []).reduce((sum, s) => sum + s.improvementPct, 0) / withScores)
+      : null;
     return {
-      total,
-      active: activeCount,
-      neverLoggedIn,
-      neverStartedDiagnostic: notStarted,
-      atRisk: atRisk?.total ?? 0,
+      completionRate: Math.round((finished / total) * 100),
+      activeRate: Math.round((activeCount / total) * 100),
+      atRiskRate: Math.round((atRiskCount / total) * 100),
+      diagnosticStartedRate: Math.round(((total - notStarted) / total) * 100),
+      neverMessagedRate: Math.round((neverMessaged.length / total) * 100),
+      avgImprovement,
     };
-  }, [students, statusOf, activity, atRisk]);
+  }, [students, statusOf, activity, atRisk, neverMessaged, progress]);
 
   const needsIntervention = useMemo(() => {
     const list = atRisk?.students ?? [];
-    return list.slice(0, 8);
+    return list.slice(0, 6);
   }, [atRisk]);
 
-  const recentThreads = useMemo(() => threads.slice(0, 5), [threads]);
+  const decliningStudents = useMemo(
+    () => (progress?.students ?? []).filter((s) => s.classification === 'declining').slice(0, 6),
+    [progress],
+  );
+
+  const neverMessagedShown = useMemo(() => neverMessaged.slice(0, 6), [neverMessaged]);
 
   const gridColor = dark ? '#1e293b' : '#e2e8f0';
   const textColor = dark ? '#94a3b8' : '#64748b';
@@ -151,19 +178,168 @@ export default function DashboardTab() {
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {/* Compact KPI row */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <KpiCard label="إجمالي الطلاب" value={kpis.total} />
-        <KpiCard label="نشط (٠-٣ أيام)" value={kpis.active} tone="good" />
-        <KpiCard label="لم يسجّل دخول قط" value={kpis.neverLoggedIn} tone={kpis.neverLoggedIn ? 'warn' : 'default'} />
-        <KpiCard label="لم يبدأ التشخيصي" value={kpis.neverStartedDiagnostic} tone={kpis.neverStartedDiagnostic ? 'warn' : 'default'} />
-        <KpiCard label="يحتاجون تدخل" value={kpis.atRisk} tone={kpis.atRisk ? 'danger' : 'default'} />
-        <KpiCard label="متوسط الدرجات" value={stats ? `${Math.round(stats.cards.avgScore.value ?? 0)}%` : '—'} />
-      </div>
+  const goMessage = (id: string) => {
+    setConversationFocusStudentId(id);
+    setTab('conversations');
+  };
 
-      {/* Real activity chart */}
+  return (
+    <div className="space-y-5">
+      {/* ── Zone 1: Quick Actions — the first thing on the page. Every card is
+          an actionable worklist, not a stat. ── */}
+      <section>
+        <h2 className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">⚡ يحتاج إجراءً اليوم</h2>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {/* Needs intervention */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">🔴 يحتاجون تدخلاً ({atRisk?.total ?? 0})</h3>
+            </div>
+            {needsIntervention.length === 0 ? (
+              <p className="py-6 text-center text-sm text-slate-400">لا يوجد طلاب يحتاجون تدخل حاليًا 🎉</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                {needsIntervention.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span>{severityChip(s.reasons)}</span>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</p>
+                        <p className="truncate text-[11px] text-slate-400">
+                          {s.reasons.map((r) => reasonMeta[r]?.label || r).join(' · ')} ·{' '}
+                          {s.daysSinceActive === null ? 'لا نشاط' : `منذ ${s.daysSinceActive} يوم`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-1.5">
+                      <button type="button" onClick={() => goMessage(s.id)} className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">💬</button>
+                      <button type="button" onClick={() => openStudentProfile(s.id)} className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">الملف</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Never started */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">⚪ لم يبدأوا أبدًا ({atRisk?.neverStarted.count ?? 0})</h3>
+              {!!atRisk?.neverStarted.count && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBroadcastPrefillIds(atRisk.neverStarted.students.map((s) => s.id));
+                    setTab('broadcast');
+                  }}
+                  className="rounded-lg bg-amber-500 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-600"
+                >
+                  📣 تذكير جماعي
+                </button>
+              )}
+            </div>
+            {!atRisk?.neverStarted.count ? (
+              <p className="py-6 text-center text-sm text-slate-400">الجميع بدأوا التشخيصي 🎉</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                {atRisk.neverStarted.students.slice(0, 6).map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                    <span className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
+                    <div className="flex shrink-0 gap-1.5">
+                      <button type="button" onClick={() => goMessage(s.id)} className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">💬</button>
+                      <button type="button" onClick={() => openStudentProfile(s.id)} className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">الملف</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Declined */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <h3 className="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">📉 تراجع أداؤهم ({progress?.declining ?? 0})</h3>
+            {decliningStudents.length === 0 ? (
+              <p className="py-6 text-center text-sm text-slate-400">لا يوجد طلاب متراجعون حاليًا 🎉</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                {decliningStudents.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                    <span className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">{s.firstScore}%→{s.lastScore}%</span>
+                      <button type="button" onClick={() => openStudentProfile(s.id)} className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">الملف</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Never messaged — new round-2 signal */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">🔇 بدون أي تواصل معهم ({neverMessaged.length})</h3>
+              {neverMessaged.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setBroadcastPrefillIds(neverMessaged.map((s) => s.id)); setTab('broadcast'); }}
+                  className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                >
+                  📢 مراسلة جماعية
+                </button>
+              )}
+            </div>
+            {neverMessagedShown.length === 0 ? (
+              <p className="py-6 text-center text-sm text-slate-400">كل الطلاب لديهم تواصل مسجّل 🎉</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                {neverMessagedShown.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                    <span className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
+                    <div className="flex shrink-0 gap-1.5">
+                      <button type="button" onClick={() => goMessage(s.id)} className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">فتح رسالة أولى</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Zone 2: Command dashboard — rates, not raw counts ── */}
+      <section>
+        <h2 className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">📊 لوحة القيادة (نسب، لا أعداد خام)</h2>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <KpiCard label="نسبة الإكمال (التشخيصي)" value={`${rates.completionRate}%`} hint="من إجمالي الطلاب أنهوا الاختبار" tone={rates.completionRate < 50 ? 'warn' : 'good'} />
+          <KpiCard label="نسبة النشاط" value={`${rates.activeRate}%`} hint="نشطون خلال ٠-٣ أيام" tone={rates.activeRate < 50 ? 'warn' : 'good'} />
+          <KpiCard label="نسبة الخطر" value={`${rates.atRiskRate}%`} hint="يحتاجون تدخلًا الآن" tone={rates.atRiskRate > 20 ? 'danger' : 'default'} />
+          <KpiCard label="نسبة بدء التشخيصي" value={`${rates.diagnosticStartedRate}%`} hint="بدأوا الاختبار ولو جزئيًا" tone={rates.diagnosticStartedRate < 70 ? 'warn' : 'good'} />
+          <KpiCard
+            label="متوسط نسبة التحسن"
+            value={rates.avgImprovement === null ? '—' : `${rates.avgImprovement > 0 ? '+' : ''}${rates.avgImprovement}%`}
+            hint="ذاتيًا: أول محاولة مقابل آخر محاولة"
+            tone={rates.avgImprovement === null ? 'default' : rates.avgImprovement > 0 ? 'good' : rates.avgImprovement < 0 ? 'danger' : 'default'}
+          />
+          <KpiCard label="بدون تواصل إطلاقًا" value={`${rates.neverMessagedRate}%`} hint={`${neverMessaged.length} طالب`} tone={rates.neverMessagedRate > 30 ? 'warn' : 'default'} />
+        </div>
+      </section>
+
+      {/* Weakest skills — decision-relevant, not decorative */}
+      {!!skills?.weakest.length && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <h3 className="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">🎯 أضعف المهارات عبر كل الطلاب</h3>
+          <div className="flex flex-wrap gap-2">
+            {skills.weakest.map((s) => (
+              <span key={s.skillId || s.skillName} className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
+                {s.skillName} — {s.avgPct}%
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Real activity chart — supports the "who dropped off" question, not decorative */}
       {stats && (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
           <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">النشاط اليومي (تسجيلات دخول واختبارات)</h3>
@@ -185,114 +361,6 @@ export default function DashboardTab() {
           </ResponsiveContainer>
         </div>
       )}
-
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        {/* Needs intervention list */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">
-            يحتاجون تدخلاً {atRisk ? `(أعلى ${needsIntervention.length} من ${atRisk.total})` : ''}
-          </h3>
-          {needsIntervention.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">لا يوجد طلاب يحتاجون تدخل حاليًا 🎉</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {needsIntervention.map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-2 py-2.5 text-sm">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span>{severityChip(s.reasons)}</span>
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</p>
-                      <p className="truncate text-[11px] text-slate-400">
-                        {s.reasons.map((r) => reasonMeta[r]?.label || r).join(' · ')} ·{' '}
-                        {s.daysSinceActive === null ? 'لا نشاط' : `آخر نشاط منذ ${s.daysSinceActive} يوم`} ·{' '}
-                        {s.lastScore !== null ? `آخر درجة ${s.lastScore}%` : 'بدون درجة'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConversationFocusStudentId(s.id);
-                        setTab('conversations');
-                      }}
-                      className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300"
-                    >
-                      💬 رسالة
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const full = students.find((st) => st.id === s.id);
-                        if (full) setDetailStudent(full);
-                        else pushToast('error', 'تعذّر إيجاد بيانات الطالب الكاملة');
-                      }}
-                      className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
-                    >
-                      تفاصيل
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {!!atRisk?.neverStarted.count && (
-            <button
-              type="button"
-              onClick={() => {
-                setBroadcastPrefillIds(atRisk.neverStarted.students.map((s) => s.id));
-                setTab('broadcast');
-              }}
-              className="mt-3 w-full rounded-lg bg-amber-500 py-1.5 text-xs font-bold text-white hover:bg-amber-600"
-            >
-              📣 تذكير جماعي لمن لم يبدأ ({atRisk.neverStarted.count})
-            </button>
-          )}
-        </div>
-
-        {/* Last 5 conversations */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">آخر المحادثات</h3>
-          {recentThreads.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">لا توجد محادثات بعد</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {recentThreads.map((t) => (
-                <li key={t.student_id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConversationFocusStudentId(t.student_id);
-                      setTab('conversations');
-                    }}
-                    className="flex w-full items-center justify-between gap-2 py-2.5 text-start text-sm hover:opacity-80"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-slate-700 dark:text-slate-200">{t.student_name}</p>
-                      <p className="truncate text-[11px] text-slate-400">{t.last_msg}</p>
-                    </div>
-                    {t.unread > 0 && (
-                      <span className="shrink-0 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                        {t.unread}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      <StudentModal
-        student={detailStudent}
-        onOpenChange={(o) => !o && setDetailStudent(null)}
-        onMessage={(st) => {
-          setConversationFocusStudentId(st.id);
-          setTab('conversations');
-          setDetailStudent(null);
-        }}
-      />
     </div>
   );
 }

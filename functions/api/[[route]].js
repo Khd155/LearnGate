@@ -1747,12 +1747,29 @@ export async function onRequest({ request, env }) {
         }
       }
 
-      // GET /api/quiz-structure — full tree + this student's progress + level lock flags
+      // GET /api/quiz-structure — full tree + a student's progress + level lock flags.
+      // Normally the caller's own progress (role==='student'); admin/director/dev may
+      // instead pass ?studentId= to view a specific student's tree — used by the admin
+      // dashboard's per-student quiz-skills view, school-scoped like every other
+      // admin-facing student lookup in this file.
       if (resource === 'quiz-structure' && method === 'GET') {
         const claims = await verifyToken(request, env, DB);
-        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        if (!claims) return err('غير مصرح', 401, CORS);
+        let targetStudentId;
+        if (claims.role === 'student') {
+          targetStudentId = claims.sub;
+        } else if (['admin', 'director', 'dev'].includes(claims.role)) {
+          targetStudentId = url.searchParams.get('studentId') || '';
+          if (!targetStudentId) return err('معرّف الطالب مطلوب', 400, CORS);
+          if (claims.role !== 'dev' && claims.school && claims.school !== '*') {
+            const targetSt = await DB.prepare('SELECT school FROM students WHERE id = ?').bind(targetStudentId).first();
+            if (!targetSt || (targetSt.school || '').trim() !== claims.school.trim()) return err('غير مسموح', 403, CORS);
+          }
+        } else {
+          return err('غير مصرح', 401, CORS);
+        }
         const { results: skills } = await DB.prepare('SELECT * FROM quiz_skills ORDER BY section, level, order_idx').all();
-        const { results: progressRows } = await DB.prepare('SELECT * FROM skill_progress WHERE student_id = ?').bind(claims.sub).all();
+        const { results: progressRows } = await DB.prepare('SELECT * FROM skill_progress WHERE student_id = ?').bind(targetStudentId).all();
         const { results: qCounts } = await DB.prepare('SELECT quiz_skill_id, COUNT(*) as c FROM quiz_skill_questions GROUP BY quiz_skill_id').all();
         const qCountMap = Object.fromEntries(qCounts.map(r => [r.quiz_skill_id, Number(r.c)]));
         const progressMap = Object.fromEntries(progressRows.map(r => [r.quiz_skill_id, r]));

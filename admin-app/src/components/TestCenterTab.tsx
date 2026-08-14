@@ -172,18 +172,27 @@ function DiagnosticSection() {
 }
 
 function QuizSkillsSection() {
+  const setTab = useStore((s) => s.setTab);
   return (
     <div className={card}>
       <h3 className="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">🧪 مهارات الاختبارات القصيرة (تشخيصي/ متدرّج)</h3>
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        لا تتوفر حاليًا واجهة API للإدارة تجمّع بيانات <code dir="ltr">skill_progress</code> على مستوى المدرسة (نسب المشاركة، معدل
-        النجاح، متوسط الدرجات لكل مهارة). الواجهة الوحيدة الموجودة (<code dir="ltr">/api/quiz-structure</code>) مخصّصة للطالب نفسه
-        فقط وتتطلّب صلاحية <code dir="ltr">role === 'student'</code>، ولا يوجد أي نقطة نهاية أخرى تُرجع تجميعًا لعدة طلاب.
+        لا تتوفر حاليًا واجهة API تجمّع بيانات <code dir="ltr">skill_progress</code> على مستوى المدرسة كاملة (نسب المشاركة،
+        معدل النجاح، متوسط الدرجات لكل مهارة عبر كل الطلاب) — إضافة تجميع من هذا النوع تتطلّب endpoint جديد، خارج نطاق هذا
+        التحديث.
       </p>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-        هذا القسم مُبقى فارغًا عمدًا حتى تتم إضافة واجهة تجميع من جهة الخادم (خارج نطاق هذا التحديث، الذي يمنع إنشاء أي واجهات
-        API جديدة). تم إبلاغ الفريق بهذا القيد بدلاً من اختلاق بيانات أو نقطة نهاية جديدة.
+        بديل متاح الآن: <code dir="ltr">GET /api/quiz-structure</code> صار يقبل <code dir="ltr">studentId</code> لطالب محدد
+        من نفس مدرستك (تعديل بسيط على endpoint موجود، لا endpoint جديد) — تقدر تشوف مؤشرات أي طالب بكل مستوى ومهارة من صفحة
+        ملفه الشخصي مباشرة.
       </p>
+      <button
+        type="button"
+        onClick={() => setTab('students')}
+        className="mt-3 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300"
+      >
+        👥 اذهب لقائمة الطلاب ←
+      </button>
     </div>
   );
 }

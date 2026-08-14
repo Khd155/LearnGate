@@ -10,6 +10,30 @@ function planScore(p: Plan): number | null {
   return gaps.length ? Math.round(gaps.reduce((s, g) => s + g.pct, 0) / gaps.length) : null;
 }
 
+interface QuizSkillEntry {
+  quizSkillId: string;
+  skillId: string;
+  skillName: string;
+  status: 'not_started' | 'passed' | 'failed' | string;
+  bestCorrect: number;
+  bestTotal: number;
+  attempts: number;
+  hasQuestions: boolean;
+}
+interface QuizLevelEntry {
+  level: 'easy' | 'medium' | 'advanced';
+  locked: boolean;
+  progressPct: number;
+  skills: QuizSkillEntry[];
+}
+interface QuizStructureTree {
+  verbal: QuizLevelEntry[];
+  quantitative: QuizLevelEntry[];
+}
+
+const LEVEL_LABEL: Record<string, string> = { easy: 'المستوى الأول — سهل', medium: 'المستوى الثاني — متوسط', advanced: 'المستوى الثالث — متقدم' };
+const SECTION_LABEL: Record<string, string> = { verbal: 'القسم اللفظي', quantitative: 'القسم الكمي' };
+
 function levelColor(pct: number | null): string {
   if (pct === null) return 'bg-slate-100 text-slate-500';
   if (pct <= 30) return 'bg-rose-100 text-rose-700';
@@ -41,6 +65,9 @@ export default function StudentProfilePage() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [quizTree, setQuizTree] = useState<QuizStructureTree | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizError, setQuizError] = useState(false);
 
   useEffect(() => { loadThreads(); }, [loadThreads]);
 
@@ -54,6 +81,15 @@ export default function StudentProfilePage() {
       .catch(() => setHistory([]))
       .finally(() => setHistoryLoading(false));
     loadMessages(profileStudentId);
+
+    setQuizTree(null);
+    setQuizError(false);
+    setQuizLoading(true);
+    api
+      .get<{ tree: QuizStructureTree }>(`/quiz-structure?studentId=${encodeURIComponent(profileStudentId)}`)
+      .then((res) => setQuizTree(res.tree))
+      .catch(() => setQuizError(true))
+      .finally(() => setQuizLoading(false));
   }, [profileStudentId, loadMessages]);
 
   useEffect(() => {
@@ -233,6 +269,53 @@ export default function StudentProfilePage() {
               </div>
             </div>
           )}
+
+          {/* Quiz-skills (short quizzes) progress — per-skill, fraction not percentage */}
+          <div className={card}>
+            <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">🧩 مؤشرات الاختبارات القصيرة (تقدّم كل مهارة بكل مستوى)</h3>
+            {quizLoading ? (
+              <div className="space-y-2">
+                <div className="skeleton h-12 rounded-xl" />
+                <div className="skeleton h-12 rounded-xl" />
+              </div>
+            ) : quizError || !quizTree ? (
+              <p className="py-4 text-sm text-slate-400">تعذّر تحميل بيانات الاختبارات القصيرة لهذا الطالب.</p>
+            ) : (
+              <div className="space-y-5">
+                {(['verbal', 'quantitative'] as const).map((section) => (
+                  <div key={section}>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{SECTION_LABEL[section]}</p>
+                    <div className="space-y-3">
+                      {quizTree[section].map((lvl) => (
+                        <div key={lvl.level} className="rounded-xl border border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2 dark:border-slate-800">
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                              {LEVEL_LABEL[lvl.level]} {lvl.locked && <span className="ms-1 text-slate-400">🔒</span>}
+                            </span>
+                            <span className="text-xs text-slate-400">{lvl.progressPct}% مكتمل</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-1.5 p-3 sm:grid-cols-2">
+                            {lvl.skills.map((sk) => (
+                              <div key={sk.quizSkillId} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs dark:bg-slate-900/60">
+                                <span className="text-slate-600 dark:text-slate-300">{sk.skillName}</span>
+                                {sk.status === 'not_started' ? (
+                                  <span className="text-slate-400">لم تبدأ</span>
+                                ) : (
+                                  <span className={cn('font-bold', sk.status === 'passed' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+                                    {sk.bestCorrect}/{sk.bestTotal}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Activity log gap note */}
           <div className={cn(card, 'border-dashed')}>

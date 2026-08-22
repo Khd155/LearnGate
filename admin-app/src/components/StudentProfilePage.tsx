@@ -34,6 +34,32 @@ interface QuizStructureTree {
 const LEVEL_LABEL: Record<string, string> = { easy: 'المستوى الأول — سهل', medium: 'المستوى الثاني — متوسط', advanced: 'المستوى الثالث — متقدم' };
 const SECTION_LABEL: Record<string, string> = { verbal: 'القسم اللفظي', quantitative: 'القسم الكمي' };
 
+// Mirrors GET /api/journey — same shape computeJourney() in
+// functions/_lib/journey.js returns, plus the raw `tree` the route handler
+// attaches alongside it. This is the SAME endpoint the student's own "مسار
+// الإنجاز" home screen calls, so the admin view can never disagree with what
+// the student sees.
+interface JourneySkillRef { quizSkillId: string; skillId: string; skillName: string; section: string; level: string; bestCorrect: number; bestTotal: number; attempts: number }
+interface JourneyNextAction { type: string; label: string; detail?: string; section?: string; level?: string; quizSkillId?: string }
+interface JourneySkillSummary { skillId: string; skillName: string; section: string; pct: number }
+interface Journey {
+  diagnostic: { done: boolean; gaps: PlanGap[] | null };
+  overallProgressPct: number;
+  passedNodes: number;
+  totalNodes: number;
+  sections: { verbal: { passed: number; total: number; progressPct: number }; quantitative: { passed: number; total: number; progressPct: number } };
+  stage: string;
+  stageLabel: string;
+  nextAction: JourneyNextAction;
+  needsReview: JourneySkillRef[];
+  strongest: JourneySkillSummary | null;
+  weakest: JourneySkillSummary | null;
+  health: { healthScore: number; activityScore: number; performanceScore: number; improvementScore: number; lastActive: string | null } | null;
+  finalMock: { available: boolean; attempted: boolean; attempts?: number; bestScore?: number | null; title?: string } | null;
+  badge: { code: string; label: string } | null;
+  tree: QuizStructureTree;
+}
+
 function levelColor(pct: number | null): string {
   if (pct === null) return 'bg-slate-100 text-slate-500';
   if (pct <= 30) return 'bg-rose-100 text-rose-700';
@@ -65,9 +91,14 @@ export default function StudentProfilePage() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const [quizTree, setQuizTree] = useState<QuizStructureTree | null>(null);
-  const [quizLoading, setQuizLoading] = useState(false);
-  const [quizError, setQuizError] = useState(false);
+  // GET /api/journey?studentId= — the same endpoint the student's own home
+  // screen calls; replaces the old standalone GET /api/quiz-structure fetch
+  // (the tree is now attached to the journey response, so this is one fetch
+  // instead of two, and the admin view is guaranteed to match what the
+  // student sees rather than deriving its own progress reading).
+  const [journey, setJourney] = useState<Journey | null>(null);
+  const [journeyLoading, setJourneyLoading] = useState(false);
+  const [journeyError, setJourneyError] = useState(false);
 
   useEffect(() => { loadThreads(); }, [loadThreads]);
 
@@ -82,14 +113,14 @@ export default function StudentProfilePage() {
       .finally(() => setHistoryLoading(false));
     loadMessages(profileStudentId);
 
-    setQuizTree(null);
-    setQuizError(false);
-    setQuizLoading(true);
+    setJourney(null);
+    setJourneyError(false);
+    setJourneyLoading(true);
     api
-      .get<{ tree: QuizStructureTree }>(`/quiz-structure?studentId=${encodeURIComponent(profileStudentId)}`)
-      .then((res) => setQuizTree(res.tree))
-      .catch(() => setQuizError(true))
-      .finally(() => setQuizLoading(false));
+      .get<{ journey: Journey }>(`/journey?studentId=${encodeURIComponent(profileStudentId)}`)
+      .then((res) => setJourney(res.journey))
+      .catch(() => setJourneyError(true))
+      .finally(() => setJourneyLoading(false));
   }, [profileStudentId, loadMessages]);
 
   useEffect(() => {
@@ -198,6 +229,82 @@ export default function StudentProfilePage() {
         <span className="text-xs text-slate-400">عضو منذ {new Date(student.created_at).toLocaleDateString('ar-SA')}</span>
       </div>
 
+      {/* مسار الإنجاز — same GET /api/journey the student's own home screen
+          renders, so what the admin sees here can never disagree with what
+          the student sees. */}
+      <div className={card}>
+        <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">🧭 مسار الإنجاز</h3>
+        {journeyLoading ? (
+          <div className="skeleton h-24 rounded-xl" />
+        ) : journeyError || !journey ? (
+          <p className="py-4 text-sm text-slate-400">تعذّر تحميل مسار الإنجاز لهذا الطالب.</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-col items-center justify-center rounded-full border-4 border-indigo-100 dark:border-indigo-950" style={{ width: 64, height: 64 }}>
+                <span className="text-lg font-extrabold text-indigo-600 dark:text-indigo-300">{journey.overallProgressPct}%</span>
+              </div>
+              <div className="min-w-[160px] flex-1">
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{journey.stageLabel}</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {journey.passedNodes}/{journey.totalNodes} مهارة مكتملة · اللفظي {journey.sections.verbal.progressPct}% · الكمي {journey.sections.quantitative.progressPct}%
+                </p>
+              </div>
+              {journey.health && (
+                <div className="text-center">
+                  <p className={cn('text-lg font-extrabold', journey.health.healthScore >= 70 ? 'text-emerald-600 dark:text-emerald-400' : journey.health.healthScore >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400')}>
+                    {journey.health.healthScore}
+                  </p>
+                  <p className="text-[11px] text-slate-400">مؤشر الجاهزية</p>
+                </div>
+              )}
+              {journey.badge && (
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  🏆 {journey.badge.label}
+                </span>
+              )}
+            </div>
+
+            {!journey.diagnostic.done ? (
+              <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-400">لم يبدأ الطالب التشخيص الذاتي بعد.</p>
+            ) : journey.nextAction.type !== 'done' && (
+              <div className="flex items-center gap-2 rounded-xl bg-indigo-50 px-3 py-2 text-xs dark:bg-indigo-950/60">
+                <span className="font-bold text-indigo-600 dark:text-indigo-300">الخطوة التالية:</span>
+                <span className="text-slate-700 dark:text-slate-200">{journey.nextAction.label}</span>
+              </div>
+            )}
+
+            {(journey.strongest || journey.weakest) && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {journey.strongest && (
+                  <p className="rounded-xl border border-slate-100 px-3 py-2 text-xs dark:border-slate-800">
+                    💪 أقوى مهارة: <b className="text-slate-700 dark:text-slate-200">{journey.strongest.skillName}</b> — <span className="font-bold text-emerald-600 dark:text-emerald-400">{journey.strongest.pct}%</span>
+                  </p>
+                )}
+                {journey.weakest && (
+                  <p className="rounded-xl border border-slate-100 px-3 py-2 text-xs dark:border-slate-800">
+                    🎯 تحتاج تركيز: <b className="text-slate-700 dark:text-slate-200">{journey.weakest.skillName}</b> — <span className="font-bold text-rose-600 dark:text-rose-400">{journey.weakest.pct}%</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {journey.needsReview.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-bold text-rose-600 dark:text-rose-400">🔴 يحتاج مراجعة ({journey.needsReview.length})</p>
+                <div className="flex flex-wrap gap-2">
+                  {journey.needsReview.map((r) => (
+                    <span key={r.quizSkillId} className="rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">
+                      {r.skillName} ({r.bestCorrect}/{r.bestTotal})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <div className="space-y-4">
           {/* Trajectory */}
@@ -270,15 +377,16 @@ export default function StudentProfilePage() {
             </div>
           )}
 
-          {/* Quiz-skills (short quizzes) progress — per-skill, fraction not percentage */}
+          {/* Quiz-skills (short quizzes) progress — per-skill, fraction not percentage.
+              Reads the same tree the journey summary card above uses (one fetch). */}
           <div className={card}>
             <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">🧩 مؤشرات الاختبارات القصيرة (تقدّم كل مهارة بكل مستوى)</h3>
-            {quizLoading ? (
+            {journeyLoading ? (
               <div className="space-y-2">
                 <div className="skeleton h-12 rounded-xl" />
                 <div className="skeleton h-12 rounded-xl" />
               </div>
-            ) : quizError || !quizTree ? (
+            ) : journeyError || !journey ? (
               <p className="py-4 text-sm text-slate-400">تعذّر تحميل بيانات الاختبارات القصيرة لهذا الطالب.</p>
             ) : (
               <div className="space-y-5">
@@ -286,7 +394,7 @@ export default function StudentProfilePage() {
                   <div key={section}>
                     <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{SECTION_LABEL[section]}</p>
                     <div className="space-y-3">
-                      {quizTree[section].map((lvl) => (
+                      {journey.tree[section].map((lvl) => (
                         <div key={lvl.level} className="rounded-xl border border-slate-100 dark:border-slate-800">
                           <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2 dark:border-slate-800">
                             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">

@@ -174,6 +174,79 @@ function DiagnosticSection() {
 interface EngagedStudent { id: string; name: string; school: string; skillsTouched: number; totalAttempts: number; passedCount: number; lastAttemptAt: string | null; coveragePct: number }
 interface QuizEngagementRes { totalStudents: number; participants: number; participationRate: number; totalSkills: number; topEngaged: EngagedStudent[] }
 
+// GET/PATCH /api/settings — today just the quiz-skills passing ratio (default
+// 0.8, i.e. the original hardcoded "correct >= 4 of 5" rule). director/dev
+// only, since it's global — not scoped to one school.
+interface SettingsRes { settings: { quiz_pass_ratio: { value: number; default: number; label: string } } }
+
+function QuizPassSettingsCard() {
+  const session = useStore((s) => s.session);
+  const pushToast = useStore((s) => s.pushToast);
+  const canEdit = session?.role === 'director' || session?.role === 'dev';
+  const [ratio, setRatio] = useState<number | null>(null);
+  const [defaultRatio, setDefaultRatio] = useState(0.8);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get<SettingsRes>('/settings')
+      .then((r) => {
+        setRatio(r.settings.quiz_pass_ratio.value);
+        setDefaultRatio(r.settings.quiz_pass_ratio.default);
+        setDraft(String(r.settings.quiz_pass_ratio.value));
+      })
+      .catch(() => {});
+  }, []);
+
+  if (ratio === null) return null;
+
+  const save = async () => {
+    const n = Number(draft);
+    if (!Number.isFinite(n) || n < 0.5 || n > 1) {
+      pushToast('error', 'النسبة يجب أن تكون بين 0.5 و1 (مثال: 0.8 = 80%)');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.patch('/settings', { key: 'quiz_pass_ratio', value: n });
+      setRatio(n);
+      pushToast('success', 'تم تحديث نسبة النجاح — تسري على كل محاولة جديدة');
+    } catch (e) {
+      pushToast('error', e instanceof Error ? e.message : 'فشل الحفظ');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className={card}>
+      <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">⚙️ نسبة النجاح في الاختبارات القصيرة</h3>
+      <p className="mb-3 text-[11px] text-slate-400">
+        النسبة المطلوبة لاجتياز أي اختبار مهارة (مثال: 0.8 = 80%، أي 4 من 5). القرار يُطبَّق دائمًا من الخادم عند التصحيح.
+        الافتراضي {Math.round(defaultRatio * 100)}% (السلوك الأصلي قبل هذا الإعداد).
+      </p>
+      {canEdit ? (
+        <div className="flex items-center gap-2">
+          <input
+            type="number" min={0.5} max={1} step={0.05} value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="w-24 rounded-lg border border-slate-200 px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+          <span className="text-xs text-slate-400">({Math.round((Number(draft) || 0) * 100)}%)</span>
+          <button
+            type="button" onClick={save} disabled={saving || Number(draft) === ratio}
+            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {saving ? '…' : 'حفظ'}
+          </button>
+        </div>
+      ) : (
+        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">الحالية: {Math.round(ratio * 100)}% — التعديل متاح لمدير النظام فقط</p>
+      )}
+    </div>
+  );
+}
+
 function QuizSkillsSection() {
   const session = useStore((s) => s.session);
   const setTab = useStore((s) => s.setTab);
@@ -194,6 +267,7 @@ function QuizSkillsSection() {
 
   return (
     <div className="space-y-4">
+      <QuizPassSettingsCard />
       <div className={card}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">🧩 المشاركة في الاختبارات القصيرة (30 مهارة × 3 مستويات)</h3>

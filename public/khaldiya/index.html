@@ -1193,18 +1193,12 @@
       </p>
     </div>
 
-    <!-- Plan status banner -->
-    <div id="sh-plan-banner" style="display:none;margin-bottom:20px;"></div>
+    <!-- مسار الإنجاز — server-computed journey (diagnostic → skills → final mock).
+         Populated by App.loadJourney()/renderJourney() from GET /api/journey. -->
+    <div id="sh-journey"></div>
 
-    <!-- Performance indicator (shown from 2nd test onwards) -->
+    <!-- Performance indicator (score trend across diagnostic attempts, shown from 2nd test onwards) -->
     <div id="sh-perf-card" style="display:none;"></div>
-
-    <!-- Quick link to the quiz-skills progress breakdown -->
-    <button class="sh-quiz-progress-banner" onclick="App.openQuizProgress()">
-      <span class="sh-qpb-icon">📊</span>
-      <span class="sh-qpb-text">مؤشر الإنجاز والتقدم في الاختبارات التقويمية القصيرة</span>
-      <span class="sh-qpb-arrow">←</span>
-    </button>
 
     <div class="service-section-title">مسارات الدعم التعليمي</div>
     <div class="service-cards">

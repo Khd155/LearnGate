@@ -35,6 +35,27 @@ interface HealthRes { students: HealthStudent[] }
 interface EngagedStudent { id: string; name: string; school: string; skillsTouched: number; totalAttempts: number; passedCount: number; lastAttemptAt: string | null; coveragePct: number }
 interface QuizEngagementRes { totalStudents: number; participants: number; participationRate: number; totalSkills: number; topEngaged: EngagedStudent[] }
 
+// GET /api/analytics/journey-overview — same passed/totalNodes math as a
+// student's own GET /api/journey, aggregated across the whole (school-scoped)
+// roster in one grouped query. Powers "توزيع الطلاب حسب التقدم" below.
+interface ProgressBucket { code: string; label: string; count: number }
+interface LevelCompletion { section: 'verbal' | 'quantitative'; level: 'easy' | 'medium' | 'advanced'; totalSkills: number; studentsCompleted: number; completionRate: number }
+interface TopProgressingStudent { id: string; name: string; school: string; passedNodes: number; totalNodes: number; overallProgressPct: number }
+interface JourneyOverviewRes {
+  totalStudents: number; totalNodes: number; diagnosticCompleted: number; finalMockAttempted: number;
+  buckets: ProgressBucket[]; levelCompletion: LevelCompletion[]; topProgressing: TopProgressingStudent[];
+}
+
+const BUCKET_STYLE: Record<string, { chip: string; bar: string }> = {
+  advanced:       { chip: '🟢', bar: 'bg-emerald-500' },
+  on_track:       { chip: '🟡', bar: 'bg-amber-400' },
+  needs_support:  { chip: '🟠', bar: 'bg-orange-500' },
+  stalled:        { chip: '🔴', bar: 'bg-rose-500' },
+  not_started:    { chip: '⚪', bar: 'bg-slate-300 dark:bg-slate-700' },
+};
+const LEVEL_LABEL_SHORT: Record<string, string> = { easy: 'سهل', medium: 'متوسط', advanced: 'متقدم' };
+const SECTION_LABEL_SHORT: Record<string, string> = { verbal: 'اللفظي', quantitative: 'الكمي' };
+
 const reasonMeta: Record<string, { label: string; chip: string }> = {
   inactive: { label: 'غياب 3+ أيام', chip: '🟠' },
   low_performance: { label: 'أداء ضعيف', chip: '🔴' },
@@ -68,6 +89,7 @@ export default function DashboardTab() {
   const [skills, setSkills] = useState<SkillsRes | null>(null);
   const [health, setHealth] = useState<HealthRes | null>(null);
   const [engagement, setEngagement] = useState<QuizEngagementRes | null>(null);
+  const [journeyOverview, setJourneyOverview] = useState<JourneyOverviewRes | null>(null);
 
   useEffect(() => {
     loadThreads();
@@ -93,8 +115,9 @@ export default function DashboardTab() {
       api.get<SkillsRes>(`/analytics/skills${schoolQuery}`),
       api.get<HealthRes>(`/analytics/health${schoolQuery}`),
       api.get<QuizEngagementRes>(`/analytics/quiz-engagement${schoolQuery}`),
+      api.get<JourneyOverviewRes>(`/analytics/journey-overview${schoolQuery}`),
     ])
-      .then(([a, ac, p, sk, h, eng]) => {
+      .then(([a, ac, p, sk, h, eng, jo]) => {
         if (cancelled) return;
         setAtRisk(a);
         setActivity(ac);
@@ -102,6 +125,7 @@ export default function DashboardTab() {
         setSkills(sk);
         setHealth(h);
         setEngagement(eng);
+        setJourneyOverview(jo);
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -417,6 +441,75 @@ export default function DashboardTab() {
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {/* ── Zone 5: مسار الإنجاز across the roster — same passed/totalNodes math
+          as each student's own journey, aggregated in one grouped query. ── */}
+      {!!journeyOverview && (
+        <section className="grid gap-3 lg:grid-cols-[1.1fr_1fr]">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">🧭 توزيع الطلاب حسب التقدم في مسار الإنجاز</h3>
+            <div className="space-y-2.5">
+              {journeyOverview.buckets.map((b) => {
+                const style = BUCKET_STYLE[b.code] || BUCKET_STYLE.not_started;
+                const pct = journeyOverview.totalStudents ? Math.round((b.count / journeyOverview.totalStudents) * 100) : 0;
+                return (
+                  <div key={b.code} className="flex items-center gap-3">
+                    <span className="w-24 shrink-0 text-xs font-semibold text-slate-600 dark:text-slate-300">{style.chip} {b.label}</span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className={`h-full rounded-full ${style.bar}`} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="w-16 shrink-0 text-end text-xs font-bold text-slate-500 dark:text-slate-400">{b.count} ({pct}%)</span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-[11px] text-slate-400">
+              {journeyOverview.diagnosticCompleted} من {journeyOverview.totalStudents} أنهوا التشخيص الذاتي · التقدم = مهارات مجتازة من أصل {journeyOverview.totalNodes}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <h3 className="mb-2 text-sm font-bold text-indigo-700 dark:text-indigo-400">🏆 الأكثر تقدمًا في مسار المهارات</h3>
+            <p className="mb-2 text-[11px] text-slate-400">مرتّبون حسب عدد المهارات المجتازة من أصل {journeyOverview.totalNodes} — مقياس تقدّم هيكلي، وليس متوسط درجات</p>
+            {journeyOverview.topProgressing.length === 0 ? (
+              <p className="py-6 text-center text-sm text-slate-400">لا يوجد طلاب اجتازوا مهارة بعد</p>
+            ) : (
+              <ol className="space-y-1.5">
+                {journeyOverview.topProgressing.map((s, i) => (
+                  <li key={s.id} className="flex items-center justify-between gap-2 rounded-lg bg-indigo-50/60 px-3 py-1.5 text-sm dark:bg-indigo-950/20">
+                    <span className="flex items-center gap-2 truncate font-medium text-slate-700 dark:text-slate-200">
+                      <span className="text-[11px] font-bold text-indigo-500">#{i + 1}</span>
+                      {s.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openStudentProfile(s.id)}
+                      className="shrink-0 rounded-lg bg-indigo-100 px-2 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-300"
+                    >
+                      {s.passedNodes}/{s.totalNodes} — {s.overallProgressPct}%
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
+            <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">📶 نسبة إكمال كل مستوى</h3>
+            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {journeyOverview.levelCompletion
+                .sort((a, b) => (a.section === b.section ? 0 : a.section === 'verbal' ? -1 : 1))
+                .map((lc) => (
+                  <div key={`${lc.section}-${lc.level}`} className="rounded-xl border border-slate-100 px-3 py-2 text-center dark:border-slate-800">
+                    <p className="text-[11px] font-bold text-slate-400">{SECTION_LABEL_SHORT[lc.section]} · {LEVEL_LABEL_SHORT[lc.level]}</p>
+                    <p className="mt-1 text-lg font-extrabold text-slate-700 dark:text-slate-200">{lc.completionRate}%</p>
+                    <p className="text-[10px] text-slate-400">{lc.studentsCompleted} طالب</p>
+                  </div>
+                ))}
+            </div>
+          </div>
         </section>
       )}
 

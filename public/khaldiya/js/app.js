@@ -913,25 +913,196 @@ const App = {
   renderStudentHome() {
     App._setTopbarUser(State.student?.name || '');
     document.getElementById('sh-name').textContent = State.student.name;
-    const myPlan    = DB.plans().find(p => p.studentId === State.student.id);
-    const planBanner = document.getElementById('sh-plan-banner');
-    if (myPlan) {
-      planBanner.style.display = 'flex';
-      planBanner.className = 'status-banner active';
-      planBanner.innerHTML = `<div class="status-icon">✅</div><div>
-        <div class="status-title">خطتك جاهزة!</div>
-        <div class="status-desc">تمت الموافقة على خطة دعم التعلم. <a href="#" onclick="App.viewStudentPlan();return false;" style="color:var(--primary);font-weight:700;">عرض الخطة ←</a></div>
-      </div>`;
-    } else {
-      planBanner.style.display = 'none';
-    }
-    // Performance indicator (2nd test onwards)
+    // مسار الإنجاز — server-computed (GET /api/journey), replaces the old
+    // standalone plan-banner + quiz-progress-banner (folded into the journey
+    // panel below, richer than either on its own).
+    App.loadJourney();
+    // Performance indicator (2nd test onwards) — kept as-is (a distinct score-
+    // trend chart the journey panel doesn't replace).
     App.renderStudentPerformanceCard();
     // Check for unread support replies
     App.loadTicketNotifications();
     // Prompt phone if missing (non-blocking — student can skip)
     if (!State.student.phone) {
       setTimeout(() => App.showStudentPhoneModal(), 800);
+    }
+  },
+
+  // ── مسار الإنجاز (Journey) ──────────────────────────────────────────────
+  async loadJourney() {
+    const el = document.getElementById('sh-journey');
+    if (!el) return;
+    el.innerHTML = '<div class="inline-loading"><span class="inline-spinner"></span>جاري تحميل مسارك…</div>';
+    try {
+      const { journey } = await apiFetch('/journey');
+      State._journey = journey;
+      App.renderJourney(journey);
+    } catch (e) {
+      el.innerHTML = '';
+    }
+  },
+
+  _journeyLevelLabel: { easy: 'المستوى الأول — سهل', medium: 'المستوى الثاني — متوسط', advanced: 'المستوى الثالث — متقدم' },
+  _journeySectionLabel: { verbal: 'القسم اللفظي', quantitative: 'القسم الكمي' },
+  _journeySectionIcon: { verbal: '📘', quantitative: '📗' },
+
+  renderJourney(j) {
+    const el = document.getElementById('sh-journey');
+    if (!el || !j) return;
+
+    const pct = j.overallProgressPct || 0;
+    const R = 29, C = 2 * Math.PI * R;
+    const ringSvg = `
+      <div class="journey-ring-wrap">
+        <svg class="journey-ring" viewBox="0 0 74 74">
+          <circle class="journey-ring-track" cx="37" cy="37" r="${R}"/>
+          <circle class="journey-ring-fill" cx="37" cy="37" r="${R}"
+            stroke-dasharray="${C}" stroke-dashoffset="${C - (pct / 100) * C}"/>
+        </svg>
+        <div class="journey-ring-value">${pct}%</div>
+      </div>`;
+
+    const dot = (color) => `<span class="jms-dot" style="background:${color}"></span>`;
+    const miniStats = `
+      <div class="journey-mini-stats">
+        <span class="journey-mini-stat">${dot('#3F7CB8')}اللفظي <b>${j.sections.verbal?.progressPct ?? 0}%</b></span>
+        <span class="journey-mini-stat">${dot('#4FA877')}الكمي <b>${j.sections.quantitative?.progressPct ?? 0}%</b></span>
+        <span class="journey-mini-stat">${dot(j.diagnostic.done ? '#4FA877' : '#cbd5e1')}التشخيص ${j.diagnostic.done ? '<b>✓ مكتمل</b>' : 'لم يبدأ'}</span>
+        <span class="journey-mini-stat">${dot('#7C5CD4')}المهارات <b>${j.passedNodes}/${j.totalNodes}</b></span>
+      </div>`;
+
+    const summary = `
+      <div class="journey-summary">
+        ${ringSvg}
+        <div class="journey-summary-info">
+          <div class="journey-summary-title">مسار إنجازك</div>
+          <div class="journey-stage-label">${escapeHtml(j.stageLabel)}</div>
+          ${miniStats}
+        </div>
+      </div>`;
+
+    const na = j.nextAction || {};
+    const naIcon = { diagnostic: '🧭', retry_skill: '🔁', start_skill: '🎯', final_mock: '🏁' }[na.type] || '🎯';
+
+    // The completion badge (all 30 skill nodes passed) and the next-action
+    // card are independent: the badge fires the moment training is fully
+    // done, while the optional final-mock capstone (if configured and not
+    // yet attempted) still shows as a suggested next step alongside it —
+    // it never gates "جاهز لاختبار القدرات".
+    const badge = j.badge ? `
+      <div class="journey-badge">
+        <span class="journey-badge-icon">🏆</span>
+        <div>
+          <div class="journey-badge-title">أتممت مسار الإنجاز — ${escapeHtml(j.badge.label)}</div>
+          <div class="journey-badge-sub">${j.finalMock && j.finalMock.available && !j.finalMock.attempted
+            ? 'يمكنك الآن تجربة اختبار المحاكاة الشامل لقياس جاهزيتك النهائية' : 'يمكنك مراجعة أي مهارة في أي وقت'}</div>
+        </div>
+      </div>` : '';
+
+    const nextAction = na.type === 'done' ? '' : `
+      <button type="button" class="journey-next-action" onclick="App.journeyGo('${na.type}','${na.section || ''}','${na.level || ''}')">
+        <span class="jna-icon">${naIcon}</span>
+        <div class="jna-text">
+          <div class="jna-label">خطوتك التالية</div>
+          <div class="jna-title">${escapeHtml(na.label || '')}</div>
+          ${na.detail ? `<div class="jna-detail">${escapeHtml(na.detail)}</div>` : ''}
+        </div>
+        <span class="jna-btn">ابدأ الآن ←</span>
+      </button>`;
+
+    let highlights = '';
+    if (j.strongest && j.weakest) {
+      highlights = `
+        <div class="journey-highlights">
+          <div class="journey-highlight jh-strong">
+            <span class="jh-icon">💪</span>
+            <div><div class="jh-label">أقوى مهارة</div><div class="jh-name">${escapeHtml(j.strongest.skillName)}</div></div>
+            <span class="jh-pct">${j.strongest.pct}%</span>
+          </div>
+          <div class="journey-highlight jh-weak">
+            <span class="jh-icon">🎯</span>
+            <div><div class="jh-label">تحتاج تركيز</div><div class="jh-name">${escapeHtml(j.weakest.skillName)}</div></div>
+            <span class="jh-pct">${j.weakest.pct}%</span>
+          </div>
+        </div>`;
+    }
+
+    let review = '';
+    if (j.needsReview && j.needsReview.length) {
+      review = `
+        <div class="journey-review">
+          <div class="journey-review-head">🔴 يحتاج مراجعة (${j.needsReview.length})</div>
+          ${j.needsReview.map(r => `
+            <button type="button" class="journey-review-row" onclick="App.journeyGo('retry_skill','${r.section}','${r.level}')">
+              <span class="jr-name">${escapeHtml(r.skillName)}</span>
+              <span class="jr-score">${r.bestCorrect}/${r.bestTotal}</span>
+              <span class="jr-arrow">←</span>
+            </button>`).join('')}
+        </div>`;
+    }
+
+    const tracks = ['verbal', 'quantitative'].map(section => {
+      const levels = j.tree ? j.tree[section] : null;
+      if (!levels) return '';
+      const rows = levels.map((lvl, i) => {
+        const rowId = `jl-${section}-${lvl.level}`;
+        let icon = '⚪', stateText = 'لم تبدأ';
+        if (lvl.locked) { icon = '🔒'; stateText = 'مقفلة'; }
+        else if (lvl.progressPct === 100) { icon = '🟢'; stateText = 'مكتملة'; }
+        else if (lvl.progressPct > 0) { icon = '🟡'; stateText = 'قيد التقدم'; }
+        const passedCount = lvl.skills.filter(s => s.status === 'passed').length;
+        const skillsHtml = lvl.skills.map(s => {
+          const label = App.quizStatusLabel(s.status);
+          const stateHtml = s.status === 'failed'
+            ? `<span class="jl-skill-state score-low">🔴 مراجعة</span>`
+            : `<span class="jl-skill-state ${label.cls}">${label.text}</span>`;
+          return `<div class="jl-skill-row"><span class="jl-skill-name">${escapeHtml(s.skillName)}</span>${stateHtml}</div>`;
+        }).join('');
+        return `
+          <button type="button" class="journey-level-row" id="${rowId}-btn" ${lvl.locked ? 'disabled' : ''}
+            onclick="App.journeyToggleLevel('${rowId}')">
+            <span class="jl-icon">${icon}</span>
+            <span class="jl-title">${App._journeyLevelLabel[lvl.level]}</span>
+            <span class="jl-sub">${lvl.locked ? 'مقفلة حتى إكمال المستوى السابق' : `${passedCount}/${lvl.skills.length} مهارات مكتملة`}</span>
+            ${lvl.locked ? '' : '<span class="jl-caret">▾</span>'}
+          </button>
+          ${lvl.locked ? '' : `<div class="jl-skills" id="${rowId}-skills">${skillsHtml}</div>`}`;
+      }).join('');
+      const secPct = j.sections[section]?.progressPct ?? 0;
+      return `
+        <div class="journey-track">
+          <div class="jt-head">${App._journeySectionIcon[section]} ${App._journeySectionLabel[section]}<span class="jt-pct">${secPct}%</span></div>
+          <div class="jt-levels">${rows}</div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `<div class="journey">${summary}${badge}${nextAction}${highlights}${review}<div class="journey-tracks">${tracks}</div></div>`;
+  },
+
+  journeyToggleLevel(rowId) {
+    const btn = document.getElementById(`${rowId}-btn`);
+    const panel = document.getElementById(`${rowId}-skills`);
+    if (!btn || !panel) return;
+    const open = panel.classList.toggle('open');
+    btn.classList.toggle('expanded', open);
+  },
+
+  // Routes the journey's "ابدأ الآن" CTA (and any needs-review row) into the
+  // existing quiz-skills / diagnostic screens — no new take-a-quiz UI, this
+  // only decides *where* to send the student; the server already decided *what*.
+  journeyGo(type, section, level) {
+    if (type === 'diagnostic') { App.startCapabilities(); return; }
+    if (type === 'final_mock') { App.openGeneralTests(); return; }
+    if ((type === 'retry_skill' || type === 'start_skill') && section && level) {
+      // Reuse the tree already fetched for the journey panel (same shape as
+      // GET /api/quiz-structure) instead of a second round-trip, then drill
+      // straight into the relevant level's skill list — screen-quiz-levels
+      // still gets pushed onto the nav stack first so "back" behaves exactly
+      // like manually clicking a level card would.
+      if (State._journey && State._journey.tree) State._quizTree = State._journey.tree;
+      App.openQuizLevels(section);
+      App.openQuizSkills(section, level);
+      return;
     }
   },
 

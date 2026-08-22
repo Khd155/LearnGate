@@ -229,19 +229,27 @@ export function computeJourney({ tree, plan, finalMock, health }) {
     }
   }
 
-  // Strongest/weakest — only among skills actually attempted, and only when
-  // there are at least two to compare (one data point isn't a ranking).
-  const attempted = nodes
-    .filter((n) => n.attempts > 0 && n.bestTotal > 0)
+  // Strongest/weakest — NOT simply "best/worst of whatever was attempted":
+  // that previously let two different 100% skills show up as both
+  // "strongest" AND "needs focus" at once (a real self-contradiction) purely
+  // because they were the top and bottom of a 2-item list. Instead, each
+  // half draws from a pool that already means what it claims:
+  //   - strongest: skills the student has actually PASSED (status === 'passed')
+  //   - weakest/"needs focus": skills the student has actually FAILED
+  //     (status === 'failed', i.e. the same pool as needsReview above) — a
+  //     failed attempt is by construction never 100%, so this can never
+  //     reproduce the old contradiction.
+  // Each is independent and only shown when its own pool is non-empty — no
+  // artificial "at least 2 attempts" gate; one genuine pass is a real
+  // strength, and with zero failed skills there's nothing to flag.
+  const passedAttempted = nodes
+    .filter((n) => n.status === 'passed' && n.bestTotal > 0)
     .map((n) => ({ ...n, pct: Math.round((n.bestCorrect / n.bestTotal) * 100) }));
-  let strongest = null;
-  let weakest = null;
-  if (attempted.length >= 2) {
-    const byPct = [...attempted].sort((a, b) => b.pct - a.pct);
-    strongest = byPct[0];
-    weakest = byPct[byPct.length - 1];
-  }
-  const toSkillSummary = (n) => n && { skillId: n.skillId, skillName: n.skillName, section: n.section, pct: n.pct };
+  const strongest = passedAttempted.length ? [...passedAttempted].sort((a, b) => b.pct - a.pct)[0] : null;
+  const weakest = needsReview.length
+    ? [...needsReview].sort((a, b) => a.bestCorrect / (a.bestTotal || 1) - b.bestCorrect / (b.bestTotal || 1))[0]
+    : null;
+  const toSkillSummary = (n) => n && { skillId: n.skillId, skillName: n.skillName, section: n.section, pct: n.pct ?? Math.round((n.bestCorrect / (n.bestTotal || 1)) * 100) };
 
   const badge = totalNodes > 0 && passedNodes === totalNodes ? { code: 'ready_for_qudrat', label: 'جاهز لاختبار القدرات' } : null;
 

@@ -219,22 +219,54 @@ describe('computeJourney', () => {
     expect(j.nextAction.type).toBe('done');
   });
 
-  it('only reports strongest/weakest when at least two skills were attempted', () => {
+  it('reports a strongest skill from a single genuine pass — no "at least two" gate needed', () => {
     const skills = makeSkills();
     const oneAttempt = [{ quiz_skill_id: 'verbal-easy-v1', status: 'passed', best_correct: 5, best_total: 5, attempts: 1 }];
-    const tree1 = buildQuizTree({ skills, progressRows: oneAttempt, qCountMap: {} });
-    const j1 = computeJourney({ tree: tree1, plan: { gaps: [] }, finalMock: null, health: null });
-    expect(j1.strongest).toBeNull();
-    expect(j1.weakest).toBeNull();
+    const tree = buildQuizTree({ skills, progressRows: oneAttempt, qCountMap: {} });
+    const j = computeJourney({ tree, plan: { gaps: [] }, finalMock: null, health: null });
+    expect(j.strongest.skillId).toBe('v1');
+    expect(j.strongest.pct).toBe(100);
+    expect(j.weakest).toBeNull(); // nothing failed yet — no "needs focus" to report
+  });
 
-    const twoAttempts = [
+  it('picks strongest from passes and weakest from fails — independent pools', () => {
+    const skills = makeSkills();
+    const rows = [
       { quiz_skill_id: 'verbal-easy-v1', status: 'passed', best_correct: 5, best_total: 5, attempts: 1 },
       { quiz_skill_id: 'quantitative-easy-q3', status: 'failed', best_correct: 1, best_total: 5, attempts: 1 },
     ];
-    const tree2 = buildQuizTree({ skills, progressRows: twoAttempts, qCountMap: {} });
-    const j2 = computeJourney({ tree: tree2, plan: { gaps: [] }, finalMock: null, health: null });
-    expect(j2.strongest.skillId).toBe('v1');
-    expect(j2.weakest.skillId).toBe('q3');
+    const tree = buildQuizTree({ skills, progressRows: rows, qCountMap: {} });
+    const j = computeJourney({ tree, plan: { gaps: [] }, finalMock: null, health: null });
+    expect(j.strongest.skillId).toBe('v1');
+    expect(j.weakest.skillId).toBe('q3');
+  });
+
+  // Regression test for the reported bug: two different 100%-scoring skills
+  // (both passed, nothing failed) must never produce a "needs focus" card —
+  // the old "lowest of the attempted set" logic showed the second 100% skill
+  // as "weakest" purely because it was second in a sorted list of two passes.
+  it('never reports a "needs focus" skill when nothing has actually been failed', () => {
+    const skills = makeSkills();
+    const rows = [
+      { quiz_skill_id: 'verbal-easy-v1', status: 'passed', best_correct: 5, best_total: 5, attempts: 1 },
+      { quiz_skill_id: 'verbal-easy-v5', status: 'passed', best_correct: 5, best_total: 5, attempts: 1 },
+    ];
+    const tree = buildQuizTree({ skills, progressRows: rows, qCountMap: {} });
+    const j = computeJourney({ tree, plan: { gaps: [] }, finalMock: null, health: null });
+    expect(j.weakest).toBeNull();
+    expect(j.strongest.pct).toBe(100);
+  });
+
+  it('picks the worst-scoring failed skill as weakest when several are failed', () => {
+    const skills = makeSkills();
+    const rows = [
+      { quiz_skill_id: 'verbal-easy-v1', status: 'failed', best_correct: 3, best_total: 5, attempts: 1 },
+      { quiz_skill_id: 'verbal-easy-v2', status: 'failed', best_correct: 1, best_total: 5, attempts: 1 },
+    ];
+    const tree = buildQuizTree({ skills, progressRows: rows, qCountMap: {} });
+    const j = computeJourney({ tree, plan: { gaps: [] }, finalMock: null, health: null });
+    expect(j.weakest.skillId).toBe('v2');
+    expect(j.weakest.pct).toBe(20);
   });
 });
 

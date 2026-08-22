@@ -495,18 +495,23 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .sh-qpb-arrow { font-size: 16px; color: var(--primary); flex-shrink: 0; }
 
 /* ── Journey (مسار الإنجاز) — student home ───────────────
-   Calm/premium, not a game board: soft surfaces, one accent line per state,
-   no more than one emoji per row. Server-computed via GET /api/journey —
-   this file only renders what that response says. ──────────────────────── */
-.journey { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+   Calm/premium, not a game board or an admin dashboard: whitespace and
+   dividers over card-in-card nesting, one accent line per state, no more
+   than one emoji per row. Server-computed via GET /api/journey — this file
+   only renders what that response says. Visual hierarchy is deliberate:
+     PRIMARY   .journey (hero, next-action, stepper, current level)
+     SECONDARY .journey-secondary (<details> — performance, strongest/weakest)
+     TERTIARY  .journey-tertiary (<details> — other services)          ──── */
+.journey { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
 
-.journey-summary {
+/* Hero — the ONE place the overall % lives. No competing stat clusters. */
+.journey-hero {
   display: flex; align-items: center; gap: 18px;
   background: var(--grad-soft); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 20px 22px;
 }
-.journey-ring-wrap { position: relative; width: 74px; height: 74px; flex-shrink: 0; }
-.journey-ring { width: 74px; height: 74px; transform: rotate(-90deg); }
+.journey-ring-wrap { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
+.journey-ring { width: 84px; height: 84px; transform: rotate(-90deg); }
 .journey-ring-track { fill: none; stroke: var(--border-strong); stroke-width: 8; opacity: .5; }
 .journey-ring-fill {
   fill: none; stroke: var(--primary); stroke-width: 8; stroke-linecap: round;
@@ -514,17 +519,14 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 }
 .journey-ring-value {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 800; color: var(--text);
+  font-size: 18px; font-weight: 800; color: var(--text);
 }
-.journey-summary-info { flex: 1; min-width: 0; }
-.journey-summary-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 2px; }
-.journey-stage-label { font-size: 16.5px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
-.journey-mini-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; }
-.journey-mini-stat { font-size: 12.5px; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 5px; }
-.journey-mini-stat b { color: var(--text); font-weight: 800; }
-.journey-mini-stat .jms-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.journey-hero-info { flex: 1; min-width: 0; }
+.journey-hero-label { font-size: 12.5px; font-weight: 700; color: var(--muted); }
+.journey-hero-stage { font-size: 17px; font-weight: 800; color: var(--text); margin: 2px 0 4px; }
+.journey-hero-sub { font-size: 12.5px; color: var(--muted); font-weight: 600; }
 
-/* Next best action — the single most important row on the page */
+/* Next best action — the single most important CTA on the page */
 .journey-next-action {
   display: flex; align-items: center; gap: 14px; width: 100%;
   background: var(--surface); border: 1.5px solid var(--primary-lt);
@@ -545,12 +547,87 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   font-family: inherit; pointer-events: none; /* the whole row is one click target */
 }
 
-/* Strongest/weakest skill chips */
+/* Compact stepper — 2 rows (sections) × 3 icon-only steps. Replaces what
+   used to be two full "track" cards each expanding into 3 heavy level-rows;
+   this is the entire "مسار إنجازك" overview at a glance, no borders-within-
+   borders, just dividers. Tapping an unlocked step swaps the single detail
+   panel below (progressive disclosure — never all 6 levels open at once). */
+.journey-stepper {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 4px 2px;
+}
+.js-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.js-row-label { font-size: 12.5px; font-weight: 700; color: var(--muted); flex-shrink: 0; min-width: 64px; }
+.js-steps { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.js-line { flex: 1; height: 2px; background: var(--border); min-width: 10px; border-radius: 2px; }
+.js-step {
+  display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+  background: var(--bg-tint); border: 1.5px solid transparent;
+  border-radius: 99px; padding: 5px 11px; font-family: inherit;
+  font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.js-step:hover:not(:disabled) { border-color: var(--primary-lt); }
+.js-step:disabled { cursor: not-allowed; opacity: .55; }
+.js-step-icon { font-size: 12px; line-height: 1; }
+.js-step-done { color: var(--success); }
+.js-step-current { color: var(--primary); background: rgba(63,124,184,.08); }
+.js-step-locked { color: var(--muted); }
+.js-step-selected { border-color: var(--primary); background: rgba(63,124,184,.12); color: var(--primary); }
+
+/* Current-level detail — the ONLY place a level's skills are ever listed,
+   one level at a time. */
+.journey-current-level {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.jcl-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; font-size: 13.5px; font-weight: 800; color: var(--text);
+  border-bottom: 1px solid var(--border); background: var(--bg-tint);
+}
+.jcl-count { font-size: 12px; font-weight: 800; color: var(--primary); }
+.jcl-skills { display: flex; flex-direction: column; }
+.jl-skill-row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: transparent; border: none; border-top: 1px solid var(--border);
+  padding: 11px 16px; font-family: inherit; font-size: 13px; cursor: pointer;
+  text-align: right; color: var(--text);
+}
+.jl-skill-row:first-child { border-top: none; }
+.jl-skill-row:hover { background: var(--bg-tint); }
+.jl-skill-name { flex: 1; font-weight: 600; }
+.jl-skill-state { font-weight: 800; font-size: 11.5px; padding: 2px 9px; border-radius: 99px; flex-shrink: 0; }
+
+/* Needs-review — a slim inset list, not another bordered card competing
+   with the current-level detail above it. */
+.journey-review { padding: 2px 4px; border-top: 1px dashed var(--border); padding-top: 12px; }
+.journey-review-head { font-size: 12.5px; font-weight: 800; color: var(--danger); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.journey-review-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: transparent; border: none;
+  padding: 7px 2px; text-align: right; font-family: inherit; cursor: pointer;
+}
+.journey-review-row:hover .jr-name { color: var(--primary); }
+.jr-name { font-size: 12.5px; font-weight: 700; color: var(--text); flex: 1; }
+.jr-score { font-size: 11.5px; font-weight: 800; color: var(--danger); }
+.jr-arrow { color: var(--muted); font-size: 12px; }
+.journey-review-more { font-size: 11px; color: var(--muted); padding: 2px 2px 0; }
+
+/* Section progress — the ONLY place verbal%/quant% appears (was duplicated
+   in 3 places before: hero mini-stats, and every per-section track header). */
+.journey-progress-mini { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px 0; }
+.jpm-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+.jpm-label { flex-shrink: 0; min-width: 62px; color: var(--muted); font-weight: 600; }
+.jpm-bar { flex: 1; height: 6px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.jpm-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--primary-lt), var(--primary)); transition: width .6s cubic-bezier(.22,1,.36,1); }
+.jpm-row b { flex-shrink: 0; width: 34px; text-align: end; color: var(--text); font-weight: 800; }
+
+/* Strongest/weakest skill chips — live inside <details id="sh-perf-details"> now */
 .journey-highlights { display: flex; flex-wrap: wrap; gap: 10px; }
 .journey-highlight {
   flex: 1; min-width: 160px; display: flex; align-items: center; gap: 10px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 12px 14px;
+  background: var(--bg-tint); border-radius: var(--radius); padding: 12px 14px;
 }
 .jh-icon { font-size: 18px; flex-shrink: 0; }
 .jh-label { font-size: 11px; font-weight: 700; color: var(--muted); }
@@ -558,55 +635,7 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .jh-pct { font-size: 12.5px; font-weight: 800; margin-inline-start: auto; }
 .journey-highlight.jh-strong .jh-pct { color: var(--success); }
 .journey-highlight.jh-weak .jh-pct { color: var(--danger); }
-
-/* Needs-review list */
-.journey-review {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 14px 16px;
-}
-.journey-review-head { font-size: 13.5px; font-weight: 800; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
-.journey-review-row {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  background: transparent; border: none; border-top: 1px solid var(--border);
-  padding: 10px 2px; text-align: right; font-family: inherit; cursor: pointer;
-}
-.journey-review-row:first-of-type { border-top: none; }
-.journey-review-row:hover .jr-name { color: var(--primary); }
-.jr-name { font-size: 13.5px; font-weight: 700; color: var(--text); flex: 1; }
-.jr-score { font-size: 12px; font-weight: 800; color: var(--danger); }
-.jr-arrow { color: var(--muted); font-size: 13px; }
-
-/* Section tracks — level → skill, expand on click */
-.journey-tracks { display: flex; flex-direction: column; gap: 12px; }
-.journey-track { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.jt-head {
-  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
-  font-size: 14px; font-weight: 800; color: var(--text);
-  border-bottom: 1px solid var(--border);
-}
-.jt-head .jt-pct { margin-inline-start: auto; font-size: 12.5px; font-weight: 800; color: var(--primary); }
-.jt-levels { display: flex; flex-direction: column; }
-.journey-level-row {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  background: transparent; border: none; border-top: 1px solid var(--border);
-  padding: 12px 16px; text-align: right; font-family: inherit; cursor: pointer;
-  font-size: 13px; color: var(--text);
-}
-.journey-level-row:first-child { border-top: none; }
-.journey-level-row[disabled] { cursor: not-allowed; opacity: .6; }
-.jl-icon { font-size: 15px; flex-shrink: 0; width: 18px; text-align: center; }
-.jl-title { font-weight: 700; flex: 1; }
-.jl-sub { font-size: 11.5px; color: var(--muted); font-weight: 600; }
-.jl-caret { color: var(--muted); font-size: 12px; transition: transform .2s; }
-.journey-level-row.expanded .jl-caret { transform: rotate(180deg); }
-.jl-skills {
-  display: none; flex-direction: column; gap: 6px;
-  padding: 4px 16px 12px 40px; background: var(--bg-tint);
-}
-.jl-skills.open { display: flex; }
-.jl-skill-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 4px 0; }
-.jl-skill-name { flex: 1; color: var(--text); font-weight: 600; }
-.jl-skill-state { font-weight: 800; font-size: 11.5px; padding: 2px 9px; border-radius: 99px; }
+.journey-highlights-empty { font-size: 13px; color: var(--muted); padding: 4px 2px; }
 
 /* Completion badge / celebration — subtle, no confetti */
 .journey-badge {
@@ -619,11 +648,36 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .journey-badge-title { font-size: 15px; font-weight: 800; color: var(--text); }
 .journey-badge-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 
+/* Secondary / tertiary <details> disclosures — native, accessible, no extra
+   JS. A slim clickable summary row instead of a heavy section header. */
+.journey-secondary, .journey-tertiary {
+  border-top: 1px solid var(--border); padding-top: 4px; margin-bottom: 16px;
+}
+.journey-secondary summary, .journey-tertiary summary {
+  cursor: pointer; list-style: none; padding: 12px 4px;
+  font-size: 13.5px; font-weight: 700; color: var(--muted);
+  display: flex; align-items: center; gap: 8px; user-select: none;
+}
+.journey-secondary summary::-webkit-details-marker, .journey-tertiary summary::-webkit-details-marker { display: none; }
+.journey-secondary summary::after, .journey-tertiary summary::after {
+  content: '▾'; margin-inline-start: auto; font-size: 12px; color: var(--muted);
+  transition: transform .2s;
+}
+.journey-secondary[open] summary::after, .journey-tertiary[open] summary::after { transform: rotate(180deg); }
+.journey-secondary summary:hover, .journey-tertiary summary:hover { color: var(--text); }
+.journey-secondary-body { display: flex; flex-direction: column; gap: 14px; padding: 4px 4px 12px; }
+.journey-tertiary .service-cards { padding-top: 4px; }
+
+/* Slimmer welcome banner — the journey hero carries the "where am I" job now */
+.welcome-banner-slim { padding: 16px 22px; margin-bottom: 16px; }
+.welcome-banner-slim h2 { margin: 0; font-size: 17px; }
+
 .screen-home-entered .journey { animation: bannerIn .4s cubic-bezier(.22,1,.36,1) both; }
 
 @media (max-width: 480px) {
-  .journey-summary { flex-direction: column; align-items: flex-start; text-align: right; }
+  .journey-hero { flex-direction: column; align-items: flex-start; text-align: right; }
   .journey-highlight { min-width: 100%; }
+  .js-row-label { min-width: 100%; }
 }
 
 /* ── Service Cards (Home) ────────────────────────────── */
@@ -1103,6 +1157,17 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 }
 .quick-btn:hover { border-color: var(--primary); color: var(--primary); background: #eef5fb; }
 .quick-btn-icon { font-size: 20px; }
+
+/* Slim footer-nav variant — student home's quick links are frequent but
+   secondary, so they read as a compact link row instead of big square
+   buttons competing with the journey panel above them. */
+.quick-actions-slim { flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.quick-actions-slim .quick-btn {
+  flex: 0 1 auto; padding: 8px 14px; font-size: 12.5px; font-weight: 600;
+  border-radius: 99px; border-color: var(--border); background: transparent;
+  position: relative;
+}
+.quick-actions-slim .quick-btn-icon { font-size: 15px; }
 
 /* ── Notification Badge ───────────────────────────────── */
 .notif-badge {

@@ -32,12 +32,6 @@ const SECURITY_HEADERS = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.sendpulse.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self';",
 };
 
-// SPA-style rewrites to index.html for client-side routes.
-// '/admin' is intentionally excluded — it's a real static directory
-// (public/khaldiya/admin/, the React admin dashboard), not an SPA route, and
-// must fall through to express.static below instead of being rewritten here.
-const SPA_REWRITES = ['/capabilities', '/history', '/chat', '/login', '/quiz', '/about', '/faq', '/support'];
-
 async function readRawBody(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
@@ -138,10 +132,6 @@ app.use('/api', async (req, res) => {
   }
 });
 
-for (const route of SPA_REWRITES) {
-  app.get([route, `${route}/*`], (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
-}
-
 app.use(express.static(PUBLIC_DIR, {
   extensions: ['html'],
   setHeaders: (res, filePath) => {
@@ -157,7 +147,21 @@ app.use(express.static(PUBLIC_DIR, {
   },
 }));
 
+// SPA fallback — any GET request that reaches here wasn't a real static file
+// (express.static above already tried and failed) and isn't a "/admin/*"
+// path (the React admin app, excluded so its own missing-asset 404s stay
+// real). If it also has no file extension — i.e. it looks like an in-app
+// route (/quiz-skills/progress, /history, whatever screen the SPA can show)
+// rather than a missing asset (/foo.png) — serve index.html and let the
+// client-side router take it from there. This replaces a hardcoded list of
+// ~8 known routes that 404'd on refresh/direct-navigation/back-button for
+// every screen not on that list; a real asset 404 (has an extension) still
+// gets a real 404 either way.
 app.use((req, res) => {
+  const isRealAsset = path.extname(req.path) !== '';
+  if (req.method === 'GET' && !req.path.startsWith('/admin') && !isRealAsset) {
+    return res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+  }
   res.status(404).sendFile(path.join(PUBLIC_DIR, '404.html'));
 });
 

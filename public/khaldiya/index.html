@@ -2142,6 +2142,32 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
+     SCREEN: FULL JOURNEY — the complete roadmap (diagnostic →
+     verbal levels → quantitative levels → final mock → ready badge).
+     Reached only via "عرض مسار التقدم الكامل" from the home screen's
+     compact journey summary. Populated by App.renderJourneyFull()
+     from the same GET /api/journey payload already fetched for home.
+═══════════════════════════════════════════════════════ -->
+<div id="screen-journey-full" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">🧭 مسار التقدم الكامل</div>
+      <div class="topbar-sub">تشخيصك، مهاراتك بكل مستوى، واختبار المحاكاة النهائي</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div id="journey-full-content">
+      <div class="inline-loading"><span class="inline-spinner"></span>جاري تحميل مسارك…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
      SCREEN: QUIZ HUB — section choice (verbal / quantitative)
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-quiz-hub" class="screen">
@@ -3216,6 +3242,6 @@
 </div>
 
 <script src="js/data.js?v=a1b2c3d" defer></script>
-<script src="js/app.js?v=quiz20" defer></script>
+<script src="js/app.js?v=quiz21" defer></script>
 </body>
 </html>

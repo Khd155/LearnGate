@@ -471,6 +471,7 @@ const _SCREEN_PATHS = {
   'screen-level-analysis':'/capabilities/results',
   'screen-general-tests': '/quiz',
   'screen-quiz-progress':     '/quiz-skills/progress',
+  'screen-journey-full':      '/journey',
   'screen-quiz-hub':          '/quiz-skills',
   'screen-quiz-levels':       '/quiz-skills/levels',
   'screen-quiz-skills':       '/quiz-skills/skills',
@@ -932,15 +933,12 @@ const App = {
   },
 
   // ── مسار الإنجاز (Journey) ──────────────────────────────────────────────
-  // Information hierarchy, top to bottom (matches the 4 questions the page
-  // must answer at a glance — أين أنا / ماذا أنجزت / ماذا أفعل الآن / ماذا بقي):
-  //   1. Hero — overall % + current stage (the single "where am I" number)
-  //   2. Badge (only once fully complete) / Next Best Action — the one CTA
-  //   3. Stepper — both sections' 3 levels, compact icons only (no per-level
-  //      cards); tapping an unlocked step swaps the detail panel below
-  //   4. Current-level detail — the ONE level's 5 skills, not all 6 at once
-  //   5. Needs-review — capped list, only if non-empty
-  //   6. Section progress — the ONLY place verbal%/quant% appears
+  // The home screen shows ONLY a compact summary of the journey — hero
+  // (overall % + stage), the one next-best-action CTA, and a link to the
+  // full roadmap. Every section×level×skill breakdown (stepper, per-level
+  // skill panel, needs-review list, verbal/quant mini-bars) lives on the
+  // dedicated #screen-journey-full page (App.renderJourneyFull), reached via
+  // the "عرض مسار التقدم الكامل" button — not squeezed onto the home screen.
   // Strongest/weakest + the score-trend chart are rendered separately into
   // the collapsed <details id="sh-perf-details"> — secondary, not primary.
   async loadJourney() {
@@ -1013,118 +1011,125 @@ const App = {
         <span class="jna-btn">ابدأ الآن ←</span>
       </button>`;
 
-    // Compact stepper: 2 rows (sections) × 3 icon-only steps — replaces the
-    // old 2 full "track" cards that each expanded into 3 heavy level-rows.
-    // The server's nextAction decides which level auto-opens below; if it
-    // doesn't name one (diagnostic/final_mock/done), the first reachable
-    // not-yet-complete level is used as a sensible default.
-    let autoSelect = (na.section && na.level) ? { section: na.section, level: na.level } : null;
+    // Single link out to the full roadmap — everything section/level/skill
+    // specific lives there now, not on the home screen.
+    const fullLink = `
+      <button type="button" class="journey-full-link" onclick="show('screen-journey-full');App.renderJourneyFull(State._journey)">
+        <span>عرض مسار التقدم الكامل</span><span class="jfl-arrow">←</span>
+      </button>`;
+
+    el.innerHTML = `<div class="journey">${hero}${badge}${nextAction}${fullLink}</div>`;
+  },
+
+  // ── Full journey page (#screen-journey-full) ────────────────────────────
+  // The complete roadmap: overview summary, then diagnostic → verbal levels
+  // (each level collapsed to a one-line summary, expandable to its 5 skills)
+  // → quantitative levels the same way → final mock → ready badge. This is
+  // a RELOCATION of what used to sit inline on the home screen, given a full
+  // page to breathe in — nothing here is invented, all from GET /api/journey.
+  async renderJourneyFull(j) {
+    const el = document.getElementById('journey-full-content');
+    if (!el) return;
+    if (!j) {
+      el.innerHTML = '<div class="inline-loading"><span class="inline-spinner"></span>جاري تحميل مسارك…</div>';
+      try {
+        const { journey } = await apiFetch('/journey');
+        State._journey = journey;
+        j = journey;
+      } catch (e) {
+        el.innerHTML = '<p class="journey-highlights-empty">تعذر تحميل مسارك، حاول لاحقًا.</p>';
+        return;
+      }
+    }
+
+    const pct = j.overallProgressPct || 0;
+    const summary = `
+      <div class="jf-summary">
+        <div class="jf-summary-row">
+          <div class="jf-summary-stat"><b>${pct}%</b><span>التقدم الكلي</span></div>
+          <div class="jf-summary-stat"><b>${escapeHtml(j.stageLabel)}</b><span>المرحلة الحالية</span></div>
+          <div class="jf-summary-stat"><b>${j.passedNodes}/${j.totalNodes}</b><span>مهارات مكتملة</span></div>
+        </div>
+        <div class="jf-summary-row">
+          <div class="jf-summary-stat"><b>${j.diagnostic?.done ? '✓ تم' : '— لم يتم'}</b><span>التشخيص الذاتي</span></div>
+          <div class="jf-summary-stat"><b>${j.sections.verbal?.progressPct ?? 0}%</b><span>${App._journeySectionIcon.verbal} اللفظي</span></div>
+          <div class="jf-summary-stat"><b>${j.sections.quantitative?.progressPct ?? 0}%</b><span>${App._journeySectionIcon.quantitative} الكمي</span></div>
+        </div>
+      </div>`;
+
+    const badge = j.badge ? `
+      <div class="journey-badge">
+        <span class="journey-badge-icon">🏆</span>
+        <div>
+          <div class="journey-badge-title">أتممت مسار الإنجاز — ${escapeHtml(j.badge.label)}</div>
+          <div class="journey-badge-sub">${j.finalMock && j.finalMock.available && !j.finalMock.attempted
+            ? 'يمكنك الآن تجربة اختبار المحاكاة الشامل لقياس جاهزيتك النهائية' : 'يمكنك مراجعة أي مهارة في أي وقت'}</div>
+        </div>
+      </div>` : '';
+
     const LEVELS = ['easy', 'medium', 'advanced'];
-    const stepperRows = ['verbal', 'quantitative'].map(section => {
+    const sectionsHtml = ['verbal', 'quantitative'].map((section) => {
       const levels = (j.tree && j.tree[section]) || [];
-      const steps = LEVELS.map(levelKey => {
-        const lvl = levels.find(l => l.level === levelKey);
+      const rows = LEVELS.map((levelKey) => {
+        const lvl = levels.find((l) => l.level === levelKey);
         if (!lvl) return '';
-        let cls = 'current', icon = '○';
-        if (lvl.locked) { cls = 'locked'; icon = '🔒'; }
-        else if (lvl.progressPct === 100) { cls = 'done'; icon = '✓'; }
-        else if (lvl.progressPct > 0) { icon = '●'; }
-        if (!autoSelect && cls === 'current') autoSelect = { section, level: levelKey };
-        return `<button type="button" class="js-step js-step-${cls}" data-section="${section}" data-level="${levelKey}"
-            ${lvl.locked ? 'disabled title="مقفلة حتى إكمال المستوى السابق"' : `onclick="App.journeySelectLevel('${section}','${levelKey}')"`}>
-            <span class="js-step-icon">${icon}</span><span class="js-step-text">${App._journeyLevelShort[levelKey]}</span>
-          </button>`;
-      }).join('<span class="js-line"></span>');
+        const passedCount = lvl.skills.filter((s) => s.status === 'passed').length;
+        const stateIcon = lvl.locked ? '🔒' : (lvl.progressPct === 100 ? '✓' : (lvl.progressPct > 0 ? '●' : '○'));
+        const skillsHtml = lvl.skills.map((s) => {
+          const label = App.quizStatusLabel(s.status);
+          const stateHtml = s.status === 'failed'
+            ? `<span class="jl-skill-state score-low">🔴 مراجعة</span>`
+            : `<span class="jl-skill-state ${label.cls}">${label.text}</span>`;
+          const goType = s.status === 'failed' ? 'retry_skill' : 'start_skill';
+          return `
+            <button type="button" class="jl-skill-row" ${lvl.locked ? 'disabled' : `onclick="App.journeyGo('${goType}','${section}','${levelKey}')"`}>
+              <span class="jl-skill-name">${escapeHtml(s.skillName)}</span>${stateHtml}
+            </button>`;
+        }).join('');
+        return `
+          <details class="jf-level" ${lvl.locked ? '' : (lvl.progressPct > 0 && lvl.progressPct < 100 ? 'open' : '')}>
+            <summary class="jf-level-summary ${lvl.locked ? 'jf-level-locked' : ''}">
+              <span class="jf-level-icon">${stateIcon}</span>
+              <span class="jf-level-title">${App._journeySectionLabel[section]} — المستوى ${App._journeyLevelShort[levelKey]}</span>
+              <span class="jf-level-count">${passedCount}/${lvl.skills.length} مهارات مكتملة</span>
+            </summary>
+            ${lvl.locked
+              ? `<p class="journey-highlights-empty">مقفلة حتى إكمال المستوى السابق</p>`
+              : `<div class="jcl-skills">${skillsHtml}</div>`}
+          </details>`;
+      }).join('');
       return `
-        <div class="js-row">
-          <span class="js-row-label">${App._journeySectionIcon[section]} ${App._journeySectionLabel[section]}</span>
-          <div class="js-steps">${steps}</div>
+        <div class="jf-section">
+          <div class="jf-section-head">${App._journeySectionIcon[section]} ${App._journeySectionLabel[section]}</div>
+          ${rows}
         </div>`;
     }).join('');
-    const stepper = `<div class="journey-stepper">${stepperRows}</div>`;
 
-    const detail = App._journeyLevelDetailHtml(j, autoSelect);
-
-    // Skip any review item that's already visible (with its own 🔴 مراجعة
-    // pill) in the current-level detail panel just above — showing the same
-    // failing skill twice in a row is exactly the redundancy this refinement
-    // pass is about removing, not a second independent signal.
     let review = '';
-    const reviewList = (j.needsReview || []).filter(
-      (r) => !(autoSelect && r.section === autoSelect.section && r.level === autoSelect.level),
-    );
-    if (reviewList.length) {
-      const shown = reviewList.slice(0, 3);
-      const extra = reviewList.length - shown.length;
+    if ((j.needsReview || []).length) {
       review = `
         <div class="journey-review">
-          <div class="journey-review-head">🔴 يحتاج مراجعة أيضًا (${reviewList.length})</div>
-          ${shown.map(r => `
-            <button type="button" class="journey-review-row" onclick="App.journeySelectLevel('${r.section}','${r.level}')">
+          <div class="journey-review-head">🔴 يحتاج مراجعة (${j.needsReview.length})</div>
+          ${j.needsReview.map(r => `
+            <button type="button" class="journey-review-row" onclick="App.journeyGo('retry_skill','${r.section}','${r.level}')">
               <span class="jr-name">${escapeHtml(r.skillName)}</span>
               <span class="jr-score">${r.bestCorrect}/${r.bestTotal}</span>
               <span class="jr-arrow">←</span>
             </button>`).join('')}
-          ${extra > 0 ? `<p class="journey-review-more">+${extra} أخرى ضمن مستوياتها</p>` : ''}
         </div>`;
     }
 
-    const progressMini = `
-      <div class="journey-progress-mini">
-        <div class="jpm-row"><span class="jpm-label">${App._journeySectionIcon.verbal} اللفظي</span><div class="jpm-bar"><div class="jpm-fill" style="width:${j.sections.verbal?.progressPct ?? 0}%"></div></div><b>${j.sections.verbal?.progressPct ?? 0}%</b></div>
-        <div class="jpm-row"><span class="jpm-label">${App._journeySectionIcon.quantitative} الكمي</span><div class="jpm-bar"><div class="jpm-fill" style="width:${j.sections.quantitative?.progressPct ?? 0}%"></div></div><b>${j.sections.quantitative?.progressPct ?? 0}%</b></div>
-      </div>`;
+    const finalMock = j.finalMock ? `
+      <div class="jf-section">
+        <div class="jf-section-head">🏁 اختبار المحاكاة الشامل</div>
+        <p class="journey-highlights-empty">${j.finalMock.available
+          ? (j.finalMock.attempted ? `تمت المحاولة${j.finalMock.passed ? ' — ناجح ✓' : ''}` : 'متاح — لم تتم المحاولة بعد')
+          : 'غير متاح بعد'}</p>
+      </div>` : '';
 
-    el.innerHTML = `<div class="journey">${hero}${badge}${nextAction}${stepper}${detail}${review}${progressMini}</div>`;
-    if (autoSelect) App.journeyMarkSelectedStep(autoSelect.section, autoSelect.level);
+    el.innerHTML = `<div class="journey-full">${summary}${badge}${sectionsHtml}${review}${finalMock}</div>`;
   },
 
-  // The ONE level whose 5 skills are shown at a time — everything else stays
-  // collapsed to a single icon in the stepper above (progressive disclosure).
-  _journeyLevelDetailHtml(j, sel) {
-    if (!sel || !j.tree) return '';
-    const levels = j.tree[sel.section] || [];
-    const lvl = levels.find(l => l.level === sel.level);
-    if (!lvl) return '';
-    const passedCount = lvl.skills.filter(s => s.status === 'passed').length;
-    const skillsHtml = lvl.skills.map(s => {
-      const label = App.quizStatusLabel(s.status);
-      const stateHtml = s.status === 'failed'
-        ? `<span class="jl-skill-state score-low">🔴 مراجعة</span>`
-        : `<span class="jl-skill-state ${label.cls}">${label.text}</span>`;
-      const goType = s.status === 'failed' ? 'retry_skill' : 'start_skill';
-      return `
-        <button type="button" class="jl-skill-row" onclick="App.journeyGo('${goType}','${sel.section}','${sel.level}')">
-          <span class="jl-skill-name">${escapeHtml(s.skillName)}</span>${stateHtml}
-        </button>`;
-    }).join('');
-    return `
-      <div class="journey-current-level">
-        <div class="jcl-head">
-          <span>${App._journeySectionIcon[sel.section]} ${App._journeySectionLabel[sel.section]} · المستوى ${App._journeyLevelShort[sel.level]}</span>
-          <span class="jcl-count">${passedCount}/${lvl.skills.length}</span>
-        </div>
-        <div class="jcl-skills">${skillsHtml}</div>
-      </div>`;
-  },
-
-  // Swaps only the current-level detail panel (no full re-render) and moves
-  // the stepper's "selected" highlight — snappy, and keeps scroll position.
-  journeySelectLevel(section, level) {
-    const j = State._journey;
-    if (!j) return;
-    const detailEl = document.querySelector('.journey-current-level');
-    const html = App._journeyLevelDetailHtml(j, { section, level });
-    if (detailEl) detailEl.outerHTML = html || '';
-    else if (html) document.querySelector('.journey-stepper')?.insertAdjacentHTML('afterend', html);
-    App.journeyMarkSelectedStep(section, level);
-  },
-
-  journeyMarkSelectedStep(section, level) {
-    document.querySelectorAll('.js-step').forEach((b) => {
-      b.classList.toggle('js-step-selected', b.dataset.section === section && b.dataset.level === level);
-    });
-  },
 
   // Strongest/weakest — rendered into the collapsed "أداءك" <details>, not
   // the primary journey panel. Both pools are independent (see journey.js):

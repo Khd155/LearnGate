@@ -1053,11 +1053,11 @@ const App = {
   },
 
   // ── Full journey page (#screen-journey-full) ────────────────────────────
-  // The complete roadmap: overview summary, then diagnostic → verbal levels
-  // (each level collapsed to a one-line summary, expandable to its 5 skills)
-  // → quantitative levels the same way → final mock → ready badge. This is
-  // a RELOCATION of what used to sit inline on the home screen, given a full
-  // page to breathe in — nothing here is invented, all from GET /api/journey.
+  // A visual timeline/path, not a data dashboard: hero (progress shown ONCE)
+  // + milestone strip, then a connected path of nodes — diagnostic → verbal
+  // levels → quantitative levels → final mock → badge — each expandable to
+  // its skills, then needs-review. Nothing here is invented; everything
+  // traces to the GET /api/journey payload (`j`), same shape used on home.
   async renderJourneyFull(j) {
     const el = document.getElementById('journey-full-content');
     if (!el) return;
@@ -1073,73 +1073,194 @@ const App = {
       }
     }
 
+    const LEVELS = ['easy', 'medium', 'advanced'];
     const pct = j.overallProgressPct || 0;
-    const summary = `
-      <div class="jf-summary">
-        <div class="jf-summary-row">
-          <div class="jf-summary-stat"><b>${pct}%</b><span>التقدم الكلي</span></div>
-          <div class="jf-summary-stat"><b>${escapeHtml(j.stageLabel)}</b><span>المرحلة الحالية</span></div>
-          <div class="jf-summary-stat"><b>${j.passedNodes}/${j.totalNodes}</b><span>مهارات مكتملة</span></div>
-        </div>
-        <div class="jf-summary-row">
-          <div class="jf-summary-stat"><b>${j.diagnostic?.done ? '✓ تم' : '— لم يتم'}</b><span>التشخيص الذاتي</span></div>
-          <div class="jf-summary-stat"><b>${j.sections.verbal?.progressPct ?? 0}%</b><span>${App._journeySectionIcon.verbal} اللفظي</span></div>
-          <div class="jf-summary-stat"><b>${j.sections.quantitative?.progressPct ?? 0}%</b><span>${App._journeySectionIcon.quantitative} الكمي</span></div>
-        </div>
+
+    // ── Path node list: one entry per milestone in visual/travel order.
+    // "current" comes straight from j.stage / j.nextAction — no separate
+    // heuristic invented client-side.
+    const naType = (j.nextAction || {}).type;
+    const verbalDone = j.sections.verbal?.progressPct === 100;
+    const quantDone = j.sections.quantitative?.progressPct === 100;
+    const allSkillsDone = j.totalNodes > 0 && j.passedNodes === j.totalNodes;
+
+    const levelNode = (section, levelKey) => {
+      const lvl = ((j.tree && j.tree[section]) || []).find((l) => l.level === levelKey);
+      const isCurrent = !!(j.diagnostic.done && j.stage === levelKey &&
+        ((section === 'verbal' && !verbalDone) || (section === 'quantitative' && verbalDone && !quantDone)));
+      return { kind: 'level', section, levelKey, lvl, isCurrent };
+    };
+
+    const nodes = [
+      { kind: 'diagnostic', isCurrent: naType === 'diagnostic' },
+      levelNode('verbal', 'easy'),
+      levelNode('verbal', 'medium'),
+      levelNode('verbal', 'advanced'),
+      levelNode('quantitative', 'easy'),
+      levelNode('quantitative', 'medium'),
+      levelNode('quantitative', 'advanced'),
+      { kind: 'finalMock', isCurrent: naType === 'final_mock' },
+      { kind: 'badge', isCurrent: allSkillsDone && !!(j.finalMock && j.finalMock.available ? j.finalMock.attempted : true) && !!j.badge },
+    ];
+
+    // ── Hero ────────────────────────────────────────────────────────────
+    const milestoneChip = (icon, label, state) => `
+      <span class="jt-mchip jt-mchip-${state}"><span class="jt-mchip-icon">${icon}</span>${label}</span>`;
+    const milestones = `
+      <div class="jt-milestones">
+        ${milestoneChip('🧭', 'التشخيص', j.diagnostic.done ? 'done' : (naType === 'diagnostic' ? 'current' : 'upcoming'))}
+        ${milestoneChip('📘', 'اللفظي', verbalDone ? 'done' : (j.diagnostic.done && !verbalDone ? 'current' : 'upcoming'))}
+        ${milestoneChip('📗', 'الكمي', quantDone ? 'done' : (verbalDone && !quantDone ? 'current' : (verbalDone ? 'upcoming' : 'locked')))}
+        ${milestoneChip('🏁', 'اختبار المحاكاة', j.finalMock && j.finalMock.attempted ? 'done' : (naType === 'final_mock' ? 'current' : (allSkillsDone ? 'upcoming' : 'locked')))}
+        ${milestoneChip('🏆', 'الشارة', j.badge ? 'done' : 'locked')}
       </div>`;
 
-    const badge = j.badge ? `
-      <div class="journey-badge">
-        <span class="journey-badge-icon">🏆</span>
-        <div>
-          <div class="journey-badge-title">أتممت مسار الإنجاز — ${escapeHtml(j.badge.label)}</div>
-          <div class="journey-badge-sub">${j.finalMock && j.finalMock.available && !j.finalMock.attempted
-            ? 'يمكنك الآن تجربة اختبار المحاكاة الشامل لقياس جاهزيتك النهائية' : 'يمكنك مراجعة أي مهارة في أي وقت'}</div>
+    const R = 34, C = 2 * Math.PI * R;
+    const hero = `
+      <div class="jt-hero">
+        <div class="jt-hero-top">
+          <div class="jt-hero-ring-wrap">
+            <svg class="jt-hero-ring" viewBox="0 0 84 84" aria-hidden="true">
+              <circle class="jt-hero-ring-track" cx="42" cy="42" r="${R}"/>
+              <circle class="jt-hero-ring-fill" cx="42" cy="42" r="${R}"
+                stroke-dasharray="${C}" stroke-dashoffset="${C - (pct / 100) * C}"/>
+            </svg>
+            <div class="jt-hero-ring-value">${pct}%</div>
+          </div>
+          <div class="jt-hero-info">
+            <div class="jt-hero-title">${escapeHtml(j.stageLabel)}</div>
+            <div class="jt-hero-sub">${j.passedNodes}/${j.totalNodes} مهارة مكتملة</div>
+          </div>
         </div>
-      </div>` : '';
+        ${milestones}
+      </div>`;
 
-    const LEVELS = ['easy', 'medium', 'advanced'];
-    const sectionsHtml = ['verbal', 'quantitative'].map((section) => {
-      const levels = (j.tree && j.tree[section]) || [];
-      const rows = LEVELS.map((levelKey) => {
-        const lvl = levels.find((l) => l.level === levelKey);
+    // ── Primary CTA ─────────────────────────────────────────────────────
+    const na = j.nextAction || {};
+    const naIcon = { diagnostic: '🧭', retry_skill: '🔁', start_skill: '🎯', final_mock: '🏁' }[na.type] || '🎯';
+    const cta = na.type && na.type !== 'done' && na.type !== 'none' ? `
+      <button type="button" class="jt-cta" onclick="App.journeyGo('${na.type}','${na.section || ''}','${na.level || ''}')">
+        <span class="jt-cta-icon">${naIcon}</span>
+        <div class="jt-cta-text">
+          <div class="jt-cta-label">${na.type === 'diagnostic' ? 'ابدأ من هنا' : 'متابعة الرحلة'}</div>
+          <div class="jt-cta-title">${escapeHtml(na.label || '')}</div>
+          ${na.detail ? `<div class="jt-cta-detail">${escapeHtml(na.detail)}</div>` : ''}
+        </div>
+        <span class="jt-cta-arrow">←</span>
+      </button>` : (na.type === 'done' ? `
+      <div class="jt-cta jt-cta-done"><span class="jt-cta-icon">🏆</span><div class="jt-cta-text"><div class="jt-cta-title">${escapeHtml(na.label || '')}</div></div></div>` : '');
+
+    // ── Path nodes ──────────────────────────────────────────────────────
+    const skillRow = (s, section, levelKey, locked) => {
+      const label = App.quizStatusLabel(s.status);
+      const isCurrent = !locked && na.quizSkillId && na.quizSkillId === s.quizSkillId;
+      const stateHtml = isCurrent
+        ? `<span class="jt-skill-state jt-skill-current">◉ التالية</span>`
+        : s.status === 'failed'
+          ? `<span class="jt-skill-state score-low">🔴 مراجعة</span>`
+          : `<span class="jt-skill-state ${label.cls}">${label.text}</span>`;
+      const goType = s.status === 'failed' ? 'retry_skill' : 'start_skill';
+      return `
+        <button type="button" class="jt-skill-row" ${locked ? 'disabled' : `onclick="App.journeyGo('${goType}','${section}','${levelKey}')"`}>
+          <span class="jt-skill-name">${escapeHtml(s.skillName)}</span>${stateHtml}
+        </button>`;
+    };
+
+    const nodeStateOf = (n) => {
+      if (n.kind === 'diagnostic') return j.diagnostic.done ? 'done' : (n.isCurrent ? 'current' : 'upcoming');
+      if (n.kind === 'level') {
+        if (!n.lvl) return 'upcoming';
+        if (n.lvl.locked) return 'locked';
+        if (n.lvl.progressPct === 100) return 'done';
+        if (n.isCurrent) return 'current';
+        return n.lvl.progressPct > 0 ? 'current' : 'upcoming';
+      }
+      if (n.kind === 'finalMock') {
+        if (!j.finalMock || !j.finalMock.available) return 'locked';
+        if (j.finalMock.attempted) return 'done';
+        return n.isCurrent ? 'current' : 'upcoming';
+      }
+      if (n.kind === 'badge') return j.badge ? 'done' : 'locked';
+      return 'upcoming';
+    };
+
+    const stateIconOf = (state) => ({ done: '✓', current: '●', upcoming: '○', locked: '🔒' })[state] || '○';
+
+    const nodesHtml = nodes.map((n, i) => {
+      const state = nodeStateOf(n);
+      const icon = stateIconOf(state);
+
+      if (n.kind === 'diagnostic') {
+        return `
+          <li class="jt-node jt-node-${state}">
+            <span class="jt-node-dot" aria-hidden="true">${state === 'done' ? '✓' : '🧭'}</span>
+            <div class="jt-node-body jt-node-simple">
+              <div class="jt-node-title">التشخيص الذاتي</div>
+              <div class="jt-node-desc">${j.diagnostic.done ? 'تم إكمال التشخيص' : (state === 'current' ? 'خطوتك الأولى — حدّد نقاط قوتك وضعفك' : 'بانتظار البدء')}</div>
+            </div>
+          </li>`;
+      }
+
+      if (n.kind === 'level') {
+        const { section, levelKey, lvl } = n;
         if (!lvl) return '';
         const passedCount = lvl.skills.filter((s) => s.status === 'passed').length;
-        const stateIcon = lvl.locked ? '🔒' : (lvl.progressPct === 100 ? '✓' : (lvl.progressPct > 0 ? '●' : '○'));
-        const skillsHtml = lvl.skills.map((s) => {
-          const label = App.quizStatusLabel(s.status);
-          const stateHtml = s.status === 'failed'
-            ? `<span class="jl-skill-state score-low">🔴 مراجعة</span>`
-            : `<span class="jl-skill-state ${label.cls}">${label.text}</span>`;
-          const goType = s.status === 'failed' ? 'retry_skill' : 'start_skill';
-          return `
-            <button type="button" class="jl-skill-row" ${lvl.locked ? 'disabled' : `onclick="App.journeyGo('${goType}','${section}','${levelKey}')"`}>
-              <span class="jl-skill-name">${escapeHtml(s.skillName)}</span>${stateHtml}
-            </button>`;
-        }).join('');
+        const skillsHtml = lvl.skills.map((s) => skillRow(s, section, levelKey, lvl.locked)).join('');
+        const openAttr = !lvl.locked && (state === 'current') ? 'open' : '';
         return `
-          <details class="jf-level" ${lvl.locked ? '' : (lvl.progressPct > 0 && lvl.progressPct < 100 ? 'open' : '')}>
-            <summary class="jf-level-summary ${lvl.locked ? 'jf-level-locked' : ''}">
-              <span class="jf-level-icon">${stateIcon}</span>
-              <span class="jf-level-title">${App._journeySectionLabel[section]} — المستوى ${App._journeyLevelShort[levelKey]}</span>
-              <span class="jf-level-count">${passedCount}/${lvl.skills.length} مهارات مكتملة</span>
-            </summary>
-            ${lvl.locked
-              ? `<p class="journey-highlights-empty">مقفلة حتى إكمال المستوى السابق</p>`
-              : `<div class="jcl-skills">${skillsHtml}</div>`}
-          </details>`;
-      }).join('');
+          <li class="jt-node jt-node-${state}">
+            <span class="jt-node-dot" aria-hidden="true">${icon}</span>
+            <div class="jt-node-body">
+              <details class="jt-level" ${openAttr}>
+                <summary class="jt-level-summary">
+                  <span class="jt-level-icon">${App._journeySectionIcon[section]}</span>
+                  <span class="jt-level-title">${App._journeySectionLabel[section]} — المستوى ${App._journeyLevelShort[levelKey]}</span>
+                  <span class="jt-level-count">${passedCount}/${lvl.skills.length}</span>
+                </summary>
+                ${lvl.locked
+                  ? `<p class="jt-locked-reason">🔒 تُفتح بعد إكمال المستوى السابق من ${App._journeySectionLabel[section]}</p>`
+                  : `<div class="jt-skills">${skillsHtml}</div>`}
+              </details>
+            </div>
+          </li>`;
+      }
+
+      if (n.kind === 'finalMock') {
+        const fm = j.finalMock;
+        const desc = !fm || !fm.available
+          ? 'يُفتح بعد إكمال جميع المهارات'
+          : fm.attempted
+            ? `تمت المحاولة${fm.passed ? ' — ناجح ✓' : ''}`
+            : 'متاح الآن — لم تتم المحاولة بعد';
+        return `
+          <li class="jt-node jt-node-${state}">
+            <span class="jt-node-dot" aria-hidden="true">${state === 'done' ? '✓' : '🏁'}</span>
+            <div class="jt-node-body jt-node-simple">
+              <div class="jt-node-title">${escapeHtml((fm && fm.title) || 'اختبار المحاكاة الشامل')}</div>
+              <div class="jt-node-desc">${desc}</div>
+              ${state === 'current' ? `<button type="button" class="jt-node-btn" onclick="App.journeyGo('final_mock','','')">ابدأ الاختبار ←</button>` : ''}
+            </div>
+          </li>`;
+      }
+
+      // badge
       return `
-        <div class="jf-section">
-          <div class="jf-section-head">${App._journeySectionIcon[section]} ${App._journeySectionLabel[section]}</div>
-          ${rows}
-        </div>`;
+        <li class="jt-node jt-node-${state}">
+          <span class="jt-node-dot" aria-hidden="true">${j.badge ? '🏆' : '🔒'}</span>
+          <div class="jt-node-body jt-node-simple">
+            <div class="jt-node-title">${j.badge ? escapeHtml(j.badge.label) : 'شارة إتمام المسار'}</div>
+            <div class="jt-node-desc">${j.badge ? 'أتممت جميع مهارات المسار 🎉' : 'تُمنح بعد إكمال جميع المهارات'}</div>
+          </div>
+        </li>`;
     }).join('');
 
+    const path = `<ol class="jt-path">${nodesHtml}</ol>`;
+
+    // ── Needs review (kept, real data) ─────────────────────────────────
     let review = '';
     if ((j.needsReview || []).length) {
       review = `
-        <div class="journey-review">
+        <div class="journey-review jt-review">
           <div class="journey-review-head">🔴 يحتاج مراجعة (${j.needsReview.length})</div>
           ${j.needsReview.map(r => `
             <button type="button" class="journey-review-row" onclick="App.journeyGo('retry_skill','${r.section}','${r.level}')">
@@ -1150,15 +1271,7 @@ const App = {
         </div>`;
     }
 
-    const finalMock = j.finalMock ? `
-      <div class="jf-section">
-        <div class="jf-section-head">🏁 اختبار المحاكاة الشامل</div>
-        <p class="journey-highlights-empty">${j.finalMock.available
-          ? (j.finalMock.attempted ? `تمت المحاولة${j.finalMock.passed ? ' — ناجح ✓' : ''}` : 'متاح — لم تتم المحاولة بعد')
-          : 'غير متاح بعد'}</p>
-      </div>` : '';
-
-    el.innerHTML = `<div class="journey-full">${summary}${badge}${sectionsHtml}${review}${finalMock}</div>`;
+    el.innerHTML = `<div class="journey-full jt-wrap">${hero}${cta}${path}${review}</div>`;
   },
 
 

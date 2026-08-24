@@ -599,17 +599,7 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   border-bottom: 1px solid var(--border); background: var(--bg-tint);
 }
 .jcl-count { font-size: 12px; font-weight: 800; color: var(--primary); }
-.jcl-skills { display: flex; flex-direction: column; }
-.jl-skill-row {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  background: transparent; border: none; border-top: 1px solid var(--border);
-  padding: 11px 16px; font-family: inherit; font-size: 13px; cursor: pointer;
-  text-align: right; color: var(--text);
-}
-.jl-skill-row:first-child { border-top: none; }
-.jl-skill-row:hover { background: var(--bg-tint); }
-.jl-skill-name { flex: 1; font-weight: 600; }
-.jl-skill-state { font-weight: 800; font-size: 11.5px; padding: 2px 9px; border-radius: 99px; flex-shrink: 0; }
+
 
 /* Needs-review — a slim inset list, not another bordered card competing
    with the current-level detail above it. */
@@ -692,44 +682,148 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .journey-full-link:hover { border-color: var(--primary-lt); background: rgba(63,124,184,.08); }
 .jfl-arrow { color: var(--primary); font-size: 13px; }
 
-/* ── #screen-journey-full — the full roadmap page ─────────────────────── */
-.journey-full { display: flex; flex-direction: column; gap: 16px; }
+/* ── #screen-journey-full — the visual journey path ───────────────────── */
+.jt-wrap { display: flex; flex-direction: column; gap: 18px; }
 
-.jf-summary {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 10px;
+/* Hero: progress ring shown ONCE on this page, stage label, milestone strip */
+.jt-hero {
+  background: var(--grad-soft); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 18px 18px 14px;
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow: var(--shadow-sm);
 }
-.jf-summary-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.jf-summary-stat {
-  flex: 1; min-width: 100px; display: flex; flex-direction: column; gap: 2px;
-  text-align: center; padding: 8px 4px; background: var(--bg-tint);
-  border-radius: var(--radius);
+.jt-hero-top { display: flex; align-items: center; gap: 14px; }
+.jt-hero-ring-wrap { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
+.jt-hero-ring { width: 84px; height: 84px; transform: rotate(-90deg); }
+.jt-hero-ring-track { fill: none; stroke: var(--border); stroke-width: 7; }
+.jt-hero-ring-fill {
+  fill: none; stroke: var(--primary); stroke-width: 7; stroke-linecap: round;
+  transition: stroke-dashoffset .7s cubic-bezier(.22,1,.36,1);
 }
-.jf-summary-stat b { font-size: 15px; font-weight: 800; color: var(--text); }
-.jf-summary-stat span { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.jt-hero-ring-value {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 800; color: var(--text);
+}
+.jt-hero-info { flex: 1; min-width: 0; }
+.jt-hero-title { font-size: 16.5px; font-weight: 800; color: var(--text); }
+.jt-hero-sub { font-size: 12.5px; color: var(--muted); font-weight: 600; margin-top: 2px; }
 
-.jf-section { display: flex; flex-direction: column; gap: 8px; }
-.jf-section-head { font-size: 13.5px; font-weight: 800; color: var(--muted); padding: 0 2px; }
+.jt-milestones { display: flex; flex-wrap: wrap; gap: 8px; }
+.jt-mchip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 700; padding: 5px 10px 5px 8px;
+  border-radius: 99px; background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted);
+}
+.jt-mchip-icon { font-size: 13px; }
+.jt-mchip-done { color: var(--success); border-color: var(--success); }
+.jt-mchip-current { color: var(--primary); border-color: var(--primary); background: rgba(63,124,184,.08); font-weight: 800; }
+.jt-mchip-locked { opacity: .55; }
 
-.jf-level {
+/* Primary CTA — the single action button, not a wall of buttons */
+.jt-cta {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: var(--surface); border: 1.5px solid var(--primary);
+  border-radius: var(--radius-lg); padding: 14px 16px; cursor: pointer;
+  font-family: inherit; text-align: right; box-shadow: var(--shadow);
+  transition: transform .15s, box-shadow .15s;
+}
+.jt-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+.jt-cta:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.jt-cta-icon { font-size: 22px; flex-shrink: 0; }
+.jt-cta-text { flex: 1; min-width: 0; }
+.jt-cta-label { font-size: 11px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: .02em; }
+.jt-cta-title { font-size: 14.5px; font-weight: 800; color: var(--text); margin-top: 1px; }
+.jt-cta-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.jt-cta-arrow { font-size: 16px; color: var(--primary); flex-shrink: 0; }
+.jt-cta-done { cursor: default; border-color: var(--success); }
+.jt-cta-done:hover { transform: none; box-shadow: var(--shadow); }
+
+/* ── The path itself: a connected vertical timeline (mobile-first; this IS
+   the responsive layout — a centered rail with alternating content reads
+   as more complexity than the data warrants and would need JS layout math
+   to stay overflow-safe, so one clean rail scales from phone to desktop). */
+.jt-path { list-style: none; margin: 0; padding: 0; position: relative; }
+.jt-path::before {
+  content: ''; position: absolute; top: 6px; bottom: 6px;
+  inset-inline-start: 17px; width: 2px; background: var(--border);
+}
+.jt-node { position: relative; display: flex; gap: 14px; padding-bottom: 18px; }
+.jt-node:last-child { padding-bottom: 0; }
+.jt-node-dot {
+  position: relative; z-index: 1; flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800;
+  background: var(--surface); border: 2px solid var(--border); color: var(--muted);
+}
+.jt-node-done .jt-node-dot { background: var(--success); border-color: var(--success); color: #fff; }
+.jt-node-current .jt-node-dot {
+  background: var(--primary); border-color: var(--primary); color: #fff;
+  width: 40px; height: 40px; margin-top: -2px; margin-inline-start: -2px;
+  box-shadow: 0 0 0 5px rgba(63,124,184,.18);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .jt-node-current .jt-node-dot { animation: jt-pulse 2.2s ease-in-out infinite; }
+}
+@keyframes jt-pulse {
+  0%, 100% { box-shadow: 0 0 0 5px rgba(63,124,184,.18); }
+  50% { box-shadow: 0 0 0 9px rgba(63,124,184,.10); }
+}
+.jt-node-locked .jt-node-dot { opacity: .55; }
+.jt-node-upcoming .jt-node-dot { color: var(--border-strong); }
+
+.jt-node-body { flex: 1; min-width: 0; padding-top: 2px; }
+.jt-node-simple { padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.jt-node-title { font-size: 14px; font-weight: 800; color: var(--text); }
+.jt-node-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.jt-node-locked .jt-node-simple, .jt-node-locked .jt-level { opacity: .7; }
+.jt-node-btn {
+  margin-top: 8px; background: var(--primary); color: #fff; border: none;
+  border-radius: var(--radius-sm); padding: 7px 14px; font-family: inherit;
+  font-size: 12.5px; font-weight: 700; cursor: pointer;
+}
+.jt-node-btn:focus-visible { outline: 2px solid var(--primary-dk); outline-offset: 2px; }
+
+/* Level nodes: Journey → Section → Level → Skill hierarchy via <details> */
+.jt-level {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); overflow: hidden;
 }
-.jf-level-summary {
+.jt-node-current .jt-level { border-color: var(--primary); }
+.jt-level-summary {
   display: flex; align-items: center; gap: 10px; cursor: pointer;
-  list-style: none; padding: 12px 16px; font-size: 13.5px;
+  list-style: none; padding: 11px 14px; font-size: 13.5px;
   background: var(--bg-tint); user-select: none;
 }
-.jf-level-summary::-webkit-details-marker { display: none; }
-.jf-level-icon { font-size: 13px; flex-shrink: 0; }
-.jf-level-title { flex: 1; font-weight: 700; color: var(--text); }
-.jf-level-count { font-size: 11.5px; font-weight: 800; color: var(--primary); flex-shrink: 0; }
-.jf-level-locked { color: var(--muted); cursor: not-allowed; }
-.jf-level-locked .jf-level-title { color: var(--muted); }
+.jt-level-summary::-webkit-details-marker { display: none; }
+.jt-level-summary:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.jt-level-icon { font-size: 13px; flex-shrink: 0; }
+.jt-level-title { flex: 1; font-weight: 700; color: var(--text); }
+.jt-level-count { font-size: 11.5px; font-weight: 800; color: var(--primary); flex-shrink: 0; }
+.jt-locked-reason { font-size: 12px; color: var(--muted); padding: 10px 14px; margin: 0; }
+
+.jt-skills { display: flex; flex-direction: column; }
+.jt-skill-row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: transparent; border: none; border-top: 1px solid var(--border);
+  padding: 10px 14px; font-family: inherit; font-size: 13px; cursor: pointer;
+  text-align: right; color: var(--text);
+}
+.jt-skill-row:first-child { border-top: none; }
+.jt-skill-row:hover:not(:disabled) { background: var(--bg-tint); }
+.jt-skill-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.jt-skill-row:disabled { cursor: not-allowed; color: var(--muted); }
+.jt-skill-name { flex: 1; font-weight: 600; }
+.jt-skill-state { font-weight: 800; font-size: 11.5px; padding: 2px 9px; border-radius: 99px; flex-shrink: 0; }
+.jt-skill-current { background: rgba(63,124,184,.14); color: var(--primary); }
+
+.jt-review { margin-top: 4px; }
 
 @media (max-width: 480px) {
-  .jf-summary-stat { min-width: 45%; }
+  .jt-hero { padding: 16px 14px 12px; }
+  .jt-hero-ring-wrap { width: 68px; height: 68px; }
+  .jt-hero-ring { width: 68px; height: 68px; }
 }
 
 /* Slimmer welcome banner — the journey hero carries the "where am I" job now */

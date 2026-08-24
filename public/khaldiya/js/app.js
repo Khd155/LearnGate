@@ -956,6 +956,7 @@ const App = {
   },
 
   _journeyLevelShort: { easy: 'سهل', medium: 'متوسط', advanced: 'متقدم' },
+  _journeyLevelLabel: { easy: 'المستوى الأول — سهل', medium: 'المستوى الثاني — متوسط', advanced: 'المستوى الثالث — متقدم' },
   _journeySectionLabel: { verbal: 'اللفظي', quantitative: 'الكمي' },
   _journeySectionIcon: { verbal: '📘', quantitative: '📗' },
 
@@ -964,22 +965,43 @@ const App = {
     if (!el || !j) return;
 
     const pct = j.overallProgressPct || 0;
-    const R = 34, C = 2 * Math.PI * R;
-    const hero = `
-      <div class="journey-hero">
-        <div class="journey-ring-wrap">
-          <svg class="journey-ring" viewBox="0 0 84 84">
-            <circle class="journey-ring-track" cx="42" cy="42" r="${R}"/>
-            <circle class="journey-ring-fill" cx="42" cy="42" r="${R}"
-              stroke-dasharray="${C}" stroke-dashoffset="${C - (pct / 100) * C}"/>
-          </svg>
-          <div class="journey-ring-value">${pct}%</div>
+    const R = 29, C = 2 * Math.PI * R;
+    const ringSvg = `
+      <div class="journey-ring-wrap">
+        <svg class="journey-ring" viewBox="0 0 74 74">
+          <circle class="journey-ring-track" cx="37" cy="37" r="${R}"/>
+          <circle class="journey-ring-fill" cx="37" cy="37" r="${R}"
+            stroke-dasharray="${C}" stroke-dashoffset="${C - (pct / 100) * C}"/>
+        </svg>
+        <div class="journey-ring-value">${pct}%</div>
+      </div>`;
+
+    const dot = (color) => `<span class="jms-dot" style="background:${color}"></span>`;
+    const miniStats = `
+      <div class="journey-mini-stats">
+        <span class="journey-mini-stat">${dot('#3F7CB8')}اللفظي <b>${j.sections.verbal?.progressPct ?? 0}%</b></span>
+        <span class="journey-mini-stat">${dot('#4FA877')}الكمي <b>${j.sections.quantitative?.progressPct ?? 0}%</b></span>
+        <span class="journey-mini-stat">${dot(j.diagnostic.done ? '#4FA877' : '#cbd5e1')}التشخيص ${j.diagnostic.done ? '<b>✓ مكتمل</b>' : 'لم يبدأ'}</span>
+        <span class="journey-mini-stat">${dot('#7C5CD4')}المهارات <b>${j.passedNodes}/${j.totalNodes}</b></span>
+      </div>`;
+
+    // Link out to the full roadmap page — same data, dedicated page to
+    // breathe in. Placed as the last flex child of the summary row so it
+    // sits on the left (RTL: DOM-last = visually left).
+    const fullLink = `
+      <button type="button" class="journey-summary-link" onclick="show('screen-journey-full');App.renderJourneyFull(State._journey)">
+        <span>عرض مسار التقدم</span><span class="jfl-arrow">←</span>
+      </button>`;
+
+    const summary = `
+      <div class="journey-summary">
+        ${ringSvg}
+        <div class="journey-summary-info">
+          <div class="journey-summary-title">مسار إنجازك</div>
+          <div class="journey-stage-label">${escapeHtml(j.stageLabel)}</div>
+          ${miniStats}
         </div>
-        <div class="journey-hero-info">
-          <div class="journey-hero-label">مسار إنجازك</div>
-          <div class="journey-hero-stage">${escapeHtml(j.stageLabel)}</div>
-          <div class="journey-hero-sub">${j.passedNodes} من ${j.totalNodes} مهارة مكتملة</div>
-        </div>
+        ${fullLink}
       </div>`;
 
     const na = j.nextAction || {};
@@ -1011,14 +1033,56 @@ const App = {
         <span class="jna-btn">ابدأ الآن ←</span>
       </button>`;
 
-    // Single link out to the full roadmap — everything section/level/skill
-    // specific lives there now, not on the home screen.
-    const fullLink = `
-      <button type="button" class="journey-full-link" onclick="show('screen-journey-full');App.renderJourneyFull(State._journey)">
-        <span>عرض مسار التقدم الكامل</span><span class="jfl-arrow">←</span>
-      </button>`;
+    let review = '';
+    if (j.needsReview && j.needsReview.length) {
+      review = `
+        <div class="journey-review">
+          <div class="journey-review-head">🔴 يحتاج مراجعة (${j.needsReview.length})</div>
+          ${j.needsReview.map(r => `
+            <button type="button" class="journey-review-row" onclick="App.journeyGo('retry_skill','${r.section}','${r.level}')">
+              <span class="jr-name">${escapeHtml(r.skillName)}</span>
+              <span class="jr-score">${r.bestCorrect}/${r.bestTotal}</span>
+              <span class="jr-arrow">←</span>
+            </button>`).join('')}
+        </div>`;
+    }
 
-    el.innerHTML = `<div class="journey">${hero}${badge}${nextAction}${fullLink}</div>`;
+    const tracks = ['verbal', 'quantitative'].map(section => {
+      const levels = j.tree ? j.tree[section] : null;
+      if (!levels) return '';
+      const rows = levels.map((lvl) => {
+        const rowId = `jl-${section}-${lvl.level}`;
+        let icon = '⚪';
+        if (lvl.locked) icon = '🔒';
+        else if (lvl.progressPct === 100) icon = '🟢';
+        else if (lvl.progressPct > 0) icon = '🟡';
+        const passedCount = lvl.skills.filter(s => s.status === 'passed').length;
+        const skillsHtml = lvl.skills.map(s => {
+          const label = App.quizStatusLabel(s.status);
+          const stateHtml = s.status === 'failed'
+            ? `<span class="jl-skill-state score-low">🔴 مراجعة</span>`
+            : `<span class="jl-skill-state ${label.cls}">${label.text}</span>`;
+          return `<div class="jl-skill-row"><span class="jl-skill-name">${escapeHtml(s.skillName)}</span>${stateHtml}</div>`;
+        }).join('');
+        return `
+          <button type="button" class="journey-level-row" id="${rowId}-btn" ${lvl.locked ? 'disabled' : ''}
+            onclick="App.journeyToggleLevel('${rowId}')">
+            <span class="jl-icon">${icon}</span>
+            <span class="jl-title">${App._journeyLevelLabel ? App._journeyLevelLabel[lvl.level] : ''}</span>
+            <span class="jl-sub">${lvl.locked ? 'مقفلة حتى إكمال المستوى السابق' : `${passedCount}/${lvl.skills.length} مهارات مكتملة`}</span>
+            ${lvl.locked ? '' : '<span class="jl-caret">▾</span>'}
+          </button>
+          ${lvl.locked ? '' : `<div class="jl-skills" id="${rowId}-skills">${skillsHtml}</div>`}`;
+      }).join('');
+      const secPct = j.sections[section]?.progressPct ?? 0;
+      return `
+        <div class="journey-track">
+          <div class="jt-head">${App._journeySectionIcon[section]} ${App._journeySectionLabel[section]}<span class="jt-pct">${secPct}%</span></div>
+          <div class="jt-levels">${rows}</div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `<div class="journey">${summary}${badge}${nextAction}${review}<div class="journey-tracks">${tracks}</div></div>`;
   },
 
   // ── Full journey page (#screen-journey-full) ────────────────────────────
@@ -1135,6 +1199,14 @@ const App = {
   // the primary journey panel. Both pools are independent (see journey.js):
   // strongest only ever comes from a genuine pass, weakest only from a
   // genuine fail — so the two can never show the same 100% by construction.
+  journeyToggleLevel(rowId) {
+    const btn = document.getElementById(`${rowId}-btn`);
+    const panel = document.getElementById(`${rowId}-skills`);
+    if (!btn || !panel) return;
+    const open = panel.classList.toggle('open');
+    btn.classList.toggle('expanded', open);
+  },
+
   renderJourneyHighlights(j) {
     const el = document.getElementById('sh-journey-highlights');
     if (!el || !j) return;

@@ -1185,79 +1185,76 @@
     <button class="topbar-back" onclick="App.logout()" title="خروج" style="font-size:14px;">خروج</button>
   </div>
   <div class="page-wrap">
-    <div class="welcome-banner welcome-banner-slim">
-      <h2>مرحباً بك، <span id="sh-name"></span> 👋</h2>
+    <div class="welcome-banner">
+      <h2>مرحباً بك أخي الطالب، <span id="sh-name"></span> 👋</h2>
+      <p>هنا ندعم خبراتك ... ونكون بعد الله تعالى سنداً لك في التعلم الذاتي.</p>
+      <p style="margin-top:8px;font-size:13px;opacity:.9;">
+        اختر المجال الذي ترغب الدعم فيه من خلال المسارات التالية:
+      </p>
     </div>
 
     <!-- مسار الإنجاز — server-computed journey (diagnostic → skills → final mock).
-         Populated by App.loadJourney()/renderJourney() from GET /api/journey.
-         This is the PRIMARY content of the page — everything below it
-         (performance detail, services, quick links) is secondary/tertiary. -->
+         Populated by App.loadJourney()/renderJourney() from GET /api/journey. -->
     <div id="sh-journey"></div>
 
-    <!-- Secondary: performance trend + strongest/weakest — collapsed by
-         default (native <details>, no extra JS needed for the toggle).
-         App.renderJourney() fills #sh-journey-highlights; the existing
-         App.renderStudentPerformanceCard() still fills #sh-perf-card as-is. -->
-    <details class="journey-secondary" id="sh-perf-details">
-      <summary>📈 أداءك</summary>
-      <div class="journey-secondary-body">
-        <div id="sh-journey-highlights"></div>
-        <div id="sh-perf-card" style="display:none;"></div>
-      </div>
-    </details>
+    <!-- Performance trend + strongest/weakest — always visible, no click needed. -->
+    <div id="sh-journey-highlights"></div>
+    <div id="sh-perf-card" style="display:none;"></div>
 
-    <!-- Tertiary: other platform services — mostly "قريباً" placeholders
-         today, and "الاستعداد لاختبار القدرات" IS the journey above, so this
-         no longer competes with it for primary attention. -->
-    <details class="journey-tertiary">
-      <summary>🧭 مسارات الدعم التعليمية الأخرى</summary>
-      <div class="service-cards">
-        <div class="service-card active" onclick="App.goToAcademic()">
-          <div class="service-card-icon">📗</div>
-          <div class="service-card-info">
-            <div class="service-card-name">دعم التعلم والتحصيل في المواد الدراسية</div>
-            <div class="service-card-desc">دعم أكاديمي في المواد الدراسية المختلفة</div>
-          </div>
-          <span class="service-badge badge-active">جديد</span>
+    <div class="service-section-title">مسارات الدعم التعليمي</div>
+    <div class="service-cards">
+      <div class="service-card active" onclick="App.goToAcademic()">
+        <div class="service-card-icon">📗</div>
+        <div class="service-card-info">
+          <div class="service-card-name">دعم التعلم والتحصيل في المواد الدراسية</div>
+          <div class="service-card-desc">دعم أكاديمي في المواد الدراسية المختلفة</div>
         </div>
-        <div class="service-card disabled">
-          <div class="service-card-icon">🎯</div>
-          <div class="service-card-info">
-            <div class="service-card-name">التدريب على مهارات التعلم الذاتي</div>
-            <div class="service-card-desc">تطوير مهارات التعلم المستقل والذاتي</div>
-          </div>
-          <span class="service-badge badge-soon">قريباً</span>
-        </div>
-        <div class="service-card disabled">
-          <div class="service-card-icon">📋</div>
-          <div class="service-card-info">
-            <div class="service-card-name">تصميم خطة استذكار مناسبة</div>
-            <div class="service-card-desc">بناء خطة استذكار شخصية تناسب احتياجاتك</div>
-          </div>
-          <span class="service-badge badge-soon">قريباً</span>
-        </div>
-        <div class="service-card disabled">
-          <div class="service-card-icon">📘</div>
-          <div class="service-card-info">
-            <div class="service-card-name">الاستعداد للاختبار التحصيلي</div>
-            <div class="service-card-desc">مسار متخصص للاستعداد للاختبار التحصيلي</div>
-          </div>
-          <span class="service-badge badge-soon">قريباً</span>
-        </div>
-        <div class="service-card disabled">
-          <div class="service-card-icon">🔬</div>
-          <div class="service-card-info">
-            <div class="service-card-name">الاستعداد لاختبار ستيم</div>
-            <div class="service-card-desc">مسار متخصص للاستعداد لاختبار ستيم</div>
-          </div>
-          <span class="service-badge badge-soon">قريباً</span>
-        </div>
+        <span class="service-badge badge-active">جديد</span>
       </div>
-    </details>
+      <div class="service-card disabled">
+        <div class="service-card-icon">🎯</div>
+        <div class="service-card-info">
+          <div class="service-card-name">التدريب على مهارات التعلم الذاتي</div>
+          <div class="service-card-desc">تطوير مهارات التعلم المستقل والذاتي</div>
+        </div>
+        <span class="service-badge badge-soon">قريباً</span>
+      </div>
+      <div class="service-card disabled">
+        <div class="service-card-icon">📋</div>
+        <div class="service-card-info">
+          <div class="service-card-name">تصميم خطة استذكار مناسبة</div>
+          <div class="service-card-desc">بناء خطة استذكار شخصية تناسب احتياجاتك</div>
+        </div>
+        <span class="service-badge badge-soon">قريباً</span>
+      </div>
+      <div class="service-card active" onclick="history.pushState(null,'','/capabilities');App.startCapabilities()">
+        <div class="service-card-icon">🧠</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الاستعداد لاختبار القدرات</div>
+          <div class="service-card-desc">تشخيص ذاتي + اختبار قبلي + خطة دعم مخصصة</div>
+        </div>
+        <span class="service-badge badge-active">متاح</span>
+      </div>
+      <div class="service-card disabled">
+        <div class="service-card-icon">📘</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الاستعداد للاختبار التحصيلي</div>
+          <div class="service-card-desc">مسار متخصص للاستعداد للاختبار التحصيلي</div>
+        </div>
+        <span class="service-badge badge-soon">قريباً</span>
+      </div>
+      <div class="service-card disabled">
+        <div class="service-card-icon">🔬</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الاستعداد لاختبار ستيم</div>
+          <div class="service-card-desc">مسار متخصص للاستعداد لاختبار ستيم</div>
+        </div>
+        <span class="service-badge badge-soon">قريباً</span>
+      </div>
+    </div>
 
-    <!-- Footer navigation — slim links, not big buttons -->
-    <div class="quick-actions quick-actions-slim">
+    <!-- Quick actions -->
+    <div class="quick-actions" style="margin-top:20px;">
       <button class="quick-btn" onclick="App.goToStudy()">
         <span class="quick-btn-icon">📚</span>
         <span>الشروحات والاختبارات التدريبية</span>
@@ -3242,6 +3239,6 @@
 </div>
 
 <script src="js/data.js?v=a1b2c3d" defer></script>
-<script src="js/app.js?v=quiz21" defer></script>
+<script src="js/app.js?v=quiz22" defer></script>
 </body>
 </html>

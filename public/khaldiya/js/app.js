@@ -989,7 +989,7 @@ const App = {
     // sits on the left (RTL: DOM-last = visually left).
     const fullLink = `
       <button type="button" class="journey-summary-link" onclick="show('screen-journey-full');App.renderJourneyFull(State._journey)">
-        <span>عرض مسار التقدم</span><span class="jfl-arrow">←</span>
+        <span>تابع تقدمك</span><span class="jfl-arrow">←</span>
       </button>`;
 
     const summary = `
@@ -1003,14 +1003,10 @@ const App = {
         ${fullLink}
       </div>`;
 
-    const na = j.nextAction || {};
-    const naIcon = { diagnostic: '🧭', retry_skill: '🔁', start_skill: '🎯', final_mock: '🏁' }[na.type] || '🎯';
-
-    // The completion badge (all skill nodes passed) and the next-action CTA
-    // are independent: the badge fires the moment training is fully done,
-    // while the optional final-mock capstone (if configured, not yet
-    // attempted) still shows as a suggested next step alongside it — it
-    // never gates "جاهز لاختبار القدرات".
+    // The completion badge (all skill nodes passed) — the next-action CTA
+    // that used to live here on the home screen was removed per explicit
+    // request; it's still available (as the primary CTA) on the full
+    // /journey page via App.renderJourneyFull.
     const badge = j.badge ? `
       <div class="journey-badge">
         <span class="journey-badge-icon">🏆</span>
@@ -1020,17 +1016,6 @@ const App = {
             ? 'يمكنك الآن تجربة اختبار المحاكاة الشامل لقياس جاهزيتك النهائية' : 'يمكنك مراجعة أي مهارة في أي وقت'}</div>
         </div>
       </div>` : '';
-
-    const nextAction = na.type === 'done' ? '' : `
-      <button type="button" class="journey-next-action" onclick="App.journeyGo('${na.type}','${na.section || ''}','${na.level || ''}')">
-        <span class="jna-icon">${naIcon}</span>
-        <div class="jna-text">
-          <div class="jna-label">خطوتك التالية</div>
-          <div class="jna-title">${escapeHtml(na.label || '')}</div>
-          ${na.detail ? `<div class="jna-detail">${escapeHtml(na.detail)}</div>` : ''}
-        </div>
-        <span class="jna-btn">ابدأ الآن ←</span>
-      </button>`;
 
     let review = '';
     if (j.needsReview && j.needsReview.length) {
@@ -1049,7 +1034,7 @@ const App = {
     // Section×level×skill breakdown lives only on the dedicated /journey
     // page (App.renderJourneyFull) — the home screen stays to the summary,
     // next action, and needs-review list.
-    el.innerHTML = `<div class="journey">${summary}${badge}${nextAction}${review}</div>`;
+    el.innerHTML = `<div class="journey">${summary}${badge}${review}</div>`;
   },
 
   // ── Full journey page (#screen-journey-full) ────────────────────────────
@@ -1282,20 +1267,17 @@ const App = {
   renderJourneyHighlights(j) {
     const el = document.getElementById('sh-journey-highlights');
     if (!el || !j) return;
-    if (!j.strongest && !j.weakest) {
+    if (!j.weakest) {
       el.innerHTML = j.passedNodes > 0
         ? `<p class="journey-highlights-empty">جميع مهاراتك الحالية في مستوى جيد 👍</p>` : '';
       return;
     }
-    const chip = (kind, icon, label, s) => `
-      <div class="journey-highlight jh-${kind}">
-        <span class="jh-icon">${icon}</span>
-        <div><div class="jh-label">${label}</div><div class="jh-name">${escapeHtml(s.skillName)}</div></div>
-        <span class="jh-pct">${s.pct}%</span>
-      </div>`;
     el.innerHTML = `<div class="journey-highlights">
-      ${j.strongest ? chip('strong', '💪', 'أقوى مهارة', j.strongest) : ''}
-      ${j.weakest ? chip('weak', '🎯', 'تحتاج تركيز', j.weakest) : ''}
+      <div class="journey-highlight jh-weak">
+        <span class="jh-icon">🎯</span>
+        <div><div class="jh-label">تحتاج تركيز</div><div class="jh-name">${escapeHtml(j.weakest.skillName)}</div></div>
+        <span class="jh-pct">${j.weakest.pct}%</span>
+      </div>
     </div>`;
   },
 

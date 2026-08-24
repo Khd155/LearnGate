@@ -538,27 +538,6 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 }
 .journey-summary-link:hover { border-color: var(--primary-lt); box-shadow: var(--shadow); }
 
-/* Next best action — the single most important CTA on the page */
-.journey-next-action {
-  display: flex; align-items: center; gap: 14px; width: 100%;
-  background: var(--surface); border: 1.5px solid var(--primary-lt);
-  border-radius: var(--radius); padding: 16px 18px;
-  text-align: right; font-family: inherit; cursor: pointer;
-  transition: box-shadow .2s, transform .15s;
-}
-.journey-next-action:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
-.journey-next-action:active { transform: scale(.99); }
-.jna-icon { font-size: 24px; flex-shrink: 0; }
-.jna-text { flex: 1; min-width: 0; }
-.jna-label { font-size: 11.5px; font-weight: 700; color: var(--primary); text-transform: none; }
-.jna-title { font-size: 15px; font-weight: 800; color: var(--text); margin: 2px 0; }
-.jna-detail { font-size: 12.5px; color: var(--muted); }
-.jna-btn {
-  flex-shrink: 0; background: var(--primary); color: #fff; border: none;
-  border-radius: 99px; padding: 9px 18px; font-size: 13px; font-weight: 800;
-  font-family: inherit; pointer-events: none; /* the whole row is one click target */
-}
-
 /* Compact stepper — 2 rows (sections) × 3 icon-only steps. Replaces what
    used to be two full "track" cards each expanding into 3 heavy level-rows;
    this is the entire "مسار إنجازك" overview at a glance, no borders-within-
@@ -635,7 +614,6 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .jh-label { font-size: 11px; font-weight: 700; color: var(--muted); }
 .jh-name { font-size: 13.5px; font-weight: 800; color: var(--text); }
 .jh-pct { font-size: 12.5px; font-weight: 800; margin-inline-start: auto; }
-.journey-highlight.jh-strong .jh-pct { color: var(--success); }
 .journey-highlight.jh-weak .jh-pct { color: var(--danger); }
 .journey-highlights-empty { font-size: 13px; color: var(--muted); padding: 4px 2px; }
 

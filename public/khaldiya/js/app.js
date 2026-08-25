@@ -457,7 +457,17 @@ const State = {
 // ── Screen router ─────────────────────────────────────────────────────────
 const _SCREEN_PATHS = {
   'screen-student-home':  '/',
-  'screen-admin':         '/admin',
+  // 'screen-admin' intentionally has NO path mapping here. It's the retired
+  // legacy in-SPA admin panel — every live admin/director login path
+  // (adminLogin() success and session-restore in _quickRestoreSession) now
+  // redirects straight to the React dashboard at /admin/ instead of ever
+  // calling show('screen-admin'). Mapping this screen to '/admin' used to
+  // collide with that real app's own root URL: if this screen were ever
+  // shown, the address bar would read "/admin" while a completely
+  // different app (this one) was actually rendered — exactly the kind of
+  // base-path confusion a refresh could then load the wrong app for. With
+  // no entry here, show('screen-admin') falls through to the default
+  // (see below) and never writes a colliding URL.
   'screen-history':       '/history',
   'screen-chat':          '/chat',
   'screen-support-hub':   '/support',
@@ -5917,8 +5927,13 @@ function routeHash() {
     App.startCapabilities();
     return;
   }
+  // Unreachable in practice today (admin/director sessions redirect to
+  // /admin/ before routeHash() ever runs — see adminLogin() and
+  // _quickRestoreSession()), kept as a defensive fallback so a stale
+  // "/admin" bookmark under an admin/director session lands on the real
+  // dashboard instead of resurrecting the retired in-SPA screen.
   if (path === '/admin' && (State.role === 'admin' || State.role === 'director')) {
-    show('screen-admin');
+    window.location.href = '/admin/';
     return;
   }
   if (path === '/history' && State.student) {
@@ -5945,7 +5960,7 @@ function routeHash() {
   // /login while already authenticated → go home
   if (path === '/login') {
     if (State.student) { show('screen-student-home'); App._checkPhoneGate(); return; }
-    if (State.role === 'admin' || State.role === 'director') { show('screen-admin'); return; }
+    if (State.role === 'admin' || State.role === 'director') { window.location.href = '/admin/'; return; }
     // not logged in → stay on landing (already showing)
   }
 }

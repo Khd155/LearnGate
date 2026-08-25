@@ -148,21 +148,26 @@ app.use(express.static(PUBLIC_DIR, {
 }));
 
 // SPA fallback — any GET request that reaches here wasn't a real static file
-// (express.static above already tried and failed) and isn't a "/admin/*"
-// path (the React admin app, excluded so its own missing-asset 404s stay
-// real). If it also has no file extension — i.e. it looks like an in-app
-// route (/quiz-skills/progress, /history, whatever screen the SPA can show)
-// rather than a missing asset (/foo.png) — serve index.html and let the
-// client-side router take it from there. This replaces a hardcoded list of
-// ~8 known routes that 404'd on refresh/direct-navigation/back-button for
-// every screen not on that list; a real asset 404 (has an extension) still
-// gets a real 404 either way.
+// (express.static above already tried and failed). Two separate single-page
+// apps share this origin: the student app rooted at "/" and the React admin
+// dashboard rooted at "/admin/" (built with base:'/admin/', see
+// admin-app/vite.config.ts). A deep-link or refresh has to be routed back to
+// the SAME app that owns that URL, or you get exactly the "base path
+// confusion" this fixes — e.g. refreshing on /admin/students used to hard
+// 404 instead of re-mounting the admin dashboard, because this handler used
+// to exclude every "/admin*" path from ever getting an index.html fallback.
+// "/admin" and "/admin/" are treated identically on purpose (both route to
+// the admin shell) — a real missing asset (has a file extension, e.g.
+// /foo.png) still gets a genuine 404 either way, whichever app it's under.
 app.use((req, res) => {
-  const isRealAsset = path.extname(req.path) !== '';
-  if (req.method === 'GET' && !req.path.startsWith('/admin') && !isRealAsset) {
-    return res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+  if (req.method !== 'GET' || path.extname(req.path) !== '') {
+    return res.status(404).sendFile(path.join(PUBLIC_DIR, '404.html'));
   }
-  res.status(404).sendFile(path.join(PUBLIC_DIR, '404.html'));
+  const isAdminApp = req.path === '/admin' || req.path.startsWith('/admin/');
+  const indexFile = isAdminApp
+    ? path.join(PUBLIC_DIR, 'admin', 'index.html')
+    : path.join(PUBLIC_DIR, 'index.html');
+  res.sendFile(indexFile);
 });
 
 const port = process.env.PORT || 3000;

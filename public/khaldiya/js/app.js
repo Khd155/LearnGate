@@ -636,6 +636,29 @@ function showLoadingScreen(text) {
 // replaceState itself: doing so would fight the back/forward button
 // instead of following it. Every other caller (a click, goBack(), boot
 // restoration) leaves this false/unset, which is the default.
+// Many cards across the app (.service-card, on the home screen and on
+// screen-academic/-subjects/-study/-lessons) are clickable <div>s with an
+// inline onclick, not real <button>s — a real button-per-card conversion
+// would touch every one of those onclick call sites across a 3000+ line
+// file. Instead: every such div gets keyboard-operable in one place, right
+// where it becomes visible, via a real tabindex + role and a single
+// document-level Enter/Space handler — same end result (Tab reaches it,
+// Enter/Space activates it, a screen reader announces it as a button) with
+// a much smaller blast radius than rewriting the markup.
+function _makeCardsAccessible(root) {
+  (root || document).querySelectorAll('.service-card[onclick]:not([tabindex])').forEach(el => {
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('role', 'button');
+  });
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('.service-card[onclick][role="button"]');
+  if (!card) return;
+  e.preventDefault();
+  card.click();
+});
+
 function show(id, opts) {
   opts = opts || {};
   // Whatever showLoadingScreen()'s 400ms timer was waiting on is over now —
@@ -666,6 +689,7 @@ function show(id, opts) {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     el.scrollTop = 0;
     el.querySelectorAll('.page-wrap, [data-scroll-reset]').forEach(c => { c.scrollTop = 0; });
+    _makeCardsAccessible(el);
   }
 
   if (!opts.fromPopstate) {
@@ -5343,21 +5367,28 @@ const App = {
         <div class="faq-cat-title">${cat.title}</div>
         ${cat.items.map((it, qi) => `
           <div class="faq-item" id="faq-item-${ci}-${qi}">
-            <div class="faq-q" onclick="App.toggleFaqItem(${ci},${qi})">
+            <button type="button" class="faq-q" aria-expanded="false" aria-controls="faq-a-${ci}-${qi}" onclick="App.toggleFaqItem(${ci},${qi})">
               <span>${escapeHtml(it.q)}</span>
-              <span class="faq-q-chevron">▾</span>
-            </div>
-            <div class="faq-a">
-              <div class="faq-a-text">${escapeHtml(it.a)}</div>
-              ${it.action ? `<button class="faq-a-btn" onclick="event.stopPropagation();App.runFaqAction('${it.action}')">${escapeHtml(it.label || 'فتح')}</button>` : ''}
+              <span class="faq-q-chevron" aria-hidden="true">▾</span>
+            </button>
+            <div class="faq-a" id="faq-a-${ci}-${qi}" aria-hidden="true">
+              <div class="faq-a-inner">
+                <div class="faq-a-text">${escapeHtml(it.a)}</div>
+                ${it.action ? `<button class="faq-a-btn" onclick="event.stopPropagation();App.runFaqAction('${it.action}')">${escapeHtml(it.label || 'فتح')}</button>` : ''}
+              </div>
             </div>
           </div>`).join('')}
       </div>`).join('');
   },
 
   toggleFaqItem(ci, qi) {
-    const el = document.getElementById(`faq-item-${ci}-${qi}`);
-    if (el) el.classList.toggle('open');
+    const item = document.getElementById(`faq-item-${ci}-${qi}`);
+    if (!item) return;
+    const isOpen = item.classList.toggle('open');
+    const q = item.querySelector('.faq-q');
+    const a = item.querySelector('.faq-a');
+    if (q) q.setAttribute('aria-expanded', String(isOpen));
+    if (a) a.setAttribute('aria-hidden', String(!isOpen));
   },
 
   // Central dispatch for FAQ action buttons — screens/actions that need a

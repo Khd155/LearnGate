@@ -18,7 +18,11 @@
   --border:     #e2e8f0;
   --border-strong:#cbd5e1;
   --text:       #0f172a;
-  --muted:      #64748b;
+  /* #475569, not the lighter slate-500 (#64748b) this used to be — measured
+     7.6:1 against --surface/--bg (WCAG AAA for normal text; the old value
+     was 4.76:1, AA-only). Every screen reads --muted for secondary text, so
+     this one token bump is the platform-wide contrast fix. */
+  --muted:      #475569;
   --radius-sm:  10px;
   --radius:     16px;
   --radius-lg:  22px;
@@ -28,6 +32,12 @@
   --grad-hero:  linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
   --grad-soft:  linear-gradient(135deg,#eaf2f9 0%,#e8f4ee 100%);
   --focus-ring: 0 0 0 3px rgba(63,124,184,.35);
+  /* Glass surface for the sticky topbar — a translucent layer over the
+     brand gradient rather than a flat fill, plus the hairline highlight
+     glass treatments use to read as a distinct raised layer. */
+  --glass-bg:      linear-gradient(135deg, rgba(63,124,184,.92) 0%, rgba(74,150,160,.90) 55%, rgba(79,168,119,.92) 100%);
+  --glass-border:  rgba(255,255,255,.28);
+  --glass-highlight: rgba(255,255,255,.16);
 }
 
 /* ── Dark Mode — opt-in only (the site always starts light; OS preference
@@ -48,13 +58,18 @@
   --border:     #2b3947;
   --border-strong:#3a4b5c;
   --text:       #e7edf3;
-  --muted:      #93a4b3;
+  /* Lightened from #93a4b3 — measured 6.07:1 against --surface, short of
+     AAA's 7:1. #9fb0c0 measures 7.6:1 against the same surface. */
+  --muted:      #9fb0c0;
   --shadow-sm:  0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.35);
   --shadow:     0 8px 24px -8px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.3);
   --shadow-lg:  0 24px 60px -20px rgba(0,0,0,.6);
   --grad-hero:  linear-gradient(135deg,#2B5F94 0%,#2E6B71 55%,#3D8563 100%);
   --grad-soft:  linear-gradient(135deg,#182430 0%,#17251f 100%);
   --focus-ring: 0 0 0 3px rgba(111,168,218,.45);
+  --glass-bg:      linear-gradient(135deg, rgba(43,95,148,.92) 0%, rgba(46,107,113,.90) 55%, rgba(61,133,99,.92) 100%);
+  --glass-border:  rgba(255,255,255,.14);
+  --glass-highlight: rgba(255,255,255,.08);
 }
 
 /* ── Dark-mode toggle button ──────────────────────────── */
@@ -62,12 +77,13 @@
 .tb-theme-btn {
   background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.35);
   color: #fff; border-radius: 99px;
-  width: 38px; height: 38px; flex-shrink: 0;
+  width: 40px; height: 40px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 16px; line-height: 1; cursor: pointer;
-  transition: background .18s, transform .15s;
+  transition: background .18s cubic-bezier(.2,0,0,1), transform .15s cubic-bezier(.2,0,0,1);
 }
 .tb-theme-btn:hover { background: rgba(255,255,255,.28); transform: scale(1.06); }
+.tb-theme-btn:active { transform: scale(.96); }
 @media print { .tb-theme-btn { display: none !important; } }
 
 html, body {
@@ -115,10 +131,20 @@ p, span, div, button, input, label, td, th {
 }
 
 /* ── Top Nav Bar ─────────────────────────────────────── */
+/* Glass surface: a translucent brand gradient plus backdrop-filter, so
+   content scrolling underneath the sticky bar shows through softly instead
+   of the bar reading as a flat, separate strip. A hairline top highlight and
+   layered shadow (soft elevation, not a hard edge) sell the "raised glass
+   pane" read. Falls back to the old flat gradient automatically wherever
+   backdrop-filter isn't supported, since --glass-bg is already opaque enough
+   on its own. */
 .topbar {
-  background: linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
   color: #fff;
   padding: 14px 24px;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -126,7 +152,7 @@ p, span, div, button, input, label, td, th {
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 6px 24px -10px rgba(7,54,105,.55);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 6px 24px -10px rgba(7,54,105,.55);
   min-height: 64px;
 }
 .topbar-back {
@@ -135,20 +161,41 @@ p, span, div, button, input, label, td, th {
   color: #fff;
   border-radius: 99px;
   padding: 6px 18px;
+  min-height: 40px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
   font-family: inherit;
   display: inline-flex; align-items: center;
-  transition: background .18s;
+  transition: background .18s cubic-bezier(.2,0,0,1), transform .15s cubic-bezier(.2,0,0,1);
   flex-shrink: 0;
   white-space: nowrap;
   order: 1;
 }
 .topbar-back:hover { background: rgba(255,255,255,.3); }
+.topbar-back:active { transform: scale(.96); }
 .topbar-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-sub { font-size: 12px; opacity: .85; margin-top: 2px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-ghost { display:flex; align-items:center; gap:8px; flex-shrink:0; order: -1; }
+
+/* Keyboard focus — every interactive control shared across screens (topbar
+   actions, cards, the FAQ accordion, quick actions). :focus-visible only, so
+   a mouse click never leaves a ring behind. Outline instead of box-shadow on
+   the white-on-gradient topbar controls, since the surface behind them
+   already carries the brand color the box-shadow ring elsewhere plays against. */
+.topbar-back:focus-visible,
+.tb-theme-btn:focus-visible,
+.notif-bell-btn:focus-visible,
+.user-chip:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.service-card:focus-visible,
+.quick-btn:focus-visible,
+.faq-q:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 
 /* ══════════════════════════════════════════════════════════
    NOTIFICATION BELL
@@ -159,14 +206,15 @@ p, span, div, button, input, label, td, th {
   border: 1.5px solid rgba(255,255,255,.35);
   color: #fff;
   border-radius: 99px;
-  width: 38px; height: 38px;
+  width: 40px; height: 40px;
   display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer;
   font-size: 17px;
-  transition: background .18s, transform .15s;
+  transition: background .18s cubic-bezier(.2,0,0,1), transform .15s cubic-bezier(.2,0,0,1);
   flex-shrink: 0;
 }
 .notif-bell-btn:hover { background: rgba(255,255,255,.30); transform: scale(1.08); }
+.notif-bell-btn:active { transform: scale(.96); }
 .notif-bell-btn.has-notif { animation: bell-ring .55s ease; }
 @keyframes bell-ring {
   0%,100%{ transform: rotate(0); }
@@ -954,7 +1002,7 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   display: flex; align-items: center; gap: 16px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
-  cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  cursor: pointer; transition: transform .2s cubic-bezier(.2,0,0,1), box-shadow .2s cubic-bezier(.2,0,0,1), border-color .2s cubic-bezier(.2,0,0,1);
   text-align: right;
   position: relative;
 }
@@ -991,7 +1039,26 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   border-radius: 20px; white-space: nowrap;
 }
 .badge-active { background: #d1fae5; color: #065f46; }
-.badge-soon   { background: #f1f5f9; color: #64748b; }
+.badge-soon   { background: #f1f5f9; color: #475569; }
+
+/* "Learning stations" — a small numbered stop badge on each card's icon,
+   for lists that read as a sequence of lessons rather than a flat menu
+   (screen-lessons). Purely additive: the parent list opts in with
+   .service-cards-stations, each icon carries its own position via
+   data-step so the count survives cards being added/removed without a
+   CSS counter silently drifting out of sync with the markup. */
+.service-cards-stations .service-card-icon { position: relative; }
+.service-cards-stations .service-card-icon::after {
+  content: attr(data-step);
+  position: absolute; top: -6px; inset-inline-start: -6px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--surface); color: var(--primary);
+  border: 1.5px solid var(--primary-lt);
+  font-size: 11px; font-weight: 800; font-family: 'Cairo', sans-serif;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+.service-cards-stations.quant .service-card-icon::after { color: var(--success); border-color: var(--success); }
 
 /* ── Self-Diagnostic Table ───────────────────────────── */
 .diag-section-head {
@@ -1942,8 +2009,8 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .quick-btn:active { transform: scale(.93); }
 
 /* Service card — press feedback */
-.service-card { transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease, opacity .2s; }
-.service-card.active:active { transform: scale(.97); }
+.service-card { transition: transform .2s cubic-bezier(.2,0,0,1), box-shadow .2s cubic-bezier(.2,0,0,1), border-color .2s cubic-bezier(.2,0,0,1), opacity .2s cubic-bezier(.2,0,0,1); }
+.service-card.active:active { transform: scale(.96); }
 
 /* Welcome banner entrance */
 @keyframes bannerIn {
@@ -1977,3 +2044,21 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 }
 .tour-bubble .tour-skip { font-size: 13px; color: var(--muted); text-decoration: none; }
 .tour-bubble .tour-skip:hover { color: var(--text); text-decoration: underline; }
+
+/* ── Reduced motion ───────────────────────────────────────
+   Every other prefers-reduced-motion block in this file (the two above)
+   only ever covered the two performance-chart SVG animations they sit
+   next to. Screen transitions, the card entrance stagger and the
+   onboarding tour's pulsing spotlight were never guarded — this is the
+   platform-wide catch-all. Motion is disabled outright rather than
+   swapped for a crossfade: none of these are the kind of state change
+   that needs any transition at all to stay legible without one. */
+@media (prefers-reduced-motion: reduce) {
+  .screen.active { animation: none; }
+  .service-cards.animate .service-card { animation: none; opacity: 1; transform: none; }
+  .screen-home-entered .welcome-banner,
+  .screen-home-entered .sh-perf-card { animation: none; }
+  .service-card.disabled { animation: none; }
+  .tour-overlay, .tour-spotlight, .tour-bubble { animation: none; transition: none; }
+  .notif-bell-btn.has-notif { animation: none; }
+}

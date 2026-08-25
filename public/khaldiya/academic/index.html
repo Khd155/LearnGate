@@ -38,14 +38,17 @@
   .topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:16px;white-space:nowrap;}
   .topbar-left{display:flex;align-items:center;gap:8px;}
 
-  /* Back button */
-  .tb-back{
+  /* Back button + home link — same visual language, home is the solid one
+     (a clear, distinct exit back to the platform, not just a step back). */
+  .tb-back,.tb-home{
     background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);
     color:#fff;border-radius:99px;padding:5px 14px;font-size:13px;
     font-family:inherit;font-weight:700;text-decoration:none;
     display:inline-flex;align-items:center;gap:5px;transition:background .18s;cursor:pointer;
   }
-  .tb-back:hover{background:rgba(255,255,255,.28);}
+  .tb-back:hover,.tb-home:hover{background:rgba(255,255,255,.28);}
+  .tb-home{background:#fff;color:var(--primary);border-color:#fff;}
+  .tb-home:hover{background:rgba(255,255,255,.9);}
 
   /* User chip */
   .user-chip{
@@ -88,6 +91,7 @@
     .topbar{padding:10px 14px;gap:8px;}
     .topbar-title{font-size:13px;}
     .user-chip{display:none!important;}
+    .tb-back,.tb-home{padding:5px 10px;font-size:12px;}
   }
 
   .grade-card{
@@ -145,7 +149,9 @@
     <img class="topbar-logo" src="../logo-white.png" alt="">
     <div>
       <span class="topbar-title" id="topbar-title">دعم التعلم والتحصيل</span>
-      <div class="topbar-sub" id="topbar-sub-label">اختر الصف الدراسي</div>
+      <!-- School name — same role/id-purpose as sh-school-sub/ad-school-sub on
+           every screen in the main app: topbar-sub always shows the school. -->
+      <div class="topbar-sub" id="topbar-sub-label"></div>
     </div>
     <span class="user-chip" id="user-chip" onclick="logout()" title="اضغط للخروج">
       <span class="dot"></span>
@@ -154,6 +160,7 @@
   </div>
   <div class="topbar-left">
     <button class="tb-back" onclick="navBack()">رجوع</button>
+    <a class="tb-home" href="/home" title="العودة للرئيسية">🏠 الرئيسية</a>
   </div>
 </div>
 
@@ -235,14 +242,15 @@
 <script>
 // ── Load user info ──
 (function() {
+  let sessData = null;
+  try {
+    const sess = sessionStorage.getItem('lg_session_student') || localStorage.getItem('lg_xsession_student') || localStorage.getItem('lg_remember_student');
+    sessData = sess ? JSON.parse(sess) : null;
+  } catch(e2) {}
+
   try {
     const label = document.getElementById('user-name-label');
-    let name = '';
-    try {
-      const sess = sessionStorage.getItem('lg_session_student') || localStorage.getItem('lg_xsession_student') || localStorage.getItem('lg_remember_student');
-      const sessData = sess ? JSON.parse(sess) : null;
-      if (sessData && sessData.name) name = sessData.name;
-    } catch(e2) {}
+    let name = sessData && sessData.name ? sessData.name : '';
     if (!name) {
       const raw = localStorage.getItem('lg_academic_user');
       const user = raw ? JSON.parse(raw) : null;
@@ -258,6 +266,14 @@
     document.getElementById('user-chip').style.display = 'none';
   }
 
+  // School name — same source/field the main app's own topbar-sub reads
+  // (session.school), so it never disagrees with what's shown there.
+  try {
+    const subEl = document.getElementById('topbar-sub-label');
+    if (sessData && sessData.school) subEl.textContent = sessData.school;
+    else subEl.style.display = 'none';
+  } catch(e) {}
+
   // Restore grade from URL param (supports both slug "g10" and Arabic name)
   try {
     const params = new URLSearchParams(window.location.search);
@@ -272,12 +288,12 @@
 function logout() {
   localStorage.removeItem('lg_academic_user');
   localStorage.removeItem('lg_remember_student');
-  window.location.href = '../index.html';
+  window.location.href = '/';
 }
 
 function navBack() {
   const onSubjects = document.getElementById('screen-subjects').classList.contains('active');
-  if (onSubjects) { goBack(); } else { window.location.href = '../index.html'; }
+  if (onSubjects) { goBack(); } else { window.location.href = '/home'; }
 }
 
 const GRADE_SLUG = { 'أول ثانوي':'g10', 'ثاني ثانوي':'g11', 'ثالث ثانوي':'g12' };
@@ -293,7 +309,6 @@ function selectGrade(name) {
   document.getElementById('subjects-hero-title').textContent = 'مواد ' + name;
   document.getElementById('subjects-label').textContent = 'المواد الدراسية — ' + name;
   document.getElementById('topbar-title').textContent = name;
-  document.getElementById('topbar-sub-label').textContent = 'اختر المادة الدراسية';
   document.getElementById('screen-grade').classList.remove('active');
   document.getElementById('screen-subjects').classList.add('active');
 
@@ -302,7 +317,7 @@ function selectGrade(name) {
   const biologyBadge = document.getElementById('biology-badge');
   if (name === 'أول ثانوي') {
     biologyCard.classList.add('available');
-    biologyCard.onclick = () => { window.location.href = 'biology-g1/index.html'; };
+    biologyCard.onclick = () => { window.location.href = 'biology-g1/'; };
     biologyBadge.className = 'avail-badge';
     biologyBadge.textContent = 'متاح';
   } else {
@@ -319,7 +334,6 @@ function goBack() {
   document.getElementById('screen-subjects').classList.remove('active');
   document.getElementById('screen-grade').classList.add('active');
   document.getElementById('topbar-title').textContent = 'دعم التعلم والتحصيل';
-  document.getElementById('topbar-sub-label').textContent = 'اختر الصف الدراسي';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 </script>

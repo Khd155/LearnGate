@@ -31,6 +31,9 @@ h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
 .topbar-sub{font-size:12px;opacity:.85;margin-top:1px;font-weight:500;}
 .topbar-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .18s;flex-shrink:0;white-space:nowrap;text-decoration:none;}
 .topbar-back:hover{background:rgba(255,255,255,.28);}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.tb-home{background:#fff;color:var(--primary);border:1.5px solid #fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .18s;white-space:nowrap;text-decoration:none;}
+.tb-home:hover{background:rgba(255,255,255,.9);}
 .tb-user-chip{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;padding:5px 12px;font-size:12px;font-family:inherit;font-weight:700;display:none;align-items:center;gap:5px;max-width:160px;overflow:hidden;white-space:nowrap;}
 .tb-user-chip::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#a3e635;flex-shrink:0;}
 
@@ -82,6 +85,7 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:20px 0 36px;f
   .topbar{padding:10px 14px;gap:8px;}
   .topbar-title{font-size:15px;}
   .tb-user-chip{display:none!important;}
+  .topbar-back,.tb-home{padding:5px 12px;font-size:12px;}
   .grid{grid-template-columns:repeat(2,1fr);gap:10px;}
   .container{padding:18px 14px 50px;}
   .hero{padding:24px 16px 34px;}
@@ -95,11 +99,16 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:20px 0 36px;f
     <img class="topbar-logo" src="../logo-white.png" alt="">
     <div class="topbar-title-wrap">
       <div class="topbar-title">الشروحات التعليمية</div>
-      <div class="topbar-sub">بوابة دعم التعلم</div>
+      <!-- School name — same role as sh-school-sub/ad-school-sub on every
+           screen in the main app: topbar-sub always shows the school. -->
+      <div class="topbar-sub" id="topbar-sub-label">بوابة دعم التعلم</div>
     </div>
     <span class="tb-user-chip" id="tb-user-chip"></span>
   </div>
-  <a class="topbar-back" href="../study/index.html">رجوع</a>
+  <div class="topbar-actions">
+    <a class="topbar-back" href="/study">رجوع</a>
+    <a class="tb-home" href="/home" title="العودة للرئيسية">🏠 الرئيسية</a>
+  </div>
 </div>
 
 <div class="hero">
@@ -190,13 +199,26 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:20px 0 36px;f
 
 <script>
 (function(){
+  let sess = null;
   try {
     const s = sessionStorage.getItem('lg_session_student') || localStorage.getItem('lg_xsession_student');
-    const d = s ? JSON.parse(s) : null;
-    if (d && d.name) { var c=document.getElementById('tb-user-chip'); c.textContent=d.name; c.style.display='inline-flex'; return; }
-    const r = localStorage.getItem('lg_remember_student');
-    const rd = r ? JSON.parse(r) : null;
-    if (rd && rd.name) { var c=document.getElementById('tb-user-chip'); c.textContent=rd.name; c.style.display='inline-flex'; }
+    sess = s ? JSON.parse(s) : null;
+    if (!sess || !sess.name) {
+      const r = localStorage.getItem('lg_remember_student');
+      sess = r ? JSON.parse(r) : sess;
+    }
+  } catch(e){}
+  try {
+    if (sess && sess.name) {
+      const c = document.getElementById('tb-user-chip');
+      c.textContent = sess.name;
+      c.style.display = 'inline-flex';
+    }
+  } catch(e){}
+  // School name — same source/field the main app's own topbar-sub reads
+  // (session.school), so it never disagrees with what's shown there.
+  try {
+    if (sess && sess.school) document.getElementById('topbar-sub-label').textContent = sess.school;
   } catch(e){}
 })();
 </script>

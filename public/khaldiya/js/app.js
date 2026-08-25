@@ -388,17 +388,22 @@ const DB = {
 };
 
 // ── Skill → lesson page mapping ───────────────────────────────────────────
+// Absolute paths, not relative "lessons/..." — this map is only ever
+// rendered while /plan is the active screen today, but a relative href
+// resolves against the CURRENT URL, not the site root, so it would silently
+// break the moment this card is reused from a nested route. Absolute is
+// correct regardless of where it's rendered from.
 const SKILL_LESSONS = {
-  v1: 'lessons/comprehension/',
-  v2: 'lessons/contextual/',
-  v3: 'lessons/inference/',
-  v4: 'lessons/analogy/',
-  v5: 'lessons/completion/',
-  q5: 'lessons/statistics/',
-  q1: 'lessons/arithmetic/',
-  q2: 'lessons/algebra/',
-  q3: 'lessons/geometry/',
-  q4: 'lessons/comparison/',
+  v1: '/lessons/comprehension/',
+  v2: '/lessons/contextual/',
+  v3: '/lessons/inference/',
+  v4: '/lessons/analogy/',
+  v5: '/lessons/completion/',
+  q5: '/lessons/statistics/',
+  q1: '/lessons/arithmetic/',
+  q2: '/lessons/algebra/',
+  q3: '/lessons/geometry/',
+  q4: '/lessons/comparison/',
 };
 
 // ── Idle auto-logout (30 min) ─────────────────────────────────────────────
@@ -1545,21 +1550,26 @@ const App = {
     localStorage.setItem('lg_academic_user', JSON.stringify({ name, role }));
     // Same branded spinner screen used everywhere else (startCapabilities,
     // quiz/test loads, login) instead of a one-off body-opacity fade, so the
-    // transition into academic/index.html (a separate static page) feels
-    // identical to every other in-app loading transition, with no blank flash.
+    // transition into /academic (a separate static page, served clean via
+    // express.static's own directory index — no .html) feels identical to
+    // every other in-app loading transition, with no blank flash.
     // Shown immediately (not the debounced showLoadingScreen()) — this
     // 220ms wait is fixed and always happens, so debouncing it would just
     // mean it never gets a chance to render before the hard navigation
     // fires, reintroducing the blank flash this was written to avoid.
+    // Absolute path, not relative "academic/index.html" — the SPA can be on
+    // any of its own deep clean URLs (e.g. /diagnostic/section) when this
+    // fires, and a relative path would resolve underneath THAT path instead
+    // of the site root.
     _showLoadingScreenNow('جارٍ التحميل…');
-    setTimeout(() => { window.location.href = 'academic/index.html'; }, 220);
+    setTimeout(() => { window.location.href = '/academic'; }, 220);
   },
 
   // Same branded loading screen before navigating out to the separate
-  // study/index.html static site — mirrors goToAcademic() exactly.
+  // /study static site — mirrors goToAcademic() exactly.
   goToStudy() {
     _showLoadingScreenNow('جارٍ التحميل…');
-    setTimeout(() => { window.location.href = 'study/index.html'; }, 220);
+    setTimeout(() => { window.location.href = '/study'; }, 220);
   },
 
   async startCapabilities() {

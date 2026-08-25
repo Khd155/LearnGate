@@ -594,6 +594,18 @@ let _isBackNav = false;
 // per intermediate step the student never actually clicked through.
 let _restoringFromPath = false;
 
+// Counts real history.pushState() calls made by this SPA session (never
+// incremented by replaceState) and is restamped from history.state.depth on
+// every popstate — lets goBack() tell "there's a genuine prior entry in
+// THIS session to pop" from "we only ever replaceState'd here" (e.g. a deep
+// link resolved through restoreFromPath's replaceState chain, or the very
+// first screen this session ever showed). That distinction is what makes it
+// safe for goBack() to call the browser's own history.back() instead of
+// replaceState-ing "backward": calling it when depth is 0 could walk the
+// user straight out of the app into whatever page was open before it, since
+// there'd be no real SPA-pushed entry underneath to land on.
+let _historyDepth = 0;
+
 // screen-loading is a shared full-screen spinner reused for several unrelated
 // waits (session restore, capabilities/plan load, quiz/test submission) — its
 // caption is set per-call so it never says "جارٍ تسجيل الدخول" (logging in)
@@ -694,17 +706,26 @@ function show(id, opts) {
 
   if (!opts.fromPopstate) {
     const path = _pathForScreen(id);
+    // Every entry we create carries a snapshot of navStack (and _historyDepth
+    // for pushState below) in history.state — popstate restores App state
+    // from THIS, not by re-deriving it, so real browser back/forward always
+    // reconstructs the exact navStack a click-driven goBack() would have
+    // produced at that point. Without this, hardware back/forward and the
+    // in-app "رجوع" button silently drift out of sync with each other.
+    const stateSnapshot = { navStack: [...State.navStack], depth: _historyDepth };
     if (location.pathname === path) {
       // Same URL already — just keep the entry's title/etc. current, no new entry.
-      history.replaceState(null, '', path);
+      history.replaceState(stateSnapshot, '', path);
     } else if (wasBackNav || _restoringFromPath) {
       // goBack() already "consumed" a step via State.navStack, or this is
       // one of several show() calls restoreFromPath() is chaining through
       // to reconstruct multi-step state — either way, sync the address bar
       // without growing browser history for it.
-      history.replaceState(null, '', path);
+      history.replaceState(stateSnapshot, '', path);
     } else {
-      history.pushState(null, '', path);
+      _historyDepth++;
+      stateSnapshot.depth = _historyDepth;
+      history.pushState(stateSnapshot, '', path);
     }
   }
   // Stagger home-screen cards
@@ -822,12 +843,32 @@ function startOnboardingTour() {
   renderStep();
 }
 
-// Returns to the screen actually visited before this one; falls back to a
-// fixed target only when there's no real history (e.g. after a fresh
-// deep-link load straight into a sub-page).
-function goBack(fallbackId) {
-  const prev = State.navStack.pop();
-  const target = prev || fallbackId;
+// Pops `n` steps off navStack. If this session genuinely pushed that many
+// real history entries since the last back-navigation (_historyDepth >= n),
+// hands off to the browser's own history.go(-n) instead of replaceState-ing
+// the screen in place — that's what actually shrinks the browser's real
+// history stack, instead of leaving the entries we're logically "leaving"
+// sitting there as phantom forward history. (That drift is exactly what
+// used to make the hardware/browser back button resurrect a screen the
+// student had already backed out of via the in-app button, or made a
+// second back-button press look like it "double-hopped".) The popstate
+// handler below restores State.navStack and _historyDepth from
+// history.state once the browser actually lands on that entry.
+//
+// Falls back to a plain show() + replaceState (the old behavior) only when
+// there's no real entry to go back to — e.g. a deep link that reached this
+// screen entirely through restoreFromPath()'s replaceState chain, where
+// navStack has logical entries but the browser's own history never grew.
+function _goBackSteps(n, fallbackId) {
+  let target = fallbackId;
+  for (let i = 0; i < n; i++) {
+    const popped = State.navStack.pop();
+    if (i === n - 1) target = popped || fallbackId;
+  }
+  if (_historyDepth >= n) {
+    history.go(-n);
+    return;
+  }
   _isBackNav = true;
   show(target);
   // Home's dynamic bits (plan banner, performance card, notifications) need a
@@ -835,20 +876,38 @@ function goBack(fallbackId) {
   if (target === 'screen-student-home') App.renderStudentHome();
 }
 
-// Browser back/forward button — independent of (and never conflicting with)
-// goBack()'s own State.navStack-based "رجوع" button above; both correctly
-// land on the right screen for a given URL, they just don't share one stack.
-// Always resolves straight from location.pathname (resolvePath()), not
-// event.state — a single, uniform code path with no dependency on whether a
-// given history entry happens to carry state (it may not, e.g. one from
-// before a hard refresh). For the vast majority of screens this is a pure,
-// instant, zero-fetch DOM class swap — the screen's earlier render is still
-// sitting in the DOM exactly as left. Only the 3 State-driven /skills/...
-// screens re-render (still zero network — a synchronous read of the
-// already-cached State._quizTree), since the SAME DOM element is reused for
-// every section/level and would otherwise still show whichever one was
-// rendered last.
-window.addEventListener('popstate', () => {
+// Returns to the screen actually visited before this one; falls back to a
+// fixed target only when there's no real history (e.g. after a fresh
+// deep-link load straight into a sub-page).
+function goBack(fallbackId) {
+  _goBackSteps(1, fallbackId);
+}
+
+// Browser back/forward button — fires for BOTH a hardware/gesture back-
+// button press AND the in-app "رجوع" button when goBack()/_goBackSteps()
+// hands off to history.go()/history.back() (see there for why). The two no
+// longer keep separate bookkeeping: the very first thing this does is
+// restore State.navStack and _historyDepth from history.state, which show()
+// stamps onto every entry it creates — so whichever mechanism the student
+// used to get here, the in-app "رجوع" button's next press always pops the
+// correct logical predecessor instead of a stale one. Falls back to an
+// empty navStack / zero depth for an entry with no state (e.g. one from
+// before a hard refresh, or the very first entry this tab ever had).
+//
+// The screen itself still resolves straight from location.pathname
+// (resolvePath()), not from history.state — a single, uniform code path
+// with no dependency on whether a given entry happens to carry state. For
+// the vast majority of screens this is a pure, instant, zero-fetch DOM
+// class swap — the screen's earlier render is still sitting in the DOM
+// exactly as left. Only the 3 State-driven /skills/... screens re-render
+// (still zero network — a synchronous read of the already-cached
+// State._quizTree), since the SAME DOM element is reused for every
+// section/level and would otherwise still show whichever one was rendered
+// last.
+window.addEventListener('popstate', (event) => {
+  _historyDepth = (event.state && typeof event.state.depth === 'number') ? event.state.depth : 0;
+  State.navStack = (event.state && Array.isArray(event.state.navStack)) ? event.state.navStack : [];
+
   const resolved = resolvePath(location.pathname);
   if (!resolved) return; // unrecognized path (e.g. left the app and came back) — leave the screen as-is
   const { screenId, params } = resolved;
@@ -880,7 +939,7 @@ window.addEventListener('popstate', () => {
     State._quizLevel = params.level;
     if (State._quizTree) App.renderQuizSkills();
     show('screen-quiz-skills', { fromPopstate: true });
-    history.replaceState(null, '', _pathForScreen('screen-quiz-skills'));
+    history.replaceState({ navStack: [...State.navStack], depth: _historyDepth }, '', _pathForScreen('screen-quiz-skills'));
     return;
   }
   show(screenId, { fromPopstate: true });
@@ -2209,11 +2268,8 @@ const App = {
   // the just-finished questions instead of the skills list — discard that one
   // stale entry first, then pop the real previous screen underneath it.
   backFromQuizResult() {
-    State.navStack.pop();
-    const target = State.navStack.pop() || 'screen-quiz-skills';
     App.renderQuizSkills();
-    _isBackNav = true;
-    show(target);
+    _goBackSteps(2, 'screen-quiz-skills');
   },
 
   // Inline SVG icons (no icon library) for the quiz hub section cards.

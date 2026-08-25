@@ -7,9 +7,13 @@ import { cn } from '../lib/cn';
 interface Props {
   student: Student;
   status: DerivedStatus;
+  score: number | null;
+  lastMessage: string | null;
+  unreadCount: number;
   selected: boolean;
   onToggleSelect: (id: string) => void;
   onOpen: (student: Student) => void;
+  onOpenProfile: (student: Student) => void;
   onResetTest: (student: Student) => void;
   onDelete: (student: Student) => void;
   onMessage: (student: Student) => void;
@@ -18,9 +22,13 @@ interface Props {
 export default function StudentRow({
   student,
   status,
+  score,
+  lastMessage,
+  unreadCount,
   selected,
   onToggleSelect,
   onOpen,
+  onOpenProfile,
   onResetTest,
   onDelete,
   onMessage,
@@ -40,7 +48,8 @@ export default function StudentRow({
       <td className="px-4 py-3">
         <button
           type="button"
-          onClick={() => onOpen(student)}
+          onClick={() => onOpenProfile(student)}
+          title="فتح الملف العلمي الكامل"
           className="font-medium text-slate-900 hover:text-indigo-600 hover:underline dark:text-white dark:hover:text-indigo-400"
         >
           {student.name}
@@ -53,6 +62,35 @@ export default function StudentRow({
           <span className={cn('h-1.5 w-1.5 rounded-full', colors.dot)} />
           {testStatusLabel(status)}
         </span>
+      </td>
+      <td className="px-4 py-3">
+        {score === null ? (
+          <span className="text-sm text-slate-400">—</span>
+        ) : (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold',
+              score >= 70
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
+                : score >= 50
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                  : 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400',
+            )}
+            title={score < 50 ? 'أداء ضعيف — يحتاج متابعة' : score >= 70 ? 'أداء متقدم' : 'أداء متوسط'}
+          >
+            {score >= 70 ? '▲' : score < 50 ? '▼' : '—'} {score}%
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-1.5">
+          <span className="max-w-[160px] truncate">{lastMessage || '—'}</span>
+          {unreadCount > 0 && (
+            <span className="shrink-0 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              {unreadCount}
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3 text-center">
         <button
@@ -82,6 +120,12 @@ export default function StudentRow({
               sideOffset={4}
               className="z-50 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800"
             >
+              <DropdownMenu.Item
+                onSelect={() => onOpenProfile(student)}
+                className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                🔬 الملف العلمي
+              </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={() => onMessage(student)}
                 className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"

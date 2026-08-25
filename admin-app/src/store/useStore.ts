@@ -13,7 +13,7 @@ import type {
 import { api, readSession } from '../lib/api';
 import type { DerivedStatus } from '../lib/status';
 
-export type TabKey = 'students' | 'stats' | 'conversations' | 'broadcast' | 'questions' | 'diff';
+export type TabKey = 'dashboard' | 'students' | 'testcenter' | 'conversations' | 'broadcast' | 'admin' | 'studentProfile';
 
 export interface Toast {
   id: string;
@@ -41,6 +41,10 @@ interface StoreState {
   // conversations: which student to jump to
   conversationFocusStudentId: string | null;
   setConversationFocusStudentId: (id: string | null) => void;
+
+  // student science profile: which student's full-page profile is open
+  profileStudentId: string | null;
+  openStudentProfile: (id: string) => void;
 
   // core data
   students: Student[];
@@ -103,7 +107,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ dark: next });
   },
 
-  tab: 'students',
+  tab: 'dashboard',
   setTab: (tab) => set({ tab }),
 
   broadcastPrefillIds: null,
@@ -111,6 +115,9 @@ export const useStore = create<StoreState>((set, get) => ({
 
   conversationFocusStudentId: null,
   setConversationFocusStudentId: (id) => set({ conversationFocusStudentId: id }),
+
+  profileStudentId: null,
+  openStudentProfile: (id) => set({ profileStudentId: id, tab: 'studentProfile' }),
 
   students: [],
   plans: [],

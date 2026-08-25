@@ -494,6 +494,449 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .sh-qpb-text { flex: 1; font-size: 13.5px; font-weight: 700; color: var(--text); }
 .sh-qpb-arrow { font-size: 16px; color: var(--primary); flex-shrink: 0; }
 
+/* ── Journey (مسار الإنجاز) — student home ───────────────
+   Calm/premium, not a game board or an admin dashboard: whitespace and
+   dividers over card-in-card nesting, one accent line per state, no more
+   than one emoji per row. Server-computed via GET /api/journey — this file
+   only renders what that response says. Visual hierarchy is deliberate:
+     PRIMARY   .journey (hero, next-action, stepper, current level)
+     SECONDARY .journey-secondary (<details> — performance, strongest/weakest)
+     TERTIARY  .journey-tertiary (<details> — other services)          ──── */
+.journey { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+
+/* Summary — the ONE place the overall % lives, plus a link out to the full page. */
+.journey-summary {
+  display: flex; align-items: center; gap: 18px;
+  background: var(--grad-soft); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px 22px;
+}
+.journey-ring-wrap { position: relative; width: 74px; height: 74px; flex-shrink: 0; }
+.journey-ring { width: 74px; height: 74px; transform: rotate(-90deg); }
+.journey-ring-track { fill: none; stroke: var(--border-strong); stroke-width: 8; opacity: .5; }
+.journey-ring-fill {
+  fill: none; stroke: var(--primary); stroke-width: 8; stroke-linecap: round;
+  transition: stroke-dashoffset 1s cubic-bezier(.22,1,.36,1);
+}
+.journey-ring-value {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; color: var(--text);
+}
+.journey-summary-info { flex: 1; min-width: 0; }
+.journey-summary-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 2px; }
+.journey-stage-label { font-size: 16.5px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+.journey-mini-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.journey-mini-stat { font-size: 12.5px; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 5px; }
+.journey-mini-stat b { color: var(--text); font-weight: 800; }
+.journey-mini-stat .jms-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* Link to the dedicated full-journey page — sits on the left of the summary row. */
+.journey-summary-link {
+  flex-shrink: 0; align-self: flex-start; display: flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 99px;
+  padding: 8px 14px; font-size: 12.5px; font-weight: 700; color: var(--primary);
+  font-family: inherit; cursor: pointer; transition: box-shadow .2s, border-color .2s;
+}
+.journey-summary-link:hover { border-color: var(--primary-lt); box-shadow: var(--shadow); }
+
+/* Compact stepper — 2 rows (sections) × 3 icon-only steps. Replaces what
+   used to be two full "track" cards each expanding into 3 heavy level-rows;
+   this is the entire "مسار إنجازك" overview at a glance, no borders-within-
+   borders, just dividers. Tapping an unlocked step swaps the single detail
+   panel below (progressive disclosure — never all 6 levels open at once). */
+.journey-stepper {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 4px 2px;
+}
+.js-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.js-row-label { font-size: 12.5px; font-weight: 700; color: var(--muted); flex-shrink: 0; min-width: 64px; }
+.js-steps { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.js-line { flex: 1; height: 2px; background: var(--border); min-width: 10px; border-radius: 2px; }
+.js-step {
+  display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+  background: var(--bg-tint); border: 1.5px solid transparent;
+  border-radius: 99px; padding: 5px 11px; font-family: inherit;
+  font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.js-step:hover:not(:disabled) { border-color: var(--primary-lt); }
+.js-step:disabled { cursor: not-allowed; opacity: .55; }
+.js-step-icon { font-size: 12px; line-height: 1; }
+.js-step-done { color: var(--success); }
+.js-step-current { color: var(--primary); background: rgba(63,124,184,.08); }
+.js-step-locked { color: var(--muted); }
+.js-step-selected { border-color: var(--primary); background: rgba(63,124,184,.12); color: var(--primary); }
+
+/* Current-level detail — the ONLY place a level's skills are ever listed,
+   one level at a time. */
+.journey-current-level {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.jcl-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; font-size: 13.5px; font-weight: 800; color: var(--text);
+  border-bottom: 1px solid var(--border); background: var(--bg-tint);
+}
+.jcl-count { font-size: 12px; font-weight: 800; color: var(--primary); }
+
+
+/* Needs-review — a slim inset list, not another bordered card competing
+   with the current-level detail above it. */
+.journey-review { padding: 2px 4px; border-top: 1px dashed var(--border); padding-top: 12px; }
+.journey-review-head { font-size: 12.5px; font-weight: 800; color: var(--danger); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.journey-review-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: transparent; border: none;
+  padding: 7px 2px; text-align: right; font-family: inherit; cursor: pointer;
+}
+.journey-review-row:hover .jr-name { color: var(--primary); }
+.jr-name { font-size: 12.5px; font-weight: 700; color: var(--text); flex: 1; }
+.jr-score { font-size: 11.5px; font-weight: 800; color: var(--danger); }
+.jr-arrow { color: var(--muted); font-size: 12px; }
+.journey-review-more { font-size: 11px; color: var(--muted); padding: 2px 2px 0; }
+
+/* Section progress — the ONLY place verbal%/quant% appears (was duplicated
+   in 3 places before: hero mini-stats, and every per-section track header). */
+.journey-progress-mini { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px 0; }
+.jpm-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+.jpm-label { flex-shrink: 0; min-width: 62px; color: var(--muted); font-weight: 600; }
+.jpm-bar { flex: 1; height: 6px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.jpm-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--primary-lt), var(--primary)); transition: width .6s cubic-bezier(.22,1,.36,1); }
+.jpm-row b { flex-shrink: 0; width: 34px; text-align: end; color: var(--text); font-weight: 800; }
+
+.journey-highlights-empty { font-size: 13px; color: var(--muted); padding: 4px 2px; }
+
+/* Completion badge / celebration — subtle, no confetti */
+.journey-badge {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, rgba(79,168,119,.12), rgba(124,92,212,.10));
+  border: 1px solid var(--success); border-radius: var(--radius-lg);
+  padding: 16px 18px;
+}
+.journey-badge-icon { font-size: 28px; }
+.journey-badge-title { font-size: 15px; font-weight: 800; color: var(--text); }
+.journey-badge-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+/* Secondary / tertiary <details> disclosures — native, accessible, no extra
+   JS. A slim clickable summary row instead of a heavy section header. */
+.journey-secondary, .journey-tertiary {
+  border-top: 1px solid var(--border); padding-top: 4px; margin-bottom: 16px;
+}
+.journey-secondary summary, .journey-tertiary summary {
+  cursor: pointer; list-style: none; padding: 12px 4px;
+  font-size: 13.5px; font-weight: 700; color: var(--muted);
+  display: flex; align-items: center; gap: 8px; user-select: none;
+}
+.journey-secondary summary::-webkit-details-marker, .journey-tertiary summary::-webkit-details-marker { display: none; }
+.journey-secondary summary::after, .journey-tertiary summary::after {
+  content: '▾'; margin-inline-start: auto; font-size: 12px; color: var(--muted);
+  transition: transform .2s;
+}
+.journey-secondary[open] summary::after, .journey-tertiary[open] summary::after { transform: rotate(180deg); }
+.journey-secondary summary:hover, .journey-tertiary summary:hover { color: var(--text); }
+.journey-secondary-body { display: flex; flex-direction: column; gap: 14px; padding: 4px 4px 12px; }
+.journey-tertiary .service-cards { padding-top: 4px; }
+
+/* Link out to the full journey page — the only place the home screen's
+   journey panel points to a section/level breakdown, instead of showing it. */
+.journey-full-link {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; background: var(--bg-tint); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 16px; font-family: inherit;
+  font-size: 13.5px; font-weight: 700; color: var(--primary); cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.journey-full-link:hover { border-color: var(--primary-lt); background: rgba(63,124,184,.08); }
+.jfl-arrow { color: var(--primary); font-size: 13px; }
+
+/* ── #screen-journey-full — the visual journey path ───────────────────── */
+.jt-wrap { display: flex; flex-direction: column; gap: 18px; }
+
+/* Hero: progress ring shown ONCE on this page, stage label, milestone strip */
+.jt-hero {
+  background: var(--grad-soft); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 18px 18px 14px;
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.jt-hero-top { display: flex; align-items: center; gap: 14px; }
+.jt-hero-ring-wrap { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
+.jt-hero-ring { width: 84px; height: 84px; transform: rotate(-90deg); }
+.jt-hero-ring-track { fill: none; stroke: var(--border); stroke-width: 7; }
+.jt-hero-ring-fill {
+  fill: none; stroke: var(--primary); stroke-width: 7; stroke-linecap: round;
+  transition: stroke-dashoffset .7s cubic-bezier(.22,1,.36,1);
+}
+.jt-hero-ring-value {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 800; color: var(--text);
+}
+.jt-hero-info { flex: 1; min-width: 0; }
+.jt-hero-title { font-size: 16.5px; font-weight: 800; color: var(--text); }
+.jt-hero-sub { font-size: 12.5px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+
+.jt-milestones { display: flex; flex-wrap: wrap; gap: 8px; }
+.jt-mchip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 700; padding: 5px 10px 5px 8px;
+  border-radius: 99px; background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted);
+}
+.jt-mchip-icon { font-size: 13px; }
+.jt-mchip-done { color: var(--success); border-color: var(--success); }
+.jt-mchip-current { color: var(--primary); border-color: var(--primary); background: rgba(63,124,184,.08); font-weight: 800; }
+.jt-mchip-locked { opacity: .55; }
+
+/* Primary CTA — the single action button, not a wall of buttons */
+.jt-cta {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: var(--surface); border: 1.5px solid var(--primary);
+  border-radius: var(--radius-lg); padding: 14px 16px; cursor: pointer;
+  font-family: inherit; text-align: right; box-shadow: var(--shadow);
+  transition: transform .15s, box-shadow .15s;
+}
+.jt-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+.jt-cta:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.jt-cta-icon { font-size: 22px; flex-shrink: 0; }
+.jt-cta-text { flex: 1; min-width: 0; }
+.jt-cta-label { font-size: 11px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: .02em; }
+.jt-cta-title { font-size: 14.5px; font-weight: 800; color: var(--text); margin-top: 1px; }
+.jt-cta-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.jt-cta-arrow { font-size: 16px; color: var(--primary); flex-shrink: 0; }
+.jt-cta-done { cursor: default; border-color: var(--success); }
+.jt-cta-done:hover { transform: none; box-shadow: var(--shadow); }
+
+/* ── The path itself: a connected vertical timeline (mobile-first; this IS
+   the responsive layout — a centered rail with alternating content reads
+   as more complexity than the data warrants and would need JS layout math
+   to stay overflow-safe, so one clean rail scales from phone to desktop). */
+.jt-path { list-style: none; margin: 0; padding: 0; position: relative; }
+.jt-path::before {
+  content: ''; position: absolute; top: 6px; bottom: 6px;
+  inset-inline-start: 17px; width: 2px; background: var(--border);
+}
+.jt-node { position: relative; display: flex; gap: 14px; padding-bottom: 18px; }
+.jt-node:last-child { padding-bottom: 0; }
+.jt-node-dot {
+  position: relative; z-index: 1; flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800;
+  background: var(--surface); border: 2px solid var(--border); color: var(--muted);
+}
+.jt-node-done .jt-node-dot { background: var(--success); border-color: var(--success); color: #fff; }
+.jt-node-current .jt-node-dot {
+  background: var(--primary); border-color: var(--primary); color: #fff;
+  width: 40px; height: 40px; margin-top: -2px; margin-inline-start: -2px;
+  box-shadow: 0 0 0 5px rgba(63,124,184,.18);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .jt-node-current .jt-node-dot { animation: jt-pulse 2.2s ease-in-out infinite; }
+}
+@keyframes jt-pulse {
+  0%, 100% { box-shadow: 0 0 0 5px rgba(63,124,184,.18); }
+  50% { box-shadow: 0 0 0 9px rgba(63,124,184,.10); }
+}
+.jt-node-locked .jt-node-dot { opacity: .55; }
+.jt-node-upcoming .jt-node-dot { color: var(--border-strong); }
+
+.jt-node-body { flex: 1; min-width: 0; padding-top: 2px; }
+.jt-node-simple { padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.jt-node-title { font-size: 14px; font-weight: 800; color: var(--text); }
+.jt-node-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.jt-node-locked .jt-node-simple, .jt-node-locked .jt-level { opacity: .7; }
+.jt-node-btn {
+  margin-top: 8px; background: var(--primary); color: #fff; border: none;
+  border-radius: var(--radius-sm); padding: 7px 14px; font-family: inherit;
+  font-size: 12.5px; font-weight: 700; cursor: pointer;
+}
+.jt-node-btn:focus-visible { outline: 2px solid var(--primary-dk); outline-offset: 2px; }
+
+/* Level nodes: Journey → Section → Level → Skill hierarchy via <details> */
+.jt-level {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.jt-node-current .jt-level { border-color: var(--primary); }
+.jt-level-summary {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  list-style: none; padding: 11px 14px; font-size: 13.5px;
+  background: var(--bg-tint); user-select: none;
+}
+.jt-level-summary::-webkit-details-marker { display: none; }
+.jt-level-summary:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.jt-level-icon { font-size: 13px; flex-shrink: 0; }
+.jt-level-title { flex: 1; font-weight: 700; color: var(--text); }
+.jt-level-count { font-size: 11.5px; font-weight: 800; color: var(--primary); flex-shrink: 0; }
+.jt-locked-reason { font-size: 12px; color: var(--muted); padding: 10px 14px; margin: 0; }
+
+.jt-skills { display: flex; flex-direction: column; }
+.jt-skill-row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: transparent; border: none; border-top: 1px solid var(--border);
+  padding: 10px 14px; font-family: inherit; font-size: 13px; cursor: pointer;
+  text-align: right; color: var(--text);
+}
+.jt-skill-row:first-child { border-top: none; }
+.jt-skill-row:hover:not(:disabled) { background: var(--bg-tint); }
+.jt-skill-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.jt-skill-row:disabled { cursor: not-allowed; color: var(--muted); }
+.jt-skill-name { flex: 1; font-weight: 600; }
+.jt-skill-state { font-weight: 800; font-size: 11.5px; padding: 2px 9px; border-radius: 99px; flex-shrink: 0; }
+.jt-skill-current { background: rgba(63,124,184,.14); color: var(--primary); }
+
+.jt-review { margin-top: 4px; }
+
+@media (max-width: 480px) {
+  .jt-hero { padding: 16px 14px 12px; }
+  .jt-hero-ring-wrap { width: 68px; height: 68px; }
+  .jt-hero-ring { width: 68px; height: 68px; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   QUIZ HUB — section choice (verbal / quantitative)
+   Two wide cards, stack on mobile, each with a ring progress
+   indicator computed from the same tree data already fetched.
+══════════════════════════════════════════════════════════ */
+.qz-grid {
+  display: grid; grid-template-columns: 1fr; gap: 16px;
+}
+@media (min-width: 640px) {
+  .qz-hub-cards-grid { grid-template-columns: 1fr 1fr; }
+}
+.qz-hub-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 22px 20px;
+  box-shadow: var(--shadow); display: flex; flex-direction: column;
+  align-items: center; text-align: center; gap: 12px;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .qz-hub-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+}
+.qz-hub-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--grad-soft); color: var(--primary); flex-shrink: 0;
+}
+.qz-hub-icon svg { width: 32px; height: 32px; }
+.qz-hub-title { font-size: 15.5px; font-weight: 800; color: var(--text); line-height: 1.5; }
+.qz-hub-ring-wrap { position: relative; width: 84px; height: 84px; margin: 4px 0; }
+.qz-hub-ring { width: 84px; height: 84px; transform: rotate(-90deg); }
+.qz-hub-ring-track { fill: none; stroke: var(--border); stroke-width: 7; }
+.qz-hub-ring-fill {
+  fill: none; stroke: var(--primary); stroke-width: 7; stroke-linecap: round;
+  transition: stroke-dashoffset .5s ease;
+}
+.qz-hub-ring-value {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 800; color: var(--text);
+}
+.qz-hub-sub { font-size: 12.5px; color: var(--muted); margin-top: -6px; }
+.qz-hub-card .btn { margin-top: 4px; }
+
+/* ══════════════════════════════════════════════════════════
+   QUIZ LEVELS — vertical roadmap (done / current / locked)
+══════════════════════════════════════════════════════════ */
+.qz-levels-stack { display: flex; flex-direction: column; gap: 14px; }
+.qz-level-card {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 18px;
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .qz-level-card:not(.locked):hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--primary-lt); }
+}
+.qz-level-card.done {
+  background: rgba(79,168,119,.08); border-color: var(--success);
+}
+.qz-level-card.current {
+  border-color: var(--primary); box-shadow: var(--shadow);
+}
+.qz-level-card.locked {
+  opacity: .6; cursor: not-allowed;
+}
+.qz-level-icon {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; background: var(--bg-tint);
+}
+.qz-level-card.done .qz-level-icon { background: var(--success); color: #fff; }
+.qz-level-body { flex: 1; min-width: 0; }
+.qz-level-title { font-size: 14.5px; font-weight: 800; color: var(--text); }
+.qz-level-desc { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+.qz-level-card .test-progress-bar-wrap { margin-top: 10px; }
+.qz-level-action { flex-shrink: 0; }
+.qz-level-done-mark {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 800; color: var(--success);
+}
+.qz-level-done-mark svg { width: 16px; height: 16px; }
+
+/* ══════════════════════════════════════════════════════════
+   QUIZ SKILLS — balanced responsive grid, never stretch a
+   lone last card full-width.
+══════════════════════════════════════════════════════════ */
+.qz-skills-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 260px));
+  justify-content: center; gap: 16px;
+}
+.qz-skill-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 18px 16px;
+  box-shadow: var(--shadow-sm); display: flex; flex-direction: column;
+  align-items: center; text-align: center; gap: 8px;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .qz-skill-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+}
+.qz-skill-badge { align-self: flex-start; }
+.qz-skill-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; background: var(--grad-soft); color: var(--primary);
+  margin-top: 2px;
+}
+.qz-skill-name { font-size: 14.5px; font-weight: 800; color: var(--text); line-height: 1.5; }
+.qz-skill-score { font-size: 12px; color: var(--muted); }
+.qz-skill-card .btn { width: 100%; margin-top: auto; }
+
+/* ══════════════════════════════════════════════════════════
+   QUIZ SKILL RESULT — centered narrow card
+══════════════════════════════════════════════════════════ */
+.qz-result-card {
+  max-width: 420px; margin: 0 auto;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 32px 26px;
+  box-shadow: var(--shadow-lg); text-align: center;
+}
+.qz-result-icon {
+  width: 76px; height: 76px; border-radius: 50%; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.qz-result-icon svg { width: 40px; height: 40px; }
+.qz-result-icon.pass { background: rgba(79,168,119,.14); color: var(--success); }
+.qz-result-icon.fail { background: rgba(220,38,38,.12); color: var(--danger); }
+.qz-result-score { font-size: 34px; font-weight: 900; color: var(--text); margin-bottom: 10px; }
+.qz-result-card .test-progress-bar-wrap { margin: 0 0 14px; }
+.qz-result-detail { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 24px; }
+.qz-result-actions { display: flex; flex-direction: column; gap: 10px; }
+
+/* Slimmer welcome banner — the journey hero carries the "where am I" job now */
+.welcome-banner-slim { padding: 16px 22px; margin-bottom: 16px; }
+.welcome-banner-slim h2 { margin: 0; font-size: 17px; }
+
+.screen-home-entered .journey { animation: bannerIn .4s cubic-bezier(.22,1,.36,1) both; }
+
+@media (max-width: 480px) {
+  .journey-hero { flex-direction: column; align-items: flex-start; text-align: right; }
+  .journey-highlight { min-width: 100%; }
+  .js-row-label { min-width: 100%; }
+}
+
 /* ── Service Cards (Home) ────────────────────────────── */
 .service-section-title {
   font-size: 15px; font-weight: 800; margin-bottom: 16px; color: var(--text);
@@ -663,6 +1106,7 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .score-low  { background: #fee2e2; color: #991b1b; }
 .score-mid  { background: #fef9c3; color: #854d0e; }
 .score-high { background: #dcfce7; color: #166534; }
+.score-gray { background: var(--bg-tint); color: var(--muted); }
 .gap-rec  { font-size: 13px; color: var(--muted); line-height: 1.5; }
 
 /* ── Admin Dashboard ─────────────────────────────────── */
@@ -971,6 +1415,17 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 }
 .quick-btn:hover { border-color: var(--primary); color: var(--primary); background: #eef5fb; }
 .quick-btn-icon { font-size: 20px; }
+
+/* Slim footer-nav variant — student home's quick links are frequent but
+   secondary, so they read as a compact link row instead of big square
+   buttons competing with the journey panel above them. */
+.quick-actions-slim { flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.quick-actions-slim .quick-btn {
+  flex: 0 1 auto; padding: 8px 14px; font-size: 12.5px; font-weight: 600;
+  border-radius: 99px; border-color: var(--border); background: transparent;
+  position: relative;
+}
+.quick-actions-slim .quick-btn-icon { font-size: 15px; }
 
 /* ── Notification Badge ───────────────────────────────── */
 .notif-badge {

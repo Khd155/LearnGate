@@ -2,6 +2,11 @@
 // PostgreSQL (via postgres.js) | Dev key env var: DEV_KEY
 import { getDB } from '../_lib/db.js';
 import { listTestResults, deleteSingleTestResult, resetStudentTestResults, resetSchoolTestResults, grantRetakeForSchool } from '../_lib/test-management.js';
+import {
+  DEFAULT_QUIZ_PASS_RATIO, resolveQuizPassRatio, computeQuizPass, daysSince, computeHealthScore,
+  buildQuizTree, computeJourney, classifyProgress, PROGRESS_BUCKET_LABELS_AR, PROGRESS_BUCKET_ORDER,
+  summarizePlanAttempts,
+} from '../_lib/journey.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
 const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
@@ -483,6 +488,102 @@ export async function onRequest({ request, env }) {
   const school   = url.searchParams.get('school') || '';
 
   try {
+
+    // ── Shared quiz-skills schema/tree helpers ──────────────────────────────
+    // Used by GET /api/quiz-structure, the quiz-skills submit handler, and the
+    // new GET /api/journey — one place owns the DDL/seed and the section→level
+    // →skill tree shape instead of hand-maintained copies in each endpoint.
+    let _quizSkillsSchemaEnsured = false;
+    async function _ensureQuizSkillsSchema() {
+      if (_quizSkillsSchemaEnsured) return;
+      await DB.prepare(`CREATE TABLE IF NOT EXISTS quiz_skills (
+        id TEXT PRIMARY KEY, section TEXT NOT NULL, level TEXT NOT NULL,
+        skill_id TEXT NOT NULL, skill_name TEXT NOT NULL, order_idx INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )`).run();
+      await DB.prepare(`CREATE TABLE IF NOT EXISTS quiz_skill_questions (
+        id TEXT PRIMARY KEY, quiz_skill_id TEXT NOT NULL, qnum INTEGER NOT NULL,
+        text TEXT NOT NULL, opt1 TEXT NOT NULL, opt2 TEXT NOT NULL, opt3 TEXT NOT NULL, opt4 TEXT NOT NULL,
+        ans INTEGER NOT NULL, created_at TEXT NOT NULL
+      )`).run();
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_qsq_skill ON quiz_skill_questions(quiz_skill_id, qnum)`).run(); } catch {}
+      await DB.prepare(`CREATE TABLE IF NOT EXISTS skill_progress (
+        id TEXT PRIMARY KEY, student_id TEXT NOT NULL, quiz_skill_id TEXT NOT NULL,
+        section TEXT NOT NULL, level TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'not_started',
+        best_correct INTEGER NOT NULL DEFAULT 0, best_total INTEGER NOT NULL DEFAULT 5,
+        attempts INTEGER NOT NULL DEFAULT 0, last_attempt_at TEXT, created_at TEXT NOT NULL,
+        UNIQUE(student_id, quiz_skill_id)
+      )`).run();
+      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_sp_student ON skill_progress(student_id, section, level)`).run(); } catch {}
+
+      // Seed the 2 sections × 3 levels × 5 skills = 30 rows once, matching data.js SKILLS.
+      const QS_SKILLS = {
+        verbal:       [['v1','الاستيعاب القرائي'], ['v2','الخطأ السياقي'], ['v3','المفردة الشاذة'], ['v4','التناظر اللفظي'], ['v5','إكمال الجمل']],
+        quantitative: [['q1','الحساب'], ['q2','الجبر'], ['q3','الهندسة والقياس'], ['q4','المقارنات الكمية'], ['q5','الإحصاء والاحتمالات']],
+      };
+      const QS_LEVELS = ['easy', 'medium', 'advanced'];
+      const qsCountRow = await DB.prepare('SELECT COUNT(*) as c FROM quiz_skills').first();
+      if (!qsCountRow || Number(qsCountRow.c) === 0) {
+        const seedNow = new Date().toISOString();
+        const seedStmt = DB.prepare(
+          `INSERT INTO quiz_skills (id, section, level, skill_id, skill_name, order_idx, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`
+        );
+        for (const [section, skills] of Object.entries(QS_SKILLS)) {
+          for (const level of QS_LEVELS) {
+            for (let i = 0; i < skills.length; i++) {
+              const [skillId, skillName] = skills[i];
+              await seedStmt.bind(`${section}-${level}-${skillId}`, section, level, skillId, skillName, i, seedNow).run();
+            }
+          }
+        }
+      }
+      _quizSkillsSchemaEnsured = true;
+    }
+
+    async function _fetchQuizTree(studentId) {
+      await _ensureQuizSkillsSchema();
+      const { results: skills } = await DB.prepare('SELECT * FROM quiz_skills ORDER BY section, level, order_idx').all();
+      const { results: progressRows } = await DB.prepare('SELECT * FROM skill_progress WHERE student_id = ?').bind(studentId).all();
+      const { results: qCounts } = await DB.prepare('SELECT quiz_skill_id, COUNT(*) as c FROM quiz_skill_questions GROUP BY quiz_skill_id').all();
+      const qCountMap = Object.fromEntries(qCounts.map(r => [r.quiz_skill_id, Number(r.c)]));
+      return buildQuizTree({ skills, progressRows, qCountMap });
+    }
+
+    // Resolves an admin/director/dev-requested ?studentId= against the caller's
+    // school scope (director/dev with school='*' may target any student) —
+    // shared by GET /api/quiz-structure and GET /api/journey.
+    async function _resolveTargetStudentId(claims) {
+      if (claims.role === 'student') return claims.sub;
+      if (!['admin', 'director', 'dev'].includes(claims.role)) return null;
+      const targetStudentId = url.searchParams.get('studentId') || '';
+      if (!targetStudentId) return null;
+      if (claims.role !== 'dev' && claims.school && claims.school !== '*') {
+        const targetSt = await DB.prepare('SELECT school FROM students WHERE id = ?').bind(targetStudentId).first();
+        if (!targetSt || (targetSt.school || '').trim() !== claims.school.trim()) return 'FORBIDDEN';
+      }
+      return targetStudentId;
+    }
+
+    // ── Shared app_settings (small key/value config store) ─────────────────
+    // Generic on purpose — the only key used today is the quiz-skills passing
+    // ratio (see below), but this avoids a one-off table per future setting.
+    let _appSettingsSchemaEnsured = false;
+    async function _ensureAppSettingsSchema() {
+      if (_appSettingsSchemaEnsured) return;
+      await DB.prepare(`CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL
+      )`).run();
+      _appSettingsSchemaEnsured = true;
+    }
+    async function _getSetting(key) {
+      await _ensureAppSettingsSchema();
+      const row = await DB.prepare('SELECT value FROM app_settings WHERE key = ?').bind(key).first();
+      return row ? row.value : null;
+    }
+    async function _getQuizPassRatio() {
+      return resolveQuizPassRatio(await _getSetting('quiz_pass_ratio'));
+    }
 
     // ── AUTH ─────────────────────────────────────────────────────────────────
     if (resource === 'auth') {
@@ -1253,7 +1354,7 @@ export async function onRequest({ request, env }) {
         return students;
       }
 
-      const daysSince = (iso) => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : Infinity;
+      // daysSince() is imported from functions/_lib/journey.js (was a local closure here before).
 
       // GET /api/analytics/at-risk — only ever flags a student who has actually
       // started (logged in at least once AND has some recorded activity);
@@ -1406,28 +1507,166 @@ export async function onRequest({ request, env }) {
         }, 200, CORS);
       }
 
+      // GET /api/analytics/quiz-engagement — "most engaged with short quizzes"
+      // (round-3 admin dashboard ask). Genuinely new: no existing endpoint
+      // aggregates `skill_progress` across a whole school roster — the only
+      // prior reader of that table (GET /api/quiz-structure) is scoped to one
+      // student at a time, and looping it across 100+ students would be an
+      // N+1 fan-out. This is ONE grouped, school-scoped query instead —
+      // same shape/cost as the other analytics/* aggregates above.
+      if (sub === 'quiz-engagement' && method === 'GET') {
+        // quiz_skills/skill_progress are only ever created lazily inside the
+        // quiz-structure/quiz-skills resource block (see below) — on a fresh
+        // deployment where no student has opened a short quiz yet, those
+        // tables don't exist and this query 500s. Idempotent, cheap after
+        // the first call.
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS quiz_skills (
+          id TEXT PRIMARY KEY, section TEXT NOT NULL, level TEXT NOT NULL,
+          skill_id TEXT NOT NULL, skill_name TEXT NOT NULL, order_idx INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        )`).run();
+        await DB.prepare(`CREATE TABLE IF NOT EXISTS skill_progress (
+          id TEXT PRIMARY KEY, student_id TEXT NOT NULL, quiz_skill_id TEXT NOT NULL,
+          section TEXT NOT NULL, level TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'not_started',
+          best_correct INTEGER NOT NULL DEFAULT 0, best_total INTEGER NOT NULL DEFAULT 5,
+          attempts INTEGER NOT NULL DEFAULT 0, last_attempt_at TEXT, created_at TEXT NOT NULL,
+          UNIQUE(student_id, quiz_skill_id)
+        )`).run();
+        const engCond = anSchool ? ' AND s.school = ?' : '';
+        const { results: rows } = await DB.prepare(
+          `SELECT sp.student_id as id, s.name as name, s.school as school,
+                  COUNT(*) as "skillsTouched",
+                  SUM(sp.attempts) as "totalAttempts",
+                  SUM(CASE WHEN sp.status = 'passed' THEN 1 ELSE 0 END) as "passedCount",
+                  MAX(sp.last_attempt_at) as "lastAttemptAt"
+           FROM skill_progress sp
+           JOIN students s ON s.id = sp.student_id
+           WHERE sp.attempts > 0${engCond}
+           GROUP BY sp.student_id, s.name, s.school
+           ORDER BY "totalAttempts" DESC
+           LIMIT 10`
+        ).bind(...sArgs).all();
+
+        const totalSkillsRow = await DB.prepare('SELECT COUNT(*) as c FROM quiz_skills').first();
+        const totalSkills = Number(totalSkillsRow?.c || 30);
+        const totalStudentsRow = await DB.prepare(`SELECT COUNT(*) as c FROM students${sWhere}`).bind(...sArgs).first();
+        const totalStudents = Number(totalStudentsRow?.c || 0);
+        const participantsRow = await DB.prepare(
+          `SELECT COUNT(DISTINCT sp.student_id) as c FROM skill_progress sp JOIN students s ON s.id = sp.student_id WHERE sp.attempts > 0${engCond}`
+        ).bind(...sArgs).first();
+        const participants = Number(participantsRow?.c || 0);
+
+        return ok({
+          totalStudents,
+          participants,
+          participationRate: totalStudents ? Math.round((participants / totalStudents) * 100) : 0,
+          totalSkills,
+          topEngaged: rows.map(r => ({
+            id: r.id, name: r.name, school: r.school,
+            skillsTouched: Number(r.skillsTouched), totalAttempts: Number(r.totalAttempts),
+            passedCount: Number(r.passedCount), lastAttemptAt: r.lastAttemptAt,
+            coveragePct: totalSkills ? Math.round((Number(r.skillsTouched) / totalSkills) * 100) : 0,
+          })),
+        }, 200, CORS);
+      }
+
       // GET /api/analytics/health — health_score = 30% activity + 40% performance + 30% improvement
+      // (formula lives in functions/_lib/journey.js — shared with GET /api/journey
+      // so a student's own "مؤشر الجاهزية" and the admin view never disagree)
       if (sub === 'health' && method === 'GET') {
         const students = await _loadStudentActivityAndScores();
-        const activityScore = (s) => {
-          const d = daysSince(s.lastActive);
-          if (d === Infinity) return 0;
-          if (d <= 1) return 100;
-          if (d <= 3) return 70;
-          if (d <= 7) return 40;
-          return 10;
-        };
-        const performanceScore = (s) => s.lastScore ?? 0;
-        const improvementScore = (s) => {
-          if (s.improvementPct === null) return 50; // neutral — no history yet
-          return Math.max(0, Math.min(100, 50 + s.improvementPct));
-        };
         const result = students.map(s => {
-          const act = activityScore(s), perf = performanceScore(s), imp = improvementScore(s);
-          const health = Math.round(act * 0.3 + perf * 0.4 + imp * 0.3);
-          return { id: s.id, name: s.name, school: s.school, healthScore: health, activityScore: act, performanceScore: perf, improvementScore: imp };
+          const { healthScore, activityScore, performanceScore, improvementScore } = computeHealthScore(s);
+          return { id: s.id, name: s.name, school: s.school, healthScore, activityScore, performanceScore, improvementScore };
         }).sort((a, b) => a.healthScore - b.healthScore);
         return ok({ students: result }, 200, CORS);
+      }
+
+      // GET /api/analytics/journey-overview — admin "توزيع الطلاب حسب التقدم" +
+      // per-level completion + top-progressing leaderboard, all derived from the
+      // exact same skill_progress/quiz_skills/plans/general_test_results data
+      // (and the same overallProgressPct math) as a student's own GET /api/journey —
+      // one grouped query per data source, JS aggregation, no N+1 across the roster.
+      if (sub === 'journey-overview' && method === 'GET') {
+        await _ensureQuizSkillsSchema();
+        const [studentsRows, spRows, levelTotalsRows, planRows, gtrRows] = await Promise.all([
+          DB.prepare(`SELECT id, name, school FROM students${sWhere}`).bind(...sArgs).all(),
+          DB.prepare(
+            `SELECT sp.student_id as student_id, qs.section as section, qs.level as level, sp.status as status
+             FROM skill_progress sp
+             JOIN quiz_skills qs ON qs.id = sp.quiz_skill_id
+             JOIN students s ON s.id = sp.student_id
+             ${anSchool ? 'WHERE s.school = ?' : ''}`
+          ).bind(...sArgs).all(),
+          DB.prepare('SELECT section, level, COUNT(*) as c FROM quiz_skills GROUP BY section, level').all(),
+          DB.prepare(`SELECT DISTINCT student_id FROM plans${sWhere}`).bind(...sArgs).all(),
+          DB.prepare(
+            `SELECT student_id, MAX(score) as best_score, COUNT(*) as attempts FROM general_test_results
+             WHERE test_num = 1 AND is_trial = 0${sCond} GROUP BY student_id`
+          ).bind(...sArgs).all(),
+        ]);
+
+        const totalNodesRow = await DB.prepare('SELECT COUNT(*) as c FROM quiz_skills').first();
+        const totalNodes = Number(totalNodesRow?.c || 0);
+
+        const levelTotals = {};
+        for (const r of (levelTotalsRows?.results || [])) levelTotals[`${r.section}|${r.level}`] = Number(r.c);
+
+        const diagnosticSet = new Set((planRows?.results || []).map(r => r.student_id));
+        const anyAttemptSet = new Set();
+        const passedByStudent = new Map();
+        const levelPassedByStudent = new Map(); // student_id -> Map(levelKey -> passedCount)
+        for (const row of (spRows?.results || [])) {
+          anyAttemptSet.add(row.student_id);
+          if (row.status !== 'passed') continue;
+          passedByStudent.set(row.student_id, (passedByStudent.get(row.student_id) || 0) + 1);
+          const key = `${row.section}|${row.level}`;
+          const m = levelPassedByStudent.get(row.student_id) || new Map();
+          m.set(key, (m.get(key) || 0) + 1);
+          levelPassedByStudent.set(row.student_id, m);
+        }
+        const gtrByStudent = new Map((gtrRows?.results || []).map(r => [r.student_id, { attempts: Number(r.attempts), bestScore: Number(r.best_score) }]));
+
+        const levelCompletionCounts = {};
+        for (const key of Object.keys(levelTotals)) levelCompletionCounts[key] = 0;
+        for (const m of levelPassedByStudent.values()) {
+          for (const [key, passedCount] of m) {
+            if (passedCount >= (levelTotals[key] || Infinity)) levelCompletionCounts[key] = (levelCompletionCounts[key] || 0) + 1;
+          }
+        }
+
+        const students = (studentsRows?.results || []).map(s => {
+          const passedNodes = passedByStudent.get(s.id) || 0;
+          const overallProgressPct = totalNodes ? Math.round((passedNodes / totalNodes) * 100) : 0;
+          const started = diagnosticSet.has(s.id) || anyAttemptSet.has(s.id);
+          const bucket = classifyProgress({ overallProgressPct, started });
+          return { id: s.id, name: s.name, school: s.school, passedNodes, overallProgressPct, started, bucket };
+        });
+
+        return ok({
+          totalStudents: students.length,
+          totalNodes,
+          diagnosticCompleted: diagnosticSet.size,
+          finalMockAttempted: gtrByStudent.size,
+          buckets: PROGRESS_BUCKET_ORDER.map(code => ({
+            code, label: PROGRESS_BUCKET_LABELS_AR[code],
+            count: students.filter(s => s.bucket === code).length,
+          })),
+          levelCompletion: Object.entries(levelTotals).map(([key, total]) => {
+            const [sectionKey, levelKey] = key.split('|');
+            const completed = levelCompletionCounts[key] || 0;
+            return {
+              section: sectionKey, level: levelKey, totalSkills: total,
+              studentsCompleted: completed,
+              completionRate: students.length ? Math.round((completed / students.length) * 100) : 0,
+            };
+          }),
+          topProgressing: [...students]
+            .filter(s => s.passedNodes > 0)
+            .sort((a, b) => b.passedNodes - a.passedNodes || b.overallProgressPct - a.overallProgressPct)
+            .slice(0, 10)
+            .map(s => ({ id: s.id, name: s.name, school: s.school, passedNodes: s.passedNodes, totalNodes, overallProgressPct: s.overallProgressPct })),
+        }, 200, CORS);
       }
 
       return err('غير موجود', 404, CORS);
@@ -1704,93 +1943,20 @@ export async function onRequest({ request, env }) {
     // ── QUIZ SKILLS (hierarchical short-tests: section → level → skill) ───────
     // Runs alongside the older flat `general-tests` system without replacing it.
     if (resource === 'quiz-structure' || resource === 'quiz-skills') {
-      await DB.prepare(`CREATE TABLE IF NOT EXISTS quiz_skills (
-        id TEXT PRIMARY KEY, section TEXT NOT NULL, level TEXT NOT NULL,
-        skill_id TEXT NOT NULL, skill_name TEXT NOT NULL, order_idx INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL
-      )`).run();
-      await DB.prepare(`CREATE TABLE IF NOT EXISTS quiz_skill_questions (
-        id TEXT PRIMARY KEY, quiz_skill_id TEXT NOT NULL, qnum INTEGER NOT NULL,
-        text TEXT NOT NULL, opt1 TEXT NOT NULL, opt2 TEXT NOT NULL, opt3 TEXT NOT NULL, opt4 TEXT NOT NULL,
-        ans INTEGER NOT NULL, created_at TEXT NOT NULL
-      )`).run();
-      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_qsq_skill ON quiz_skill_questions(quiz_skill_id, qnum)`).run(); } catch {}
-      await DB.prepare(`CREATE TABLE IF NOT EXISTS skill_progress (
-        id TEXT PRIMARY KEY, student_id TEXT NOT NULL, quiz_skill_id TEXT NOT NULL,
-        section TEXT NOT NULL, level TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'not_started',
-        best_correct INTEGER NOT NULL DEFAULT 0, best_total INTEGER NOT NULL DEFAULT 5,
-        attempts INTEGER NOT NULL DEFAULT 0, last_attempt_at TEXT, created_at TEXT NOT NULL,
-        UNIQUE(student_id, quiz_skill_id)
-      )`).run();
-      try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_sp_student ON skill_progress(student_id, section, level)`).run(); } catch {}
+      await _ensureQuizSkillsSchema();
 
-      // Seed the 2 sections × 3 levels × 5 skills = 30 rows once, matching data.js SKILLS.
-      const QS_SKILLS = {
-        verbal:       [['v1','الاستيعاب القرائي'], ['v2','الخطأ السياقي'], ['v3','المفردة الشاذة'], ['v4','التناظر اللفظي'], ['v5','إكمال الجمل']],
-        quantitative: [['q1','الحساب'], ['q2','الجبر'], ['q3','الهندسة والقياس'], ['q4','المقارنات الكمية'], ['q5','الإحصاء والاحتمالات']],
-      };
-      const QS_LEVELS = ['easy', 'medium', 'advanced'];
-      const qsCountRow = await DB.prepare('SELECT COUNT(*) as c FROM quiz_skills').first();
-      if (!qsCountRow || Number(qsCountRow.c) === 0) {
-        const seedNow = new Date().toISOString();
-        const seedStmt = DB.prepare(
-          `INSERT INTO quiz_skills (id, section, level, skill_id, skill_name, order_idx, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`
-        );
-        for (const [section, skills] of Object.entries(QS_SKILLS)) {
-          for (const level of QS_LEVELS) {
-            for (let i = 0; i < skills.length; i++) {
-              const [skillId, skillName] = skills[i];
-              await seedStmt.bind(`${section}-${level}-${skillId}`, section, level, skillId, skillName, i, seedNow).run();
-            }
-          }
-        }
-      }
-
-      // GET /api/quiz-structure — full tree + this student's progress + level lock flags
+      // GET /api/quiz-structure — full tree + a student's progress + level lock flags.
+      // Normally the caller's own progress (role==='student'); admin/director/dev may
+      // instead pass ?studentId= to view a specific student's tree — used by the admin
+      // dashboard's per-student quiz-skills view, school-scoped like every other
+      // admin-facing student lookup in this file.
       if (resource === 'quiz-structure' && method === 'GET') {
         const claims = await verifyToken(request, env, DB);
-        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
-        const { results: skills } = await DB.prepare('SELECT * FROM quiz_skills ORDER BY section, level, order_idx').all();
-        const { results: progressRows } = await DB.prepare('SELECT * FROM skill_progress WHERE student_id = ?').bind(claims.sub).all();
-        const { results: qCounts } = await DB.prepare('SELECT quiz_skill_id, COUNT(*) as c FROM quiz_skill_questions GROUP BY quiz_skill_id').all();
-        const qCountMap = Object.fromEntries(qCounts.map(r => [r.quiz_skill_id, Number(r.c)]));
-        const progressMap = Object.fromEntries(progressRows.map(r => [r.quiz_skill_id, r]));
-        const LEVEL_ORDER = ['easy', 'medium', 'advanced'];
-
-        const bySectionLevel = {};
-        for (const s of skills) {
-          const key = `${s.section}|${s.level}`;
-          if (!bySectionLevel[key]) bySectionLevel[key] = [];
-          bySectionLevel[key].push(s);
-        }
-        const levelPassed = (section, level) => {
-          const list = bySectionLevel[`${section}|${level}`] || [];
-          return list.length > 0 && list.every(s => progressMap[s.id]?.status === 'passed');
-        };
-
-        const tree = { verbal: [], quantitative: [] };
-        for (const section of ['verbal', 'quantitative']) {
-          for (const level of LEVEL_ORDER) {
-            const levelIdx = LEVEL_ORDER.indexOf(level);
-            const locked = levelIdx > 0 && !levelPassed(section, LEVEL_ORDER[levelIdx - 1]);
-            const skillList = (bySectionLevel[`${section}|${level}`] || []).map(s => {
-              const p = progressMap[s.id];
-              return {
-                quizSkillId: s.id, skillId: s.skill_id, skillName: s.skill_name,
-                status: p?.status || 'not_started',
-                bestCorrect: p?.best_correct || 0, bestTotal: p?.best_total || 5,
-                attempts: p?.attempts || 0, hasQuestions: (qCountMap[s.id] || 0) > 0,
-              };
-            });
-            const passedCount = skillList.filter(s => s.status === 'passed').length;
-            tree[section].push({
-              level, locked,
-              progressPct: skillList.length ? Math.round((passedCount / skillList.length) * 100) : 0,
-              skills: skillList,
-            });
-          }
-        }
+        if (!claims) return err('غير مصرح', 401, CORS);
+        const targetStudentId = await _resolveTargetStudentId(claims);
+        if (targetStudentId === 'FORBIDDEN') return err('غير مسموح', 403, CORS);
+        if (!targetStudentId) return err(claims.role === 'student' ? 'غير مصرح' : 'معرّف الطالب مطلوب', claims.role === 'student' ? 401 : 400, CORS);
+        const tree = await _fetchQuizTree(targetStudentId);
         return ok({ tree }, 200, CORS);
       }
 
@@ -1863,7 +2029,11 @@ export async function onRequest({ request, env }) {
           if (selected !== undefined && selected !== null && selected !== 'dk' && Number(selected) === Number(q.ans)) correct++;
         }
         const total = questions.length;
-        const pass = total > 0 && correct >= 4;
+        // Passing ratio is admin-configurable (GET/PATCH /api/settings, key
+        // 'quiz_pass_ratio') — defaults to 0.8, i.e. the original hardcoded
+        // "correct >= 4 of 5" rule, unchanged unless a director/dev sets it.
+        const passRatio = await _getQuizPassRatio();
+        const { pass } = computeQuizPass(correct, total, passRatio);
         const now = new Date().toISOString();
         const existing = await DB.prepare('SELECT * FROM skill_progress WHERE student_id = ? AND quiz_skill_id = ?').bind(claims.sub, sub).first();
         const bestCorrect = Math.max(correct, existing?.best_correct || 0);
@@ -1881,6 +2051,119 @@ export async function onRequest({ request, env }) {
         }
         return ok({ correct, total, pass, level: skillRow.level, section: skillRow.section }, 200, CORS);
       }
+    }
+
+    // ── SETTINGS (small admin-configurable key/value store) ────────────────
+    if (resource === 'settings') {
+      // GET /api/settings — admin/director/dev; returns whitelisted keys the
+      // admin UI knows about, each with its resolved (validated) value.
+      if (!sub && method === 'GET') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims || !['admin', 'director', 'dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const ratio = await _getQuizPassRatio();
+        return ok({
+          settings: {
+            quiz_pass_ratio: { value: ratio, default: DEFAULT_QUIZ_PASS_RATIO, label: 'نسبة النجاح في الاختبارات القصيرة' },
+          },
+        }, 200, CORS);
+      }
+
+      // PATCH /api/settings { key, value } — director/dev only: this is a
+      // single global setting affecting grading across every school, so it
+      // stays out of reach of a single-school admin.
+      if (!sub && method === 'PATCH') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims || !['director', 'dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+        const { key, value } = await request.json();
+        const ALLOWED_KEYS = new Set(['quiz_pass_ratio']);
+        if (!ALLOWED_KEYS.has(key)) return err('إعداد غير معروف', 400, CORS);
+        if (key === 'quiz_pass_ratio') {
+          const n = Number(value);
+          if (!Number.isFinite(n) || n < 0.5 || n > 1) return err('القيمة يجب أن تكون بين 0.5 و1', 400, CORS);
+        }
+        await _ensureAppSettingsSchema();
+        await DB.prepare(
+          `INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at`
+        ).bind(key, String(value), new Date().toISOString()).run();
+        await logEvent(DB, { level: 'info', category: 'settings', message: `تحديث إعداد ${key} إلى ${value}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      return err('غير موجود', 404, CORS);
+    }
+
+    // ── JOURNEY (مسار الإنجاز) ───────────────────────────────────────────────
+    // Aggregates the diagnostic (plans), the quiz-skills tree (skill_progress),
+    // and the final-mock general-test into ONE server-computed state — the
+    // single source of truth both the student's own home screen and the
+    // admin's per-student profile render from (computeJourney() in
+    // functions/_lib/journey.js). No new tables beyond app_settings above;
+    // everything here is derived live from data these endpoints already write.
+    if (resource === 'journey') {
+      if (method !== 'GET') return err('غير موجود', 404, CORS);
+      const claims = await verifyToken(request, env, DB);
+      if (!claims) return err('غير مصرح', 401, CORS);
+      const targetStudentId = await _resolveTargetStudentId(claims);
+      if (targetStudentId === 'FORBIDDEN') return err('غير مسموح', 403, CORS);
+      if (!targetStudentId) return err(claims.role === 'student' ? 'غير مصرح' : 'معرّف الطالب مطلوب', claims.role === 'student' ? 401 : 400, CORS);
+
+      const tree = await _fetchQuizTree(targetStudentId);
+
+      const { results: planRowsAsc } = await DB.prepare(
+        'SELECT gaps, created_at FROM plans WHERE student_id = ? ORDER BY created_at ASC'
+      ).bind(targetStudentId).all();
+      const latestPlanRow = planRowsAsc.length ? planRowsAsc[planRowsAsc.length - 1] : null;
+      let plan = null;
+      if (latestPlanRow) {
+        let gaps = [];
+        try { gaps = JSON.parse(latestPlanRow.gaps || '[]'); } catch {}
+        plan = { gaps, created_at: latestPlanRow.created_at };
+      }
+
+      // Final-mock capstone (general-tests test_num=1) — tolerate that table
+      // not existing yet on a completely fresh deployment (it's created lazily
+      // by the general-tests resource handler, not here).
+      let finalMock = null;
+      try {
+        const meta = await DB.prepare('SELECT title FROM general_test_meta WHERE test_num = 1').first();
+        const qCountRow = await DB.prepare('SELECT COUNT(*) as c FROM general_tests WHERE test_num = 1').first();
+        const available = !!meta && Number(qCountRow?.c || 0) > 0;
+        if (available) {
+          const attemptRow = await DB.prepare(
+            'SELECT MAX(score) as best_score, COUNT(*) as attempts FROM general_test_results WHERE student_id = ? AND test_num = 1 AND is_trial = 0'
+          ).bind(targetStudentId).first();
+          const attempts = Number(attemptRow?.attempts || 0);
+          finalMock = {
+            available: true, title: meta.title || 'اختبار المحاكاة الشامل',
+            attempted: attempts > 0, attempts, bestScore: attempts > 0 ? Number(attemptRow.best_score) : null,
+          };
+        } else {
+          finalMock = { available: false, attempted: false };
+        }
+      } catch { finalMock = null; }
+
+      // Lightweight single-student activity signals for the health/readiness
+      // score — same three sources and formula as GET /api/analytics/health
+      // (login, diagnostic attempt, general-test attempt), scoped to one
+      // student instead of a whole school (a few single-row lookups, no N+1).
+      let health = null;
+      try {
+        const [lastLoginRow, lastGtrRow] = await Promise.all([
+          DB.prepare(`SELECT MAX(created_at) as last FROM logs WHERE category = 'login' AND student_id = ?`).bind(targetStudentId).first(),
+          DB.prepare('SELECT MAX(created_at) as last FROM general_test_results WHERE student_id = ?').bind(targetStudentId).first(),
+        ]);
+        const { firstScore, lastScore, improvementPct, lastAttemptAt } = summarizePlanAttempts(planRowsAsc);
+        const candidates = [lastLoginRow?.last, lastAttemptAt, lastGtrRow?.last].filter(Boolean);
+        const lastActive = candidates.length ? candidates.sort().at(-1) : null;
+        health = { ...computeHealthScore({ lastActive, lastScore, improvementPct }), lastActive };
+      } catch { health = null; }
+
+      const journey = computeJourney({ tree, plan, finalMock, health });
+      // `tree` is attached alongside (not inside computeJourney's pure output)
+      // so the student/admin UI can render the full section→level→skill
+      // breakdown without a second GET /api/quiz-structure round-trip.
+      return ok({ journey: { ...journey, tree } }, 200, CORS);
     }
 
     // ── ADMINS ───────────────────────────────────────────────────────────────

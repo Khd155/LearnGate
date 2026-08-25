@@ -102,6 +102,9 @@ export default function ConversationsTab() {
                 )}
               </div>
               <span className="line-clamp-1 text-xs text-slate-400">{t.last_msg}</span>
+              <span className="text-[10px] text-slate-300 dark:text-slate-600">
+                {new Date(t.last_at).toLocaleString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </span>
             </button>
           ))
         )}

@@ -135,6 +135,126 @@ function authDev(request, env) {
   return key === getDevKey(env);
 }
 
+// ── Core tables self-provisioning ───────────────────────────────────────
+// schools/students/admins/plans/questions are the five foundational tables
+// every other feature in this file assumes already exist — unlike
+// test_results/logs/messages/etc (each ensures its own table lazily right
+// before first use), these never had a CREATE TABLE anywhere in the
+// codebase; a brand-new database only works today because someone created
+// them by hand out-of-band. Ensured once per warm instance (same flag
+// pattern as _messagesSchemaEnsured below), at the top of onRequest() —
+// this file runs both as a genuine server boot (server.js, Node) and as a
+// Cloudflare Pages Function with no boot phase at all, so "once per warm
+// instance" is the closest thing to "on startup" that works on both.
+// Column shapes match exactly what every existing INSERT/ALTER in this
+// file already reads/writes (see e.g. the schools/students/admins/plans
+// handlers under /api/dev/*, and POST /api/questions) — this only ever
+// creates the table if it's missing, never alters an existing one, so it
+// changes nothing for a database that already has these tables.
+let _coreTablesEnsured = false;
+async function ensureCoreTables(DB) {
+  if (_coreTablesEnsured) return;
+  await DB.batch([
+    DB.prepare(`CREATE TABLE IF NOT EXISTS schools (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL UNIQUE,
+      code       TEXT UNIQUE,
+      created_at TEXT NOT NULL
+    )`),
+    DB.prepare(`CREATE TABLE IF NOT EXISTS students (
+      id         TEXT PRIMARY KEY,
+      code       TEXT NOT NULL UNIQUE,
+      name       TEXT NOT NULL,
+      school     TEXT NOT NULL DEFAULT '',
+      phone      TEXT DEFAULT '',
+      created_at TEXT NOT NULL
+    )`),
+    DB.prepare(`CREATE TABLE IF NOT EXISTS admins (
+      id          TEXT PRIMARY KEY,
+      code        TEXT NOT NULL UNIQUE,
+      name        TEXT NOT NULL,
+      school      TEXT NOT NULL DEFAULT '',
+      role        TEXT NOT NULL DEFAULT 'admin',
+      permissions TEXT DEFAULT '[]',
+      phone       TEXT DEFAULT '',
+      created_at  TEXT NOT NULL
+    )`),
+    DB.prepare(`CREATE TABLE IF NOT EXISTS plans (
+      id           TEXT PRIMARY KEY,
+      student_id   TEXT NOT NULL,
+      student_name TEXT NOT NULL,
+      status       TEXT NOT NULL DEFAULT 'active',
+      gaps         TEXT NOT NULL DEFAULT '[]',
+      admin_note   TEXT DEFAULT '',
+      school       TEXT NOT NULL DEFAULT '',
+      created_at   TEXT NOT NULL,
+      approved_at  TEXT
+    )`),
+    DB.prepare(`CREATE TABLE IF NOT EXISTS questions (
+      id         TEXT PRIMARY KEY,
+      qnum       INTEGER NOT NULL UNIQUE,
+      type       TEXT NOT NULL,
+      skill_id   TEXT NOT NULL,
+      text       TEXT NOT NULL,
+      opt1       TEXT, opt2 TEXT, opt3 TEXT, opt4 TEXT,
+      ans        TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )`),
+  ]);
+  // CREATE TABLE IF NOT EXISTS is a total no-op against a `schools` table
+  // that already existed before this function did (true of every real
+  // deployment today) — it never checks or adds columns on an existing
+  // table. `code` (the 2-digit auto-generated-login-code prefix, see
+  // getOrAssignSchoolCode below) is genuinely new, so it needs its own
+  // migration here, same idempotent try/catch ALTER pattern used
+  // throughout this file for every other post-launch column.
+  try { await DB.prepare('ALTER TABLE schools ADD COLUMN code TEXT UNIQUE').run(); } catch {}
+  _coreTablesEnsured = true;
+}
+
+// Every school gets a stable 2-digit numeric prefix, assigned once (lowest
+// unused 01-99) the first time anything needs it and persisted on its
+// `schools` row from then on — not derived from the name, since two schools
+// can share a prefix of their name but never their assigned code. Creates
+// the school's row if it doesn't exist yet (schools are otherwise only
+// created explicitly via POST /api/dev/schools, but nothing here should
+// depend on that having happened first). 99 schools is the ceiling this
+// 2-digit scheme supports.
+async function getOrAssignSchoolCode(DB, schoolName) {
+  let row = await DB.prepare('SELECT id, code FROM schools WHERE name = ?').bind(schoolName).first();
+  if (!row) {
+    const sid = 'school-' + crypto.randomUUID().slice(0, 8);
+    await DB.prepare('INSERT INTO schools (id, name, created_at) VALUES (?, ?, ?)')
+      .bind(sid, schoolName, new Date().toISOString()).run();
+    row = { id: sid, code: null };
+  }
+  if (row.code) return row.code;
+  const { results } = await DB.prepare('SELECT code FROM schools WHERE code IS NOT NULL').all();
+  const used = new Set(results.map(r => r.code));
+  let next = 1;
+  while (next <= 99 && used.has(String(next).padStart(2, '0'))) next++;
+  if (next > 99) throw new Error('تجاوز الحد الأقصى لعدد المدارس المدعومة (99) في نظام الترقيم التلقائي');
+  const newCode = String(next).padStart(2, '0');
+  await DB.prepare('UPDATE schools SET code = ? WHERE id = ?').bind(newCode, row.id).run();
+  return newCode;
+}
+
+// 10-digit student login code = the school's 2-digit prefix + 8 random
+// digits, regenerated on a collision against an existing student code
+// (checked against the real UNIQUE constraint, not just a race-prone
+// read — a genuinely-colliding INSERT still fails cleanly with the
+// existing 409 handling in POST /api/dev/students either way).
+async function generateStudentCode(DB, schoolName) {
+  const prefix = await getOrAssignSchoolCode(DB, schoolName);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const suffix = String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+    const candidate = prefix + suffix;
+    const exists = await DB.prepare('SELECT 1 FROM students WHERE code = ?').bind(candidate).first();
+    if (!exists) return candidate;
+  }
+  throw new Error('تعذّر توليد كود فريد بعد عدة محاولات — حاول مرة أخرى');
+}
+
 // ── SendPulse WhatsApp helpers ─────────────────────────────────────────
 // Schema-migration DDL (CREATE TABLE/ALTER TABLE) is idempotent but still a
 // full DB round-trip — running it on every single request to a hot polling
@@ -269,13 +389,16 @@ async function logEvent(DB, { level = 'info', category = 'system', message, user
 // WebSocket rooms; on platforms without a persistent process (Cloudflare
 // Pages Functions) those globals never exist, so this silently no-ops and
 // clients simply keep relying on polling — no behavior change there.
-function wsNotify({ studentId, admins, event }) {
+// `school` scopes the admin push to that school's own connected admins (plus
+// any company-wide '*' director/dev) — see lib/ws.js's per-school rooms.
+// Omit it only for an event with no single-school owner.
+function wsNotify({ studentId, admins, school, event }) {
   try {
     if (studentId && typeof globalThis.__wsBroadcastStudent === 'function') {
       globalThis.__wsBroadcastStudent(studentId, event);
     }
     if (admins && typeof globalThis.__wsBroadcastAdmins === 'function') {
-      globalThis.__wsBroadcastAdmins(event);
+      globalThis.__wsBroadcastAdmins(event, school);
     }
   } catch {}
 }
@@ -495,6 +618,7 @@ export async function onRequest({ request, env }) {
   const school   = url.searchParams.get('school') || '';
 
   try {
+    await ensureCoreTables(DB);
 
     // ── Shared quiz-skills schema/tree helpers ──────────────────────────────
     // Used by GET /api/quiz-structure, the quiz-skills submit handler, and the
@@ -1149,8 +1273,17 @@ export async function onRequest({ request, env }) {
         const adminNote = claims.role === 'student' ? '' : (body.adminNote || '');
         const pid = crypto.randomUUID();
         const now = new Date().toISOString();
-        // Admins: school always from JWT; dev/director may pass it
-        const planSchool = claims.role === 'admin' ? (claims.school || '') : (bodySchool || school || '');
+        // A student is always forced to their OWN session school — the same
+        // rule as studentId/studentName just above, never trusting body/query
+        // for it. Admins and school-scoped directors are likewise forced to
+        // their own school. Only a '*' (company-wide) director may specify
+        // bodySchool/school, same carve-out as everywhere else in this file.
+        // This used to only force role==='admin', letting a student OR a
+        // school-scoped director attribute a brand-new plan (with real
+        // diagnostic gaps/student_name) to an arbitrary other school.
+        const planSchool = claims.role === 'student'
+          ? (claims.school || '')
+          : (claims.school && claims.school !== '*' ? claims.school : (bodySchool || school || ''));
         await DB.prepare(
           `INSERT INTO plans (id, student_id, student_name, status, gaps, admin_note, school, created_at, approved_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -2908,6 +3041,22 @@ export async function onRequest({ request, env }) {
         }
       }
 
+      // GET /api/dev/generate-student-code?school=X — suggests a fresh,
+      // collision-free 10-digit login code for the "Add Student" form.
+      // Purely a suggestion: it doesn't reserve or insert anything, so the
+      // operator can still overwrite the field by hand (e.g. to enter the
+      // student's actual national ID instead) before submitting.
+      if (sub === 'generate-student-code' && method === 'GET') {
+        const genSchool = (url.searchParams.get('school') || '').trim();
+        if (!genSchool) return err('المدرسة مطلوبة', 400, CORS);
+        try {
+          const code = await generateStudentCode(DB, genSchool);
+          return ok({ code }, 200, CORS);
+        } catch (e) {
+          return err(e.message || 'تعذّر توليد الكود', 500, CORS);
+        }
+      }
+
       // POST /api/dev/students — add single student from dev panel
       if (sub === 'students' && method === 'POST') {
         const { name, code, school: bodySchool } = await request.json();
@@ -3490,7 +3639,7 @@ export async function onRequest({ request, env }) {
         await logEvent(DB, { level: 'info', category: 'message', message: senderType === 'admin' ? `رد المشرف على الطالب: ${studentName}` : `رسالة جديدة من الطالب: ${studentName}`, user_name: senderType === 'admin' ? (msgClaims?.name || '') : studentName, user_role: msgClaims?.role || 'dev', school: effectiveSchool });
         wsNotify(senderType === 'admin'
           ? { studentId, event: { type: 'new_message', from: 'admin' } }
-          : { admins: true, event: { type: 'new_message', from: 'student', studentId, studentName, school: effectiveSchool } });
+          : { admins: true, school: effectiveSchool, event: { type: 'new_message', from: 'student', studentId, studentName, school: effectiveSchool } });
         return ok({ message: { id, student_id: studentId, student_name: studentName, school: effectiveSchool, sender_type: senderType, body: msgBody, is_read: 0, recipient_admin_id: recipientAdminId || '', created_at: now } }, 201, CORS);
       }
 
@@ -3559,7 +3708,7 @@ export async function onRequest({ request, env }) {
         ).bind(rid, tid, 'student', tkBody, 1, now).run();
         await logEvent(DB, { level: 'info', category: 'ticket', message: `تذكرة دعم بدون حساب (${ticketNum})`, user_name: name, user_role: 'guest', school: guestSchool });
         notifyNewTicket(env, DB, { ticketId: tid, studentName: name, school: guestSchool, subject, description: tkBody });
-        wsNotify({ admins: true, event: { type: 'new_ticket', ticketId: tid, studentName: name, school: guestSchool, subject } });
+        wsNotify({ admins: true, school: guestSchool, event: { type: 'new_ticket', ticketId: tid, studentName: name, school: guestSchool, subject } });
         return ok({ ticket: { id: tid, ticket_num: ticketNum } }, 201, CORS);
       }
 
@@ -3691,7 +3840,7 @@ export async function onRequest({ request, env }) {
         ).bind(rid, tid, 'student', tkBody, 1, now).run();
         await logEvent(DB, { level: 'info', category: 'ticket', message: `تذكرة دعم جديدة (${ticketNum}): ${subject}`, user_name: studentName, user_role: 'student', school: effectiveSchool });
         notifyNewTicket(env, DB, { ticketId: tid, studentName, school: effectiveSchool, subject, description: tkBody });
-        wsNotify({ admins: true, event: { type: 'new_ticket', ticketId: tid, studentName, school: effectiveSchool, subject } });
+        wsNotify({ admins: true, school: effectiveSchool, event: { type: 'new_ticket', ticketId: tid, studentName, school: effectiveSchool, subject } });
         return ok({ ticket: { id: tid, subject, status: 'open', category: category||'أخرى', priority: priority||'متوسطة', ticket_num: ticketNum, created_at: now } }, 201, CORS);
       }
 
@@ -3728,7 +3877,7 @@ export async function onRequest({ request, env }) {
         await logEvent(DB, { level: 'info', category: 'ticket', message: `رد جديد على تذكرة (${ticket.ticket_num || sub}) من ${senderType === 'admin' ? 'المشرف' : 'الطالب'}`, user_name: tkClaims.name || '', user_role: tkClaims.role, school: ticket.school || '' });
         wsNotify(senderType === 'admin'
           ? { studentId: ticket.student_id, event: { type: 'ticket_reply', from: 'admin', ticketId: sub } }
-          : { admins: true, event: { type: 'ticket_reply', from: 'student', ticketId: sub, studentName: ticket.student_name, school: ticket.school } });
+          : { admins: true, school: ticket.school, event: { type: 'ticket_reply', from: 'student', ticketId: sub, studentName: ticket.student_name, school: ticket.school } });
         return ok({ reply: { id, ticket_id: sub, sender_type: senderType, body: replyBody, created_at: now } }, 201, CORS);
       }
 

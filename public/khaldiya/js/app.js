@@ -455,50 +455,117 @@ const State = {
 };
 
 // ── Screen router ─────────────────────────────────────────────────────────
+// Approved "Clean Slugs Routing Map" — reviewed and signed off before this
+// was wired up (see the routing inventory artifact). Every screen gets its
+// own real, addressable, refresh-safe URL; no two screens share a path.
 const _SCREEN_PATHS = {
-  'screen-student-home':  '/',
-  // 'screen-admin' intentionally has NO path mapping here. It's the retired
-  // legacy in-SPA admin panel — every live admin/director login path
-  // (adminLogin() success and session-restore in _quickRestoreSession) now
-  // redirects straight to the React dashboard at /admin/ instead of ever
-  // calling show('screen-admin'). Mapping this screen to '/admin' used to
-  // collide with that real app's own root URL: if this screen were ever
-  // shown, the address bar would read "/admin" while a completely
-  // different app (this one) was actually rendered — exactly the kind of
-  // base-path confusion a refresh could then load the wrong app for. With
-  // no entry here, show('screen-admin') falls through to the default
-  // (see below) and never writes a colliding URL.
+  'screen-landing':       '/',
+  'screen-school':        '/select-school',
+  'screen-identity':      '/select-role',
+  'screen-student-login': '/login/student',
+  'screen-admin-login':   '/login/admin',
+  'screen-support-login': '/login/support',
+
+  'screen-student-home':  '/home',
   'screen-history':       '/history',
-  'screen-chat':          '/chat',
+  'screen-chat':          '/messages',
   'screen-support-hub':   '/support',
-  'screen-intro':         '/capabilities',
-  'screen-cooldown':      '/capabilities/cooldown',
-  'screen-selfdiag':      '/capabilities/self-assessment',
-  'screen-section-choice':'/capabilities/section-choice',
-  'screen-pretest-intro': '/capabilities/diagnostic-intro',
-  'screen-pretest':       '/capabilities/diagnostic',
-  'screen-processing':    '/capabilities/processing',
-  'screen-level-analysis':'/capabilities/results',
-  'screen-general-tests': '/quiz',
-  'screen-quiz-progress':     '/quiz-skills/progress',
-  'screen-journey-full':      '/journey',
-  'screen-quiz-hub':          '/quiz-skills',
-  'screen-quiz-levels':       '/quiz-skills/levels',
-  'screen-quiz-skills':       '/quiz-skills/skills',
-  'screen-quiz-take':         '/quiz-skills/take',
-  'screen-quiz-skill-result': '/quiz-skills/result',
+  'screen-tickets':       '/support/tickets',
   'screen-about':         '/about',
   'screen-faq':           '/faq',
-  'screen-landing':       '/login',
-  'screen-school':        '/login',
-  'screen-identity':      '/login',
-  'screen-student-login': '/login',
-  'screen-admin-login':   '/login',
+  'screen-journey-full':  '/journey',
+
+  'screen-intro':          '/diagnostic',
+  'screen-section-choice': '/diagnostic/section',
+  'screen-selfdiag':       '/diagnostic/self-assessment',
+  'screen-pretest-intro':  '/diagnostic/instructions',
+  'screen-pretest':        '/diagnostic/test',
+  'screen-level-analysis': '/diagnostic/results',
+  'screen-cooldown':       '/diagnostic/cooldown',
+
+  'screen-support-plan':  '/plan',
+  'screen-training-plan': '/plan/schedule',
+
+  'screen-general-tests':       '/mock-tests',
+  'screen-general-test-take':   '/mock-tests/take',
+  'screen-general-test-result': '/mock-tests/result',
+
+  'screen-quiz-hub':          '/skills',
+  'screen-quiz-progress':     '/skills/progress',
+  'screen-quiz-skill-result': '/skills/result',
+  // screen-quiz-levels / screen-quiz-skills / screen-quiz-take have
+  // STATE-dependent paths (section/level/skill) — see _dynamicPathFor()
+  // below; they're deliberately absent from this static map, and from
+  // _PATH_TO_SCREEN (resolvePath() below matches their /skills/... shape
+  // directly instead).
+
+  // 'screen-admin' (retired legacy in-SPA admin panel — every live admin/
+  // director login path redirects straight to the React dashboard at
+  // /admin/ instead of ever calling show('screen-admin')),
+  // 'screen-access-token' (lives entirely behind the ?t= query string, see
+  // DOMContentLoaded below — never goes through show()), and
+  // 'screen-loading'/'screen-processing' (purely transient) intentionally
+  // have no entry — show() falls back to '/' for any unmapped screen.
 };
+
+// Screens whose URL depends on in-flight State rather than a fixed string —
+// built from the exact same State their own render functions already read,
+// so the address bar can never drift out of sync with what's on screen.
+function _dynamicPathFor(id) {
+  if (id === 'screen-quiz-levels') {
+    return State._quizSection ? `/skills/${State._quizSection}` : '/skills';
+  }
+  if (id === 'screen-quiz-skills') {
+    return (State._quizSection && State._quizLevel)
+      ? `/skills/${State._quizSection}/${State._quizLevel}` : '/skills';
+  }
+  if (id === 'screen-quiz-take') {
+    const qsId = State.qz && State.qz.quizSkillId;
+    // Seeded as `${section}-${level}-${skillId}` server-side — the short
+    // skill code (e.g. "v1") is always the final hyphen-delimited segment.
+    const skillCode = qsId ? qsId.slice(qsId.lastIndexOf('-') + 1) : null;
+    return (State._quizSection && State._quizLevel && skillCode)
+      ? `/skills/${State._quizSection}/${State._quizLevel}/${skillCode}` : '/skills';
+  }
+  return null;
+}
+
+function _pathForScreen(id) {
+  return _dynamicPathFor(id) || _SCREEN_PATHS[id] || '/';
+}
+
+const _PATH_TO_SCREEN = Object.fromEntries(
+  Object.entries(_SCREEN_PATHS).map(([id, path]) => [path, id])
+);
+const _QUIZ_SECTIONS = ['verbal', 'quantitative'];
+const _QUIZ_LEVELS = ['easy', 'medium', 'advanced'];
+
+// Reverse of _pathForScreen() — turns a URL back into { screenId, params },
+// or null for anything unrecognized. Used on every popstate (browser back/
+// forward) and once at boot to restore a direct-entry/refreshed deep link.
+function resolvePath(pathname) {
+  if (_PATH_TO_SCREEN[pathname]) return { screenId: _PATH_TO_SCREEN[pathname], params: {} };
+  const parts = pathname.split('/').filter(Boolean); // "/skills/verbal/easy" -> ['skills','verbal','easy']
+  if (parts[0] !== 'skills' || !parts[1]) return null;
+  const section = parts[1];
+  if (!_QUIZ_SECTIONS.includes(section)) return null;
+  if (parts.length === 2) return { screenId: 'screen-quiz-levels', params: { section } };
+  const level = parts[2];
+  if (!_QUIZ_LEVELS.includes(level)) return null;
+  if (parts.length === 3) return { screenId: 'screen-quiz-skills', params: { section, level } };
+  if (parts.length === 4) return { screenId: 'screen-quiz-take', params: { section, level, skill: parts[3] } };
+  return null;
+}
 
 // Transient/loading screens never make sense as a "back" target — never push them.
 const _NAV_STACK_EXCLUDE = new Set(['screen-loading', 'screen-processing']);
 let _isBackNav = false;
+// True only while restoreFromPath() below is reconstructing multi-step state
+// (e.g. hub -> levels -> skills for a /skills/verbal/easy deep link) — every
+// show() call in that chain replaces the address bar instead of pushing, so
+// a direct deep link always ends up exactly ONE history entry deep, not one
+// per intermediate step the student never actually clicked through.
+let _restoringFromPath = false;
 
 // screen-loading is a shared full-screen spinner reused for several unrelated
 // waits (session restore, capabilities/plan load, quiz/test submission) — its
@@ -510,20 +577,42 @@ function showLoadingScreen(text) {
   show('screen-loading');
 }
 
-function show(id) {
+// `opts.fromPopstate` — set only by the popstate listener below. The
+// browser has ALREADY moved the history position by the time popstate
+// fires, so this is the one case show() must never call pushState/
+// replaceState itself: doing so would fight the back/forward button
+// instead of following it. Every other caller (a click, goBack(), boot
+// restoration) leaves this false/unset, which is the default.
+function show(id, opts) {
+  opts = opts || {};
   const current = document.querySelector('.screen.active');
-  if (current && current.id !== id && !_isBackNav && !_NAV_STACK_EXCLUDE.has(current.id)) {
+  const skipStackPush = _isBackNav || opts.fromPopstate;
+  if (current && current.id !== id && !skipStackPush && !_NAV_STACK_EXCLUDE.has(current.id)) {
     State.navStack.push(current.id);
   }
+  const wasBackNav = _isBackNav;
   _isBackNav = false;
   document.querySelectorAll('.screen').forEach(s => {
     s.classList.remove('active', 'screen-home-entered');
   });
   const el = document.getElementById(id);
   if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
-  const path = _SCREEN_PATHS[id];
-  if (path) history.replaceState(null, '', path);
-  else if (location.pathname !== '/') history.replaceState(null, '', '/');
+
+  if (!opts.fromPopstate) {
+    const path = _pathForScreen(id);
+    if (location.pathname === path) {
+      // Same URL already — just keep the entry's title/etc. current, no new entry.
+      history.replaceState(null, '', path);
+    } else if (wasBackNav || _restoringFromPath) {
+      // goBack() already "consumed" a step via State.navStack, or this is
+      // one of several show() calls restoreFromPath() is chaining through
+      // to reconstruct multi-step state — either way, sync the address bar
+      // without growing browser history for it.
+      history.replaceState(null, '', path);
+    } else {
+      history.pushState(null, '', path);
+    }
+  }
   // Stagger home-screen cards
   if (id === 'screen-student-home' && el) {
     el.classList.add('screen-home-entered');
@@ -651,6 +740,51 @@ function goBack(fallbackId) {
   // refresh no matter which route lands us there — safe to call repeatedly.
   if (target === 'screen-student-home') App.renderStudentHome();
 }
+
+// Browser back/forward button — independent of (and never conflicting with)
+// goBack()'s own State.navStack-based "رجوع" button above; both correctly
+// land on the right screen for a given URL, they just don't share one stack.
+// Always resolves straight from location.pathname (resolvePath()), not
+// event.state — a single, uniform code path with no dependency on whether a
+// given history entry happens to carry state (it may not, e.g. one from
+// before a hard refresh). For the vast majority of screens this is a pure,
+// instant, zero-fetch DOM class swap — the screen's earlier render is still
+// sitting in the DOM exactly as left. Only the 3 State-driven /skills/...
+// screens re-render (still zero network — a synchronous read of the
+// already-cached State._quizTree), since the SAME DOM element is reused for
+// every section/level and would otherwise still show whichever one was
+// rendered last.
+window.addEventListener('popstate', () => {
+  const resolved = resolvePath(location.pathname);
+  if (!resolved) return; // unrecognized path (e.g. left the app and came back) — leave the screen as-is
+  const { screenId, params } = resolved;
+
+  if (screenId === 'screen-quiz-levels') {
+    State._quizSection = params.section;
+    if (State._quizTree) App.renderQuizLevels();
+    show(screenId, { fromPopstate: true });
+    return;
+  }
+  if (screenId === 'screen-quiz-skills') {
+    State._quizSection = params.section;
+    State._quizLevel = params.level;
+    if (State._quizTree) App.renderQuizSkills();
+    show(screenId, { fromPopstate: true });
+    return;
+  }
+  if (screenId === 'screen-quiz-take') {
+    // A mid-attempt quiz is anti-cheat/ephemeral, same as the diagnostic
+    // test itself — never resumed via back/forward. Land on that skill's
+    // own list instead, and correct the URL to match what's actually shown.
+    State._quizSection = params.section;
+    State._quizLevel = params.level;
+    if (State._quizTree) App.renderQuizSkills();
+    show('screen-quiz-skills', { fromPopstate: true });
+    history.replaceState(null, '', _pathForScreen('screen-quiz-skills'));
+    return;
+  }
+  show(screenId, { fromPopstate: true });
+});
 
 // ── Cooldown helpers ─────────────────────────────────────────────────────
 function cooldownDays(gaps) {
@@ -789,7 +923,7 @@ const App = {
         State.pendingAction = null;
         fn();
       } else if (State.student.phone) {
-        routeHash();
+        _routeToCurrentPath();
         setTimeout(() => App._checkBroadcasts(), 1500);
       }
     } catch(e) {
@@ -4611,7 +4745,7 @@ const App = {
         if (_raw2) { const _s = JSON.parse(_raw2); _s.phone = phone; localStorage.setItem(_k2, JSON.stringify(_s)); }
       } catch(_) {}
       App._hidePhoneGate();
-      routeHash();
+      _routeToCurrentPath();
       setTimeout(() => App._checkBroadcasts(), 1500);
     } catch(e) {
       if (errEl) { errEl.textContent = 'تعذّر الحفظ — حاول مرة أخرى'; errEl.style.display = 'block'; }
@@ -5917,52 +6051,124 @@ function showToast(msg) {
   }, 3000);
 }
 
-// ── Path/hash routing ─────────────────────────────────────────────────────
-function routeHash() {
-  const path = location.pathname;
-  const hash = decodeURIComponent(location.hash.replace(/^#/, ''));
+// ── Deep-link / refresh restoration (authenticated student) ────────────────
+// Resolves a URL to the screen it names and gets that screen into the exact
+// state it would be in had the student actually clicked their way there —
+// reusing the SAME loader/render function each screen's normal nav button
+// already calls, never a second copy of that logic. Two deliberate
+// exceptions: a screen whose content is mid-flow, ephemeral, and never
+// persisted by design (an in-progress diagnostic test, a mid-attempt skill
+// quiz — both anti-cheat) can't be reconstructed from a URL alone, so those
+// land on their nearest stable parent screen instead of faking it — the
+// same "don't hang, always resolve to something real" behavior a refresh on
+// any other screen gets. Returns true if it handled the path (including by
+// falling back to a parent), false if the path isn't one of ours at all —
+// callers keep whatever screen is already showing (the default: home) then.
+async function restoreFromPath(pathname) {
+  const resolved = resolvePath(pathname);
+  if (!resolved) return false;
+  const { screenId, params } = resolved;
 
-  if ((path === '/capabilities' || hash === 'capabilities') && State.student) {
-    history.replaceState(null, '', '/capabilities');
-    App.startCapabilities();
+  _restoringFromPath = true;
+  try {
+    return await _restoreFromPathInner(screenId, params);
+  } finally {
+    _restoringFromPath = false;
+  }
+}
+
+async function _restoreFromPathInner(screenId, params) {
+  switch (screenId) {
+    case 'screen-student-home':
+      return false; // already the default landing spot — nothing to do
+
+    case 'screen-history': App.showHistory(); return true;
+    case 'screen-chat': App.goToChat(); return true;
+    case 'screen-support-hub': App.openSupportHub(); return true;
+    case 'screen-tickets': App.goToTickets(); return true;
+    case 'screen-about': show('screen-about'); return true;
+    case 'screen-faq': App.openFaq(); return true;
+
+    case 'screen-journey-full':
+      await App.loadJourney();
+      if (State._journey) App.renderJourneyFull(State._journey);
+      show('screen-journey-full');
+      return true;
+
+    // Every mid-diagnostic-flow step depends on in-progress
+    // answers/selections that are deliberately never persisted — the
+    // diagnostic hub itself already knows whether to offer
+    // "continue"/"retake"/"start" for this student, so it's the correct
+    // landing spot for all of them, not just its own root path.
+    case 'screen-intro':
+    case 'screen-section-choice':
+    case 'screen-selfdiag':
+    case 'screen-pretest-intro':
+    case 'screen-pretest':
+    case 'screen-cooldown':
+      await App.startCapabilities();
+      return true;
+    case 'screen-level-analysis': {
+      const plans = DB.studentPlans(State.student.id);
+      if (plans.length) App.viewStudentPlan(0);
+      else await App.startCapabilities();
+      return true;
+    }
+
+    case 'screen-support-plan': App.showSupportPlan(); return true;
+    case 'screen-training-plan': App.showSupportPlan(); show('screen-training-plan'); return true;
+
+    // The take/result screens are a single timed attempt in progress —
+    // same anti-cheat reasoning as the diagnostic test above.
+    case 'screen-general-tests':
+    case 'screen-general-test-take':
+    case 'screen-general-test-result':
+      App.openGeneralTests();
+      return true;
+
+    case 'screen-quiz-hub': App.openQuizHub(); return true;
+    case 'screen-quiz-progress': App.openQuizProgress(); return true;
+    case 'screen-quiz-levels':
+      await App.openQuizHub();
+      App.openQuizLevels(params.section);
+      return true;
+    case 'screen-quiz-skills':
+      await App.openQuizHub();
+      App.openQuizLevels(params.section);
+      App.openQuizSkills(params.section, params.level);
+      return true;
+    // A mid-attempt skill quiz — anti-cheat/ephemeral, never resumed; land
+    // on that skill's own list instead (same as popstate's handling above).
+    case 'screen-quiz-take':
+      await App.openQuizHub();
+      App.openQuizLevels(params.section);
+      App.openQuizSkills(params.section, params.level);
+      return true;
+    case 'screen-quiz-skill-result':
+      App.openQuizHub();
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+// Resumes wherever the URL already points, once a student is fully ready to
+// navigate — called right after session-restore, right after a fresh login,
+// and right after clearing the phone gate (the 3 moments a student can land
+// on a screen with a URL that doesn't match it yet). Keeps the pre-routing
+// "#capabilities" hash working as a permanent alias for /diagnostic, since
+// old bookmarks/links may still use it.
+async function _routeToCurrentPath() {
+  const hash = decodeURIComponent(location.hash.replace(/^#/, ''));
+  if (hash === 'capabilities') {
+    history.replaceState(null, '', '/diagnostic');
+    await App.startCapabilities();
     return;
   }
-  // Unreachable in practice today (admin/director sessions redirect to
-  // /admin/ before routeHash() ever runs — see adminLogin() and
-  // _quickRestoreSession()), kept as a defensive fallback so a stale
-  // "/admin" bookmark under an admin/director session lands on the real
-  // dashboard instead of resurrecting the retired in-SPA screen.
-  if (path === '/admin' && (State.role === 'admin' || State.role === 'director')) {
-    window.location.href = '/admin/';
-    return;
-  }
-  if (path === '/history' && State.student) {
-    show('screen-history');
-    return;
-  }
-  if (path === '/chat' && State.student) {
-    show('screen-chat');
-    return;
-  }
-  // Public info pages — no login required, work as direct shareable links.
-  if (path === '/about') {
-    show('screen-about');
-    return;
-  }
-  if (path === '/faq') {
-    App.openFaq();
-    return;
-  }
-  if (path === '/support') {
-    App.openGuestSupport();
-    return;
-  }
-  // /login while already authenticated → go home
-  if (path === '/login') {
-    if (State.student) { show('screen-student-home'); App._checkPhoneGate(); return; }
-    if (State.role === 'admin' || State.role === 'director') { window.location.href = '/admin/'; return; }
-    // not logged in → stay on landing (already showing)
-  }
+  const path = location.pathname;
+  if (!path || path === '/' || path === '/home') return; // already home
+  try { await restoreFromPath(path); } catch (_) { /* stay on home */ }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
@@ -6019,7 +6225,7 @@ async function _quickRestoreSession(sess) {
       show('screen-student-home');
       document.documentElement.style.visibility = '';
       App._checkPhoneGate();
-      if (State.student?.phone) routeHash();
+      if (State.student?.phone) _routeToCurrentPath();
     } else {
       State.role  = sess.role;
       State.admin = { code: sess.code, name: sess.name, school: sess.school || '' };
@@ -6173,7 +6379,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { localStorage.removeItem(_skey('lg_remember', _ns)); }
   }
 
-  if (location.pathname === '/quiz') {
+  if (location.pathname === '/mock-tests') {
     App.openGeneralTests();
     document.documentElement.style.visibility = '';
   } else if (location.pathname === '/about') {

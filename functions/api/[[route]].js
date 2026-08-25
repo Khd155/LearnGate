@@ -1031,8 +1031,13 @@ export async function onRequest({ request, env }) {
         if (claims.role === 'student' && claims.sub !== studentId) return err('غير مسموح', 403, CORS);
         let q = 'SELECT * FROM plans WHERE student_id = ?';
         const params = [studentId];
-        // Admins: always scope to their JWT school (dev/director may use URL param)
-        const historySchool = claims.role === 'admin' ? (claims.school || null) : (school || null);
+        // Admins AND school-scoped directors (claims.school not '*') are always
+        // forced to their own JWT school — only dev or a '*' (company-wide)
+        // director may use the URL param. A school-scoped director used to be
+        // treated the same as dev/'*' here, letting them pass ?school= to read
+        // another school's plan history — same fix as the sibling GETs below.
+        const historySchool = (claims.role !== 'dev' && claims.school && claims.school !== '*')
+          ? claims.school : (school || null);
         if (historySchool) { q += ' AND school = ?'; params.push(historySchool); }
         q += ' ORDER BY created_at DESC';
         const { results } = await DB.prepare(q).bind(...params).all();
@@ -1059,8 +1064,10 @@ export async function onRequest({ request, env }) {
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         let q = 'SELECT * FROM plans';
         const params = [];
-        // Admins: always scope to their JWT school
-        const plansSchool = claims.role === 'admin' ? (claims.school || null) : (school || null);
+        // Admins AND school-scoped directors are always forced to their own
+        // JWT school — only dev or a '*' director may use the URL param.
+        const plansSchool = (claims.role !== 'dev' && claims.school && claims.school !== '*')
+          ? claims.school : (school || null);
         if (plansSchool) { q += ' WHERE school = ?'; params.push(plansSchool); }
         q += ' ORDER BY created_at DESC';
         const { results } = await DB.prepare(q).bind(...params).all();
@@ -1216,8 +1223,10 @@ export async function onRequest({ request, env }) {
 
         if (!['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const studentId = url.searchParams.get('studentId');
-        // Admins scope to their own school from JWT
-        const trSchool = claims.role === 'admin' ? (claims.school || null) : (school || null);
+        // Admins AND school-scoped directors are always forced to their own
+        // JWT school — only dev or a '*' director may use the URL param.
+        const trSchool = (claims.role !== 'dev' && claims.school && claims.school !== '*')
+          ? claims.school : (school || null);
         if (studentId) {
           let q = 'SELECT * FROM test_results WHERE student_id = ?';
           const params = [studentId];

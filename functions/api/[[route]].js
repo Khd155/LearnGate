@@ -1388,6 +1388,11 @@ export async function onRequest({ request, env }) {
         return ok({
           total: flagged.length,
           shown: Math.min(flagged.length, LIMIT),
+          // Population that ever engaged (logged in, or has a diagnostic/quiz
+          // attempt) — the correct denominator for "at-risk rate" and any
+          // other performance rate, since a never-started account isn't at
+          // risk of anything, it just hasn't begun.
+          startedCount: started.length,
           inactive_count: flagged.filter(s => s.inactive).length,
           low_performance_count: flagged.filter(s => s.lowPerformance).length,
           no_improvement_count: flagged.filter(s => s.noImprovement).length,
@@ -1572,9 +1577,14 @@ export async function onRequest({ request, env }) {
 
       // GET /api/analytics/health — health_score = 30% activity + 40% performance + 30% improvement
       // (formula lives in functions/_lib/journey.js — shared with GET /api/journey
-      // so a student's own "مؤشر الجاهزية" and the admin view never disagree)
+      // so a student's own "مؤشر الجاهزية" and the admin view never disagree).
+      // Never-active accounts (lastActive === null — no login, no diagnostic,
+      // no quiz attempt) are excluded entirely: they'd otherwise drag the
+      // school-wide average down toward the neutral 15/100 floor purely for
+      // not having engaged yet, which isn't a performance signal — those
+      // students belong in the separate "لم يبدأوا أبدًا" list instead.
       if (sub === 'health' && method === 'GET') {
-        const students = await _loadStudentActivityAndScores();
+        const students = (await _loadStudentActivityAndScores()).filter(s => s.lastActive !== null);
         const result = students.map(s => {
           const { healthScore, activityScore, performanceScore, improvementScore } = computeHealthScore(s);
           return { id: s.id, name: s.name, school: s.school, healthScore, activityScore, performanceScore, improvementScore };
@@ -1667,6 +1677,26 @@ export async function onRequest({ request, env }) {
             .slice(0, 10)
             .map(s => ({ id: s.id, name: s.name, school: s.school, passedNodes: s.passedNodes, totalNodes, overallProgressPct: s.overallProgressPct })),
         }, 200, CORS);
+      }
+
+      // GET /api/analytics/student-logs?studentId=X — per-student activity
+      // timeline for the admin Student Profile page (replaces the old
+      // "no API exists for this" placeholder note). Reuses the exact same
+      // school-scoped authorization as GET /api/journey and GET
+      // /api/quiz-structure — an admin/director can only reach a student in
+      // their own school; dev/director with school='*' can reach any.
+      if (sub === 'student-logs' && method === 'GET') {
+        const targetStudentId = await _resolveTargetStudentId(anClaims);
+        if (targetStudentId === 'FORBIDDEN') return err('غير مسموح', 403, CORS);
+        if (!targetStudentId) return err('معرّف الطالب مطلوب', 400, CORS);
+        let logs = [];
+        try {
+          const { results } = await DB.prepare(
+            'SELECT id, level, category, message, created_at FROM logs WHERE student_id = ? ORDER BY created_at DESC LIMIT 100'
+          ).bind(targetStudentId).all();
+          logs = results;
+        } catch { logs = []; } // `logs` table may not exist yet on a fresh deployment
+        return ok({ logs }, 200, CORS);
       }
 
       return err('غير موجود', 404, CORS);

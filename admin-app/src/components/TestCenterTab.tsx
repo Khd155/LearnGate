@@ -179,13 +179,17 @@ interface QuizEngagementRes { totalStudents: number; participants: number; parti
 // only, since it's global — not scoped to one school.
 interface SettingsRes { settings: { quiz_pass_ratio: { value: number; default: number; label: string } } }
 
-function QuizPassSettingsCard() {
+// Rendered as a settings ROW inside the engagement card's header area (not a
+// standalone card) — visually it's a stat alongside "participants", just
+// with an edit affordance for director/dev instead of a plain number.
+function QuizPassSettingsRow() {
   const session = useStore((s) => s.session);
   const pushToast = useStore((s) => s.pushToast);
   const canEdit = session?.role === 'director' || session?.role === 'dev';
   const [ratio, setRatio] = useState<number | null>(null);
   const [defaultRatio, setDefaultRatio] = useState(0.8);
   const [draft, setDraft] = useState('');
+  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -210,6 +214,7 @@ function QuizPassSettingsCard() {
     try {
       await api.patch('/settings', { key: 'quiz_pass_ratio', value: n });
       setRatio(n);
+      setEditing(false);
       pushToast('success', 'تم تحديث نسبة النجاح — تسري على كل محاولة جديدة');
     } catch (e) {
       pushToast('error', e instanceof Error ? e.message : 'فشل الحفظ');
@@ -219,29 +224,39 @@ function QuizPassSettingsCard() {
   };
 
   return (
-    <div className={card}>
-      <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">⚙️ نسبة النجاح في الاختبارات القصيرة</h3>
-      <p className="mb-3 text-[11px] text-slate-400">
-        النسبة المطلوبة لاجتياز أي اختبار مهارة (مثال: 0.8 = 80%، أي 4 من 5). القرار يُطبَّق دائمًا من الخادم عند التصحيح.
-        الافتراضي {Math.round(defaultRatio * 100)}% (السلوك الأصلي قبل هذا الإعداد).
-      </p>
-      {canEdit ? (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+      <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+        <span>⚙️ نسبة النجاح المطلوبة لاجتياز أي اختبار مهارة</span>
+        <span className="text-slate-300 dark:text-slate-600">·</span>
+        <span>الافتراضي {Math.round(defaultRatio * 100)}%</span>
+      </div>
+      {!canEdit ? (
+        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{Math.round(ratio * 100)}%</span>
+      ) : editing ? (
         <div className="flex items-center gap-2">
           <input
             type="number" min={0.5} max={1} step={0.05} value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            className="w-24 rounded-lg border border-slate-200 px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            autoFocus
+            className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           />
           <span className="text-xs text-slate-400">({Math.round((Number(draft) || 0) * 100)}%)</span>
           <button
             type="button" onClick={save} disabled={saving || Number(draft) === ratio}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             {saving ? '…' : 'حفظ'}
           </button>
+          <button type="button" onClick={() => { setEditing(false); setDraft(String(ratio)); }} className="text-xs text-slate-400 hover:text-slate-600">إلغاء</button>
         </div>
       ) : (
-        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">الحالية: {Math.round(ratio * 100)}% — التعديل متاح لمدير النظام فقط</p>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="rounded-lg bg-indigo-50 px-2.5 py-1 text-sm font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300"
+        >
+          {Math.round(ratio * 100)}% ✎
+        </button>
       )}
     </div>
   );
@@ -267,7 +282,6 @@ function QuizSkillsSection() {
 
   return (
     <div className="space-y-4">
-      <QuizPassSettingsCard />
       <div className={card}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">🧩 المشاركة في الاختبارات القصيرة (30 مهارة × 3 مستويات)</h3>
@@ -307,6 +321,9 @@ function QuizSkillsSection() {
             ))}
           </ul>
         )}
+        <div className="mt-3">
+          <QuizPassSettingsRow />
+        </div>
       </div>
 
       <div className={card}>

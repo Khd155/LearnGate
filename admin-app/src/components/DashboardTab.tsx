@@ -11,7 +11,8 @@ import {
 } from 'recharts';
 import { useStore } from '../store/useStore';
 import { api } from '../lib/api';
-import RadialGauge from './RadialGauge';
+import StatCard from './StatCard';
+import QuickSendButton from './QuickSendButton';
 
 interface AtRiskStudent {
   id: string; name: string; school: string;
@@ -19,7 +20,7 @@ interface AtRiskStudent {
   lastScore: number | null; improvementPct: number | null; reasons: string[];
 }
 interface AtRiskRes {
-  total: number; shown: number;
+  total: number; shown: number; startedCount: number;
   inactive_count: number; low_performance_count: number; no_improvement_count: number;
   students: AtRiskStudent[];
   neverStarted: { count: number; students: { id: string; name: string; school: string }[] };
@@ -134,27 +135,46 @@ export default function DashboardTab() {
 
   // Zone 2: every figure here is a rate, not a raw count — "what does this
   // number mean" rather than "what is the number".
+  //
+  // Never-started accounts (no login, no diagnostic, no quiz attempt — the
+  // same "neverStarted" bucket the at-risk endpoint already separates out)
+  // are excluded from completionRate and atRiskRate: an account that hasn't
+  // engaged yet isn't a performance data point, and counting it would drag
+  // both rates down for a reason that has nothing to do with teaching
+  // outcomes. avgImprovement already only ever averages students with an
+  // actual diagnostic attempt (progress.students), so it needs no change
+  // here — and avgHealth (below) is now computed server-side over the same
+  // engaged-only population. diagnosticStartedRate/activeRate/
+  // neverMessagedRate are deliberately whole-roster metrics (they measure
+  // "how many of everyone", not "how well are the engaged ones doing"), so
+  // those keep the full student count as their denominator.
   const rates = useMemo(() => {
-    const total = students.length || 1;
-    let finished = 0;
+    const allTotal = students.length || 1;
+    const neverStartedIds = new Set((atRisk?.neverStarted.students ?? []).map((s) => s.id));
     let notStarted = 0;
+    let engagedTotal = 0;
+    let engagedFinished = 0;
     for (const s of students) {
       const st = statusOf(s.id);
-      if (st === 'finished') finished++;
       if (st === 'not_started') notStarted++;
+      if (!neverStartedIds.has(s.id)) {
+        engagedTotal++;
+        if (st === 'finished') engagedFinished++;
+      }
     }
     const activeCount = (activity?.active.count ?? 0) + (activity?.medium.count ?? 0);
     const atRiskCount = atRisk?.total ?? 0;
+    const startedCount = atRisk?.startedCount ?? engagedTotal;
     const withScores = progress?.total || 0;
     const avgImprovement = withScores
       ? Math.round((progress?.students ?? []).reduce((sum, s) => sum + s.improvementPct, 0) / withScores)
       : null;
     return {
-      completionRate: Math.round((finished / total) * 100),
-      activeRate: Math.round((activeCount / total) * 100),
-      atRiskRate: Math.round((atRiskCount / total) * 100),
-      diagnosticStartedRate: Math.round(((total - notStarted) / total) * 100),
-      neverMessagedRate: Math.round((neverMessaged.length / total) * 100),
+      completionRate: Math.round((engagedFinished / (engagedTotal || 1)) * 100),
+      activeRate: Math.round((activeCount / allTotal) * 100),
+      atRiskRate: Math.round((atRiskCount / (startedCount || 1)) * 100),
+      diagnosticStartedRate: Math.round(((allTotal - notStarted) / allTotal) * 100),
+      neverMessagedRate: Math.round((neverMessaged.length / allTotal) * 100),
       avgImprovement,
     };
   }, [students, statusOf, activity, atRisk, neverMessaged, progress]);
@@ -251,7 +271,8 @@ export default function DashboardTab() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex shrink-0 gap-1.5">
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <QuickSendButton studentId={s.id} defaultText={`مرحبًا ${s.name}، لاحظنا أنك بحاجة لبعض المتابعة — هل تحتاج مساعدة؟ نحن هنا من أجلك 🌟`} />
                       <button type="button" onClick={() => goMessage(s.id)} className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">💬</button>
                       <button type="button" onClick={() => openStudentProfile(s.id)} className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">الملف</button>
                     </div>
@@ -285,7 +306,8 @@ export default function DashboardTab() {
                 {atRisk.neverStarted.students.slice(0, 6).map((s) => (
                   <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                     <span className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
-                    <div className="flex shrink-0 gap-1.5">
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <QuickSendButton studentId={s.id} defaultText={`مرحبًا ${s.name}، بانتظارك في بوابة دعم التعلم! سجّل دخولك وابدأ رحلتك التشخيصية متى ما استطعت 🌟`} />
                       <button type="button" onClick={() => goMessage(s.id)} className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">💬</button>
                       <button type="button" onClick={() => openStudentProfile(s.id)} className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">الملف</button>
                     </div>
@@ -305,8 +327,9 @@ export default function DashboardTab() {
                 {decliningStudents.map((s) => (
                   <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                     <span className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1.5">
                       <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">{s.firstScore}%→{s.lastScore}%</span>
+                      <QuickSendButton studentId={s.id} defaultText={`مرحبًا ${s.name}، لاحظنا تراجعًا بسيطًا في أدائك الأخير — هل تحتاج مساعدة أو توضيحًا لأي مهارة؟`} />
                       <button type="button" onClick={() => openStudentProfile(s.id)} className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">الملف</button>
                     </div>
                   </li>
@@ -336,8 +359,9 @@ export default function DashboardTab() {
                 {neverMessagedShown.map((s) => (
                   <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                     <span className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
-                    <div className="flex shrink-0 gap-1.5">
-                      <button type="button" onClick={() => goMessage(s.id)} className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">فتح رسالة أولى</button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <QuickSendButton studentId={s.id} defaultText={`مرحبًا ${s.name}، نحن هنا لمساعدتك في أي وقت — لا تتردد بالتواصل معنا 👋`} />
+                      <button type="button" onClick={() => goMessage(s.id)} className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">فتح المحادثة</button>
                     </div>
                   </li>
                 ))}
@@ -347,22 +371,34 @@ export default function DashboardTab() {
         </div>
       </section>
 
-      {/* ── Zone 2: Command dashboard — circular gauges, not flat numbers ── */}
+      {/* ── Zone 2: Command dashboard — stats grid, hero metric first ── */}
       <section>
-        <h2 className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">📊 لوحة القيادة (مؤشرات دائرية)</h2>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-          <RadialGauge label="صحة المدرسة عمومًا" pct={avgHealth} hint="نشاط + أداء + تحسن (مركّب)" />
-          <RadialGauge label="نسبة الإكمال" pct={rates.completionRate} hint="أنهوا التشخيصي" />
-          <RadialGauge label="نسبة النشاط" pct={rates.activeRate} hint="نشطون ٠-٣ أيام" />
-          <RadialGauge label="نسبة الخطر" pct={rates.atRiskRate} hint="يحتاجون تدخلًا" invert />
-          <RadialGauge label="بدء التشخيصي" pct={rates.diagnosticStartedRate} hint="بدأوا ولو جزئيًا" />
-          <RadialGauge
-            label="متوسط التحسن"
-            pct={rates.avgImprovement === null ? null : Math.max(0, Math.min(100, 50 + rates.avgImprovement))}
-            valueLabel={rates.avgImprovement === null ? '—' : `${rates.avgImprovement > 0 ? '+' : ''}${rates.avgImprovement}%`}
-            hint="أول محاولة ← آخر محاولة"
-          />
-          <RadialGauge label="بدون تواصل" pct={rates.neverMessagedRate} hint={`${neverMessaged.length} طالب`} invert />
+        <h2 className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">📊 لوحة القيادة</h2>
+        <div className="grid gap-3 lg:grid-cols-4">
+          <div className="lg:col-span-1 lg:row-span-2">
+            <StatCard
+              hero
+              icon="💚"
+              label="صحة المدرسة عمومًا"
+              pct={avgHealth}
+              hint="نشاط + أداء + تحسن — للطلاب الفاعلين فقط"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:col-span-3">
+            <StatCard icon="✅" label="نسبة الإكمال" pct={rates.completionRate} hint="من الطلاب الفاعلين" />
+            <StatCard icon="⚡" label="نسبة النشاط" pct={rates.activeRate} hint="نشطون ٠-٣ أيام" />
+            <StatCard icon="🔴" label="نسبة الخطر" pct={rates.atRiskRate} hint="من الطلاب الفاعلين" invert />
+            <StatCard icon="🧭" label="بدء التشخيصي" pct={rates.diagnosticStartedRate} hint="من كل الطلاب" />
+            <StatCard
+              icon="📈"
+              label="متوسط التحسن"
+              pct={rates.avgImprovement === null ? null : Math.max(0, Math.min(100, 50 + rates.avgImprovement))}
+              valueLabel={rates.avgImprovement === null ? '—' : `${rates.avgImprovement > 0 ? '+' : ''}${rates.avgImprovement}%`}
+              tone={rates.avgImprovement === null ? 'default' : rates.avgImprovement > 0 ? 'good' : rates.avgImprovement < 0 ? 'danger' : 'warn'}
+              hint="أول محاولة ← آخر محاولة"
+            />
+            <StatCard icon="🔇" label="بدون تواصل" pct={rates.neverMessagedRate} hint={`${neverMessaged.length} طالب`} invert />
+          </div>
         </div>
       </section>
 

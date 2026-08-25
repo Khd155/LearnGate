@@ -34,6 +34,15 @@ interface QuizStructureTree {
 const LEVEL_LABEL: Record<string, string> = { easy: 'المستوى الأول — سهل', medium: 'المستوى الثاني — متوسط', advanced: 'المستوى الثالث — متقدم' };
 const SECTION_LABEL: Record<string, string> = { verbal: 'القسم اللفظي', quantitative: 'القسم الكمي' };
 
+// GET /api/analytics/student-logs?studentId= — replaces the old placeholder
+// note explaining that no such API existed. School-scoped server-side via
+// the same _resolveTargetStudentId() authorization GET /api/journey uses.
+interface ActivityLogEntry { id: string; level: string; category: string; message: string; created_at: string }
+const LOG_CATEGORY_ICON: Record<string, string> = {
+  login: '🔓', plan: '📋', 'quiz-skills': '🧩', questions: '📝',
+  ticket: '🎫', message: '💬', broadcast: '📣', settings: '⚙️',
+};
+
 // Mirrors GET /api/journey — same shape computeJourney() in
 // functions/_lib/journey.js returns, plus the raw `tree` the route handler
 // attaches alongside it. This is the SAME endpoint the student's own "مسار
@@ -99,6 +108,13 @@ export default function StudentProfilePage() {
   const [journey, setJourney] = useState<Journey | null>(null);
   const [journeyLoading, setJourneyLoading] = useState(false);
   const [journeyError, setJourneyError] = useState(false);
+  // Which level's skills are expanded per section — accordion, one open
+  // level per section at a time, defaulting to wherever the student's own
+  // journey next-action points (falls back to the first reachable
+  // incomplete level once the journey response arrives; see the effect below).
+  const [openLevel, setOpenLevel] = useState<Record<'verbal' | 'quantitative', string>>({ verbal: 'easy', quantitative: 'easy' });
+  const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[] | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   useEffect(() => { loadThreads(); }, [loadThreads]);
 
@@ -121,7 +137,33 @@ export default function StudentProfilePage() {
       .then((res) => setJourney(res.journey))
       .catch(() => setJourneyError(true))
       .finally(() => setJourneyLoading(false));
+
+    setActivityLogs(null);
+    setActivityLoading(true);
+    api
+      .get<{ logs: ActivityLogEntry[] }>(`/analytics/student-logs?studentId=${encodeURIComponent(profileStudentId)}`)
+      .then((res) => setActivityLogs(res.logs || []))
+      .catch(() => setActivityLogs([]))
+      .finally(() => setActivityLoading(false));
   }, [profileStudentId, loadMessages]);
+
+  // Default accordion state: open whichever level the journey's own
+  // next-best-action points to for each section, or — once that section is
+  // fully done, or before any action is known — the first unlocked,
+  // not-yet-complete level; falls back to "easy" if nothing qualifies.
+  useEffect(() => {
+    if (!journey?.tree) return;
+    const next: Record<'verbal' | 'quantitative', string> = { verbal: 'easy', quantitative: 'easy' };
+    for (const section of ['verbal', 'quantitative'] as const) {
+      if (journey.nextAction.section === section && journey.nextAction.level) {
+        next[section] = journey.nextAction.level;
+        continue;
+      }
+      const active = journey.tree[section].find((l) => !l.locked && l.progressPct < 100);
+      next[section] = active?.level ?? journey.tree[section][journey.tree[section].length - 1]?.level ?? 'easy';
+    }
+    setOpenLevel(next);
+  }, [journey]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'auto' });
@@ -393,31 +435,48 @@ export default function StudentProfilePage() {
                 {(['verbal', 'quantitative'] as const).map((section) => (
                   <div key={section}>
                     <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{SECTION_LABEL[section]}</p>
-                    <div className="space-y-3">
-                      {journey.tree[section].map((lvl) => (
-                        <div key={lvl.level} className="rounded-xl border border-slate-100 dark:border-slate-800">
-                          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2 dark:border-slate-800">
-                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                              {LEVEL_LABEL[lvl.level]} {lvl.locked && <span className="ms-1 text-slate-400">🔒</span>}
-                            </span>
-                            <span className="text-xs text-slate-400">{lvl.progressPct}% مكتمل</span>
-                          </div>
-                          <div className="grid grid-cols-1 gap-1.5 p-3 sm:grid-cols-2">
-                            {lvl.skills.map((sk) => (
-                              <div key={sk.quizSkillId} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs dark:bg-slate-900/60">
-                                <span className="text-slate-600 dark:text-slate-300">{sk.skillName}</span>
-                                {sk.status === 'not_started' ? (
-                                  <span className="text-slate-400">لم تبدأ</span>
-                                ) : (
-                                  <span className={cn('font-bold', sk.status === 'passed' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
-                                    {sk.bestCorrect}/{sk.bestTotal}
-                                  </span>
-                                )}
+                    <div className="space-y-2">
+                      {journey.tree[section].map((lvl) => {
+                        const isOpen = !lvl.locked && openLevel[section] === lvl.level;
+                        return (
+                          <div key={lvl.level} className="rounded-xl border border-slate-100 dark:border-slate-800">
+                            <button
+                              type="button"
+                              disabled={lvl.locked}
+                              onClick={() => setOpenLevel((prev) => ({ ...prev, [section]: prev[section] === lvl.level ? '' : lvl.level }))}
+                              className={cn(
+                                'flex w-full items-center justify-between px-3 py-2 text-start',
+                                lvl.locked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+                                isOpen && 'border-b border-slate-100 dark:border-slate-800',
+                              )}
+                            >
+                              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                {LEVEL_LABEL[lvl.level]} {lvl.locked && <span className="ms-1 text-slate-400">🔒</span>}
+                              </span>
+                              <span className="flex items-center gap-2">
+                                <span className="text-xs text-slate-400">{lvl.progressPct}% مكتمل</span>
+                                {!lvl.locked && <span className={cn('text-[10px] text-slate-400 transition-transform', isOpen && 'rotate-180')}>▾</span>}
+                              </span>
+                            </button>
+                            {isOpen && (
+                              <div className="grid grid-cols-1 gap-1.5 p-3 sm:grid-cols-2">
+                                {lvl.skills.map((sk) => (
+                                  <div key={sk.quizSkillId} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs dark:bg-slate-900/60">
+                                    <span className="text-slate-600 dark:text-slate-300">{sk.skillName}</span>
+                                    {sk.status === 'not_started' ? (
+                                      <span className="text-slate-400">لم تبدأ</span>
+                                    ) : (
+                                      <span className={cn('font-bold', sk.status === 'passed' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+                                        {sk.bestCorrect}/{sk.bestTotal}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -425,15 +484,29 @@ export default function StudentProfilePage() {
             )}
           </div>
 
-          {/* Activity log gap note */}
-          <div className={cn(card, 'border-dashed')}>
-            <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">🕒 سجل النشاط (Activity Timeline)</h3>
-            <p className="text-xs text-slate-400">
-              لا توجد حاليًا واجهة API متاحة لدور الإدارة تُرجع جدول <code dir="ltr">logs</code> مفلترًا حسب طالب محدد — نقطة
-              النهاية الوحيدة القادرة على قراءة هذا الجدول (<code dir="ltr">GET /api/dev/logs</code>) مقصورة على دور{' '}
-              <code dir="ltr">dev</code> فقط ولا تقبل معامل <code dir="ltr">student_id</code>. تمت الإشارة إلى هذا كفجوة بيانات
-              بدل إضافة أو تعديل واجهة برمجية، التزامًا بقيد "عدم إنشاء واجهات جديدة إلا للضرورة القصوى".
-            </p>
+          {/* Activity timeline — GET /api/analytics/student-logs, school-scoped */}
+          <div className={card}>
+            <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">🕒 سجل النشاط</h3>
+            {activityLoading ? (
+              <div className="space-y-2">
+                <div className="skeleton h-10 rounded-xl" />
+                <div className="skeleton h-10 rounded-xl" />
+              </div>
+            ) : !activityLogs?.length ? (
+              <p className="py-6 text-center text-sm text-slate-400">لا يوجد نشاط مسجّل لهذا الطالب بعد</p>
+            ) : (
+              <ul className="space-y-2">
+                {activityLogs.map((log) => (
+                  <li key={log.id} className="flex items-start gap-2.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900/60">
+                    <span className="mt-0.5 shrink-0">{LOG_CATEGORY_ICON[log.category] || '•'}</span>
+                    <span className="min-w-0 flex-1 text-slate-700 dark:text-slate-200">{log.message}</span>
+                    <span className="shrink-0 text-[10px] text-slate-400">
+                      {new Date(log.created_at).toLocaleString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 

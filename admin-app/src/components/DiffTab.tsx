@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { useStore } from '../store/useStore';
 
 interface RawAnswer {
@@ -47,7 +47,13 @@ export default function DiffTab() {
     const school = session?.school && session.school !== '*' ? `&school=${encodeURIComponent(session.school)}` : '';
     api.get<{ results: ResultRow[] }>(`/test-results?withAnswers=1${school}`)
       .then(r => { setResults(r.results || []); setError(''); })
-      .catch(e => setError(e.message))
+      .catch(e => {
+        // A 401 here means the session expired — configureApi's onUnauthorized
+        // (App.tsx) already shows a toast and is about to redirect to login.
+        // Setting a second, local "غير مصرح" error would just flash behind it.
+        if (e instanceof ApiError && e.status === 401) return;
+        setError(e.message);
+      })
       .finally(() => setLoading(false));
   }, [session]);
 

@@ -11,11 +11,23 @@ export default function App() {
   const dark = useStore((s) => s.dark);
 
   useEffect(() => {
+    // A 401 from ANY in-flight request (a background tab's fetch, a stale
+    // poll, the tab the admin is actually looking at) used to hard-redirect
+    // instantly via window.location.href — no warning, whatever the admin
+    // was doing just vanishes. Most of the time this fires because the JWT
+    // genuinely expired (4h admin session), which does need a re-login, but
+    // it should read as "your session ended" rather than the screen randomly
+    // breaking. `redirected` guards against several concurrent requests
+    // 401-ing at once and stacking up duplicate toasts/redirects.
+    let redirected = false;
     configureApi({
       getToken: () => useStore.getState().session?.token ?? null,
       onUnauthorized: () => {
+        if (redirected) return;
+        redirected = true;
+        useStore.getState().pushToast('error', 'انتهت صلاحية جلستك — يُعاد توجيهك لتسجيل الدخول…');
         clearSession();
-        window.location.href = SITE_ROOT;
+        setTimeout(() => { window.location.href = SITE_ROOT; }, 1200);
       },
     });
     initSession();

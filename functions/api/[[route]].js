@@ -147,6 +147,13 @@ let _ticketsSchemaEnsured = false;
 let _spToken = null, _spTokenExp = 0;
 async function getSendPulseToken(env) {
   if (_spToken && Date.now() < _spTokenExp) return _spToken;
+  // Fails loudly and specifically here rather than letting a blank
+  // client_id/client_secret reach SendPulse and come back as an opaque
+  // "SendPulse auth failed: 401" — which reads exactly like a real,
+  // just-expired credential instead of a deployment that never set these.
+  if (!env.SENDPULSE_ID || !env.SENDPULSE_SECRET) {
+    throw new Error('SendPulse غير مُهيّأ — تحقق من متغيرات SENDPULSE_ID و SENDPULSE_SECRET في بيئة التشغيل');
+  }
   const res = await fetch('https://api.sendpulse.com/oauth/access_token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

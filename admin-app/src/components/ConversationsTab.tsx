@@ -144,11 +144,29 @@ export default function ConversationsTab() {
                         <p>{m.body}</p>
                         <p
                           className={cn(
-                            'mt-1 text-[10px] opacity-70',
-                            m.sender_type === 'admin' ? 'text-indigo-100' : 'text-slate-400',
+                            'mt-1 flex items-center gap-1 text-[10px] opacity-70',
+                            m.sender_type === 'admin' ? 'justify-end text-indigo-100' : 'text-slate-400',
                           )}
                         >
-                          {new Date(m.created_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                          <span>{new Date(m.created_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</span>
+                          {/* Read receipt — only meaningful (and only shown) on the admin's own
+                              sent messages: it tells the admin whether the student has read it.
+                              A student's own messages never carry this, since is_read there tracks
+                              the admin's read state, not something the student needs to see. */}
+                          {m.sender_type === 'admin' && (
+                            <span title={m.is_read ? 'قرأها الطالب' : 'لم يقرأها الطالب بعد'}>
+                              {m.is_read ? (
+                                <svg width="14" height="10" viewBox="0 0 16 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M1 5.5 4.5 9 11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                                  <path d="M5.5 5.5 9 9 15.5 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              ) : (
+                                <svg width="12" height="10" viewBox="0 0 13 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M1 5.5 4.5 9 11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>

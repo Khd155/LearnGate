@@ -2113,6 +2113,11 @@ const App = {
     nextBtn.textContent   = isLast ? 'إنهاء الاختبار' : 'التالي';
     nextBtn.className     = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
     nextBtn.style.display = (isLast || selected !== undefined) ? 'inline-flex' : 'none';
+    // Same reasoning as the skill-quiz's renderQuizQuestion(): a fresh render
+    // always starts clickable, so a stale "disabled" left by a prior
+    // successful gtFinish() (which never re-enables it, since it navigates
+    // away) can't carry over into a retake.
+    nextBtn.disabled = false;
   },
 
   gtSelect(i) {
@@ -2142,6 +2147,14 @@ const App = {
   },
 
   async gtFinish() {
+    // Same double-submit guard as quizFinish()/biology's preNext() — this
+    // endpoint does a blind INSERT into general_test_results with no
+    // upsert/dedup, so a rapid double-click here genuinely created two
+    // identical attempt rows for one real attempt.
+    if (State.gt.submitting) return;
+    State.gt.submitting = true;
+    const _gtBtnNext = document.getElementById('gt-btn-next');
+    if (_gtBtnNext) _gtBtnNext.disabled = true;
     App.stopGTTimer();
     const { questions, answers } = State.gt;
     showLoadingScreen('جارٍ تصحيح الاختبار…');
@@ -2165,6 +2178,8 @@ const App = {
       }
       show('screen-general-test-result');
     } catch (e) {
+      State.gt.submitting = false;
+      if (_gtBtnNext) _gtBtnNext.disabled = false;
       showToast('تعذّر إرسال الاختبار');
       show('screen-general-test-take');
     }
@@ -2480,6 +2495,13 @@ const App = {
     nextBtn.textContent   = isLast ? 'إنهاء' : 'التالي';
     nextBtn.className     = 'btn ' + (isLast ? 'btn-success' : 'btn-primary');
     nextBtn.style.display = (isLast || selected !== undefined) ? 'inline-flex' : 'none';
+    // Every fresh render of a question starts from a clickable button —
+    // quizFinish() disables it only for the instant it's actually
+    // submitting. Without unconditionally clearing it here too, a retake
+    // (retakeQuizSkill -> startQuizSkill -> this render) would inherit
+    // "disabled" left over from the PREVIOUS attempt's successful submit,
+    // since that success path navigates away without ever re-enabling it.
+    nextBtn.disabled = false;
   },
 
   quizSelect(i) {
@@ -2509,6 +2531,18 @@ const App = {
   },
 
   async quizFinish() {
+    // A rapid double-click/double-tap on "التالي" at the last question used
+    // to fire this (and its POST /quiz-skills/:id/submit) twice before the
+    // first request resolved — same class of bug as the biology quiz's
+    // finish button. It doesn't duplicate a row here (the endpoint updates
+    // skill_progress in place), but it does increment `attempts` twice for
+    // one real attempt. Reset on failure (the catch below returns the
+    // student to this same question to retry) — never reached on success,
+    // since that path always moves on to the result screen.
+    if (State.qz.submitting) return;
+    State.qz.submitting = true;
+    const _btnNext = document.getElementById('qt-btn-next');
+    if (_btnNext) _btnNext.disabled = true;
     const { quizSkillId, questions, answers } = State.qz;
     showLoadingScreen('جارٍ تصحيح الإجابات…');
     try {
@@ -2544,6 +2578,8 @@ const App = {
       }
       show('screen-quiz-skill-result');
     } catch (e) {
+      State.qz.submitting = false;
+      if (_btnNext) _btnNext.disabled = false;
       showToast(e?.message || 'تعذّر إرسال الإجابات');
       show('screen-quiz-take');
     }

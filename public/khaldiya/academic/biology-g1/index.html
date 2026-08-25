@@ -840,12 +840,14 @@ function startMode(mode) {
     preIdx = 0;
     preAnswers = new Array(PRE_Q.length).fill(null);
     preMeta = PRE_Q.map(() => ({ timeSpent: 0, switches: 0 }));
+    window._preSubmitting = false;
     renderPreQ();
     showScreen('screen-pre');
   } else {
     postIdx = 0;
     postAnswers = new Array(POST_Q.length).fill(null);
     postMeta = POST_Q.map(() => ({ timeSpent: 0, switches: 0 }));
+    window._postSubmitting = false;
     renderPostQ();
     showScreen('screen-post');
   }
@@ -887,6 +889,16 @@ function preNext() {
     renderPreQ();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } else {
+    // A real double-tap/double-click on this same button (no debounce
+    // existed here before) fired showPreResults() — and its POST
+    // /api/bio/submit — twice, creating two identical test_results rows
+    // for one attempt. Guard flag + disabling the button synchronously
+    // (before the async submit even starts) closes both the JS-level and
+    // the visual double-tap window; startMode() resets it for a genuine
+    // new attempt.
+    if (window._preSubmitting) return;
+    window._preSubmitting = true;
+    document.getElementById('pre-next-btn').disabled = true;
     showPreResults();
   }
 }
@@ -1073,6 +1085,10 @@ function postNext() {
     renderPostQ();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } else {
+    // Same double-submit guard as preNext() — see its comment.
+    if (window._postSubmitting) return;
+    window._postSubmitting = true;
+    document.getElementById('post-next-btn').disabled = true;
     showPostResults();
   }
 }

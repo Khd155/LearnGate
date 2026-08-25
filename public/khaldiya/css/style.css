@@ -604,17 +604,6 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .jpm-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--primary-lt), var(--primary)); transition: width .6s cubic-bezier(.22,1,.36,1); }
 .jpm-row b { flex-shrink: 0; width: 34px; text-align: end; color: var(--text); font-weight: 800; }
 
-/* Strongest/weakest skill chips — live inside <details id="sh-perf-details"> now */
-.journey-highlights { display: flex; flex-wrap: wrap; gap: 10px; }
-.journey-highlight {
-  flex: 1; min-width: 160px; display: flex; align-items: center; gap: 10px;
-  background: var(--bg-tint); border-radius: var(--radius); padding: 12px 14px;
-}
-.jh-icon { font-size: 18px; flex-shrink: 0; }
-.jh-label { font-size: 11px; font-weight: 700; color: var(--muted); }
-.jh-name { font-size: 13.5px; font-weight: 800; color: var(--text); }
-.jh-pct { font-size: 12.5px; font-weight: 800; margin-inline-start: auto; }
-.journey-highlight.jh-weak .jh-pct { color: var(--danger); }
 .journey-highlights-empty { font-size: 13px; color: var(--muted); padding: 4px 2px; }
 
 /* Completion badge / celebration — subtle, no confetti */

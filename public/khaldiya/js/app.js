@@ -938,9 +938,7 @@ const App = {
   // full roadmap. Every section×level×skill breakdown (stepper, per-level
   // skill panel, needs-review list, verbal/quant mini-bars) lives on the
   // dedicated #screen-journey-full page (App.renderJourneyFull), reached via
-  // the "عرض مسار التقدم الكامل" button — not squeezed onto the home screen.
-  // Strongest/weakest + the score-trend chart are rendered separately into
-  // the collapsed <details id="sh-perf-details"> — secondary, not primary.
+  // the "تابع تقدمك" button — not squeezed onto the home screen.
   async loadJourney() {
     const el = document.getElementById('sh-journey');
     if (!el) return;
@@ -949,7 +947,6 @@ const App = {
       const { journey } = await apiFetch('/journey');
       State._journey = journey;
       App.renderJourney(journey);
-      App.renderJourneyHighlights(journey);
     } catch (e) {
       el.innerHTML = '';
     }
@@ -1017,24 +1014,10 @@ const App = {
         </div>
       </div>` : '';
 
-    let review = '';
-    if (j.needsReview && j.needsReview.length) {
-      review = `
-        <div class="journey-review">
-          <div class="journey-review-head">🔴 يحتاج مراجعة (${j.needsReview.length})</div>
-          ${j.needsReview.map(r => `
-            <button type="button" class="journey-review-row" onclick="App.journeyGo('retry_skill','${r.section}','${r.level}')">
-              <span class="jr-name">${escapeHtml(r.skillName)}</span>
-              <span class="jr-score">${r.bestCorrect}/${r.bestTotal}</span>
-              <span class="jr-arrow">←</span>
-            </button>`).join('')}
-        </div>`;
-    }
-
-    // Section×level×skill breakdown lives only on the dedicated /journey
-    // page (App.renderJourneyFull) — the home screen stays to the summary,
-    // next action, and needs-review list.
-    el.innerHTML = `<div class="journey">${summary}${badge}${review}</div>`;
+    // Section×level×skill breakdown, and the needs-review list, live only on
+    // the dedicated /journey page (App.renderJourneyFull) — the home screen
+    // stays to the summary + completion badge only.
+    el.innerHTML = `<div class="journey">${summary}${badge}</div>`;
   },
 
   // ── Full journey page (#screen-journey-full) ────────────────────────────
@@ -1259,27 +1242,6 @@ const App = {
     el.innerHTML = `<div class="journey-full jt-wrap">${hero}${cta}${path}${review}</div>`;
   },
 
-
-  // Strongest/weakest — rendered into the collapsed "أداءك" <details>, not
-  // the primary journey panel. Both pools are independent (see journey.js):
-  // strongest only ever comes from a genuine pass, weakest only from a
-  // genuine fail — so the two can never show the same 100% by construction.
-  renderJourneyHighlights(j) {
-    const el = document.getElementById('sh-journey-highlights');
-    if (!el || !j) return;
-    if (!j.weakest) {
-      el.innerHTML = j.passedNodes > 0
-        ? `<p class="journey-highlights-empty">جميع مهاراتك الحالية في مستوى جيد 👍</p>` : '';
-      return;
-    }
-    el.innerHTML = `<div class="journey-highlights">
-      <div class="journey-highlight jh-weak">
-        <span class="jh-icon">🎯</span>
-        <div><div class="jh-label">تحتاج تركيز</div><div class="jh-name">${escapeHtml(j.weakest.skillName)}</div></div>
-        <span class="jh-pct">${j.weakest.pct}%</span>
-      </div>
-    </div>`;
-  },
 
   // Routes the journey's "ابدأ الآن" CTA (and any needs-review row) into the
   // existing quiz-skills / diagnostic screens — no new take-a-quiz UI, this

@@ -1255,6 +1255,29 @@ export async function onRequest({ request, env }) {
           studentName = claims.name || '';
         }
 
+        // Cooldown was, until now, enforced ONLY client-side (App.startCapabilities()
+        // checking daysRemaining() before ever showing the section-choice/pretest
+        // screens) — nothing stopped a request straight to this endpoint from
+        // succeeding regardless. Concretely reachable in the product today via
+        // screen-level-analysis's "🔁 إعادة الاختبار" button (App.retakeDiagnostic()),
+        // which jumps straight to screen-section-choice with no cooldown check of
+        // its own. Only gates a STUDENT's own submission — admin/director-initiated
+        // plan creation is a deliberate administrative action, same as the existing
+        // "OVERRIDE:" admin_note convention that already lifts this for one student.
+        if (claims.role === 'student') {
+          const latestPlanRow = await DB.prepare(
+            'SELECT gaps, admin_note, created_at FROM plans WHERE student_id = ? ORDER BY created_at DESC LIMIT 1'
+          ).bind(studentId).first();
+          if (latestPlanRow && !isRetakeOverride(latestPlanRow.admin_note)) {
+            let prevGaps = [];
+            try { prevGaps = JSON.parse(latestPlanRow.gaps || '[]'); } catch {}
+            const cooldownUntilIso = computeCooldownUntil(prevGaps, latestPlanRow.created_at);
+            if (cooldownUntilIso && Date.now() < new Date(cooldownUntilIso).getTime()) {
+              return err('لا يمكنك بدء محاولة جديدة قبل انتهاء فترة الانتظار المحددة في خطتك الحالية', 403, CORS);
+            }
+          }
+        }
+
         const SKILL_META = {
           v1: { name: 'الاستيعاب القرائي',   category: 'verbal' },
           v2: { name: 'الخطأ السياقي',        category: 'verbal' },

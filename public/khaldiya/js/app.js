@@ -1874,7 +1874,26 @@ const App = {
     show('screen-pretest');
   },
 
+  // Reachable from screen-level-analysis's "🔁 إعادة الاختبار" — this used to
+  // jump straight to screen-section-choice with no cooldown check at all,
+  // unlike startCapabilities()'s own entry point (the home screen's
+  // "الاستعداد لاختبار القدرات" card). A student still inside their
+  // mandatory waiting period could reach a brand-new attempt through here
+  // even though the home screen correctly locked them out — the actual
+  // POST /api/plans submission is now also rejected server-side (403) if
+  // this check is ever bypassed some other way, but the student should
+  // never even see the option in the first place.
   retakeDiagnostic() {
+    const plans = DB.studentPlans(State.student.id);
+    const latest = plans[0];
+    if (latest) {
+      const rem = daysRemaining(latest);
+      if (rem > 0) {
+        App.renderCooldown(latest, rem, plans);
+        show('screen-cooldown');
+        return;
+      }
+    }
     State.selfDiag = {};
     State.testAnswers = {};
     State.currentQ = 0;
@@ -1923,7 +1942,8 @@ const App = {
     try {
       sessionStorage.setItem('lg_test_state', JSON.stringify({
         currentQ: State.currentQ,
-        testAnswers: State.testAnswers
+        testAnswers: State.testAnswers,
+        diagSection: State.diagSection || 'both'
       }));
     } catch(_) {}
   },
@@ -5495,7 +5515,11 @@ const App = {
       // requireAuth() too, or a logged-out visitor would just get dumped
       // back on the landing screen with no memory of where they were headed.
       'lessons':       () => App.requireAuth(() => App.goToStudy()),
-      'diagnostic':    () => App.requireAuth(() => show('screen-intro')),
+      // startCapabilities(), not a bare show('screen-intro') — that skipped
+      // the cooldown gate entirely (same bug class as retakeDiagnostic()
+      // above), letting a student still in their mandatory waiting period
+      // reach a brand-new attempt straight from the FAQ.
+      'diagnostic':    () => App.requireAuth(() => App.startCapabilities()),
       'support-plan':  () => App.requireAuth(() => App.showSupportPlan()),
       'training-plan': () => App.requireAuth(() => show('screen-training-plan')),
       'level-analysis':() => App.requireAuth(() => App.viewStudentPlan()),
@@ -6408,21 +6432,36 @@ async function _restoreFromPathInner(screenId, params) {
   }
 }
 
-// Resumes wherever the URL already points, once a student is fully ready to
-// navigate — called right after session-restore, right after a fresh login,
-// and right after clearing the phone gate (the 3 moments a student can land
-// on a screen with a URL that doesn't match it yet). Keeps the pre-routing
-// "#capabilities" hash working as a permanent alias for /diagnostic, since
-// old bookmarks/links may still use it.
+// Captured once, at the very top of DOMContentLoaded, before session-restore
+// ever calls show('screen-student-home') — which itself does a pushState/
+// replaceState to '/home', permanently overwriting location.pathname. Every
+// _routeToCurrentPath() caller used to read location.pathname AT CALL TIME,
+// by which point it had already been clobbered to '/home' — so any deep
+// link (a "رجوع" button landing on /academic/g10, /lessons, a shared
+// /skills/... link, etc.) silently lost its destination and always fell
+// back to the home screen on a genuine full-page load. Consumed (nulled)
+// after the first restore attempt so a later, unrelated phone-gate/login
+// flow during the same page life doesn't replay a stale deep link.
+let _bootDeepLinkPath = (location.pathname && location.pathname !== '/' && location.pathname !== '/home')
+  ? location.pathname : null;
+const _bootDeepLinkHash = location.hash;
+
+// Resumes wherever the URL originally pointed, once a student is fully ready
+// to navigate — called right after session-restore, right after a fresh
+// login, and right after clearing the phone gate (the 3 moments a student
+// can land on a screen with a URL that doesn't match it yet). Keeps the
+// pre-routing "#capabilities" hash working as a permanent alias for
+// /diagnostic, since old bookmarks/links may still use it.
 async function _routeToCurrentPath() {
-  const hash = decodeURIComponent(location.hash.replace(/^#/, ''));
+  const hash = decodeURIComponent(_bootDeepLinkHash.replace(/^#/, ''));
   if (hash === 'capabilities') {
     history.replaceState(null, '', '/diagnostic');
     await App.startCapabilities();
     return;
   }
-  const path = location.pathname;
-  if (!path || path === '/' || path === '/home') return; // already home
+  const path = _bootDeepLinkPath;
+  _bootDeepLinkPath = null;
+  if (!path) return; // already home, or already consumed
   try { await restoreFromPath(path); } catch (_) { /* stay on home */ }
 }
 
@@ -6466,6 +6505,11 @@ async function _quickRestoreSession(sess) {
           const _ts = JSON.parse(sessionStorage.getItem('lg_test_state') || '{}');
           State.currentQ    = _ts.currentQ || 0;
           State.testAnswers = _ts.testAnswers || {};
+          // Rebuild the same filtered bank startPretest() built, or a refresh
+          // mid-"verbal only" attempt silently restores the full 50-question bank.
+          State.diagSection = _ts.diagSection || 'both';
+          const _fullBank = window._fullQuestionBank || window.QUESTION_BANK;
+          window.QUESTION_BANK = State.diagSection === 'both' ? _fullBank.slice() : _fullBank.filter(q => q.type === State.diagSection);
         } catch(_) {}
         App.renderQuestion();
         App.startTestTimer();

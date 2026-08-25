@@ -132,6 +132,22 @@ app.use('/api', async (req, res) => {
   }
 });
 
+// "/academic" and "/lessons" are native SPA screens (see app.js's
+// _SCREEN_PATHS) but also real directories on disk — academic/biology-g1/
+// and lessons/<skill>/ hold separate static sub-pages. Without this, a bare
+// request for either 301-redirects to its trailing-slash form (express.static's
+// own directory handling) and, finding no index.html inside anymore, falls
+// through to the generic SPA fallback further below — but by then it's a
+// second round trip, and used to also break every relative asset path on the
+// page (now fixed to be absolute, but there's no reason to take the redirect
+// hit at all). These two exact routes short-circuit straight to index.html;
+// any deeper path (e.g. /lessons/comprehension/, /academic/biology-g1/) is
+// a real file and never reaches this handler at all.
+app.get(['/academic', '/academic/', '/lessons', '/lessons/'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+});
+
 app.use(express.static(PUBLIC_DIR, {
   extensions: ['html'],
   setHeaders: (res, filePath) => {

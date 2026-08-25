@@ -54,6 +54,8 @@
     .sidebar-nav .tab-btn .tab-ic{font-size:16px;width:20px;text-align:center;flex-shrink:0}
     .sidebar-nav .tab-btn:hover:not(.active){background:rgba(255,255,255,.05);color:#e2e8f0}
     .sidebar-nav .tab-btn.active{background:var(--primary);color:#fff;box-shadow:0 4px 14px rgba(59,130,246,.35)}
+    .nav-group-title{font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:16px 14px 6px;}
+    .nav-group-title:first-child{padding-top:2px;}
     .sidebar-foot{padding:16px 22px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;color:var(--muted)}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55}
 
@@ -285,20 +287,27 @@
         </div>
       </div>
       <nav class="sidebar-nav">
+        <div class="nav-group-title">الأساسيات والتشغيل</div>
         <button class="tab-btn active" data-tab="overview"  onclick="Dev.setTab('overview')"><span class="tab-ic">📊</span> نظرة عامة</button>
-        <button class="tab-btn"        data-tab="students"  onclick="Dev.setTab('students')"><span class="tab-ic">👥</span> الطلاب</button>
         <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')"><span class="tab-ic">🏫</span> المدارس والمشرفون</button>
+        <button class="tab-btn"        data-tab="students"  onclick="Dev.setTab('students')"><span class="tab-ic">👥</span> الطلاب</button>
         <button class="tab-btn"        data-tab="permissions" onclick="Dev.setTab('permissions')"><span class="tab-ic">🔐</span> الصلاحيات</button>
+
+        <div class="nav-group-title">التقييمات والاختبارات</div>
         <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')"><span class="tab-ic">📝</span> الأسئلة</button>
-        <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')"><span class="tab-ic">🧰</span> الأدوات</button>
         <button class="tab-btn"        data-tab="test-mgmt" onclick="Dev.setTab('test-mgmt')"><span class="tab-ic">🧪</span> إدارة الاختبارات</button>
         <button class="tab-btn"        data-tab="diff"      onclick="Dev.setTab('diff')"><span class="tab-ic">🔍</span> مقارنة الإجابات</button>
-        <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')"><span class="tab-ic">🎫</span> الدعم الفني</button>
-        <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')"><span class="tab-ic">📋</span> سجل النشاط</button>
-        <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')"><span class="tab-ic">🧠</span> تحليل السلوك</button>
+
+        <div class="nav-group-title">التواصل والرسائل</div>
         <button class="tab-btn"        data-tab="broadcasts" onclick="Dev.setTab('broadcasts')"><span class="tab-ic">📢</span> الرسائل الجماعية</button>
         <button class="tab-btn"        data-tab="wa-stats"  onclick="Dev.setTab('wa-stats')"><span class="tab-ic">📲</span> إحصائيات واتساب</button>
         <button class="tab-btn"        data-tab="wa-issue"  onclick="Dev.setTab('wa-issue')"><span class="tab-ic">📨</span> إشعار مشكلة</button>
+
+        <div class="nav-group-title">التحليلات والمتابعة</div>
+        <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')"><span class="tab-ic">📋</span> سجل النشاط</button>
+        <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')"><span class="tab-ic">🧠</span> تحليل السلوك</button>
+        <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')"><span class="tab-ic">🎫</span> الدعم الفني</button>
+        <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')"><span class="tab-ic">🧰</span> الأدوات</button>
       </nav>
       <div class="sidebar-foot">LearnGate v2.0</div>
     </aside>
@@ -1350,6 +1359,7 @@ const Dev = {
               <button class="btn btn-outline btn-sm" title="توليد رابط اختبار لمرة واحدة" onclick="Dev.generateTestAccessLink('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔗 اختبار</button>
               <button class="btn btn-outline btn-sm" title="إرسال رابط الحساب عبر واتساب" onclick="Dev.sendAccountLinkWhatsApp('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}','${escapeHtml(s.phone || '')}','${escapeHtml(s.school || '')}')">📲 واتساب</button>
               <button class="btn btn-outline btn-sm" title="هل فتح الطالب رابط الحساب؟" onclick="Dev.showAccessTokenHistory('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">📋 حالة الرسالة</button>
+              <button class="btn btn-outline btn-sm" title="مسح سجل الاختبارات القصيرة وتقدم الدروس لهذا الطالب" onclick="Dev.resetStudentQuizzes('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔄 إعادة تعيين الاختبارات</button>
               <button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">حذف</button>
             </td>
           </tr>`).join('')}
@@ -1479,6 +1489,20 @@ const Dev = {
     await apiDev(`/dev/students/${id}`, { method: 'DELETE' });
     showToast('تم الحذف');
     Dev.loadStudents(); Dev.loadStats();
+  },
+
+  async resetStudentQuizzes(id, name) {
+    if (!await confirmDialog(
+      `سيتم مسح سجل الاختبارات القصيرة (مهارات القسم اللفظي والكمي) وتقدم الدروس بالكامل للطالب "${name}"، وسيعود حسابه نظيفاً كأنه لم يختبر قط. هذا الإجراء لا يمكن التراجع عنه.`,
+      { title: '🔄 إعادة تعيين الاختبارات القصيرة', okText: 'تأكيد إعادة التعيين' }
+    )) return;
+    try {
+      const res = await apiDev('/dev/reset-student-quizzes', { method: 'POST', body: JSON.stringify({ student_id: id }) });
+      showToast(`✅ تمت إعادة التعيين — حُذف ${res.skillsCleared} تقدم مهارة و${res.lessonsCleared} سجل درس`);
+      Dev.loadStudents(); Dev.loadStats();
+    } catch (e) {
+      showToast('تعذّر إعادة التعيين: ' + e.message, true);
+    }
   },
 
   async generateTestAccessLink(studentId, name) {

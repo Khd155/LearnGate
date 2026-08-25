@@ -3267,6 +3267,48 @@ export async function onRequest({ request, env }) {
         return err('يلزم تحديد studentId أو school', 400, CORS);
       }
 
+      // POST /api/dev/reset-student-quizzes — wipe a student's short-quiz-hub
+      // progress (skill_progress: the 30 verbal+quantitative skill quizzes
+      // reachable at /skills) and lesson/skill completion tracking
+      // (student_progress: video/summary/quiz-watched flags per lesson), so
+      // their account looks exactly like they never touched either — used
+      // to give a student a clean slate on the practice-quiz side without
+      // touching their diagnostic test, study plan, or the separate biology
+      // quiz history (test_results/test_answers), each of which already has
+      // its own reset path and is deliberately out of scope here. Both
+      // deletes tolerate the table not existing yet on a fresh deployment,
+      // same as the "Tolerate skill_progress not existing yet" comment
+      // elsewhere in this file.
+      if (sub === 'reset-student-quizzes' && method === 'POST') {
+        const rsqBody = await request.json();
+        let rsqStudentId = rsqBody.student_id;
+        if (!rsqStudentId && rsqBody.student_code) {
+          const byCode = await DB.prepare('SELECT id FROM students WHERE code = ?').bind(rsqBody.student_code).first();
+          if (!byCode) return err('الطالب غير موجود', 404, CORS);
+          rsqStudentId = byCode.id;
+        }
+        if (!rsqStudentId) return err('student_id أو student_code مطلوب', 400, CORS);
+        const rsqStudent = await DB.prepare('SELECT id, name, school FROM students WHERE id = ?').bind(rsqStudentId).first();
+        if (!rsqStudent) return err('الطالب غير موجود', 404, CORS);
+
+        let skillsCleared = 0, lessonsCleared = 0;
+        try {
+          const r = await DB.prepare('DELETE FROM skill_progress WHERE student_id = ?').bind(rsqStudentId).run();
+          skillsCleared = r.changes || 0;
+        } catch {}
+        try {
+          const r = await DB.prepare('DELETE FROM student_progress WHERE student_id = ?').bind(rsqStudentId).run();
+          lessonsCleared = r.changes || 0;
+        } catch {}
+
+        await logEvent(DB, {
+          level: 'warn', category: 'test-management',
+          message: `إعادة تعيين الاختبارات القصيرة للطالب: ${rsqStudent.name} — حُذف ${skillsCleared} تقدم مهارة و${lessonsCleared} سجل تقدم دروس`,
+          user_name: 'dev', user_role: 'dev', school: rsqStudent.school || '', student_id: rsqStudentId,
+        });
+        return ok({ ok: true, studentId: rsqStudentId, skillsCleared, lessonsCleared }, 200, CORS);
+      }
+
       // PATCH /api/dev/plans/grant-retake?school=X (or ?studentId=X) — bulk-grant a
       // retake by tagging each student's most recent plan with the existing
       // OVERRIDE: admin_note convention (see app.js cooldownUntil()/grantRetake()) —

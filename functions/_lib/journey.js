@@ -65,6 +65,63 @@ export function summarizePlanAttempts(planRows) {
   return { firstScore, lastScore, improvementPct, lastAttemptAt, attempts: scored.length };
 }
 
+// ── Diagnostic cooldown ──────────────────────────────────────────────────
+// Mirrors the student-facing cooldown rule in public/khaldiya/js/app.js
+// (cooldownDays()/cooldownUntil()) exactly, so the admin's "at-risk"/"needs
+// follow-up" classification and a student's own capabilities-lock screen
+// never disagree about whether someone is still in their mandatory
+// post-diagnostic waiting period.
+export function computeCooldownDays(gaps) {
+  let total = 0;
+  for (const g of gaps || []) {
+    const pct = g && typeof g.pct === 'number' ? g.pct : null;
+    if (pct === null) continue;
+    total += pct <= 30 ? 3 : pct <= 49 ? 2 : pct <= 70 ? 1 : 0;
+  }
+  return total;
+}
+
+// Returns an ISO timestamp for when the cooldown ends, or null if there's no
+// plan to base it on. Does NOT account for the admin "OVERRIDE:" bypass —
+// callers combine this with isRetakeOverride().
+export function computeCooldownUntil(gaps, createdAt) {
+  if (!createdAt) return null;
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + computeCooldownDays(gaps));
+  return d.toISOString();
+}
+
+// The admin_note convention app.js's grantRetake()/cooldownUntil() already
+// use to lift a cooldown early: prefixing the note with "OVERRIDE:".
+export function isRetakeOverride(adminNote) {
+  return typeof adminNote === 'string' && adminNote.startsWith('OVERRIDE:');
+}
+
+// Cooldown-aware "needs follow-up" classification for GET /api/analytics/at-risk.
+// A student still inside their mandatory post-diagnostic waiting period is
+// never flagged — they're resting on purpose, not absent. Once the window
+// closes (or never applied), three independent triggers apply:
+//   1) their cooldown just ended and they've been idle 5+ days since
+//   2) repeated, stuck skill-quiz failures (severeFailureCount)
+//   3) a long unexplained absence (14+ days) with no cooldown involved at all
+// `severeFailureCount` — number of quiz-skills a student has failed despite
+// 3+ attempts (i.e. genuinely stuck, not a first-try miss).
+export function classifyFollowUp({ lastActive, cooldownUntil, now = Date.now(), severeFailureCount = 0 }) {
+  const daysSinceAt = (iso) => (iso ? Math.floor((now - new Date(iso).getTime()) / 86400000) : Infinity);
+  const inCooldown = !!cooldownUntil && new Date(cooldownUntil).getTime() > now;
+  if (inCooldown) return { status: 'cooldown', reason: null, idleDays: null };
+  if (severeFailureCount >= 2) return { status: 'follow_up', reason: 'severe_failure', idleDays: lastActive ? daysSinceAt(lastActive) : null };
+  if (lastActive === null) return { status: 'idle', reason: null, idleDays: null };
+  const idleDays = daysSinceAt(lastActive);
+  const hadCooldown = !!cooldownUntil;
+  const threshold = hadCooldown ? 5 : 14;
+  if (idleDays >= threshold) {
+    return { status: 'follow_up', reason: hadCooldown ? 'idle_after_cooldown' : 'long_absence', idleDays };
+  }
+  return { status: 'ok', reason: null, idleDays };
+}
+
 export const LEVEL_ORDER = ['easy', 'medium', 'advanced'];
 export const LEVEL_LABEL_AR = { easy: 'سهل', medium: 'متوسط', advanced: 'متقدم' };
 export const LEVEL_ORDINAL_AR = { easy: 'الأول', medium: 'الثاني', advanced: 'الثالث' };

@@ -5,7 +5,7 @@ import { listTestResults, deleteSingleTestResult, resetStudentTestResults, reset
 import {
   DEFAULT_QUIZ_PASS_RATIO, resolveQuizPassRatio, computeQuizPass, daysSince, computeHealthScore,
   buildQuizTree, computeJourney, classifyProgress, PROGRESS_BUCKET_LABELS_AR, PROGRESS_BUCKET_ORDER,
-  summarizePlanAttempts,
+  summarizePlanAttempts, computeCooldownUntil, isRetakeOverride, classifyFollowUp,
 } from '../_lib/journey.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
@@ -585,6 +585,48 @@ export async function onRequest({ request, env }) {
       return resolveQuizPassRatio(await _getSetting('quiz_pass_ratio'));
     }
 
+    // Shared building block: given a list of student ids, returns a
+    // Map<studentId, { lastActive, cooldownUntil }> — lastActive from the
+    // same three sources analytics uses (login, diagnostic attempt,
+    // general-test attempt), cooldownUntil from that student's LATEST
+    // diagnostic plan's gaps (null once the admin OVERRIDE bypass applies,
+    // same convention as app.js's grantRetake()). One IN(...) query per
+    // source, no N+1 regardless of how many ids are passed.
+    async function _computeActivityCooldown(studentIds) {
+      const map = new Map();
+      if (!studentIds.length) return map;
+      const placeholders = studentIds.map(() => '?').join(',');
+      const [loginRows, planRows, gtrRows] = await Promise.all([
+        DB.prepare(`SELECT student_id, MAX(created_at) as last FROM logs WHERE category = 'login' AND student_id IN (${placeholders}) GROUP BY student_id`).bind(...studentIds).all(),
+        DB.prepare(`SELECT student_id, gaps, admin_note, created_at FROM plans WHERE student_id IN (${placeholders}) ORDER BY student_id, created_at ASC`).bind(...studentIds).all(),
+        DB.prepare(`SELECT student_id, MAX(created_at) as last FROM general_test_results WHERE student_id IN (${placeholders}) GROUP BY student_id`).bind(...studentIds).all(),
+      ]);
+      const lastLoginByStudent = new Map((loginRows?.results || []).map(r => [r.student_id, r.last]));
+      const lastGtrByStudent = new Map((gtrRows?.results || []).map(r => [r.student_id, r.last]));
+      // Rows arrive ordered ascending by created_at per student, so the last
+      // write into these maps for a given student_id is naturally their
+      // latest plan — no separate MAX() query needed.
+      const latestPlanByStudent = new Map();
+      const lastPlanAtByStudent = new Map();
+      for (const row of (planRows?.results || [])) {
+        latestPlanByStudent.set(row.student_id, row);
+        lastPlanAtByStudent.set(row.student_id, row.created_at);
+      }
+      for (const id of studentIds) {
+        const candidates = [lastLoginByStudent.get(id), lastPlanAtByStudent.get(id), lastGtrByStudent.get(id)].filter(Boolean);
+        const lastActive = candidates.length ? candidates.sort().at(-1) : null;
+        const latestPlan = latestPlanByStudent.get(id) || null;
+        let cooldownUntil = null;
+        if (latestPlan && !isRetakeOverride(latestPlan.admin_note)) {
+          let gaps = [];
+          try { gaps = JSON.parse(latestPlan.gaps || '[]'); } catch {}
+          cooldownUntil = computeCooldownUntil(gaps, latestPlan.created_at);
+        }
+        map.set(id, { lastActive, cooldownUntil });
+      }
+      return map;
+    }
+
     // ── AUTH ─────────────────────────────────────────────────────────────────
     if (resource === 'auth') {
       const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
@@ -806,7 +848,16 @@ export async function onRequest({ request, env }) {
         if (effectiveSchool) { q += ' WHERE school = ?'; params.push(effectiveSchool); }
         q += ' ORDER BY created_at ASC';
         const { results } = await DB.prepare(q).bind(...params).all();
-        return ok({ students: results }, 200, CORS);
+        // last_active/cooldown_until — same signals/formula as the analytics
+        // "at-risk" aggregate, exposed here too so the students table and
+        // student profile header can show "آخر نشاط" without a second
+        // school-wide round-trip through /api/analytics/*.
+        const activityMap = await _computeActivityCooldown(results.map(r => r.id));
+        const withActivity = results.map(r => {
+          const a = activityMap.get(r.id);
+          return { ...r, last_active: a?.lastActive ?? null, cooldown_until: a?.cooldownUntil ?? null };
+        });
+        return ok({ students: withActivity }, 200, CORS);
       }
 
       // POST /api/students/:id/reset-test — admin/director (own school) or dev: let a
@@ -1318,28 +1369,43 @@ export async function onRequest({ request, env }) {
       // sources (login, diagnostic attempt, general-test attempt) in ONE pass
       // each — no N+1, three queries total regardless of student count.
       async function _loadStudentActivityAndScores() {
-        const [studentsRows, planRows, loginRows, gtrRows] = await Promise.all([
+        const [studentsRows, planRows, loginRows, gtrRows, severeRows] = await Promise.all([
           DB.prepare(`SELECT id, name, school, created_at FROM students${sWhere}`).bind(...sArgs).all(),
-          DB.prepare(`SELECT student_id, gaps, created_at FROM plans${sWhere} ORDER BY student_id, created_at ASC`).bind(...sArgs).all(),
+          DB.prepare(`SELECT student_id, gaps, admin_note, created_at FROM plans${sWhere} ORDER BY student_id, created_at ASC`).bind(...sArgs).all(),
           DB.prepare(`SELECT student_id, MAX(created_at) as last FROM logs WHERE category = 'login' AND student_id != ''${sCond} GROUP BY student_id`).bind(...sArgs).all(),
           DB.prepare(`SELECT student_id, MAX(created_at) as last FROM general_test_results${sWhere} GROUP BY student_id`).bind(...sArgs).all(),
+          // "Stuck" skill-quiz failures — failed a skill despite 3+ attempts
+          // at it. Feeds classifyFollowUp()'s severeFailureCount trigger.
+          // Tolerate skill_progress not existing yet on a fresh deployment.
+          DB.prepare(
+            `SELECT sp.student_id as student_id, COUNT(*) as c FROM skill_progress sp
+             JOIN students s ON s.id = sp.student_id
+             WHERE sp.status = 'failed' AND sp.attempts >= 3${sCond}
+             GROUP BY sp.student_id`
+          ).bind(...sArgs).all().catch(() => ({ results: [] })),
         ]);
 
         // Per-attempt average score, in chronological order per student
         const scoresByStudent = new Map();
+        // Rows arrive ordered ascending by created_at per student, so the
+        // last write here per student_id is naturally their latest plan.
+        const latestPlanByStudent = new Map();
         for (const row of (planRows?.results || [])) {
           let gaps = [];
           try { gaps = JSON.parse(row.gaps || '[]'); } catch {}
           const nums = gaps.map(g => g.pct).filter(n => typeof n === 'number');
-          if (!nums.length) continue;
-          const avg = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
-          const list = scoresByStudent.get(row.student_id) || [];
-          list.push({ pct: avg, created_at: row.created_at });
-          scoresByStudent.set(row.student_id, list);
+          if (nums.length) {
+            const avg = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+            const list = scoresByStudent.get(row.student_id) || [];
+            list.push({ pct: avg, created_at: row.created_at });
+            scoresByStudent.set(row.student_id, list);
+          }
+          latestPlanByStudent.set(row.student_id, { gaps, created_at: row.created_at, admin_note: row.admin_note });
         }
 
         const lastLoginByStudent = new Map((loginRows?.results || []).map(r => [r.student_id, r.last]));
         const lastGtrByStudent   = new Map((gtrRows?.results   || []).map(r => [r.student_id, r.last]));
+        const severeFailureByStudent = new Map((severeRows?.results || []).map(r => [r.student_id, Number(r.c)]));
 
         const students = (studentsRows?.results || []).map(s => {
           const attempts = scoresByStudent.get(s.id) || [];
@@ -1349,61 +1415,81 @@ export async function onRequest({ request, env }) {
           const firstScore = attempts.length ? attempts[0].pct : null;
           const lastScore  = attempts.length ? attempts[attempts.length - 1].pct : null;
           const improvementPct = (firstScore !== null && lastScore !== null) ? (lastScore - firstScore) : null;
-          return { id: s.id, name: s.name, school: s.school, attempts: attempts.length, firstScore, lastScore, improvementPct, lastActive };
+          const latestPlan = latestPlanByStudent.get(s.id) || null;
+          const cooldownUntil = (latestPlan && !isRetakeOverride(latestPlan.admin_note))
+            ? computeCooldownUntil(latestPlan.gaps, latestPlan.created_at)
+            : null;
+          const severeFailureCount = severeFailureByStudent.get(s.id) || 0;
+          return { id: s.id, name: s.name, school: s.school, attempts: attempts.length, firstScore, lastScore, improvementPct, lastActive, cooldownUntil, severeFailureCount };
         });
         return students;
       }
 
       // daysSince() is imported from functions/_lib/journey.js (was a local closure here before).
 
-      // GET /api/analytics/at-risk — only ever flags a student who has actually
-      // started (logged in at least once AND has some recorded activity);
-      // a student with lastActive === null (account exists, never touched it)
-      // is reported separately under `neverStarted`, never under `students`.
+      // GET /api/analytics/at-risk — "حالات تستدعي المتابعة": cooldown-aware.
+      // A student still inside their mandatory post-diagnostic waiting period
+      // (classifyFollowUp() status 'cooldown') is never flagged — resting on
+      // purpose isn't absence. Once that window closes (or never applied),
+      // exactly 3 triggers can flag someone (see classifyFollowUp in
+      // functions/_lib/journey.js): idle 5+ days right after cooldown ends,
+      // stuck/repeated skill-quiz failures, or a 14+ day unexplained absence
+      // with no cooldown involved. A student with lastActive === null
+      // (never touched the account) is reported separately under
+      // `neverStarted`, never under `students`; one currently cooling down
+      // is reported under `cooldown`, also never under `students`.
       if (sub === 'at-risk' && method === 'GET') {
         const students = await _loadStudentActivityAndScores();
-        const started = students.filter(s => s.lastActive !== null);
-        const neverStarted = students.filter(s => s.lastActive === null);
+        const now = Date.now();
+        const classified = students.map(s => ({
+          ...s,
+          classification: classifyFollowUp({
+            lastActive: s.lastActive, cooldownUntil: s.cooldownUntil, now, severeFailureCount: s.severeFailureCount,
+          }),
+        }));
 
-        const flagged = started.map(s => {
-          const days            = daysSince(s.lastActive);
-          const inactive        = days > 3;
-          const lowPerformance  = s.lastScore !== null && s.lastScore < 50;
-          const noImprovement   = s.attempts >= 2 && s.improvementPct !== null && s.improvementPct <= 0;
-          const reasons = [
-            ...(inactive ? ['inactive'] : []),
-            ...(lowPerformance ? ['low_performance'] : []),
-            ...(noImprovement ? ['no_improvement'] : []),
-          ];
-          // Simple severity score to rank "top priority" first: capped days
-          // inactive + how far below 50% the last score is + a flat bump for
-          // stalled improvement — good enough for sorting, not shown to admins.
-          const severity = Math.min(days, 30) + (lowPerformance ? (50 - s.lastScore) : 0) + (noImprovement ? 10 : 0);
-          return { ...s, inactive, lowPerformance, noImprovement, reasons, daysSinceActive: days, severity };
-        }).filter(s => s.reasons.length > 0)
+        const neverStarted = classified.filter(s => s.classification.status === 'idle');
+        const cooldown = classified.filter(s => s.classification.status === 'cooldown');
+        const flagged = classified
+          .filter(s => s.classification.status === 'follow_up')
+          .map(s => {
+            const reason = s.classification.reason;
+            const days = s.classification.idleDays;
+            // Simple severity score to rank "top priority" first — good
+            // enough for sorting, not shown to admins.
+            const severity = (days === null ? 0 : Math.min(days, 30)) + (reason === 'severe_failure' ? 20 : 0);
+            return { ...s, reason, daysSinceActive: days, severity };
+          })
           .sort((a, b) => b.severity - a.severity);
 
         const LIMIT = Math.min(Number(url.searchParams.get('limit')) || 15, 50);
+        // Population that ever engaged (logged in, or has a diagnostic/quiz
+        // attempt — includes those currently cooling down) — the correct
+        // denominator for "at-risk rate" and any other performance rate,
+        // since a never-started account isn't at risk of anything, it just
+        // hasn't begun.
+        const startedCount = classified.filter(s => s.classification.status !== 'idle').length;
 
         return ok({
           total: flagged.length,
           shown: Math.min(flagged.length, LIMIT),
-          // Population that ever engaged (logged in, or has a diagnostic/quiz
-          // attempt) — the correct denominator for "at-risk rate" and any
-          // other performance rate, since a never-started account isn't at
-          // risk of anything, it just hasn't begun.
-          startedCount: started.length,
-          inactive_count: flagged.filter(s => s.inactive).length,
-          low_performance_count: flagged.filter(s => s.lowPerformance).length,
-          no_improvement_count: flagged.filter(s => s.noImprovement).length,
+          startedCount,
+          idle_after_cooldown_count: flagged.filter(s => s.reason === 'idle_after_cooldown').length,
+          severe_failure_count: flagged.filter(s => s.reason === 'severe_failure').length,
+          long_absence_count: flagged.filter(s => s.reason === 'long_absence').length,
           students: flagged.slice(0, LIMIT).map(s => ({
             id: s.id, name: s.name, school: s.school,
             lastActive: s.lastActive, daysSinceActive: s.daysSinceActive,
-            lastScore: s.lastScore, improvementPct: s.improvementPct, reasons: s.reasons,
+            lastScore: s.lastScore, improvementPct: s.improvementPct,
+            reasons: [s.reason],
           })),
           neverStarted: {
             count: neverStarted.length,
             students: neverStarted.map(s => ({ id: s.id, name: s.name, school: s.school })),
+          },
+          cooldown: {
+            count: cooldown.length,
+            students: cooldown.map(s => ({ id: s.id, name: s.name, school: s.school, cooldownUntil: s.cooldownUntil })),
           },
         }, 200, CORS);
       }
@@ -1453,6 +1539,78 @@ export async function onRequest({ request, env }) {
           .map(t => ({ skillId: t.skillId, skillName: t.skillName, avgPct: Math.round(t.sum / t.count), sampleSize: t.count }))
           .sort((a, b) => a.avgPct - b.avgPct);
         return ok({ skills, weakest: skills.slice(0, 5) }, 200, CORS);
+      }
+
+      // GET /api/analytics/diagnostic-overview — score-tier distribution
+      // (excellent/good/needs_support/below, from each student's LATEST
+      // diagnostic attempt), weakest skills annotated with how many students
+      // are weak in each (not just the average), and a "most needing
+      // support" leaderboard (lowest score + their own current weakest
+      // skill) — powers the redesigned "تشخيصي" tab in TestCenterTab.
+      if (sub === 'diagnostic-overview' && method === 'GET') {
+        const students = await _loadStudentActivityAndScores();
+        const tested = students.filter(s => s.lastScore !== null);
+        const notStartedCount = students.length - tested.length;
+
+        const tierOf = (pct) => (pct >= 90 ? 'excellent' : pct >= 70 ? 'good' : pct >= 50 ? 'needs_support' : 'below');
+        const tierCounts = { excellent: 0, good: 0, needs_support: 0, below: 0 };
+        for (const s of tested) tierCounts[tierOf(s.lastScore)]++;
+        const tierRate = (n) => (tested.length ? Math.round((n / tested.length) * 100) : 0);
+
+        // Latest attempt's raw per-skill gaps per student — needed both for
+        // per-skill "how many students are weak here" counts and for each
+        // struggling student's own current weakest skill.
+        const { results: planRows } = await DB.prepare(
+          `SELECT student_id, gaps, created_at FROM plans${sWhere} ORDER BY student_id, created_at ASC`
+        ).bind(...sArgs).all();
+        const latestGapsByStudent = new Map();
+        for (const row of planRows || []) {
+          let gaps = [];
+          try { gaps = JSON.parse(row.gaps || '[]'); } catch {}
+          latestGapsByStudent.set(row.student_id, gaps); // ascending order -> ends up latest
+        }
+        const skillAgg = new Map();
+        for (const gaps of latestGapsByStudent.values()) {
+          for (const g of gaps) {
+            if (typeof g.pct !== 'number') continue;
+            const key = g.skillId || g.skillName || '';
+            if (!key) continue;
+            const acc = skillAgg.get(key) || { skillId: g.skillId || '', skillName: g.skillName || key, sum: 0, count: 0, weakCount: 0 };
+            acc.sum += g.pct; acc.count++;
+            if (g.pct < 50) acc.weakCount++;
+            skillAgg.set(key, acc);
+          }
+        }
+        const weakestSkills = [...skillAgg.values()]
+          .map(a => ({ skillId: a.skillId, skillName: a.skillName, avgPct: Math.round(a.sum / a.count), sampleSize: a.count, weakCount: a.weakCount }))
+          .sort((a, b) => a.avgPct - b.avgPct)
+          .slice(0, 8);
+
+        const mostNeedingSupport = [...tested]
+          .sort((a, b) => a.lastScore - b.lastScore)
+          .slice(0, 10)
+          .map(s => {
+            const gaps = (latestGapsByStudent.get(s.id) || []).filter(g => typeof g.pct === 'number');
+            const weakest = gaps.length ? [...gaps].sort((a, b) => a.pct - b.pct)[0] : null;
+            return {
+              id: s.id, name: s.name, school: s.school, lastScore: s.lastScore,
+              weakestSkillName: weakest?.skillName || null, weakestSkillPct: weakest?.pct ?? null,
+            };
+          });
+
+        return ok({
+          testedCount: tested.length,
+          notStartedCount,
+          tiers: {
+            excellent: { count: tierCounts.excellent, pct: tierRate(tierCounts.excellent) },
+            good: { count: tierCounts.good, pct: tierRate(tierCounts.good) },
+            needs_support: { count: tierCounts.needs_support, pct: tierRate(tierCounts.needs_support) },
+            below: { count: tierCounts.below, pct: tierRate(tierCounts.below) },
+            not_started: { count: notStartedCount },
+          },
+          weakestSkills,
+          mostNeedingSupport,
+        }, 200, CORS);
       }
 
       // GET /api/analytics/errors — from general-test answers: which skills and
@@ -1572,6 +1730,89 @@ export async function onRequest({ request, env }) {
             passedCount: Number(r.passedCount), lastAttemptAt: r.lastAttemptAt,
             coveragePct: totalSkills ? Math.round((Number(r.skillsTouched) / totalSkills) * 100) : 0,
           })),
+        }, 200, CORS);
+      }
+
+      // GET /api/analytics/quiz-hub-overview — full quiz-skills dashboard data
+      // for the redesigned "قصيرة" (short quizzes) tab: per-level pass rate +
+      // reach/completion counts, the full 30-skill school-wide mastery
+      // matrix (verbal + quantitative), and a leaderboard by skills mastered
+      // (not by attempts — quiz-engagement above already covers that ranking).
+      if (sub === 'quiz-hub-overview' && method === 'GET') {
+        await _ensureQuizSkillsSchema();
+        const engCond = anSchool ? ' AND s.school = ?' : '';
+
+        const totalStudentsRow = await DB.prepare(`SELECT COUNT(*) as c FROM students${sWhere}`).bind(...sArgs).first();
+        const totalStudents = Number(totalStudentsRow?.c || 0);
+
+        const { results: allSkills } = await DB.prepare(
+          'SELECT id, section, level, skill_id, skill_name, order_idx FROM quiz_skills ORDER BY section, level, order_idx'
+        ).all();
+
+        const { results: skillPassRows } = await DB.prepare(
+          `SELECT sp.quiz_skill_id as id, COUNT(*) as passed
+           FROM skill_progress sp JOIN students s ON s.id = sp.student_id
+           WHERE sp.status = 'passed'${engCond}
+           GROUP BY sp.quiz_skill_id`
+        ).bind(...sArgs).all();
+        const passedBySkill = new Map(skillPassRows.map(r => [r.id, Number(r.passed)]));
+
+        const skillMatrix = allSkills.map(sk => {
+          const masteredCount = passedBySkill.get(sk.id) || 0;
+          return {
+            id: sk.id, section: sk.section, level: sk.level, skillId: sk.skill_id, skillName: sk.skill_name,
+            masteredCount, masteryPct: totalStudents ? Math.round((masteredCount / totalStudents) * 100) : 0,
+          };
+        });
+
+        const LEVELS = ['easy', 'medium', 'advanced'];
+
+        // Students who've touched (attempts > 0) at least one skill in a level.
+        const { results: reachRows } = await DB.prepare(
+          `SELECT sp.level as level, COUNT(DISTINCT sp.student_id) as c
+           FROM skill_progress sp JOIN students s ON s.id = sp.student_id
+           WHERE sp.attempts > 0${engCond}
+           GROUP BY sp.level`
+        ).bind(...sArgs).all();
+        const reachByLevel = new Map(reachRows.map(r => [r.level, Number(r.c)]));
+
+        // Students who've PASSED every skill in a level (both sections combined).
+        const { results: passedCountRows } = await DB.prepare(
+          `SELECT sp.student_id as student_id, sp.level as level, COUNT(*) as c
+           FROM skill_progress sp JOIN students s ON s.id = sp.student_id
+           WHERE sp.status = 'passed'${engCond}
+           GROUP BY sp.student_id, sp.level`
+        ).bind(...sArgs).all();
+        const levelTotalSkills = Object.fromEntries(LEVELS.map(l => [l, skillMatrix.filter(s => s.level === l).length]));
+        const completedCountByLevel = { easy: 0, medium: 0, advanced: 0 };
+        for (const row of passedCountRows || []) {
+          if (Number(row.c) >= (levelTotalSkills[row.level] || 10)) completedCountByLevel[row.level]++;
+        }
+
+        const levelStats = LEVELS.map(level => {
+          const levelSkills = skillMatrix.filter(s => s.level === level);
+          const passRate = levelSkills.length ? Math.round(levelSkills.reduce((a, s) => a + s.masteryPct, 0) / levelSkills.length) : 0;
+          const reachedCount = reachByLevel.get(level) || 0;
+          return { level, passRate, reachedCount, completedCount: completedCountByLevel[level] || 0, opened: reachedCount > 0 };
+        });
+
+        const { results: leaderRows } = await DB.prepare(
+          `SELECT sp.student_id as id, s.name as name,
+                  SUM(CASE WHEN sp.status = 'passed' THEN 1 ELSE 0 END) as mastered
+           FROM skill_progress sp JOIN students s ON s.id = sp.student_id
+           WHERE 1=1${engCond}
+           GROUP BY sp.student_id, s.name
+           HAVING SUM(CASE WHEN sp.status = 'passed' THEN 1 ELSE 0 END) > 0
+           ORDER BY mastered DESC
+           LIMIT 10`
+        ).bind(...sArgs).all();
+
+        return ok({
+          totalStudents,
+          totalSkills: skillMatrix.length,
+          levelStats,
+          skillMatrix,
+          leaderboard: (leaderRows || []).map(r => ({ id: r.id, name: r.name, mastered: Number(r.mastered) })),
         }, 200, CORS);
       }
 
@@ -2141,14 +2382,18 @@ export async function onRequest({ request, env }) {
       const tree = await _fetchQuizTree(targetStudentId);
 
       const { results: planRowsAsc } = await DB.prepare(
-        'SELECT gaps, created_at FROM plans WHERE student_id = ? ORDER BY created_at ASC'
+        'SELECT gaps, admin_note, created_at FROM plans WHERE student_id = ? ORDER BY created_at ASC'
       ).bind(targetStudentId).all();
       const latestPlanRow = planRowsAsc.length ? planRowsAsc[planRowsAsc.length - 1] : null;
       let plan = null;
+      let cooldownUntil = null;
       if (latestPlanRow) {
         let gaps = [];
         try { gaps = JSON.parse(latestPlanRow.gaps || '[]'); } catch {}
         plan = { gaps, created_at: latestPlanRow.created_at };
+        if (!isRetakeOverride(latestPlanRow.admin_note)) {
+          cooldownUntil = computeCooldownUntil(gaps, latestPlanRow.created_at);
+        }
       }
 
       // Final-mock capstone (general-tests test_num=1) — tolerate that table
@@ -2193,7 +2438,11 @@ export async function onRequest({ request, env }) {
       // `tree` is attached alongside (not inside computeJourney's pure output)
       // so the student/admin UI can render the full section→level→skill
       // breakdown without a second GET /api/quiz-structure round-trip.
-      return ok({ journey: { ...journey, tree } }, 200, CORS);
+      // `cooldownUntil` — non-null only while the student's mandatory
+      // post-diagnostic waiting period is still running (null once it ends,
+      // or immediately if an admin granted an OVERRIDE retake) — powers the
+      // "⏳ فترة استراحة حتى" status badge on the admin's student profile.
+      return ok({ journey: { ...journey, tree, cooldownUntil } }, 200, CORS);
     }
 
     // ── ADMINS ───────────────────────────────────────────────────────────────

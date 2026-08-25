@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import { api } from '../lib/api';
 import { cn } from '../lib/cn';
 import { testStatusColor, testStatusLabel } from '../lib/status';
+import { formatLastActive, formatCooldownUntil } from '../lib/relativeTime';
 import type { Plan, PlanGap } from '../types';
 
 function planScore(p: Plan): number | null {
@@ -67,7 +68,25 @@ interface Journey {
   finalMock: { available: boolean; attempted: boolean; attempts?: number; bestScore?: number | null; title?: string } | null;
   badge: { code: string; label: string } | null;
   tree: QuizStructureTree;
+  cooldownUntil: string | null;
 }
+
+// Status badge next to the name/code header — one of exactly 3 states,
+// mirroring the same cooldown-aware model GET /api/analytics/at-risk uses,
+// so the profile never contradicts the dashboard's "حالات تستدعي المتابعة".
+function lastSeenBadge(journey: Journey | null): { icon: string; label: string; tone: 'ok' | 'cooldown' | 'idle' } {
+  if (!journey || !journey.diagnostic.done) return { icon: '⚪', label: 'لم يسجل الدخول بعد', tone: 'idle' };
+  const inCooldown = journey.cooldownUntil && new Date(journey.cooldownUntil).getTime() > Date.now();
+  if (inCooldown) return { icon: '⏳', label: `فترة استراحة حتى: ${formatCooldownUntil(journey.cooldownUntil)}`, tone: 'cooldown' };
+  const lastActive = journey.health?.lastActive ?? null;
+  if (!lastActive) return { icon: '⚪', label: 'لم يسجل الدخول بعد', tone: 'idle' };
+  return { icon: '🟢', label: `آخر نشاط: ${formatLastActive(lastActive)}`, tone: 'ok' };
+}
+const badgeTone: Record<'ok' | 'cooldown' | 'idle', string> = {
+  ok: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+  cooldown: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+  idle: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+};
 
 function levelColor(pct: number | null): string {
   if (pct === null) return 'bg-slate-100 text-slate-500';
@@ -254,6 +273,14 @@ export default function StudentProfilePage() {
           <span className={cn('h-1.5 w-1.5 rounded-full', colors.dot)} />
           {testStatusLabel(status)}
         </span>
+        {!journeyLoading && (() => {
+          const seen = lastSeenBadge(journey);
+          return (
+            <span className={cn('inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold', badgeTone[seen.tone])}>
+              {seen.icon} {seen.label}
+            </span>
+          );
+        })()}
         {improvement !== null && (
           <span
             className={cn(

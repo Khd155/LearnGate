@@ -2,7 +2,7 @@ import * as Select from '@radix-ui/react-select';
 import SearchInput from './SearchInput';
 import type { DerivedStatus } from '../lib/status';
 
-export type SortKey = 'name' | 'status' | 'score_asc' | 'recent';
+export type SortKey = 'name' | 'status' | 'score_asc' | 'recent' | 'last_active_desc' | 'last_active_asc';
 
 const STATUS_LABELS: Record<DerivedStatus | 'all', string> = {
   all: 'كل الحالات',
@@ -16,6 +16,8 @@ const SORT_LABELS: Record<SortKey, string> = {
   status: 'ترتيب بالحالة',
   score_asc: 'الأداء (الأضعف أولاً)',
   recent: 'الأحدث انضمامًا',
+  last_active_desc: 'آخر نشاط (الأحدث أولاً)',
+  last_active_asc: 'آخر نشاط (الأقدم أولاً)',
 };
 
 interface Props {
@@ -83,6 +85,8 @@ export default function FiltersBar({
               <SelectItem value="status">ترتيب بالحالة</SelectItem>
               <SelectItem value="score_asc">الأداء (الأضعف أولاً)</SelectItem>
               <SelectItem value="recent">الأحدث انضمامًا</SelectItem>
+              <SelectItem value="last_active_desc">آخر نشاط (الأحدث أولاً)</SelectItem>
+              <SelectItem value="last_active_asc">آخر نشاط (الأقدم أولاً)</SelectItem>
             </Select.Viewport>
           </Select.Content>
         </Select.Portal>

@@ -17,6 +17,11 @@ export interface Student {
   school: string;
   phone: string;
   created_at: string;
+  // Populated server-side by GET /api/students (see _computeActivityCooldown
+  // in functions/api/[[route]].js) — same signals/formula as the analytics
+  // "at-risk" aggregate, so "آخر نشاط" reads the same everywhere it appears.
+  last_active?: string | null;
+  cooldown_until?: string | null;
 }
 
 export type TestStatus = 'not_started' | 'started' | 'finished';

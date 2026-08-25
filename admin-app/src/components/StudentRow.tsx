@@ -3,6 +3,7 @@ import * as Checkbox from '@radix-ui/react-checkbox';
 import type { Student } from '../types';
 import { testStatusColor, testStatusLabel, type DerivedStatus } from '../lib/status';
 import { cn } from '../lib/cn';
+import { formatLastActive } from '../lib/relativeTime';
 
 interface Props {
   student: Student;
@@ -79,6 +80,17 @@ export default function StudentRow({
             title={score < 50 ? 'أداء ضعيف — يحتاج متابعة' : score >= 70 ? 'أداء متقدم' : 'أداء متوسط'}
           >
             {score >= 70 ? '▲' : score < 50 ? '▼' : '—'} {score}%
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        {student.cooldown_until && new Date(student.cooldown_until).getTime() > Date.now() ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+            ⏳ فترة استراحة
+          </span>
+        ) : (
+          <span className={cn('text-xs', student.last_active ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500')}>
+            {student.last_active ? formatLastActive(student.last_active) : 'لم يبدأ بعد'}
           </span>
         )}
       </td>

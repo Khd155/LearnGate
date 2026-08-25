@@ -70,7 +70,7 @@ export default function ConversationsTab() {
   };
 
   return (
-    <div className="grid h-[600px] grid-cols-1 overflow-hidden rounded-2xl border border-slate-200 bg-white md:grid-cols-[280px_1fr] dark:border-slate-800 dark:bg-slate-900">
+    <div className="grid h-[calc(100vh-200px)] min-h-[420px] grid-cols-1 overflow-hidden rounded-2xl border border-slate-200 bg-white md:grid-cols-[280px_1fr] dark:border-slate-800 dark:bg-slate-900">
       <div className="overflow-y-auto overscroll-contain border-e border-slate-200 dark:border-slate-800">
         {threadsLoading ? (
           <div className="space-y-2 p-3">
@@ -118,7 +118,7 @@ export default function ConversationsTab() {
             <div className="border-b border-slate-200 px-4 py-3 font-bold text-slate-800 dark:border-slate-800 dark:text-white">
               {activeStudentName}
             </div>
-            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3" ref={messagesScrollRef}>
+            <div className="flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-4" ref={messagesScrollRef}>
               {messagesLoading ? (
                 <div className="space-y-2">
                   <div className="skeleton h-10 w-2/3 rounded-xl" />
@@ -127,7 +127,7 @@ export default function ConversationsTab() {
               ) : messages.length === 0 ? (
                 <p className="py-10 text-center text-sm text-slate-400">لا توجد رسائل</p>
               ) : (
-                <div className="space-y-2">
+                <>
                   {messages.map((m) => (
                     <div
                       key={m.id}
@@ -135,7 +135,7 @@ export default function ConversationsTab() {
                     >
                       <div
                         className={cn(
-                          'max-w-[70%] rounded-2xl px-4 py-2 text-sm',
+                          'max-w-[70%] rounded-2xl px-4 py-2 text-sm break-words',
                           m.sender_type === 'admin'
                             ? 'bg-indigo-600 text-white'
                             : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100',
@@ -172,7 +172,7 @@ export default function ConversationsTab() {
                     </div>
                   ))}
                   <div ref={bottomRef} />
-                </div>
+                </>
               )}
             </div>
             <div className="flex items-center gap-2 border-t border-slate-200 p-3 dark:border-slate-800">

@@ -9,7 +9,82 @@ import {
   computeJourney,
   classifyProgress,
   summarizePlanAttempts,
+  computeCooldownDays,
+  computeCooldownUntil,
+  isRetakeOverride,
+  classifyFollowUp,
 } from './journey.js';
+
+describe('computeCooldownDays', () => {
+  it('sums per-skill penalty days by score band', () => {
+    expect(computeCooldownDays([{ pct: 30 }, { pct: 49 }, { pct: 70 }, { pct: 71 }])).toBe(3 + 2 + 1 + 0);
+  });
+  it('ignores gaps with no numeric pct and handles empty input', () => {
+    expect(computeCooldownDays([{ pct: 'x' }, {}])).toBe(0);
+    expect(computeCooldownDays([])).toBe(0);
+    expect(computeCooldownDays(undefined)).toBe(0);
+  });
+});
+
+describe('computeCooldownUntil', () => {
+  it('adds the computed cooldown days to createdAt', () => {
+    const until = computeCooldownUntil([{ pct: 30 }], '2026-01-01T00:00:00.000Z'); // 3 days
+    expect(until).toBe('2026-01-04T00:00:00.000Z');
+  });
+  it('returns null with no createdAt or an invalid one', () => {
+    expect(computeCooldownUntil([{ pct: 30 }], null)).toBeNull();
+    expect(computeCooldownUntil([{ pct: 30 }], 'not-a-date')).toBeNull();
+  });
+  it('is a no-op cooldown (same instant) when every skill scored above 70', () => {
+    expect(computeCooldownUntil([{ pct: 100 }], '2026-01-01T00:00:00.000Z')).toBe('2026-01-01T00:00:00.000Z');
+  });
+});
+
+describe('isRetakeOverride', () => {
+  it('recognizes the OVERRIDE: admin_note prefix and nothing else', () => {
+    expect(isRetakeOverride('OVERRIDE:granted by admin')).toBe(true);
+    expect(isRetakeOverride('some other note')).toBe(false);
+    expect(isRetakeOverride(null)).toBe(false);
+    expect(isRetakeOverride(undefined)).toBe(false);
+  });
+});
+
+describe('classifyFollowUp', () => {
+  const now = new Date('2026-06-01T00:00:00.000Z').getTime();
+
+  it('never flags a student still inside an active cooldown', () => {
+    const r = classifyFollowUp({ lastActive: null, cooldownUntil: '2026-06-05T00:00:00.000Z', now });
+    expect(r.status).toBe('cooldown');
+  });
+
+  it('flags idle 5+ days right after a cooldown ends, but not before', () => {
+    const cooldownUntil = '2026-05-25T00:00:00.000Z'; // ended 7 days ago
+    const stillOk = classifyFollowUp({ lastActive: '2026-05-28T00:00:00.000Z', cooldownUntil, now }); // 4 days idle
+    expect(stillOk.status).toBe('ok');
+    const flagged = classifyFollowUp({ lastActive: '2026-05-25T00:00:00.000Z', cooldownUntil, now }); // 7 days idle
+    expect(flagged.status).toBe('follow_up');
+    expect(flagged.reason).toBe('idle_after_cooldown');
+  });
+
+  it('gives a longer 14-day grace period to students with no cooldown involved', () => {
+    const shortIdle = classifyFollowUp({ lastActive: '2026-05-25T00:00:00.000Z', cooldownUntil: null, now }); // 7 days
+    expect(shortIdle.status).toBe('ok');
+    const longIdle = classifyFollowUp({ lastActive: '2026-05-10T00:00:00.000Z', cooldownUntil: null, now }); // 22 days
+    expect(longIdle.status).toBe('follow_up');
+    expect(longIdle.reason).toBe('long_absence');
+  });
+
+  it('flags repeated severe skill-quiz failures regardless of idle time', () => {
+    const r = classifyFollowUp({ lastActive: '2026-05-31T00:00:00.000Z', cooldownUntil: null, severeFailureCount: 2, now });
+    expect(r.status).toBe('follow_up');
+    expect(r.reason).toBe('severe_failure');
+  });
+
+  it('reports never-started accounts (lastActive null, no cooldown) as idle, not follow_up', () => {
+    const r = classifyFollowUp({ lastActive: null, cooldownUntil: null, now });
+    expect(r.status).toBe('idle');
+  });
+});
 
 describe('summarizePlanAttempts', () => {
   it('returns nulls with zero attempts for an empty history', () => {

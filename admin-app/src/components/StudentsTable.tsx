@@ -85,6 +85,11 @@ export default function StudentsTable() {
     list = [...list].sort((a, b) => {
       if (sort === 'name') return a.name.localeCompare(b.name, 'ar');
       if (sort === 'recent') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sort === 'last_active_desc' || sort === 'last_active_asc') {
+        const ta = a.last_active ? new Date(a.last_active).getTime() : -Infinity;
+        const tb = b.last_active ? new Date(b.last_active).getTime() : -Infinity;
+        return sort === 'last_active_desc' ? tb - ta : ta - tb;
+      }
       if (sort === 'score_asc') {
         const sa = latestScoreOf(a.id);
         const sb = latestScoreOf(b.id);
@@ -262,6 +267,19 @@ export default function StudentsTable() {
               <th className="px-4 py-3 font-medium">الجوال</th>
               <th className="px-4 py-3 font-medium">الحالة</th>
               <th className="px-4 py-3 font-medium">آخر درجة تشخيصي</th>
+              <th className="px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setSort(sort === 'last_active_desc' ? 'last_active_asc' : 'last_active_desc')}
+                  className="flex items-center gap-1 font-medium hover:text-indigo-600 dark:hover:text-indigo-400"
+                  title="فرز حسب آخر نشاط"
+                >
+                  آخر نشاط
+                  {(sort === 'last_active_desc' || sort === 'last_active_asc') && (
+                    <span className="text-[10px]">{sort === 'last_active_desc' ? '▾' : '▴'}</span>
+                  )}
+                </button>
+              </th>
               <th className="px-4 py-3 font-medium">آخر رسالة</th>
               <th className="px-4 py-3 text-center font-medium">تعديل</th>
               <th className="px-4 py-3"></th>
@@ -270,7 +288,7 @@ export default function StudentsTable() {
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
+                <td colSpan={10} className="px-4 py-12 text-center text-slate-400">
                   لا يوجد طلاب مطابقون
                 </td>
               </tr>

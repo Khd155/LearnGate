@@ -13,6 +13,7 @@ import { useStore } from '../store/useStore';
 import { api } from '../lib/api';
 import StatCard from './StatCard';
 import QuickSendButton from './QuickSendButton';
+import { formatLastActive } from '../lib/relativeTime';
 
 interface AtRiskStudent {
   id: string; name: string; school: string;
@@ -21,9 +22,10 @@ interface AtRiskStudent {
 }
 interface AtRiskRes {
   total: number; shown: number; startedCount: number;
-  inactive_count: number; low_performance_count: number; no_improvement_count: number;
+  idle_after_cooldown_count: number; severe_failure_count: number; long_absence_count: number;
   students: AtRiskStudent[];
   neverStarted: { count: number; students: { id: string; name: string; school: string }[] };
+  cooldown: { count: number; students: { id: string; name: string; school: string; cooldownUntil: string | null }[] };
 }
 interface ActivityBucket { count: number; students: { id: string; name: string; lastActive: string | null }[] }
 interface ActivityRes { active: ActivityBucket; medium: ActivityBucket; inactive: ActivityBucket }
@@ -57,15 +59,18 @@ const BUCKET_STYLE: Record<string, { chip: string; bar: string }> = {
 const LEVEL_LABEL_SHORT: Record<string, string> = { easy: 'سهل', medium: 'متوسط', advanced: 'متقدم' };
 const SECTION_LABEL_SHORT: Record<string, string> = { verbal: 'اللفظي', quantitative: 'الكمي' };
 
+// Matches the exactly-3 cooldown-aware triggers classifyFollowUp() in
+// functions/_lib/journey.js can return — a student still inside their
+// mandatory post-diagnostic waiting period is never in this list at all.
 const reasonMeta: Record<string, { label: string; chip: string }> = {
-  inactive: { label: 'غياب 3+ أيام', chip: '🟠' },
-  low_performance: { label: 'أداء ضعيف', chip: '🔴' },
-  no_improvement: { label: 'بدون تحسن', chip: '🟡' },
+  idle_after_cooldown: { label: 'غياب بعد انتهاء التهدئة', chip: '🟠' },
+  severe_failure: { label: 'رسوب متكرر في الاختبارات القصيرة', chip: '🔴' },
+  long_absence: { label: 'غياب طويل', chip: '🟡' },
 };
 
 function severityChip(reasons: string[]) {
-  if (reasons.includes('low_performance')) return '🔴';
-  if (reasons.includes('inactive')) return '🟠';
+  if (reasons.includes('severe_failure')) return '🔴';
+  if (reasons.includes('idle_after_cooldown')) return '🟠';
   return '🟡';
 }
 
@@ -191,6 +196,18 @@ export default function DashboardTab() {
 
   const neverMessagedShown = useMemo(() => neverMessaged.slice(0, 6), [neverMessaged]);
 
+  // "آخر نشاط" lookup covering the whole roster — /api/analytics/activity
+  // already buckets every student (active/medium/inactive, including a
+  // never-touched account under "inactive" with lastActive: null), so this
+  // is a free client-side merge, not a second network round-trip.
+  const lastActiveMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const bucket of [activity?.active, activity?.medium, activity?.inactive]) {
+      for (const s of bucket?.students ?? []) map.set(s.id, s.lastActive);
+    }
+    return map;
+  }, [activity]);
+
   // Top improvers — real server-computed improvementPct (first vs last diagnostic
   // attempt), named + ranked, so the admin can see WHO is advancing, not just a count.
   const topImproving = useMemo(
@@ -248,7 +265,14 @@ export default function DashboardTab() {
       {/* ── Zone 1: Quick Actions — the first thing on the page. Every card is
           an actionable worklist, not a stat. ── */}
       <section>
-        <h2 className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">⚡ يحتاج إجراءً اليوم</h2>
+        <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+          <span>⚡ حالات تستدعي المتابعة</span>
+          {!!atRisk?.cooldown.count && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400 dark:bg-slate-800" title="طلاب داخل فترة التهدئة الإلزامية بعد التشخيصي — مستثنون من التصنيف، ليسوا غائبين">
+              🧊 {atRisk.cooldown.count} في فترة استراحة
+            </span>
+          )}
+        </h2>
         <div className="grid gap-3 lg:grid-cols-2">
           {/* Needs intervention */}
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -265,10 +289,8 @@ export default function DashboardTab() {
                       <span>{severityChip(s.reasons)}</span>
                       <div className="min-w-0">
                         <p className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</p>
-                        <p className="truncate text-[11px] text-slate-400">
-                          {s.reasons.map((r) => reasonMeta[r]?.label || r).join(' · ')} ·{' '}
-                          {s.daysSinceActive === null ? 'لا نشاط' : `منذ ${s.daysSinceActive} يوم`}
-                        </p>
+                        <p className="truncate text-[11px] text-slate-400">{s.reasons.map((r) => reasonMeta[r]?.label || r).join(' · ')}</p>
+                        <p className="truncate text-[11px] text-slate-400">🕒 آخر نشاط: {formatLastActive(s.lastActive)}</p>
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
@@ -305,7 +327,10 @@ export default function DashboardTab() {
               <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                 {atRisk.neverStarted.students.slice(0, 6).map((s) => (
                   <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                    <span className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</p>
+                      <span className="inline-block rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 dark:bg-slate-800">⚪ لم يبدأ بعد</span>
+                    </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       <QuickSendButton studentId={s.id} defaultText={`مرحبًا ${s.name}، بانتظارك في بوابة دعم التعلم! سجّل دخولك وابدأ رحلتك التشخيصية متى ما استطعت 🌟`} />
                       <button type="button" onClick={() => goMessage(s.id)} className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">💬</button>
@@ -326,7 +351,10 @@ export default function DashboardTab() {
               <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                 {decliningStudents.map((s) => (
                   <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                    <span className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</p>
+                      <p className="truncate text-[11px] text-slate-400">🕒 آخر نشاط: {formatLastActive(lastActiveMap.get(s.id) ?? null)}</p>
+                    </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">{s.firstScore}%→{s.lastScore}%</span>
                       <QuickSendButton studentId={s.id} defaultText={`مرحبًا ${s.name}، لاحظنا تراجعًا بسيطًا في أدائك الأخير — هل تحتاج مساعدة أو توضيحًا لأي مهارة؟`} />
@@ -358,7 +386,10 @@ export default function DashboardTab() {
               <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                 {neverMessagedShown.map((s) => (
                   <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                    <span className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</p>
+                      <p className="truncate text-[11px] text-slate-400">🕒 آخر نشاط: {formatLastActive(lastActiveMap.get(s.id) ?? null)}</p>
+                    </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       <QuickSendButton studentId={s.id} defaultText={`مرحبًا ${s.name}، نحن هنا لمساعدتك في أي وقت — لا تتردد بالتواصل معنا 👋`} />
                       <button type="button" onClick={() => goMessage(s.id)} className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">فتح المحادثة</button>

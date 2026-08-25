@@ -181,6 +181,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// Landing hero's school-name line — was hardcoded HTML text. Resolution
+// order: this deployment's __APP_CONFIG (index.html, one line to edit for a
+// different school) -> a remembered prior session on this browser -> a
+// generic fallback for a fresh visitor with neither.
+function _resolveLandingSchoolName() {
+  if (window.__APP_CONFIG && window.__APP_CONFIG.schoolName) return window.__APP_CONFIG.schoolName;
+  try {
+    for (const key of ['lg_xsession_student', 'lg_xsession_admin', 'lg_remember_student', 'lg_remember_admin']) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const s = JSON.parse(raw);
+      if (s && s.school && s.school !== '*') return s.school;
+    }
+  } catch(_) {}
+  return 'منصة تعليمية حكومية معتمدة';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('landing-school-name');
+  if (el) el.textContent = _resolveLandingSchoolName();
+});
+
 // ── First + last name only (drops middle names) — shared by the access-link
 // landing page and the WhatsApp send button so both show the same thing.
 function firstLastName(fullName) {
@@ -243,10 +264,55 @@ async function apiFetch(path, opts = {}) {
     ActivityLog.error(`✗ ${method} /api${path} — ${res.status} ${data.error || res.statusText}`);
     const e = new Error(data.error || res.statusText || 'HTTP ' + res.status);
     e.status = res.status;
+    // A 401 while we believe we're logged in (_authToken set) means the
+    // token itself expired/was revoked server-side mid-session — every
+    // authenticated call on the current screen fails this way at once
+    // (notifications, journey, tickets, ...), and until now each caller's
+    // own catch just surfaced the raw "غير مصرح" server string with no
+    // explanation, e.g. submitTicket()'s error banner. Handle it once,
+    // globally, instead of teaching every call site about session expiry.
+    if (res.status === 401 && _authToken) _handleExpiredSession();
     throw e;
   }
   ActivityLog.success(`✓ ${method} /api${path} — ${res.status}`);
   return data;
+}
+
+// A whole page's worth of authenticated calls (notifications, journey,
+// tickets, plans...) all land 401 within the same tick once a token expires
+// or gets revoked — this flag collapses that burst into a single cleanup +
+// redirect instead of one toast/logout per failed request. Cleared after a
+// few seconds so a genuinely new expiry later in a fresh session is still
+// caught (not tied to login, since login itself never sets _authToken until
+// AFTER it succeeds, so it can never trigger this path).
+let _handlingExpiredSession = false;
+function _handleExpiredSession() {
+  if (_handlingExpiredSession) return;
+  _handlingExpiredSession = true;
+  setTimeout(() => { _handlingExpiredSession = false; }, 5000);
+  const _exitingRole = State.role || 'student';
+  _authToken = null;
+  try { App.stopCooldownTimer(); } catch(_) {}
+  try { clearInterval(App._chatTimer); } catch(_) {}
+  try { stopIdleWatch(); } catch(_) {}
+  try { App.stopNotifPolling(); } catch(_) {}
+  State.student     = null;
+  State.role        = null;
+  State.admin       = null;
+  State.navStack    = [];
+  try { sessionStorage.removeItem(_skey('lg_session', _exitingRole)); } catch(_) {}
+  try { localStorage.removeItem(_skey('lg_xsession', _exitingRole)); } catch(_) {}
+  try { localStorage.removeItem(_skey('lg_remember', _exitingRole)); } catch(_) {}
+  try {
+    if (localStorage.getItem('lg_active_role') === _roleNS(_exitingRole)) localStorage.removeItem('lg_active_role');
+  } catch(_) {}
+  // Modals float above the .screen system regardless of which one is active
+  // (position:fixed overlays) — closing only the screen underneath would
+  // leave e.g. the new-ticket modal open on top, still showing whatever raw
+  // "غير مصرح" text its own catch block put in its error banner.
+  document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+  show('screen-school');
+  showToast('انتهت صلاحية جلستك — الرجاء تسجيل الدخول مرة أخرى');
 }
 
 const _mapStudent = r => ({ id: r.id, code: r.code, name: r.name, school: r.school || '', phone: r.phone || '', createdAt: r.created_at });
@@ -6518,6 +6584,14 @@ async function _quickRestoreSession(sess) {
       App._setTopbarUser(sess.name);
       try { await Promise.race([Promise.all([DB.loadStudentData(), _minDelay]), _maxDelay]); } catch (e) { await _minDelay; }
       if (_slowHint) clearTimeout(_slowHint);
+      // A 401 from that failed call means _handleExpiredSession() already
+      // fired inside apiFetch — it wipes State.student/_authToken and
+      // navigates to screen-school itself. Without this check, the code
+      // below barrels on assuming a valid session, rendering the home
+      // screen against a null State.student and re-fetching (with no auth
+      // token at all this time) everything _handleExpiredSession just tore
+      // down, undoing its own redirect.
+      if (!State.student) return;
 
       const _testDeadline = Number(sessionStorage.getItem('lg_test_deadline') || 0);
       if (_testDeadline && _testDeadline > Date.now()) {

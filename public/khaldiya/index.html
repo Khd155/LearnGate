@@ -1221,6 +1221,205 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
+     SCREEN: ACADEMIC SUPPORT — grade selection
+     ("دعم التعلم والتحصيل" — was the separate /academic/ static
+     site; now a native screen, no full page navigation/flash).
+═══════════════════════════════════════════════════════ -->
+<div id="screen-academic" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">دعم التعلم والتحصيل</div>
+      <div class="topbar-sub">اختر الصف الدراسي للبدء</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div class="service-section-title">اختر الصف الدراسي</div>
+    <div class="service-cards">
+      <div class="service-card active" onclick="App.selectAcademicGrade('g10')">
+        <div class="service-card-icon">📘</div>
+        <div class="service-card-info">
+          <div class="service-card-name">أول ثانوي</div>
+          <div class="service-card-desc">الصف الأول الثانوي</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.selectAcademicGrade('g11')">
+        <div class="service-card-icon">📙</div>
+        <div class="service-card-info">
+          <div class="service-card-name">ثاني ثانوي</div>
+          <div class="service-card-desc">الصف الثاني الثانوي</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.selectAcademicGrade('g12')">
+        <div class="service-card-icon">📕</div>
+        <div class="service-card-info">
+          <div class="service-card-name">ثالث ثانوي</div>
+          <div class="service-card-desc">الصف الثالث الثانوي</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: ACADEMIC SUPPORT — subjects for the chosen grade
+═══════════════════════════════════════════════════════ -->
+<div id="screen-academic-subjects" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title" id="acad-subjects-title">أول ثانوي</div>
+      <div class="topbar-sub">المواد الدراسية</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
+    <button class="topbar-back" onclick="goBack('screen-academic')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div class="service-section-title" id="acad-subjects-label">المواد الدراسية</div>
+    <div class="service-cards" id="acad-subjects-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: STUDY — "المذاكرة والتدريبات"
+     (was the separate /study/ static site)
+═══════════════════════════════════════════════════════ -->
+<div id="screen-study" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">الشروحات والاختبارات</div>
+      <div class="topbar-sub">اختر نوع المحتوى الذي تريد تصفّحه</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div class="service-cards">
+      <div class="service-card active" onclick="App.openLessons()">
+        <div class="service-card-icon">📖</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الشروحات</div>
+          <div class="service-card-desc">مقاطع وشروحات مرئية لكل مهارة من المهارات اللفظية والكمية</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.goToExternal('/quizzes')">
+        <div class="service-card-icon">✏️</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الاختبارات التدريبية</div>
+          <div class="service-card-desc">اختبارات تدريبية لقياس مستواك وتعزيز مهاراتك</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: LESSONS — "الشروحات" skill picker
+     (was the separate /lessons/ static site; the individual
+     lesson pages themselves stay separate static pages).
+═══════════════════════════════════════════════════════ -->
+<div id="screen-lessons" class="screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">الشروحات التعليمية</div>
+      <div class="topbar-sub">اختر المهارة التي تريد مشاهدة شرحها</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
+    <button class="topbar-back" onclick="goBack('screen-study')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div class="service-section-title">القسم اللفظي</div>
+    <div class="service-cards">
+      <div class="service-card active" onclick="App.goToExternal('/lessons/comprehension/')">
+        <div class="service-card-icon">📖</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الاستيعاب القرائي</div>
+          <div class="service-card-desc">فهم النصوص واستيعاب مضامينها</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.goToExternal('/lessons/contextual/')">
+        <div class="service-card-icon">🔍</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الخطأ السياقي</div>
+          <div class="service-card-desc">تحديد الكلمة التي تُخل بسياق الجملة</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.goToExternal('/lessons/inference/')">
+        <div class="service-card-icon">🎯</div>
+        <div class="service-card-info">
+          <div class="service-card-name">المفردة الشاذة</div>
+          <div class="service-card-desc">تحديد الكلمة التي لا تنتمي للمجموعة</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.goToExternal('/lessons/analogy/')">
+        <div class="service-card-icon">🔗</div>
+        <div class="service-card-info">
+          <div class="service-card-name">التناظر اللفظي</div>
+          <div class="service-card-desc">إدراك العلاقة بين الكلمات والمفاهيم</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.goToExternal('/lessons/completion/')">
+        <div class="service-card-icon">✏️</div>
+        <div class="service-card-info">
+          <div class="service-card-name">إكمال الجمل</div>
+          <div class="service-card-desc">اختيار الكلمة المناسبة لإكمال السياق</div>
+        </div>
+      </div>
+    </div>
+    <div class="service-section-title" style="margin-top:24px;">القسم الكمي</div>
+    <div class="service-cards">
+      <div class="service-card active" onclick="App.goToExternal('/lessons/arithmetic/')">
+        <div class="service-card-icon">🔢</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الحساب</div>
+          <div class="service-card-desc">العمليات الحسابية والنسب والمسائل</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.goToExternal('/lessons/algebra/')">
+        <div class="service-card-icon">📐</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الجبر</div>
+          <div class="service-card-desc">المعادلات والمتتابعات والمسائل الجبرية</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.goToExternal('/lessons/geometry/')">
+        <div class="service-card-icon">📏</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الهندسة والقياس</div>
+          <div class="service-card-desc">الأشكال الهندسية والقياس والمسائل</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.goToExternal('/lessons/comparison/')">
+        <div class="service-card-icon">⚖️</div>
+        <div class="service-card-info">
+          <div class="service-card-name">المقارنات الكمية</div>
+          <div class="service-card-desc">مقارنة الكميات وتحديد العلاقة بينها</div>
+        </div>
+      </div>
+      <div class="service-card active" onclick="App.goToExternal('/lessons/statistics/')">
+        <div class="service-card-icon">📊</div>
+        <div class="service-card-info">
+          <div class="service-card-name">الإحصاء والاحتمالات</div>
+          <div class="service-card-desc">تحليل البيانات والاحتمالات</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
      SCREEN: COOLDOWN / RETAKE
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-cooldown" class="screen">

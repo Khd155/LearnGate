@@ -450,6 +450,7 @@ const State = {
   _quizTree: null,       // cached GET /api/quiz-structure response for the quiz hub
   _quizSection: null,    // 'verbal' | 'quantitative' — currently browsed section
   _quizLevel: null,      // 'easy' | 'medium' | 'advanced' — currently browsed level
+  _academicGrade: null,  // 'g10' | 'g11' | 'g12' — currently browsed grade on screen-academic-subjects
   qz: null,              // { quizSkillId, questions, idx, answers } — active skill quiz
   detailStudentId: null, // student currently open in detail modal
   navStack: [], // screens visited, for goBack() — lets "رجوع" return to
@@ -491,6 +492,12 @@ const _SCREEN_PATHS = {
   'screen-support-plan':  '/plan',
   'screen-training-plan': '/plan/schedule',
 
+  'screen-academic':      '/academic',
+  'screen-study':         '/study',
+  'screen-lessons':       '/lessons',
+  // screen-academic-subjects has a STATE-dependent path (grade) — see
+  // _dynamicPathFor() below, same pattern as the quiz hub's sub-screens.
+
   'screen-general-tests':       '/mock-tests',
   'screen-general-test-take':   '/mock-tests/take',
   'screen-general-test-result': '/mock-tests/result',
@@ -517,6 +524,9 @@ const _SCREEN_PATHS = {
 // built from the exact same State their own render functions already read,
 // so the address bar can never drift out of sync with what's on screen.
 function _dynamicPathFor(id) {
+  if (id === 'screen-academic-subjects') {
+    return State._academicGrade ? `/academic/${State._academicGrade}` : '/academic';
+  }
   if (id === 'screen-quiz-levels') {
     return State._quizSection ? `/skills/${State._quizSection}` : '/skills';
   }
@@ -544,13 +554,25 @@ const _PATH_TO_SCREEN = Object.fromEntries(
 );
 const _QUIZ_SECTIONS = ['verbal', 'quantitative'];
 const _QUIZ_LEVELS = ['easy', 'medium', 'advanced'];
+const _ACADEMIC_GRADES = ['g10', 'g11', 'g12'];
 
 // Reverse of _pathForScreen() — turns a URL back into { screenId, params },
 // or null for anything unrecognized. Used on every popstate (browser back/
 // forward) and once at boot to restore a direct-entry/refreshed deep link.
 function resolvePath(pathname) {
+  // "/academic" has a real subdirectory on disk (biology-g1/), so express.static
+  // 301-redirects a trailing-slash-less request there to "/academic/" before this
+  // ever runs — a plain refresh on that screen would otherwise land back on the
+  // landing screen instead of restoring it. Normalize so both forms match.
+  if (pathname.length > 1 && pathname.endsWith('/')) pathname = pathname.slice(0, -1);
   if (_PATH_TO_SCREEN[pathname]) return { screenId: _PATH_TO_SCREEN[pathname], params: {} };
   const parts = pathname.split('/').filter(Boolean); // "/skills/verbal/easy" -> ['skills','verbal','easy']
+  // "/academic/g10" — the only academic sub-path handled client-side; a
+  // second segment that isn't a known grade slug (e.g. "biology-g1") is a
+  // real static page under /academic/ and falls through to the server.
+  if (parts[0] === 'academic' && parts.length === 2 && _ACADEMIC_GRADES.includes(parts[1])) {
+    return { screenId: 'screen-academic-subjects', params: { grade: parts[1] } };
+  }
   if (parts[0] !== 'skills' || !parts[1]) return null;
   const section = parts[1];
   if (!_QUIZ_SECTIONS.includes(section)) return null;
@@ -632,7 +654,19 @@ function show(id, opts) {
     s.classList.remove('active', 'screen-home-entered');
   });
   const el = document.getElementById(id);
-  if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
+  if (el) {
+    el.classList.add('active');
+    // Always land at the very top of the new screen — instant, not smooth,
+    // so it never reads as a lagging scroll animation on top of the screen
+    // swap itself. Also zero out the screen's own scrollTop and that of any
+    // internal scroll container it carries (e.g. a long FAQ list) — on some
+    // mobile browsers a container that was mid-scroll keeps its scrollTop
+    // across the display:none/active toggle, so window.scrollTo() alone
+    // isn't always enough to guarantee the view starts at its first item.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    el.scrollTop = 0;
+    el.querySelectorAll('.page-wrap, [data-scroll-reset]').forEach(c => { c.scrollTop = 0; });
+  }
 
   if (!opts.fromPopstate) {
     const path = _pathForScreen(id);
@@ -795,6 +829,12 @@ window.addEventListener('popstate', () => {
   if (!resolved) return; // unrecognized path (e.g. left the app and came back) — leave the screen as-is
   const { screenId, params } = resolved;
 
+  if (screenId === 'screen-academic-subjects') {
+    State._academicGrade = params.grade;
+    App.renderAcademicSubjects(params.grade);
+    show(screenId, { fromPopstate: true });
+    return;
+  }
   if (screenId === 'screen-quiz-levels') {
     State._quizSection = params.section;
     if (State._quizTree) App.renderQuizLevels();
@@ -1543,35 +1583,75 @@ const App = {
     App.closeStudentPhoneModal();
   },
 
+  // "دعم التعلم والتحصيل" — native screen now (was a separate /academic/
+  // static page reached via a full page navigation, which is exactly what
+  // caused the white-flash/hang jumping into and back out of it). Kept the
+  // localStorage write: /academic/biology-g1/ is still a separate static
+  // page and falls back to reading this if the student's real session
+  // somehow isn't present when it loads.
   goToAcademic() {
     const user = State.student || State.admin || {};
     const name = user.name || user.admin_name || '';
     const role = State.student ? 'student' : (State.admin ? 'admin' : '');
     localStorage.setItem('lg_academic_user', JSON.stringify({ name, role }));
-    // Same branded spinner screen used everywhere else (startCapabilities,
-    // quiz/test loads, login) instead of a one-off body-opacity fade, so the
-    // transition into /academic (a separate static page, served clean via
-    // express.static's own directory index — no .html) feels identical to
-    // every other in-app loading transition, with no blank flash.
-    // Shown immediately (not the debounced showLoadingScreen()) — paints
-    // the branded spinner for one frame so the hard navigation below never
-    // reads as a blank flash, then navigates on the very next frame instead
-    // of waiting out a fixed artificial delay.
-    // Absolute path, not relative "academic/index.html" — the SPA can be on
-    // any of its own deep clean URLs (e.g. /diagnostic/section) when this
-    // fires, and a relative path would resolve underneath THAT path instead
-    // of the site root. Trailing slash included — express.static 301-redirects
-    // "/academic" → "/academic/" to resolve its directory index, so navigating
-    // straight to the slash form skips that extra round trip.
-    _showLoadingScreenNow('جارٍ التحميل…');
-    requestAnimationFrame(() => { window.location.href = '/academic/'; });
+    show('screen-academic');
   },
 
-  // Same branded loading screen before navigating out to the separate
-  // /study static site — mirrors goToAcademic() exactly.
+  selectAcademicGrade(slug) {
+    State._academicGrade = slug;
+    App.renderAcademicSubjects(slug);
+    show('screen-academic-subjects');
+  },
+
+  renderAcademicSubjects(slug) {
+    const GRADE_NAMES = { g10: 'أول ثانوي', g11: 'ثاني ثانوي', g12: 'ثالث ثانوي' };
+    const name = GRADE_NAMES[slug] || slug;
+    const titleEl = document.getElementById('acad-subjects-title');
+    const labelEl = document.getElementById('acad-subjects-label');
+    if (titleEl) titleEl.textContent = name;
+    if (labelEl) labelEl.textContent = 'المواد الدراسية — ' + name;
+    // Only biology is live today, and only for أول ثانوي (g10) — same gate
+    // the old /academic/ static page enforced before linking into
+    // /academic/biology-g1/, which stays a separate static page (its own
+    // sizeable interactive lesson content, out of scope for this merge).
+    const SUBJECTS = [
+      { icon: '📐', name: 'الرياضيات' },
+      { icon: '🔬', name: 'الأحياء', href: slug === 'g10' ? '/academic/biology-g1/' : null },
+      { icon: '⚡', name: 'الفيزياء' },
+      { icon: '🧪', name: 'الكيمياء' },
+      { icon: '🌐', name: 'اللغة الإنجليزية' },
+      { icon: '📖', name: 'اللغة العربية' },
+    ];
+    const listEl = document.getElementById('acad-subjects-list');
+    if (!listEl) return;
+    listEl.innerHTML = SUBJECTS.map(s => `
+      <div class="service-card ${s.href ? 'active' : 'disabled'}" ${s.href ? `onclick="App.goToExternal('${s.href}')"` : ''}>
+        <div class="service-card-icon">${s.icon}</div>
+        <div class="service-card-info">
+          <div class="service-card-name">${escapeHtml(s.name)}</div>
+        </div>
+        <span class="service-badge ${s.href ? 'badge-active' : 'badge-soon'}">${s.href ? 'متاح' : 'قريباً'}</span>
+      </div>`).join('');
+  },
+
+  // "المذاكرة والتدريبات" — native screen now (was the separate /study/
+  // static page). Mirrors goToAcademic() above.
   goToStudy() {
+    show('screen-study');
+  },
+
+  openLessons() {
+    show('screen-lessons');
+  },
+
+  // Hands off to a page this merge deliberately leaves as a separate static
+  // site (individual lesson content, the training-quizzes mini-app, or the
+  // biology-g1 subject) — same branded spinner used everywhere else in the
+  // app instead of a blank-white hard navigation, shown for one frame before
+  // the navigation itself so it never reads as a flash.
+  goToExternal(url) {
     _showLoadingScreenNow('جارٍ التحميل…');
-    requestAnimationFrame(() => { window.location.href = '/study/'; });
+    requestAnimationFrame(() => { window.location.href = url; });
   },
 
   async startCapabilities() {
@@ -6164,6 +6244,11 @@ async function _restoreFromPathInner(screenId, params) {
 
     case 'screen-support-plan': App.showSupportPlan(); return true;
     case 'screen-training-plan': App.showSupportPlan(); show('screen-training-plan'); return true;
+
+    case 'screen-academic': show('screen-academic'); return true;
+    case 'screen-academic-subjects': App.selectAcademicGrade(params.grade); return true;
+    case 'screen-study': show('screen-study'); return true;
+    case 'screen-lessons': show('screen-lessons'); return true;
 
     // The take/result screens are a single timed attempt in progress —
     // same anti-cheat reasoning as the diagnostic test above.

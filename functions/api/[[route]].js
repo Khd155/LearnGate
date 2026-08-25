@@ -213,13 +213,14 @@ async function ensureCoreTables(DB) {
 }
 
 // Every school gets a stable 2-digit numeric prefix, assigned once (lowest
-// unused 01-99) the first time anything needs it and persisted on its
+// unused 01-98) the first time anything needs it and persisted on its
 // `schools` row from then on — not derived from the name, since two schools
 // can share a prefix of their name but never their assigned code. Creates
 // the school's row if it doesn't exist yet (schools are otherwise only
 // created explicitly via POST /api/dev/schools, but nothing here should
-// depend on that having happened first). 99 schools is the ceiling this
-// 2-digit scheme supports.
+// depend on that having happened first). Capped at 98, not 99 — "99" is
+// reserved for company-wide ('*') admin/director accounts, see
+// COMPANY_WIDE_CODE_PREFIX below.
 async function getOrAssignSchoolCode(DB, schoolName) {
   let row = await DB.prepare('SELECT id, code FROM schools WHERE name = ?').bind(schoolName).first();
   if (!row) {
@@ -232,8 +233,8 @@ async function getOrAssignSchoolCode(DB, schoolName) {
   const { results } = await DB.prepare('SELECT code FROM schools WHERE code IS NOT NULL').all();
   const used = new Set(results.map(r => r.code));
   let next = 1;
-  while (next <= 99 && used.has(String(next).padStart(2, '0'))) next++;
-  if (next > 99) throw new Error('تجاوز الحد الأقصى لعدد المدارس المدعومة (99) في نظام الترقيم التلقائي');
+  while (next <= 98 && used.has(String(next).padStart(2, '0'))) next++;
+  if (next > 98) throw new Error('تجاوز الحد الأقصى لعدد المدارس المدعومة (98) في نظام الترقيم التلقائي');
   const newCode = String(next).padStart(2, '0');
   await DB.prepare('UPDATE schools SET code = ? WHERE id = ?').bind(newCode, row.id).run();
   return newCode;
@@ -250,6 +251,25 @@ async function generateStudentCode(DB, schoolName) {
     const suffix = String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
     const candidate = prefix + suffix;
     const exists = await DB.prepare('SELECT 1 FROM students WHERE code = ?').bind(candidate).first();
+    if (!exists) return candidate;
+  }
+  throw new Error('تعذّر توليد كود فريد بعد عدة محاولات — حاول مرة أخرى');
+}
+
+// Admin/director codes follow the same "prefix + 8 random digits" shape as
+// students, checked against the `admins` table instead. A company-wide
+// ('*') account has no real school to derive a prefix from, so it gets the
+// fixed reserved prefix below rather than colliding with — or squatting a
+// slot that could otherwise go to — a real school.
+const COMPANY_WIDE_CODE_PREFIX = '99';
+async function generateAdminCode(DB, schoolName) {
+  const prefix = (schoolName && schoolName !== '*')
+    ? await getOrAssignSchoolCode(DB, schoolName)
+    : COMPANY_WIDE_CODE_PREFIX;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const suffix = String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+    const candidate = prefix + suffix;
+    const exists = await DB.prepare('SELECT 1 FROM admins WHERE code = ?').bind(candidate).first();
     if (!exists) return candidate;
   }
   throw new Error('تعذّر توليد كود فريد بعد عدة محاولات — حاول مرة أخرى');
@@ -962,7 +982,31 @@ export async function onRequest({ request, env }) {
     if (resource === 'students') {
       try { await DB.prepare("ALTER TABLE students ADD COLUMN phone TEXT DEFAULT ''").run(); } catch {}
 
-      if (method === 'GET') {
+      // GET /api/students/generate-code — JWT-authenticated equivalent of
+      // /api/dev/generate-student-code, for the real admin dashboard's own
+      // "Add Student" modal (which only ever holds an admin/director JWT,
+      // never the dev key). A school-scoped admin/director is always forced
+      // to their own JWT school, same rule as everywhere else in this file;
+      // only dev or a '*' director may pass ?school= to generate for a
+      // school they're not personally scoped to. MUST be checked before the
+      // plain `method === 'GET'` list handler below, which never looks at
+      // `sub` and would otherwise swallow this request as "list students"
+      // before this block ever ran.
+      if (sub === 'generate-code' && method === 'GET') {
+        const gcClaims = await verifyToken(request, env, DB);
+        if (!gcClaims || !['admin','director','dev'].includes(gcClaims.role)) return err('غير مصرح', 401, CORS);
+        const gcSchool = (gcClaims.role !== 'dev' && gcClaims.school && gcClaims.school !== '*')
+          ? gcClaims.school : school;
+        if (!gcSchool) return err('المدرسة مطلوبة', 400, CORS);
+        try {
+          const code = await generateStudentCode(DB, gcSchool);
+          return ok({ code }, 200, CORS);
+        } catch (e) {
+          return err(e.message || 'تعذّر توليد الكود', 500, CORS);
+        }
+      }
+
+      if (method === 'GET' && !sub) {
         const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         let q = 'SELECT * FROM students';
@@ -2925,10 +2969,25 @@ export async function onRequest({ request, env }) {
         return ok({ admins: results }, 200, CORS);
       }
 
+      // GET /api/dev/generate-admin-code?school=X — same idea as
+      // generate-student-code below, checked against `admins` instead.
+      // `school` may be a real school name or the literal '*' (super admin).
+      if (sub === 'generate-admin-code' && method === 'GET') {
+        const genAdminSchool = (url.searchParams.get('school') || '').trim();
+        if (!genAdminSchool) return err('المدرسة مطلوبة', 400, CORS);
+        try {
+          const code = await generateAdminCode(DB, genAdminSchool);
+          return ok({ code }, 200, CORS);
+        } catch (e) {
+          return err(e.message || 'تعذّر توليد الكود', 500, CORS);
+        }
+      }
+
       // POST /api/dev/admins — add admin
       if (sub === 'admins' && method === 'POST') {
         const { name, code, school: adminSchool, role: adminRole } = await request.json();
         if (!name || !code) return err('الاسم والرمز مطلوبان', 400, CORS);
+        if (!/^\d{10}$/.test(code)) return err('رمز الدخول يجب أن يكون 10 أرقام', 400, CORS);
         // Ensure role column exists (idempotent migration)
         try { await DB.prepare("ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'").run(); } catch {}
         const aid = crypto.randomUUID();
@@ -3061,6 +3120,7 @@ export async function onRequest({ request, env }) {
       if (sub === 'students' && method === 'POST') {
         const { name, code, school: bodySchool } = await request.json();
         if (!name || !code) return err('الاسم والرمز مطلوبان', 400, CORS);
+        if (!/^\d{10}$/.test(code)) return err('رمز الدخول يجب أن يكون 10 أرقام', 400, CORS);
         const sid = crypto.randomUUID();
         const now = new Date().toISOString();
         try {

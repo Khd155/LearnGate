@@ -347,18 +347,17 @@
             <input type="text" id="st-name" class="form-input" placeholder="الاسم الكامل">
           </div>
           <div class="form-group">
-            <div class="form-label">رقم الدخول (١٠ أرقام)</div>
+            <div class="form-label">رقم الدخول (١٠ أرقام) — بالضغط على 🎲</div>
             <div style="display:flex;gap:6px;">
-              <input type="text" id="st-code" class="form-input" placeholder="1234567890"
-                     maxlength="10" inputmode="numeric" style="flex:1;"
-                     oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+              <input type="text" id="st-code" class="form-input" placeholder="اضغط 🎲 للتوليد"
+                     maxlength="10" inputmode="numeric" style="flex:1;" readonly
                      onkeydown="if(event.key==='Enter') Dev.addStudent()">
-              <button type="button" class="btn btn-sm" title="توليد رقم دخول تلقائي (بادئة المدرسة + 8 أرقام عشوائية) — يمكنك تعديله يدوياً بعد ذلك، مثلاً لإدخال السجل المدني الفعلي" onclick="Dev.generateStudentCode()">🎲</button>
+              <button type="button" class="btn btn-sm" title="توليد رقم دخول تلقائي (بادئة المدرسة + 8 أرقام عشوائية، مفحوص ضد التكرار)" onclick="Dev.generateStudentCode()">🎲 توليد</button>
             </div>
           </div>
           <div class="form-group">
             <div class="form-label">المدرسة</div>
-            <select id="st-school" class="form-select"></select>
+            <select id="st-school" class="form-select" onchange="document.getElementById('st-code').value=''"></select>
           </div>
           <button class="btn btn-success" onclick="Dev.addStudent()">+ إضافة</button>
         </div>
@@ -428,7 +427,10 @@
           </div>
           <div class="form-group">
             <div class="form-label">رقم الدخول (١٠ أرقام)</div>
-            <input type="text" id="new-admin-code" class="form-input" placeholder="1234567890" maxlength="10" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="new-admin-code" class="form-input" placeholder="1234567890" maxlength="10" inputmode="numeric" style="flex:1;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+              <button type="button" class="btn btn-sm" title="توليد رقم دخول تلقائي (بادئة المدرسة + 8 أرقام عشوائية)" onclick="Dev.generateAdminCode()">🎲</button>
+            </div>
           </div>
           <div class="form-group">
             <div class="form-label">المدرسة</div>
@@ -1374,8 +1376,8 @@ const Dev = {
     const errEl  = document.getElementById('add-st-err');
     const okEl   = document.getElementById('add-st-ok');
     if (!name) { showAlert('add-st-err', 'أدخل اسم الطالب'); return; }
-    if (!/^\d{10}$/.test(code)) { showAlert('add-st-err', 'رقم السجل يجب أن يكون ١٠ أرقام'); return; }
     if (!school) { showAlert('add-st-err', 'اختر مدرسة'); return; }
+    if (!/^\d{10}$/.test(code)) { showAlert('add-st-err', 'اضغط 🎲 توليد لإنشاء رقم دخول أولاً'); return; }
     try {
       await apiDev('/dev/students', { method: 'POST', body: JSON.stringify({ name, code, school }) });
       document.getElementById('st-name').value = '';
@@ -1646,6 +1648,15 @@ const Dev = {
     await apiDev(`/dev/schools/${school.id}`, { method: 'DELETE' });
     showToast('تم الحذف');
     Dev.loadStats(); Dev.populateSchoolSelects();
+  },
+
+  async generateAdminCode() {
+    const school = document.getElementById('new-admin-school').value;
+    if (!school) { showAlert('add-admin-err', 'اختر مدرسة أولاً'); return; }
+    try {
+      const { code } = await apiDev('/dev/generate-admin-code?school=' + encodeURIComponent(school));
+      document.getElementById('new-admin-code').value = code;
+    } catch (e) { showAlert('add-admin-err', e.message); }
   },
 
   async addAdmin() {

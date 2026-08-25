@@ -19,6 +19,7 @@ export default function AddStudentModal({ open, onOpenChange }: Props) {
   const [phone, setPhone] = useState('');
   const [errors, setErrors] = useState<{ name?: string; code?: string }>({});
   const [submitting, setSubmitting] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const reset = () => {
     setName('');
@@ -27,11 +28,24 @@ export default function AddStudentModal({ open, onOpenChange }: Props) {
     setErrors({});
   };
 
+  const generateCode = async () => {
+    setGenerating(true);
+    setErrors((prev) => ({ ...prev, code: undefined }));
+    try {
+      const res = await api.get<{ code: string }>('/students/generate-code');
+      setCode(res.code);
+    } catch (e) {
+      setErrors((prev) => ({ ...prev, code: e instanceof Error ? e.message : 'تعذّر توليد الكود' }));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const validate = () => {
     const next: { name?: string; code?: string } = {};
     if (!name.trim()) next.name = 'الاسم مطلوب';
     else if (name.length > 100) next.name = 'الاسم طويل جداً (الحد 100 حرف)';
-    if (!/^\d{10}$/.test(code)) next.code = 'رقم الدخول يجب أن يكون 10 أرقام';
+    if (!/^\d{10}$/.test(code)) next.code = 'اضغط "توليد" لإنشاء رقم دخول أولاً';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -88,13 +102,24 @@ export default function AddStudentModal({ open, onOpenChange }: Props) {
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                 رقم الدخول
               </label>
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 font-mono text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
-                placeholder="1234567890"
-                inputMode="numeric"
-              />
+              <div className="flex gap-2">
+                <input
+                  value={code}
+                  readOnly
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-mono text-sm outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  placeholder="اضغط توليد لإنشاء رقم"
+                  inputMode="numeric"
+                />
+                <button
+                  type="button"
+                  onClick={generateCode}
+                  disabled={generating}
+                  className="shrink-0 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-60 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
+                  title="توليد رقم دخول تلقائي (بادئة المدرسة + 8 أرقام عشوائية، مفحوص ضد التكرار)"
+                >
+                  {generating ? '…' : '🎲 توليد'}
+                </button>
+              </div>
               {errors.code && <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{errors.code}</p>}
             </div>
             <div>

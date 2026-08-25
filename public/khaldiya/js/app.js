@@ -571,10 +571,36 @@ let _restoringFromPath = false;
 // waits (session restore, capabilities/plan load, quiz/test submission) — its
 // caption is set per-call so it never says "جارٍ تسجيل الدخول" (logging in)
 // for something that isn't actually a login.
-function showLoadingScreen(text) {
+//
+// Shows it right away — no debounce. Only for a wait that's already known to
+// be short and fixed (a deliberate small setTimeout before navigating to a
+// separate static page, giving the browser one paint to show something
+// branded instead of a blank flash) rather than a network request of
+// unknown duration. showLoadingScreen() below is what every network-bound
+// call site uses instead.
+let _loadingTimer = null;
+function _showLoadingScreenNow(text) {
+  clearTimeout(_loadingTimer);
+  _loadingTimer = null;
   const el = document.getElementById('screen-loading-text');
   if (el) el.textContent = text;
   show('screen-loading');
+}
+
+// Debounced (400ms): the spinner only ever appears once whatever's
+// happening — a fetch, a session restore — has genuinely taken longer than
+// that. A fast connection or already-cached data finishes well under 400ms,
+// so the transition is instant and the spinner never appears at all; only
+// real network slowness shows it. Any show() call in the meantime (the
+// request finished, or navigation happened another way) cancels the
+// pending timer via show()'s own cleanup below, so a stale spinner can
+// never pop up over a screen the student has already moved on to.
+function showLoadingScreen(text) {
+  clearTimeout(_loadingTimer);
+  _loadingTimer = setTimeout(() => {
+    _loadingTimer = null;
+    _showLoadingScreenNow(text);
+  }, 400);
 }
 
 // `opts.fromPopstate` — set only by the popstate listener below. The
@@ -585,6 +611,11 @@ function showLoadingScreen(text) {
 // restoration) leaves this false/unset, which is the default.
 function show(id, opts) {
   opts = opts || {};
+  // Whatever showLoadingScreen()'s 400ms timer was waiting on is over now —
+  // the screen is changing one way or another. Cancel it so a delayed
+  // spinner can never pop up after the fact over whatever's shown next.
+  clearTimeout(_loadingTimer);
+  _loadingTimer = null;
   const current = document.querySelector('.screen.active');
   const skipStackPush = _isBackNav || opts.fromPopstate;
   if (current && current.id !== id && !skipStackPush && !_NAV_STACK_EXCLUDE.has(current.id)) {
@@ -1516,14 +1547,18 @@ const App = {
     // quiz/test loads, login) instead of a one-off body-opacity fade, so the
     // transition into academic/index.html (a separate static page) feels
     // identical to every other in-app loading transition, with no blank flash.
-    showLoadingScreen('جارٍ التحميل…');
+    // Shown immediately (not the debounced showLoadingScreen()) — this
+    // 220ms wait is fixed and always happens, so debouncing it would just
+    // mean it never gets a chance to render before the hard navigation
+    // fires, reintroducing the blank flash this was written to avoid.
+    _showLoadingScreenNow('جارٍ التحميل…');
     setTimeout(() => { window.location.href = 'academic/index.html'; }, 220);
   },
 
   // Same branded loading screen before navigating out to the separate
   // study/index.html static site — mirrors goToAcademic() exactly.
   goToStudy() {
-    showLoadingScreen('جارٍ التحميل…');
+    _showLoadingScreenNow('جارٍ التحميل…');
     setTimeout(() => { window.location.href = 'study/index.html'; }, 220);
   },
 

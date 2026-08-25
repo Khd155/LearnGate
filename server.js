@@ -136,14 +136,25 @@ app.use(express.static(PUBLIC_DIR, {
   extensions: ['html'],
   setHeaders: (res, filePath) => {
     // Hashed admin-app assets are immutable — safe to cache forever.
-    // Everything else (the SPA's index.html/app.js/dev.html) must always
-    // revalidate, or phones can keep running a stale cached copy for days
-    // after a deploy and silently miss client-side bug fixes.
     if (filePath.includes(`${path.sep}admin${path.sep}assets${path.sep}`)) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    } else {
-      res.setHeader('Cache-Control', 'no-cache');
+      return;
     }
+    // HTML documents (index.html, academic/study/lessons/index.html, dev.html)
+    // must always revalidate, or phones can keep running a stale cached copy
+    // for days after a deploy and silently miss client-side bug fixes.
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+      return;
+    }
+    // Everything else (js/app.js, css/style.css, logo/*.png, fonts…) isn't
+    // filename-hashed, so it can't be cached forever, but forcing a
+    // revalidation round-trip for these on every single-page-app navigation
+    // and every hop into/out of the /academic, /study and /lessons static
+    // pages is exactly the "reload CSS/JS/images on every transition" lag
+    // students were hitting. A short real cache absorbs that churn while
+    // still picking up a deploy's changes within a minute.
+    res.setHeader('Cache-Control', 'public, max-age=60, must-revalidate');
   },
 }));
 

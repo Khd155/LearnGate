@@ -1553,23 +1553,25 @@ const App = {
     // transition into /academic (a separate static page, served clean via
     // express.static's own directory index — no .html) feels identical to
     // every other in-app loading transition, with no blank flash.
-    // Shown immediately (not the debounced showLoadingScreen()) — this
-    // 220ms wait is fixed and always happens, so debouncing it would just
-    // mean it never gets a chance to render before the hard navigation
-    // fires, reintroducing the blank flash this was written to avoid.
+    // Shown immediately (not the debounced showLoadingScreen()) — paints
+    // the branded spinner for one frame so the hard navigation below never
+    // reads as a blank flash, then navigates on the very next frame instead
+    // of waiting out a fixed artificial delay.
     // Absolute path, not relative "academic/index.html" — the SPA can be on
     // any of its own deep clean URLs (e.g. /diagnostic/section) when this
     // fires, and a relative path would resolve underneath THAT path instead
-    // of the site root.
+    // of the site root. Trailing slash included — express.static 301-redirects
+    // "/academic" → "/academic/" to resolve its directory index, so navigating
+    // straight to the slash form skips that extra round trip.
     _showLoadingScreenNow('جارٍ التحميل…');
-    setTimeout(() => { window.location.href = '/academic'; }, 220);
+    requestAnimationFrame(() => { window.location.href = '/academic/'; });
   },
 
   // Same branded loading screen before navigating out to the separate
   // /study static site — mirrors goToAcademic() exactly.
   goToStudy() {
     _showLoadingScreenNow('جارٍ التحميل…');
-    setTimeout(() => { window.location.href = '/study'; }, 220);
+    requestAnimationFrame(() => { window.location.href = '/study/'; });
   },
 
   async startCapabilities() {
@@ -6220,8 +6222,8 @@ async function _routeToCurrentPath() {
 
 // Fast path: skip auth API call when token is still valid
 async function _quickRestoreSession(sess) {
-  // If returning from an academic/lesson/quiz sub-page, skip loading screen entirely
-  const _fromSubPage = /\/(academic|lessons|quizzes)\//.test(document.referrer);
+  // If returning from an academic/study/lesson/quiz sub-page, skip loading screen entirely
+  const _fromSubPage = /\/(academic|study|lessons|quizzes)\//.test(document.referrer);
   if (!_fromSubPage) showLoadingScreen('جارٍ تسجيل الدخول…');
 
   const _minDelay = new Promise(r => setTimeout(r, _fromSubPage ? 0 : 700));

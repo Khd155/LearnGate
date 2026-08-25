@@ -693,14 +693,34 @@ function show(id, opts) {
     el.classList.add('active');
     // Always land at the very top of the new screen — instant, not smooth,
     // so it never reads as a lagging scroll animation on top of the screen
-    // swap itself. Also zero out the screen's own scrollTop and that of any
-    // internal scroll container it carries (e.g. a long FAQ list) — on some
-    // mobile browsers a container that was mid-scroll keeps its scrollTop
-    // across the display:none/active toggle, so window.scrollTo() alone
-    // isn't always enough to guarantee the view starts at its first item.
+    // swap itself. html/body both get `height:100%` (see style.css) with no
+    // overflow-y set, which computes to 'auto' on both — so on any screen
+    // whose content overflows the viewport, BODY itself becomes the actual
+    // scrolling box, entirely independent of window.scrollY/documentElement
+    // (confirmed live: setting document.body.scrollTop directly moves it
+    // while window.scrollY stays 0). window.scrollTo() alone never touched
+    // that offset, which is exactly why long screens like
+    // screen-academic-subjects/screen-faq kept opening mid-scroll after
+    // being reached from a scrolled-down screen. Also zero out the screen's
+    // own scrollTop and that of any internal scroll container it carries
+    // (e.g. a long FAQ list) — on some mobile browsers a container that was
+    // mid-scroll keeps its scrollTop across the display:none/active toggle.
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
     el.scrollTop = 0;
     el.querySelectorAll('.page-wrap, [data-scroll-reset]').forEach(c => { c.scrollTop = 0; });
+    // Re-assert one frame later: some screens render/measure content that
+    // changes document height right after this point, and Chrome's scroll
+    // anchoring can shift the scroll position again while that layout
+    // settles — a plain synchronous reset above isn't always the last word.
+    requestAnimationFrame(() => {
+      if (!el.classList.contains('active')) return;
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      el.scrollTop = 0;
+    });
     _makeCardsAccessible(el);
   }
 

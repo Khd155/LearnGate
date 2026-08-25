@@ -114,7 +114,11 @@ p, span, div, button, input, label, td, th {
 }
 
 /* ── Screen System ────────────────────────────────────── */
-.screen { display: none; min-height: 100vh; flex-direction: column; }
+/* overflow-anchor: none — screens toggle display:none/flex as siblings in
+   the same document, so switching one drastically changes total page height.
+   Without this, Chrome's scroll anchoring can "helpfully" shift window.scrollY
+   away from the 0 that show() just set, fighting the top-of-screen reset. */
+.screen { display: none; min-height: 100vh; flex-direction: column; overflow-anchor: none; }
 .screen.active {
   display: flex;
   animation: screenIn .28s cubic-bezier(.22,1,.36,1) both;

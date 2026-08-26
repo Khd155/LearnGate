@@ -976,6 +976,55 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .qz-result-card .test-progress-bar-wrap { margin: 0 0 14px; }
 .qz-result-detail { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 24px; }
 .qz-result-actions { display: flex; flex-direction: column; gap: 10px; }
+.qz-review-toggle { margin-bottom: 14px; }
+
+/* ── Smart Feedback & Tiered Hinting Engine — review section ──────────────
+   Reached only via "🔍 مراجعة الأخطاء والشروحات التعليمية" on the result
+   screen; never shown during quiz-take. Uses the platform's own surface/
+   shadow/radius tokens, plus the exact literal accent colors specified for
+   the correct/wrong/hint states (kept as-is, matching the existing
+   .score-low/.score-mid/.score-high precedent of not re-deriving these
+   semantic colors from the theme tokens). */
+.qz-review-list { max-width: 560px; margin: 18px auto 0; display: flex; flex-direction: column; gap: 14px; }
+.qz-rv-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: var(--shadow); padding: 18px 18px 16px; text-align: start;
+  animation: slideUpFadeQz .3s ease;
+}
+@keyframes slideUpFadeQz { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .qz-rv-card { animation: none; } }
+.qz-rv-num { font-size: 12.5px; font-weight: 800; color: var(--muted); margin-bottom: 6px; }
+.qz-rv-text { font-size: 15.5px; font-weight: 800; color: var(--text); line-height: 1.6; margin-bottom: 12px; }
+.qz-rv-opts { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.qz-rv-opt {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: 10px; font-size: 13.5px; background: var(--bg-tint); color: var(--text);
+  border: 1px solid transparent;
+}
+.qz-rv-opt-letter {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--surface);
+  display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 800; color: var(--muted);
+}
+.qz-rv-opt span:nth-child(2) { flex: 1; }
+.qz-rv-opt-mark { flex-shrink: 0; }
+.qz-rv-opt-correct { background: #F0FDF4; color: #065F46; border: 1px solid #6EE7B7; }
+.qz-rv-opt-wrong { background: #FEF2F2; color: #991B1B; border: 1px solid #FCA5A5; }
+
+.qz-rv-fb { margin-top: 12px; background: var(--bg-tint); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.qz-rv-fb-row { display: flex; align-items: flex-start; gap: 10px; }
+.qz-rv-fb-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.qz-rv-fb-row b { display: block; font-size: 11.5px; font-weight: 800; color: #1E293B; margin-bottom: 2px; }
+.qz-rv-fb-row p { margin: 0; font-size: 13.5px; color: var(--text); line-height: 1.7; }
+.qz-rv-golden { background: rgba(245,158,11,.08); border-inline-start: 3px solid #F59E0B; border-radius: 0 8px 8px 0; padding: 8px 10px; margin: -4px; }
+
+.qz-rv-hint {
+  margin-top: 12px; background: #EEF2FF; border: 1.5px solid #6366F1; border-radius: 12px;
+  padding: 14px 16px; animation: slideUpFadeQz .3s ease;
+}
+@media (prefers-reduced-motion: reduce) { .qz-rv-hint { animation: none; } }
+.qz-rv-hint-head { font-weight: 800; font-size: 13.5px; color: #4338CA; margin-bottom: 6px; }
+.qz-rv-hint-text { font-size: 13.5px; color: #3730A3; line-height: 1.7; }
+.qz-rv-hint-note { font-size: 12px; color: #6366F1; margin-top: 8px; font-weight: 700; }
 
 /* Slimmer welcome banner — the journey hero carries the "where am I" job now */
 .welcome-banner-slim { padding: 16px 22px; margin-bottom: 16px; }

@@ -658,6 +658,12 @@ export async function onRequest({ request, env }) {
         ans INTEGER NOT NULL, created_at TEXT NOT NULL
       )`).run();
       try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_qsq_skill ON quiz_skill_questions(quiz_skill_id, qnum)`).run(); } catch {}
+      // Optional educational-feedback fields (Smart Feedback & Tiered Hinting
+      // Engine) — nullable, so skills without this content still work exactly
+      // as before. Populated only via POST .../import for now.
+      for (const col of ['relation', 'explanation', 'golden_rule', 'smart_hint']) {
+        try { await DB.prepare(`ALTER TABLE quiz_skill_questions ADD COLUMN IF NOT EXISTS ${col} TEXT`).run(); } catch {}
+      }
       await DB.prepare(`CREATE TABLE IF NOT EXISTS skill_progress (
         id TEXT PRIMARY KEY, student_id TEXT NOT NULL, quiz_skill_id TEXT NOT NULL,
         section TEXT NOT NULL, level TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'not_started',
@@ -2471,7 +2477,10 @@ export async function onRequest({ request, env }) {
         return ok({ skill: { id: skillRow.id, section: skillRow.section, level: skillRow.level, skillName: skillRow.skill_name }, questions }, 200, CORS);
       }
 
-      // POST /api/quiz-skills/:quizSkillId/import — admin/dev upload {action:'replace'|'append', questions:[{text,opt1..4,ans}]}
+      // POST /api/quiz-skills/:quizSkillId/import — admin/dev upload
+      // {action:'replace'|'append', questions:[{text,opt1..4,ans,relation?,explanation?,golden_rule?,smart_hint?}]}
+      // The 4 educational-feedback fields are optional — omitting them keeps
+      // a skill's questions working exactly as before (no review content).
       if (resource === 'quiz-skills' && sub && subsub === 'import' && method === 'POST') {
         const claims = await verifyToken(request, env, DB);
         const isDev = claims?.role === 'dev' || authDev(request, env);
@@ -2485,13 +2494,16 @@ export async function onRequest({ request, env }) {
         const existingNums = new Set(existing.map(r => r.qnum));
         const now = new Date().toISOString();
         const stmt = DB.prepare(
-          `INSERT INTO quiz_skill_questions (id, quiz_skill_id, qnum, text, opt1, opt2, opt3, opt4, ans, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO quiz_skill_questions (id, quiz_skill_id, qnum, text, opt1, opt2, opt3, opt4, ans, relation, explanation, golden_rule, smart_hint, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
         let added = 0;
         for (const q of rows) {
           if (existingNums.has(q.qnum)) continue;
-          await stmt.bind(crypto.randomUUID(), sub, q.qnum, q.text, q.opts[0], q.opts[1], q.opts[2], q.opts[3], q.ans, now).run();
+          await stmt.bind(
+            crypto.randomUUID(), sub, q.qnum, q.text, q.opts[0], q.opts[1], q.opts[2], q.opts[3], q.ans,
+            q.relation || null, q.explanation || null, q.golden_rule || null, q.smart_hint || null, now
+          ).run();
           added++;
         }
         await logEvent(DB, { level: 'info', category: 'quiz-skills', message: `استيراد أسئلة المهارة ${skillRow.skill_name} (${skillRow.section}/${skillRow.level}) — ${added} مضافة`, user_name: claims?.name || '', user_role: claims?.role || 'dev', school: claims?.school || '' });
@@ -2507,7 +2519,7 @@ export async function onRequest({ request, env }) {
         const { answers: submitted } = await request.json();
         if (!Array.isArray(submitted)) return err('إجابات مطلوبة', 400, CORS);
         const { results: questions } = await DB.prepare(
-          'SELECT qnum, ans FROM quiz_skill_questions WHERE quiz_skill_id = ?'
+          'SELECT qnum, text, opt1, opt2, opt3, opt4, ans, relation, explanation, golden_rule, smart_hint FROM quiz_skill_questions WHERE quiz_skill_id = ?'
         ).bind(sub).all();
         const ansMap = Object.fromEntries(submitted.map(a => [Number(a.qnum), a.selected]));
         let correct = 0;
@@ -2536,7 +2548,36 @@ export async function onRequest({ request, env }) {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           ).bind(crypto.randomUUID(), claims.sub, sub, skillRow.section, skillRow.level, status, bestCorrect, total, attempts, now, now).run();
         }
-        return ok({ correct, total, pass, level: skillRow.level, section: skillRow.section }, 200, CORS);
+
+        // Smart Feedback & Tiered Hinting Engine — review content, built only
+        // AFTER grading (never exposed while the student is still solving).
+        // Easy/medium: full explanation always included for every question.
+        // Advanced: on this student's FIRST failed attempt at a given wrong
+        // question, only the smart_hint is sent (no correct answer, no
+        // explanation) so a retry is meaningful; the full explanation is
+        // only revealed once attempts >= 2. A skill with no explanation data
+        // imported yet just yields nulls, which the client renders as
+        // "no review content" (no different from before this feature).
+        const review = questions.map(q => {
+          const selectedRaw = ansMap[q.qnum];
+          const selected = (selectedRaw === undefined || selectedRaw === null || selectedRaw === 'dk') ? null : Number(selectedRaw);
+          const isCorrect = selected !== null && selected === Number(q.ans);
+          const withholdAnswer = skillRow.level === 'advanced' && !isCorrect && attempts === 1;
+          return {
+            qnum: q.qnum,
+            text: q.text,
+            opts: [q.opt1, q.opt2, q.opt3, q.opt4],
+            selected,
+            isCorrect,
+            correctIndex: withholdAnswer ? null : Number(q.ans),
+            relation: withholdAnswer ? null : (q.relation || null),
+            explanation: withholdAnswer ? null : (q.explanation || null),
+            goldenRule: withholdAnswer ? null : (q.golden_rule || null),
+            smartHint: withholdAnswer ? (q.smart_hint || null) : null,
+          };
+        });
+
+        return ok({ correct, total, pass, level: skillRow.level, section: skillRow.section, attempts, review }, 200, CORS);
       }
     }
 

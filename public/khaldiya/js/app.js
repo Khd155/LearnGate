@@ -2667,6 +2667,17 @@ const App = {
       document.getElementById('qt-result-detail').textContent = res.pass
         ? 'أحسنت! اجتزت هذه المهارة بنجاح.'
         : 'لم تحقق نسبة النجاح المطلوبة (٤ من ٥) — يمكنك إعادة المحاولة.';
+
+      // Smart Feedback & Tiered Hinting Engine — review data only ever
+      // arrives here, AFTER submission; never shown during quiz-take.
+      State._quizReview = (res.review || []).some(r => r.explanation || r.smartHint) ? res.review : null;
+      const reviewToggle = document.getElementById('qt-review-toggle');
+      const reviewList = document.getElementById('qt-review-list');
+      reviewList.style.display = 'none';
+      reviewList.innerHTML = '';
+      reviewToggle.textContent = '🔍 مراجعة الأخطاء والشروحات التعليمية';
+      reviewToggle.style.display = State._quizReview ? '' : 'none';
+
       // Patch the cached tree in-memory so gating/progress reflect this attempt
       // immediately without a full re-fetch of /api/quiz-structure.
       const levels = State._quizTree && State._quizTree[res.section];
@@ -2693,6 +2704,69 @@ const App = {
 
   retakeQuizSkill() {
     App.startQuizSkill(State.qz.quizSkillId);
+  },
+
+  // ── Smart Feedback & Tiered Hinting Engine — review section ──────────────
+  // Shown only from screen-quiz-skill-result, only on demand (button toggle),
+  // never during quiz-take. Content already arrived with the submit response
+  // (App.quizFinish), server-gated per question/attempt — this only renders
+  // what it was given, no extra request and no client-side reveal logic.
+  toggleQuizReview() {
+    const list = document.getElementById('qt-review-list');
+    const btn = document.getElementById('qt-review-toggle');
+    const opening = list.style.display === 'none';
+    if (opening) {
+      App.renderQuizReview();
+      list.style.display = 'flex';
+      btn.textContent = 'إخفاء المراجعة ▲';
+    } else {
+      list.style.display = 'none';
+      btn.textContent = '🔍 مراجعة الأخطاء والشروحات التعليمية';
+    }
+  },
+
+  renderQuizReview() {
+    const list = document.getElementById('qt-review-list');
+    const review = State._quizReview || [];
+    const letters = ['أ', 'ب', 'ج', 'د'];
+
+    list.innerHTML = review.map((r, i) => {
+      const optsHtml = r.opts.map((opt, oi) => {
+        let cls = '';
+        if (r.correctIndex !== null && oi === r.correctIndex) cls = ' qz-rv-opt-correct';
+        else if (oi === r.selected) cls = ' qz-rv-opt-wrong';
+        const mark = cls === ' qz-rv-opt-correct' ? ' ✅' : (cls === ' qz-rv-opt-wrong' ? ' ❌' : '');
+        return `<div class="qz-rv-opt${cls}"><span class="qz-rv-opt-letter">${letters[oi]}</span><span>${escapeHtml(opt)}</span><span class="qz-rv-opt-mark">${mark}</span></div>`;
+      }).join('');
+
+      let feedbackHtml;
+      if (r.smartHint) {
+        // Advanced tier, first wrong attempt: hint only, answer withheld server-side.
+        feedbackHtml = `
+          <div class="qz-rv-hint">
+            <div class="qz-rv-hint-head">💡 تلميح ذكي</div>
+            <div class="qz-rv-hint-text">${escapeHtml(r.smartHint)}</div>
+            <div class="qz-rv-hint-note">أعد محاولة هذه المهارة لكشف الشرح الكامل بعد المحاولة الثانية.</div>
+          </div>`;
+      } else if (r.explanation || r.relation || r.goldenRule) {
+        feedbackHtml = `
+          <div class="qz-rv-fb">
+            ${r.relation ? `<div class="qz-rv-fb-row"><span class="qz-rv-fb-icon">🎯</span><div><b>نوع العلاقة</b><p>${escapeHtml(r.relation)}</p></div></div>` : ''}
+            ${r.explanation ? `<div class="qz-rv-fb-row"><span class="qz-rv-fb-icon">📘</span><div><b>الشرح</b><p>${escapeHtml(r.explanation)}</p></div></div>` : ''}
+            ${r.goldenRule ? `<div class="qz-rv-fb-row qz-rv-golden"><span class="qz-rv-fb-icon">💎</span><div><b>القاعدة الذهبية</b><p>${escapeHtml(r.goldenRule)}</p></div></div>` : ''}
+          </div>`;
+      } else {
+        feedbackHtml = '';
+      }
+
+      return `
+        <div class="qz-rv-card">
+          <div class="qz-rv-num">سؤال ${i + 1}${r.isCorrect ? ' — ✅ إجابة صحيحة' : ' — ❌ إجابة خاطئة'}</div>
+          <div class="qz-rv-text">${escapeHtml(r.text)}</div>
+          <div class="qz-rv-opts">${optsHtml}</div>
+          ${feedbackHtml}
+        </div>`;
+    }).join('');
   },
 
   // ── Gap Analysis ──────────────────────────────────────────────────────────

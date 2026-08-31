@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { useDebounce } from '../lib/useDebounce';
-import { exportStudentsCsv } from '../lib/csv';
+import { exportStudentsXls } from '../lib/csv';
 import { api } from '../lib/api';
 import { resetStudentTest } from '../lib/students';
 import type { DerivedStatus } from '../lib/status';
@@ -216,7 +216,7 @@ export default function StudentsTable() {
         sort={sort}
         onSort={setSort}
         onAdd={() => setChooserOpen(true)}
-        onExport={() => exportStudentsCsv(filtered, statusOf)}
+        onExport={() => exportStudentsXls(filtered, statusOf)}
       />
 
       {selected.size > 0 && (

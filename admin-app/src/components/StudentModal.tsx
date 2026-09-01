@@ -157,6 +157,8 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
   const [deleting, setDeleting] = useState(false);
 
   const [waSending, setWaSending] = useState(false);
+  const [waOpen, setWaOpen] = useState(false);
+  const [waText, setWaText] = useState('');
 
   const [history, setHistory] = useState<Plan[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -232,18 +234,31 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
     }
   };
 
+  // Uses the general-purpose approved template (student_general_message,
+  // {{1}}=student name, {{2}}=free text) instead of a fixed template per
+  // message — so any one-off note can go out without submitting a new
+  // template to Meta for review each time.
   const sendWa = async () => {
     if (!student.phone) { pushToast('error', 'الطالب ليس لديه رقم جوال'); return; }
+    if (!waText.trim()) { pushToast('error', 'اكتب نص الرسالة أولاً'); return; }
     setWaSending(true);
     try {
       const phone = student.phone.startsWith('+') ? student.phone : '+966' + student.phone.replace(/^0/, '');
       await api.post('/sendpulse/send', {
         phones: [phone],
-        template_name: 'test_1',
+        template_name: 'student_general_message',
         language_code: 'ar',
-        components: [{ type: 'body', parameters: [{ type: 'text', text: student.name }] }],
+        components: [{
+          type: 'body',
+          parameters: [
+            { type: 'text', text: student.name },
+            { type: 'text', text: waText.trim() },
+          ],
+        }],
       });
       pushToast('success', `تم إرسال الواتساب لـ ${student.name} ✅`);
+      setWaOpen(false);
+      setWaText('');
     } catch (e) {
       pushToast('error', e instanceof ApiError ? e.message : 'تعذّر الإرسال');
     } finally {
@@ -323,15 +338,15 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
               >
                 📩 رسالة
               </button>
-              {canSendWhatsapp && (
+              {canSendWhatsapp && !waOpen && (
                 <button
                   type="button"
-                  disabled={waSending || !student.phone}
-                  onClick={sendWa}
-                  title={!student.phone ? 'لا يوجد رقم جوال' : 'إرسال واتساب ترحيبي'}
+                  disabled={!student.phone}
+                  onClick={() => setWaOpen(true)}
+                  title={!student.phone ? 'لا يوجد رقم جوال' : 'إرسال رسالة واتساب'}
                   className="rounded-xl border border-emerald-200 px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 dark:border-emerald-700 dark:text-emerald-400"
                 >
-                  {waSending ? '…' : '📲 واتساب'}
+                  📲 واتساب
                 </button>
               )}
               <button
@@ -349,6 +364,40 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
                 🗑️ حذف
               </button>
             </div>
+
+            {canSendWhatsapp && waOpen && (
+              <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-700 dark:bg-emerald-950/30">
+                <label className="mb-1.5 block text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  📲 نص رسالة الواتساب لـ {student.name}
+                </label>
+                <textarea
+                  value={waText}
+                  onChange={(e) => setWaText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setWaOpen(false); }}
+                  autoFocus
+                  rows={3}
+                  placeholder="اكتب أي رسالة تريد إرسالها…"
+                  className="w-full resize-none rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-emerald-700 dark:bg-slate-900 dark:text-white"
+                />
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={sendWa}
+                    disabled={waSending || !waText.trim()}
+                    className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {waSending ? 'جارٍ الإرسال…' : 'إرسال'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setWaOpen(false); setWaText(''); }}
+                    className="rounded-lg px-4 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* ── Plans history ── */}
             <div className="mt-6">

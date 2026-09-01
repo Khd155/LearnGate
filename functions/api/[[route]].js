@@ -3074,13 +3074,39 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
-      // PATCH /api/dev/admins/:id — update permissions (dev only)
+      // PATCH /api/dev/admins/:id — update permissions and/or role (dev only).
+      // Body may include either or both of { permissions, role }.
+      // `permissions` is validated against a fixed allow-list — junk values
+      // are silently dropped rather than stored, so the permissions table
+      // can never end up with a typo'd key nothing checks for.
+      // NOTE: 'director' role is granted edit_questions/view_diff
+      // automatically by 3 role checks elsewhere in this file regardless of
+      // these flags — toggling those two off for a director is metadata
+      // only; change the role itself to actually restrict a director.
       if (sub === 'admins' && subsub && method === 'PATCH') {
         try { await DB.prepare("ALTER TABLE admins ADD COLUMN permissions TEXT DEFAULT '[]'").run(); } catch {}
-        const { permissions } = await request.json();
-        if (!Array.isArray(permissions)) return err('صلاحيات غير صالحة', 400, CORS);
-        await DB.prepare('UPDATE admins SET permissions = ? WHERE id = ?').bind(JSON.stringify(permissions), subsub).run();
-        await logEvent(DB, { level: 'info', category: 'admin', message: `تعديل صلاحيات مشرف`, user_role: 'dev' });
+        const ALLOWED_PERMISSIONS = new Set([
+          'edit_questions', 'view_diff', 'send_whatsapp',
+          'manage_students', 'export_students', 'send_broadcast', 'reply_tickets',
+        ]);
+        const body = await request.json();
+        const updates = [];
+        const binds = [];
+        if (body.permissions !== undefined) {
+          if (!Array.isArray(body.permissions)) return err('صلاحيات غير صالحة', 400, CORS);
+          const cleaned = Array.from(new Set(body.permissions.filter(p => ALLOWED_PERMISSIONS.has(p))));
+          updates.push('permissions = ?');
+          binds.push(JSON.stringify(cleaned));
+        }
+        if (body.role !== undefined) {
+          if (!['admin', 'director'].includes(body.role)) return err('دور غير صالح', 400, CORS);
+          updates.push('role = ?');
+          binds.push(body.role);
+        }
+        if (!updates.length) return err('لا يوجد شيء لتحديثه', 400, CORS);
+        binds.push(subsub);
+        await DB.prepare(`UPDATE admins SET ${updates.join(', ')} WHERE id = ?`).bind(...binds).run();
+        await logEvent(DB, { level: 'info', category: 'admin', message: `تعديل صلاحيات/دور مشرف`, user_role: 'dev' });
         return ok({ ok: true }, 200, CORS);
       }
 

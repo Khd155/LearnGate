@@ -1399,6 +1399,7 @@ const Dev = {
             <td style="white-space:nowrap;">
               <button class="btn btn-outline btn-sm" title="توليد رابط اختبار لمرة واحدة" onclick="Dev.generateTestAccessLink('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔗 اختبار</button>
               <button class="btn btn-outline btn-sm" title="إرسال رابط الحساب عبر واتساب" onclick="Dev.sendAccountLinkWhatsApp('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}','${escapeHtml(s.phone || '')}','${escapeHtml(s.school || '')}')">📲 واتساب</button>
+              <button class="btn btn-outline btn-sm" title="إرسال رسالة واتساب حرة (أي نص)" onclick="Dev.sendGeneralWhatsApp('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}','${escapeHtml(s.phone || '')}')">💬 رسالة واتساب</button>
               <button class="btn btn-outline btn-sm" title="هل فتح الطالب رابط الحساب؟" onclick="Dev.showAccessTokenHistory('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">📋 حالة الرسالة</button>
               <button class="btn btn-outline btn-sm" title="مسح سجل الاختبارات القصيرة وتقدم الدروس لهذا الطالب" onclick="Dev.resetStudentQuizzes('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔄 إعادة تعيين الاختبارات</button>
               <button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">حذف</button>
@@ -1593,6 +1594,37 @@ const Dev = {
         }),
       });
       console.log('SendPulse response:', sendRes);
+      const r0 = sendRes?.results?.[0];
+      const spError = r0?.error || r0?.data?.error || r0?.errors;
+      if (r0?.success === false || spError) {
+        showToast('رفضت SendPulse الإرسال: ' + JSON.stringify(spError || r0), true);
+        return;
+      }
+      showToast('تم إرسال الرسالة عبر واتساب ✅');
+    } catch (e) {
+      showToast('تعذّر الإرسال: ' + e.message, true);
+    }
+  },
+
+  // Free-text WhatsApp send via the general-purpose approved template
+  // (student_general_message, {{1}}=student name, {{2}}=free text) — any
+  // one-off message, no new template submission to Meta needed each time.
+  async sendGeneralWhatsApp(studentId, name, phone) {
+    if (!phone) { showToast('لا يوجد رقم جوال مسجّل لهذا الطالب', true); return; }
+    const text = await promptModal(`نص الرسالة لـ "${name}":`, '');
+    if (!text || !text.trim()) return;
+    try {
+      const sendRes = await apiDev('/sendpulse/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          phones: [phone],
+          template_name: 'student_general_message',
+          language_code: 'ar',
+          components: [
+            { type: 'body', parameters: [{ type: 'text', text: name }, { type: 'text', text: text.trim() }] },
+          ],
+        }),
+      });
       const r0 = sendRes?.results?.[0];
       const spError = r0?.error || r0?.data?.error || r0?.errors;
       if (r0?.success === false || spError) {

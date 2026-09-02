@@ -21,7 +21,7 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="/css/style.css?v=quiz9">
+  <link rel="stylesheet" href="/css/style.css?v=quiz10">
   <style>
     .diag-radio { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
     .diag-radio input { display:none; }
@@ -1050,11 +1050,66 @@
         <span>تذكرني</span>
       </label>
       <button id="sl-submit-btn" class="btn btn-primary" type="submit">دخول ←</button>
-      <p style="font-size:12.5px;color:var(--muted);margin-top:16px;text-align:center;">
+      <p style="font-size:13px;margin-top:14px;text-align:center;">
+        <a href="#" onclick="App.openRecoverOtp();return false;" style="color:var(--primary);font-weight:700;">نسيت رقم الدخول؟</a>
+      </p>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:6px;text-align:center;">
         تواجه مشكلة ولا تستطيع الدخول؟
         <a href="#" onclick="App.openGuestSupport();return false;" style="color:var(--primary);font-weight:700;">تواصل مع الدعم الفني</a>
       </p>
     </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: RECOVER LOGIN CODE VIA WHATSAPP OTP
+     3-step glass modal: phone -> OTP -> reveal. All state is local
+     (State._recoverOtp) — no navigation, no screen-stack entry.
+═══════════════════════════════════════════════════════ -->
+<div id="recover-otp-modal" class="modal-overlay">
+  <div class="modal-box ro-box">
+    <button type="button" class="ro-close" onclick="App.closeRecoverOtp()" aria-label="إغلاق">✕</button>
+
+    <!-- Step 1: phone -->
+    <div id="ro-step-phone" class="ro-step">
+      <div class="ro-icon">🔑</div>
+      <div class="modal-title">استعادة رقم الدخول</div>
+      <div class="modal-sub">أدخل رقم جوالك المسجّل وسنرسل لك رمز تحقق عبر واتساب</div>
+      <div id="ro-phone-err" class="ro-err"></div>
+      <input type="tel" id="ro-phone" class="form-input ro-input" placeholder="05xxxxxxxx"
+             inputmode="numeric" maxlength="10" autocomplete="tel"
+             oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+             onkeydown="if(event.key==='Enter') App.recoverOtpRequest()">
+      <button type="button" id="ro-request-btn" class="btn btn-primary ro-full" onclick="App.recoverOtpRequest()">إرسال رمز التحقق ←</button>
+    </div>
+
+    <!-- Step 2: OTP -->
+    <div id="ro-step-otp" class="ro-step" style="display:none;">
+      <div class="ro-icon">📲</div>
+      <div class="modal-title">أدخل رمز التحقق</div>
+      <div class="modal-sub">أرسلنا رمزًا مكوّنًا من 4 أرقام عبر واتساب إلى <span id="ro-phone-echo" style="font-weight:800;color:var(--text);"></span></div>
+      <div id="ro-otp-err" class="ro-err"></div>
+      <div class="ro-otp-row" dir="ltr">
+        <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="0">
+        <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="1">
+        <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="2">
+        <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="3">
+      </div>
+      <button type="button" id="ro-verify-btn" class="btn btn-primary ro-full" onclick="App.recoverOtpVerify()">تحقق ←</button>
+      <p style="text-align:center;margin-top:14px;">
+        <a href="#" onclick="App.recoverOtpRequest(true);return false;" style="color:var(--primary);font-size:12.5px;font-weight:700;">إعادة إرسال الرمز</a>
+      </p>
+    </div>
+
+    <!-- Step 3: reveal -->
+    <div id="ro-step-reveal" class="ro-step" style="display:none;">
+      <div class="ro-icon ro-icon-success">✅</div>
+      <div class="modal-title">تم التحقق بنجاح</div>
+      <div class="modal-sub">رقم الدخول الخاص بـ <span id="ro-name-echo" style="font-weight:800;color:var(--text);"></span></div>
+      <div class="ro-reveal-box" id="ro-code-box"></div>
+      <button type="button" id="ro-copy-btn" class="btn btn-primary ro-full" onclick="App.recoverOtpCopy()">نسخ 📋</button>
+      <button type="button" class="btn btn-outline ro-full" style="margin-top:10px;" onclick="App.closeRecoverOtp()">العودة لتسجيل الدخول</button>
+    </div>
   </div>
 </div>
 
@@ -3491,6 +3546,6 @@
 </div>
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
-<script src="/js/app.js?v=quiz28" defer></script>
+<script src="/js/app.js?v=quiz29" defer></script>
 </body>
 </html>

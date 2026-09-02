@@ -1092,6 +1092,125 @@ const App = {
     else                    show('screen-admin-login');
   },
 
+  // ── Recover login code via WhatsApp OTP ─────────────────────────────────
+  // 3-step modal (phone -> OTP -> reveal), state kept local to State._recoverOtp.
+  // No navigation/screen-stack entry — a plain overlay on top of screen-student-login.
+  openRecoverOtp() {
+    State._recoverOtp = { phone: '' };
+    document.getElementById('ro-phone').value = '';
+    document.getElementById('ro-phone-err').classList.remove('show');
+    App._roShowStep('phone');
+    document.getElementById('recover-otp-modal').classList.add('open');
+    setTimeout(() => document.getElementById('ro-phone')?.focus(), 50);
+    App._roSetupOtpBoxes();
+  },
+
+  closeRecoverOtp() {
+    document.getElementById('recover-otp-modal').classList.remove('open');
+  },
+
+  _roShowStep(name) {
+    ['phone', 'otp', 'reveal'].forEach(s => {
+      const el = document.getElementById('ro-step-' + s);
+      if (el) el.style.display = s === name ? '' : 'none';
+    });
+  },
+
+  _roSetupOtpBoxes() {
+    if (App._roOtpBound) return;
+    App._roOtpBound = true;
+    const boxes = Array.from(document.querySelectorAll('.ro-otp-box'));
+    boxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        box.value = box.value.replace(/[^0-9]/g, '').slice(0, 1);
+        if (box.value && boxes[i + 1]) boxes[i + 1].focus();
+      });
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !box.value && boxes[i - 1]) boxes[i - 1].focus();
+        if (e.key === 'Enter') App.recoverOtpVerify();
+      });
+      box.addEventListener('paste', (e) => {
+        const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+        if (!text) return;
+        e.preventDefault();
+        text.slice(0, 4).split('').forEach((ch, j) => { if (boxes[j]) boxes[j].value = ch; });
+        (boxes[Math.min(text.length, 4) - 1] || boxes[3]).focus();
+      });
+    });
+  },
+
+  async recoverOtpRequest(isResend) {
+    const phoneInput = document.getElementById('ro-phone');
+    const errEl = document.getElementById('ro-phone-err');
+    const phone = isResend ? State._recoverOtp?.phone : phoneInput.value.trim();
+    if (!/^05\d{8}$/.test(phone || '')) {
+      if (!isResend) { errEl.textContent = 'أدخل رقم جوال صحيح (05xxxxxxxx).'; errEl.classList.add('show'); }
+      return;
+    }
+    const btn = document.getElementById('ro-request-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> جارٍ الإرسال…'; }
+    try {
+      await apiFetch('/auth/recover/request', { method: 'POST', body: JSON.stringify({ phone }) });
+      State._recoverOtp = { phone };
+      document.getElementById('ro-phone-echo').textContent = phone;
+      document.querySelectorAll('.ro-otp-box').forEach(b => b.value = '');
+      document.getElementById('ro-otp-err').classList.remove('show');
+      App._roShowStep('otp');
+      setTimeout(() => document.querySelector('.ro-otp-box')?.focus(), 50);
+      if (isResend) showToast('تم إرسال رمز جديد ✅');
+    } catch (e) {
+      const status = e?.status;
+      const msg = status === 404 ? 'رقم الجوال غير مسجل'
+        : status === 429 ? 'طلبات كثيرة — أعد المحاولة بعد قليل'
+        : status === 502 ? 'تعذّر إرسال الرمز عبر واتساب — حاول لاحقًا'
+        : (e?.message || 'تعذّر إرسال رمز التحقق');
+      if (isResend) { showToast(msg); } else { errEl.textContent = msg; errEl.classList.add('show'); }
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = 'إرسال رمز التحقق ←'; }
+    }
+  },
+
+  async recoverOtpVerify() {
+    const boxes = Array.from(document.querySelectorAll('.ro-otp-box'));
+    const code = boxes.map(b => b.value).join('');
+    const errEl = document.getElementById('ro-otp-err');
+    errEl.classList.remove('show');
+    if (!/^\d{4}$/.test(code)) { errEl.textContent = 'أدخل الرمز المكوّن من 4 أرقام.'; errEl.classList.add('show'); return; }
+    const btn = document.getElementById('ro-verify-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> جارٍ التحقق…'; }
+    try {
+      const res = await apiFetch('/auth/recover/verify', {
+        method: 'POST', body: JSON.stringify({ phone: State._recoverOtp.phone, code }),
+      });
+      document.getElementById('ro-name-echo').textContent = res.name || '';
+      document.getElementById('ro-code-box').textContent = res.access_code;
+      const copyBtn = document.getElementById('ro-copy-btn');
+      copyBtn.textContent = 'نسخ 📋'; copyBtn.classList.remove('ro-copied');
+      App._roShowStep('reveal');
+    } catch (e) {
+      const status = e?.status;
+      const msg = status === 401 ? 'رمز التحقق غير صحيح'
+        : status === 410 ? 'انتهت صلاحية رمز التحقق — اطلب رمزًا جديدًا'
+        : status === 429 ? 'تجاوزت عدد المحاولات المسموح — اطلب رمزًا جديدًا'
+        : (e?.message || 'تعذّر التحقق من الرمز');
+      errEl.textContent = msg; errEl.classList.add('show');
+      boxes.forEach(b => b.value = '');
+      boxes[0]?.focus();
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = 'تحقق ←'; }
+    }
+  },
+
+  recoverOtpCopy() {
+    const code = document.getElementById('ro-code-box').textContent || '';
+    const btn = document.getElementById('ro-copy-btn');
+    navigator.clipboard?.writeText(code).then(() => {
+      if (!btn) return;
+      btn.textContent = 'تم النسخ ✅'; btn.classList.add('ro-copied');
+      setTimeout(() => { btn.textContent = 'نسخ 📋'; btn.classList.remove('ro-copied'); }, 2000);
+    }).catch(() => {});
+  },
+
   // ── Student Login ────────────────────────────────────────────────────────
   async studentLogin() {
     const code = document.getElementById('sl-code').value.trim();

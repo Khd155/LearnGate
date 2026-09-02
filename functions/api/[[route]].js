@@ -861,6 +861,97 @@ export async function onRequest({ request, env }) {
         return ok({ link, name: student.name }, 200, CORS);
       }
 
+      // POST /api/auth/recover/request { phone } — OTP-based login-code
+      // recovery, initiated from the student login screen itself (distinct
+      // from GET recover-link above, which is the WhatsApp-bot-only flow).
+      // Always returns {ok:true} regardless of whether the phone matches an
+      // account, EXCEPT for the explicit "not registered" case the brief
+      // asked to surface — this still leaks phone-registration status, same
+      // trade-off recover-link already makes above, kept consistent rather
+      // than inventing a new disclosure policy for one endpoint.
+      if (sub === 'recover' && subsub === 'request' && method === 'POST') {
+        const { phone: rawPhone } = await request.json().catch(() => ({}));
+        if (!await rateLimit(DB, ip, 'recover-otp-request', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+        const localPhone = toLocalSaudiPhone(rawPhone || '');
+        if (!/^05\d{8}$/.test(localPhone)) return err('رقم جوال غير صالح', 400, CORS);
+        if (!await rateLimit(DB, 'phone:' + localPhone, 'recover-otp-request-phone', 5)) {
+          return err('طلبات كثيرة على هذا الرقم — أعد المحاولة لاحقًا', 429, CORS);
+        }
+        const student = await DB.prepare('SELECT id, name, phone FROM students WHERE phone = ?').bind(localPhone).first();
+        if (!student) return err('رقم الجوال غير مسجل', 404, CORS);
+
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS otp_codes (
+          id TEXT PRIMARY KEY, phone TEXT NOT NULL, code TEXT NOT NULL, student_id TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0, used_at TEXT, expires_at TEXT NOT NULL, created_at TEXT NOT NULL
+        )`).run(); } catch {}
+        try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_otp_phone ON otp_codes(phone)`).run(); } catch {}
+        // Invalidate any still-live code for this phone first — only the
+        // most recent request should ever be verifiable.
+        await DB.prepare('DELETE FROM otp_codes WHERE phone = ? AND used_at IS NULL').bind(localPhone).run();
+
+        const code = String(Math.floor(1000 + Math.random() * 9000)); // 4 digits, never leading-zero-ambiguous
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
+        await DB.prepare(
+          'INSERT INTO otp_codes (id, phone, code, student_id, attempts, used_at, expires_at, created_at) VALUES (?, ?, ?, ?, 0, NULL, ?, ?)'
+        ).bind(crypto.randomUUID(), localPhone, code, student.id, expiresAt, now.toISOString()).run();
+
+        try {
+          const result = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+            bot_id: env.SENDPULSE_BOT_ID,
+            phone: normalizeSaudiPhone(localPhone),
+            template: {
+              name: 'student_otp_recovery',
+              language: { code: 'ar', policy: 'deterministic' },
+              components: sanitizeWaComponents([{ type: 'body', parameters: [{ type: 'text', text: code }] }]),
+            },
+          });
+          const spError = result?.results?.[0]?.error || result?.error || result?.errors;
+          if (result?.results?.[0]?.success === false || spError) {
+            await logEvent(DB, { level: 'error', category: 'recover-otp', message: `فشل إرسال OTP عبر واتساب — ${student.name} | ${JSON.stringify(spError || result)}`, ip });
+            return err('تعذّر إرسال رمز التحقق — حاول لاحقًا', 502, CORS);
+          }
+        } catch (e) {
+          await logEvent(DB, { level: 'error', category: 'recover-otp', message: `فشل إرسال OTP عبر واتساب: ${e?.message || e}`, ip });
+          return err('تعذّر إرسال رمز التحقق — حاول لاحقًا', 502, CORS);
+        }
+        await logEvent(DB, { level: 'success', category: 'recover-otp', message: `تم إرسال رمز OTP — ${student.name}`, user_name: student.name, user_role: 'student', ip });
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      // POST /api/auth/recover/verify { phone, code } — returns the
+      // student's login code (access_code) once the OTP matches.
+      if (sub === 'recover' && subsub === 'verify' && method === 'POST') {
+        const { phone: rawPhone, code: submittedCode } = await request.json().catch(() => ({}));
+        if (!await rateLimit(DB, ip, 'recover-otp-verify', 15)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+        const localPhone = toLocalSaudiPhone(rawPhone || '');
+        if (!/^05\d{8}$/.test(localPhone) || !/^\d{4}$/.test(String(submittedCode || ''))) {
+          return err('بيانات غير صالحة', 400, CORS);
+        }
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS otp_codes (
+          id TEXT PRIMARY KEY, phone TEXT NOT NULL, code TEXT NOT NULL, student_id TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0, used_at TEXT, expires_at TEXT NOT NULL, created_at TEXT NOT NULL
+        )`).run(); } catch {}
+        const row = await DB.prepare(
+          'SELECT * FROM otp_codes WHERE phone = ? AND used_at IS NULL ORDER BY created_at DESC LIMIT 1'
+        ).bind(localPhone).first();
+        if (!row || new Date(row.expires_at).getTime() < Date.now()) {
+          return err('انتهت صلاحية رمز التحقق — اطلب رمزًا جديدًا', 410, CORS);
+        }
+        if (row.attempts >= 5) {
+          return err('تجاوزت عدد المحاولات المسموح — اطلب رمزًا جديدًا', 429, CORS);
+        }
+        if (String(submittedCode) !== row.code) {
+          await DB.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?').bind(row.id).run();
+          return err('رمز التحقق غير صحيح', 401, CORS);
+        }
+        await DB.prepare('UPDATE otp_codes SET used_at = ? WHERE id = ?').bind(new Date().toISOString(), row.id).run();
+        const student = await DB.prepare('SELECT code, name FROM students WHERE id = ?').bind(row.student_id).first();
+        if (!student) return err('تعذّر إيجاد الحساب', 404, CORS);
+        await logEvent(DB, { level: 'success', category: 'recover-otp', message: `تم كشف رقم الدخول عبر OTP — ${student.name}`, user_name: student.name, user_role: 'student', ip });
+        return ok({ access_code: student.code, name: student.name }, 200, CORS);
+      }
+
       // POST /api/auth/student-login
       if (sub === 'student-login' && method === 'POST') {
         if (!await rateLimit(DB, ip, 'student-login', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);

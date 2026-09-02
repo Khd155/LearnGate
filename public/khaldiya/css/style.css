@@ -1278,6 +1278,55 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
 .modal-actions .btn { flex: 1; }
 
+/* ── Recover login-code via WhatsApp OTP — glassmorphic modal ─────────── */
+@keyframes slideUpFadeRo { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+.ro-box {
+  max-width: 380px; position: relative; text-align: center;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border); box-shadow: var(--shadow-lg, 0 24px 60px -20px rgba(63,124,184,.3));
+}
+.ro-step { animation: slideUpFadeRo .3s ease-out; }
+@media (prefers-reduced-motion: reduce) { .ro-step { animation: none; } }
+.ro-close {
+  position: absolute; top: 14px; left: 14px; width: 30px; height: 30px; border-radius: 50%;
+  border: none; background: var(--bg-tint); color: var(--muted); font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background .15s;
+}
+.ro-close:hover { background: var(--border); }
+.ro-icon { font-size: 36px; margin-bottom: 10px; }
+.ro-icon-success { animation: roPop .4s cubic-bezier(.22,1.4,.36,1) both; }
+@keyframes roPop { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.ro-err {
+  display: none; background: rgba(220,38,38,.08); color: var(--danger, #991B1B);
+  border: 1px solid rgba(220,38,38,.25); border-radius: 10px; padding: 9px 12px;
+  font-size: 12.5px; font-weight: 700; margin-bottom: 12px; text-align: center;
+}
+.ro-err.show { display: block; }
+.ro-input { text-align: center; font-size: 16px; letter-spacing: .04em; margin-bottom: 14px; }
+.ro-full { width: 100%; }
+
+.ro-otp-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+.ro-otp-box {
+  width: 50px; height: 50px; text-align: center; font-size: 22px; font-weight: 800;
+  border-radius: 12px; border: 1.5px solid var(--border);
+  background: rgba(255,255,255,.05); color: var(--text);
+  font-family: inherit; transition: border-color .15s, box-shadow .15s;
+}
+:root[data-theme="light"] .ro-otp-box, :root:not([data-theme="dark"]) .ro-otp-box { background: rgba(0,0,0,.02); }
+.ro-otp-box:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(63,124,184,.2);
+}
+
+.ro-reveal-box {
+  background: var(--bg-tint); border: 1.5px solid var(--border-strong);
+  border-radius: 14px; padding: 18px; margin-bottom: 18px;
+  font-size: 28px; font-weight: 900; letter-spacing: .06em; color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+#ro-copy-btn.ro-copied { background: var(--success, #4FA877) !important; }
+
 /* ── Tabs ────────────────────────────────────────────── */
 .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: #e0eaf8; border-radius: 10px; padding: 4px; }
 .tab-btn {

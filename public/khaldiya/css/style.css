@@ -1286,7 +1286,7 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
   border: 1px solid var(--border); box-shadow: var(--shadow-lg, 0 24px 60px -20px rgba(63,124,184,.3));
 }
-.ro-step { animation: slideUpFadeRo .3s ease-out; }
+.ro-step { animation: slideUpFadeRo .3s ease-out; position: relative; }
 @media (prefers-reduced-motion: reduce) { .ro-step { animation: none; } }
 .ro-close {
   position: absolute; top: 14px; left: 14px; width: 30px; height: 30px; border-radius: 50%;
@@ -1306,17 +1306,46 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .ro-input { text-align: center; font-size: 16px; letter-spacing: .04em; margin-bottom: 14px; }
 .ro-full { width: 100%; }
 
-.ro-otp-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+.ro-otp-wrap { position: relative; margin-bottom: 16px; }
+.ro-otp-row { display: flex; gap: 10px; justify-content: center; position: relative; z-index: 1; }
 .ro-otp-box {
-  width: 50px; height: 50px; text-align: center; font-size: 22px; font-weight: 800;
-  border-radius: 12px; border: 1.5px solid var(--border);
-  background: rgba(255,255,255,.05); color: var(--text);
-  font-family: inherit; transition: border-color .15s, box-shadow .15s;
+  width: 56px; height: 64px; text-align: center; font-size: 24px; font-weight: 800;
+  border-radius: 14px; border: 1.5px solid var(--border);
+  background: rgba(255,255,255,.04); color: var(--text);
+  font-family: inherit; transition: border-color .15s, box-shadow .15s, transform .2s cubic-bezier(.22,1.4,.36,1);
 }
 :root[data-theme="light"] .ro-otp-box, :root:not([data-theme="dark"]) .ro-otp-box { background: rgba(0,0,0,.02); }
-.ro-otp-box:focus {
-  outline: none; border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(63,124,184,.2);
+.ro-otp-box:focus { outline: none; }
+.ro-otp-box.ro-just-filled { animation: roBoxPop .3s cubic-bezier(.22,1.4,.36,1) both; }
+@keyframes roBoxPop { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+
+/* Sliding ring that glides to sit around whichever box is active — a single
+   element repositioned via transform (see App._roPositionRing) rather than
+   restyling each box, so the motion itself reads as one continuous glide. */
+.ro-active-ring {
+  position: absolute; top: 0; left: 0; width: 56px; height: 64px; border-radius: 14px;
+  border: 1.5px solid var(--primary); pointer-events: none; z-index: 0;
+  box-shadow: 0 0 16px rgba(63,124,184,.35);
+  transition: transform .25s cubic-bezier(.16,1,.3,1), opacity .2s;
+  opacity: 0;
+}
+.ro-active-ring.show { opacity: 1; }
+
+.ro-fill-pill {
+  display: flex; align-items: center; gap: 8px; justify-content: center;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 9px 8px 9px 14px; margin-bottom: 16px; cursor: pointer;
+  font-size: 12.5px; color: var(--muted); animation: slideUpFadeRo .3s ease-out;
+  transition: border-color .15s;
+}
+.ro-fill-pill:hover { border-color: var(--primary); }
+.ro-fill-text b { color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.ro-fill-btn {
+  border: none; background: var(--primary); color: #fff; font-weight: 700;
+  font-size: 12px; padding: 6px 14px; border-radius: 999px; cursor: pointer; font-family: inherit;
+  flex-shrink: 0;
 }
 
 .ro-reveal-box {
@@ -1326,6 +1355,42 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 #ro-copy-btn.ro-copied { background: var(--success, #4FA877) !important; }
+
+/* Morph-to-success burst: the OTP boxes shrink/fade out while this pulsing
+   ring + hand-drawn checkmark takes over the same visual center, then
+   _roShowStep swaps in step-reveal underneath once it's played out. */
+.ro-step-otp-morphing .ro-otp-wrap,
+.ro-step-otp-morphing .ro-fill-pill,
+.ro-step-otp-morphing #ro-verify-btn,
+.ro-step-otp-morphing > p { transform: scale(.8); opacity: 0; transition: transform .35s ease, opacity .3s ease; }
+.ro-success-burst {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.ro-success-burst[hidden] { display: none; }
+.ro-success-ring {
+  width: 84px; height: 84px; animation: roPulseGlow 1s ease-out both;
+}
+.ro-success-ring circle {
+  fill: none; stroke: var(--success, #4FA877); stroke-width: 3;
+}
+.ro-success-ring path {
+  fill: none; stroke: var(--success, #4FA877); stroke-width: 4;
+  stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 34; stroke-dashoffset: 34;
+  animation: roCheckDraw .4s .25s cubic-bezier(.65,0,.35,1) both;
+}
+@keyframes roPulseGlow {
+  0% { transform: scale(.5); opacity: 0; filter: drop-shadow(0 0 0 rgba(79,168,119,0)); }
+  60% { transform: scale(1.08); opacity: 1; filter: drop-shadow(0 0 18px rgba(79,168,119,.55)); }
+  100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 10px rgba(79,168,119,.35)); }
+}
+@keyframes roCheckDraw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ro-otp-box.ro-just-filled, .ro-active-ring, .ro-success-ring, .ro-success-ring path,
+  .ro-step-otp-morphing .ro-otp-wrap, .ro-step-otp-morphing .ro-fill-pill,
+  .ro-step-otp-morphing #ro-verify-btn, .ro-step-otp-morphing > p { animation: none !important; transition: none !important; }
+}
 
 /* ── Tabs ────────────────────────────────────────────── */
 .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: #e0eaf8; border-radius: 10px; padding: 4px; }

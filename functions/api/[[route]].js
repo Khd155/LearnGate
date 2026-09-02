@@ -896,6 +896,15 @@ export async function onRequest({ request, env }) {
           'INSERT INTO otp_codes (id, phone, code, student_id, attempts, used_at, expires_at, created_at) VALUES (?, ?, ?, ?, 0, NULL, ?, ?)'
         ).bind(crypto.randomUUID(), localPhone, code, student.id, expiresAt, now.toISOString()).run();
 
+        // Local/dev environments have no SendPulse credentials configured —
+        // production always does, so this branch never fires there. Skip the
+        // real WhatsApp send and hand the code back in the response so the
+        // OTP screen flow can be exercised without a live WhatsApp bot.
+        if (!env.SENDPULSE_ID || !env.SENDPULSE_SECRET) {
+          await logEvent(DB, { level: 'warn', category: 'recover-otp', message: `[DEV] SendPulse غير مُهيّأ — تم تخطي الإرسال الفعلي، الرمز: ${code} — ${student.name}`, user_name: student.name, user_role: 'student', ip });
+          return ok({ ok: true, devCode: code }, 200, CORS);
+        }
+
         try {
           const result = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
             bot_id: env.SENDPULSE_BOT_ID,

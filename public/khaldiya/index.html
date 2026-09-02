@@ -1089,25 +1089,40 @@
       <div class="modal-title">أدخل رمز التحقق</div>
       <div class="modal-sub">أرسلنا رمزًا مكوّنًا من 4 أرقام عبر واتساب إلى <span id="ro-phone-echo" style="font-weight:800;color:var(--text);"></span></div>
       <div id="ro-otp-err" class="ro-err"></div>
-      <div class="ro-otp-row" dir="ltr">
-        <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="0">
-        <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="1">
-        <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="2">
-        <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="3">
+      <div class="ro-otp-wrap" id="ro-otp-wrap">
+        <div class="ro-active-ring" id="ro-active-ring"></div>
+        <div class="ro-otp-row" id="ro-otp-row" dir="ltr">
+          <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="0">
+          <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="1">
+          <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="2">
+          <input type="text" class="ro-otp-box" inputmode="numeric" maxlength="1" data-i="3">
+        </div>
+      </div>
+      <div id="ro-fill-pill" class="ro-fill-pill" style="display:none;" onclick="App.recoverOtpAutofill()">
+        <span class="ro-fill-icon">💬</span>
+        <span class="ro-fill-text">رمز التحقق الخاص بك هو <b id="ro-fill-code"></b></span>
+        <button type="button" class="ro-fill-btn" onclick="event.stopPropagation();App.recoverOtpAutofill()">ملء</button>
       </div>
       <button type="button" id="ro-verify-btn" class="btn btn-primary ro-full" onclick="App.recoverOtpVerify()">تحقق ←</button>
       <p style="text-align:center;margin-top:14px;">
         <a href="#" onclick="App.recoverOtpRequest(true);return false;" style="color:var(--primary);font-size:12.5px;font-weight:700;">إعادة إرسال الرمز</a>
       </p>
+      <div class="ro-success-burst" id="ro-success-burst" hidden>
+        <svg viewBox="0 0 64 64" class="ro-success-ring">
+          <circle cx="32" cy="32" r="28"/>
+          <path id="ro-success-check" d="M19 33.5 L27.5 42 L45 22"/>
+        </svg>
+      </div>
     </div>
 
     <!-- Step 3: reveal -->
     <div id="ro-step-reveal" class="ro-step" style="display:none;">
-      <div class="ro-icon ro-icon-success">✅</div>
-      <div class="modal-title">تم التحقق بنجاح</div>
+      <div class="ro-icon ro-icon-success">✨</div>
+      <div class="modal-title">تم التحقق بنجاح ✨</div>
       <div class="modal-sub">رقم الدخول الخاص بـ <span id="ro-name-echo" style="font-weight:800;color:var(--text);"></span></div>
       <div class="ro-reveal-box" id="ro-code-box"></div>
-      <button type="button" id="ro-copy-btn" class="btn btn-primary ro-full" onclick="App.recoverOtpCopy()">نسخ 📋</button>
+      <button type="button" id="ro-copy-btn" class="btn btn-primary ro-full" onclick="App.recoverOtpCopy()">نسخ رقم الدخول 📋</button>
+      <button type="button" class="btn btn-primary ro-full" style="margin-top:10px;" onclick="App.roLoginNow()">الدخول إلى حسابي 🚀</button>
       <button type="button" class="btn btn-outline ro-full" style="margin-top:10px;" onclick="App.closeRecoverOtp()">العودة لتسجيل الدخول</button>
     </div>
   </div>

@@ -1099,6 +1099,10 @@ const App = {
     State._recoverOtp = { phone: '' };
     document.getElementById('ro-phone').value = '';
     document.getElementById('ro-phone-err').classList.remove('show');
+    document.getElementById('ro-fill-pill').style.display = 'none';
+    document.getElementById('ro-active-ring').classList.remove('show');
+    document.getElementById('ro-step-otp').classList.remove('ro-step-otp-morphing');
+    document.getElementById('ro-success-burst').hidden = true;
     App._roShowStep('phone');
     document.getElementById('recover-otp-modal').classList.add('open');
     setTimeout(() => document.getElementById('ro-phone')?.focus(), 50);
@@ -1120,22 +1124,61 @@ const App = {
     if (App._roOtpBound) return;
     App._roOtpBound = true;
     const boxes = Array.from(document.querySelectorAll('.ro-otp-box'));
+    const pop = (box) => { box.classList.remove('ro-just-filled'); void box.offsetWidth; box.classList.add('ro-just-filled'); };
     boxes.forEach((box, i) => {
       box.addEventListener('input', () => {
         box.value = box.value.replace(/[^0-9]/g, '').slice(0, 1);
-        if (box.value && boxes[i + 1]) boxes[i + 1].focus();
+        if (box.value) { pop(box); if (boxes[i + 1]) boxes[i + 1].focus(); else App._roPositionRing(); }
       });
       box.addEventListener('keydown', (e) => {
         if (e.key === 'Backspace' && !box.value && boxes[i - 1]) boxes[i - 1].focus();
         if (e.key === 'Enter') App.recoverOtpVerify();
       });
+      box.addEventListener('focus', () => App._roPositionRing());
       box.addEventListener('paste', (e) => {
         const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
         if (!text) return;
         e.preventDefault();
-        text.slice(0, 4).split('').forEach((ch, j) => { if (boxes[j]) boxes[j].value = ch; });
+        text.slice(0, 4).split('').forEach((ch, j) => { if (boxes[j]) { boxes[j].value = ch; pop(boxes[j]); } });
         (boxes[Math.min(text.length, 4) - 1] || boxes[3]).focus();
       });
+    });
+  },
+
+  // Glides the single .ro-active-ring element to sit around whichever box
+  // is "active" (the first empty one, or the last box once all are filled)
+  // — one continuously-transitioning element reads as a moving spotlight,
+  // instead of restyling four static borders.
+  _roPositionRing() {
+    const wrap = document.getElementById('ro-otp-wrap');
+    const ring = document.getElementById('ro-active-ring');
+    if (!wrap || !ring) return;
+    const boxes = Array.from(document.querySelectorAll('.ro-otp-box'));
+    const target = boxes.find(b => !b.value) || boxes[boxes.length - 1];
+    if (!target) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const boxRect = target.getBoundingClientRect();
+    ring.style.transform = `translate(${boxRect.left - wrapRect.left}px, ${boxRect.top - wrapRect.top}px)`;
+    ring.classList.add('show');
+  },
+
+  // Dev/local-only auto-fill: the pill only ever appears when the backend
+  // returned a devCode (SendPulse isn't configured in that environment —
+  // see /auth/recover/request), so this never has a real OTP to leak in
+  // production. Fills the boxes with a staggered animation, mirroring the
+  // "tap to fill" pill an SMS/WhatsApp autofill suggestion would show.
+  recoverOtpAutofill() {
+    const code = State._recoverOtp?.devCode;
+    if (!/^\d{4}$/.test(code || '')) return;
+    const boxes = Array.from(document.querySelectorAll('.ro-otp-box'));
+    document.getElementById('ro-fill-pill').style.display = 'none';
+    code.split('').forEach((digit, i) => {
+      setTimeout(() => {
+        boxes[i].value = digit;
+        boxes[i].classList.remove('ro-just-filled'); void boxes[i].offsetWidth; boxes[i].classList.add('ro-just-filled');
+        App._roPositionRing();
+        if (i === boxes.length - 1) setTimeout(() => App.recoverOtpVerify(), 350);
+      }, i * 110);
     });
   },
 
@@ -1150,14 +1193,21 @@ const App = {
     const btn = document.getElementById('ro-request-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> جارٍ الإرسال…'; }
     try {
-      await apiFetch('/auth/recover/request', { method: 'POST', body: JSON.stringify({ phone }) });
+      const res = await apiFetch('/auth/recover/request', { method: 'POST', body: JSON.stringify({ phone }) });
       State._recoverOtp = { phone };
       document.getElementById('ro-phone-echo').textContent = phone;
       document.querySelectorAll('.ro-otp-box').forEach(b => b.value = '');
       document.getElementById('ro-otp-err').classList.remove('show');
       App._roShowStep('otp');
-      setTimeout(() => document.querySelector('.ro-otp-box')?.focus(), 50);
+      setTimeout(() => { document.querySelector('.ro-otp-box')?.focus(); App._roPositionRing(); }, 50);
       if (isResend) showToast('تم إرسال رمز جديد ✅');
+      if (res?.devCode) {
+        State._recoverOtp.devCode = res.devCode;
+        document.getElementById('ro-fill-code').textContent = res.devCode;
+        document.getElementById('ro-fill-pill').style.display = 'flex';
+      } else {
+        document.getElementById('ro-fill-pill').style.display = 'none';
+      }
     } catch (e) {
       const status = e?.status;
       const msg = status === 404 ? 'رقم الجوال غير مسجل'
@@ -1182,11 +1232,24 @@ const App = {
       const res = await apiFetch('/auth/recover/verify', {
         method: 'POST', body: JSON.stringify({ phone: State._recoverOtp.phone, code }),
       });
+      State._recoverOtp.accessCode = res.access_code;
       document.getElementById('ro-name-echo').textContent = res.name || '';
       document.getElementById('ro-code-box').textContent = res.access_code;
       const copyBtn = document.getElementById('ro-copy-btn');
-      copyBtn.textContent = 'نسخ 📋'; copyBtn.classList.remove('ro-copied');
-      App._roShowStep('reveal');
+      copyBtn.textContent = 'نسخ رقم الدخول 📋'; copyBtn.classList.remove('ro-copied');
+      // Morph transition: the OTP boxes shrink/fade while a pulsing
+      // checkmark burst plays in their place, then step-reveal takes over
+      // once the burst has had time to read — see .ro-step-otp-morphing.
+      const otpStep = document.getElementById('ro-step-otp');
+      const burst = document.getElementById('ro-success-burst');
+      otpStep.classList.add('ro-step-otp-morphing');
+      burst.hidden = false;
+      setTimeout(() => {
+        App._roShowStep('reveal');
+        otpStep.classList.remove('ro-step-otp-morphing');
+        burst.hidden = true;
+      }, 650);
+      return;
     } catch (e) {
       const status = e?.status;
       const msg = status === 401 ? 'رمز التحقق غير صحيح'
@@ -1207,8 +1270,17 @@ const App = {
     navigator.clipboard?.writeText(code).then(() => {
       if (!btn) return;
       btn.textContent = 'تم النسخ ✅'; btn.classList.add('ro-copied');
-      setTimeout(() => { btn.textContent = 'نسخ 📋'; btn.classList.remove('ro-copied'); }, 2000);
+      setTimeout(() => { btn.textContent = 'نسخ رقم الدخول 📋'; btn.classList.remove('ro-copied'); }, 2000);
     }).catch(() => {});
+  },
+
+  roLoginNow() {
+    const code = State._recoverOtp?.accessCode;
+    if (!code) return;
+    App.closeRecoverOtp();
+    const input = document.getElementById('sl-code');
+    if (input) input.value = code;
+    App.studentLogin();
   },
 
   // ── Student Login ────────────────────────────────────────────────────────
@@ -6588,6 +6660,7 @@ function showAlert(el, msg) {
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 4000);
 }
+
 
 function showToast(msg) {
   const t = document.createElement('div');

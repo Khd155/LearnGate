@@ -1281,10 +1281,12 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 /* ── Recover login-code via WhatsApp OTP — glassmorphic modal ─────────── */
 @keyframes slideUpFadeRo { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 .ro-box {
+  --ro-accent: #38BDF8;
   max-width: 380px; position: relative; text-align: center;
   background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-  border: 1px solid var(--border); box-shadow: var(--shadow-lg, 0 24px 60px -20px rgba(63,124,184,.3));
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: var(--shadow-lg, 0 24px 60px -20px rgba(63,124,184,.3));
 }
 .ro-step { animation: slideUpFadeRo .3s ease-out; position: relative; }
 @media (prefers-reduced-motion: reduce) { .ro-step { animation: none; } }
@@ -1294,7 +1296,8 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   display: flex; align-items: center; justify-content: center; transition: background .15s;
 }
 .ro-close:hover { background: var(--border); }
-.ro-icon { font-size: 36px; margin-bottom: 10px; }
+.ro-icon { display: flex; justify-content: center; margin-bottom: 10px; color: var(--ro-accent); }
+.ro-icon svg { width: 38px; height: 38px; }
 .ro-icon-success { animation: roPop .4s cubic-bezier(.22,1.4,.36,1) both; }
 @keyframes roPop { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .ro-err {
@@ -1303,7 +1306,23 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   font-size: 12.5px; font-weight: 700; margin-bottom: 12px; text-align: center;
 }
 .ro-err.show { display: block; }
-.ro-input { text-align: center; font-size: 16px; letter-spacing: .04em; margin-bottom: 14px; }
+.ro-input-wrap { position: relative; }
+.ro-input-icon-el {
+  position: absolute; inset-inline-start: 14px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; color: rgba(255,255,255,.4); pointer-events: none;
+}
+:root[data-theme="light"] .ro-input-icon-el, :root:not([data-theme="dark"]) .ro-input-icon-el { color: rgba(15,23,42,.35); }
+.ro-input {
+  text-align: center; font-size: 16px; letter-spacing: .04em; margin-bottom: 14px;
+  padding-inline-start: 40px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  transition: border-color .15s, box-shadow .15s;
+}
+:root[data-theme="light"] .ro-input, :root:not([data-theme="dark"]) .ro-input { background: rgba(0,0,0,.02); border-color: var(--border); }
+.ro-input:focus {
+  outline: none; border-color: var(--ro-accent);
+  box-shadow: 0 0 0 3px rgba(56,189,248,.15);
+}
 .ro-full { width: 100%; }
 
 .ro-otp-wrap { position: relative; margin-bottom: 16px; }
@@ -1324,8 +1343,8 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
    restyling each box, so the motion itself reads as one continuous glide. */
 .ro-active-ring {
   position: absolute; top: 0; left: 0; width: 56px; height: 64px; border-radius: 14px;
-  border: 1.5px solid var(--primary); pointer-events: none; z-index: 0;
-  box-shadow: 0 0 16px rgba(63,124,184,.35);
+  border: 1.5px solid var(--ro-accent); pointer-events: none; z-index: 0;
+  box-shadow: 0 0 16px rgba(56,189,248,.35);
   transition: transform .25s cubic-bezier(.16,1,.3,1), opacity .2s;
   opacity: 0;
 }
@@ -1340,10 +1359,11 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   font-size: 12.5px; color: var(--muted); animation: slideUpFadeRo .3s ease-out;
   transition: border-color .15s;
 }
-.ro-fill-pill:hover { border-color: var(--primary); }
+.ro-fill-pill:hover { border-color: var(--ro-accent); }
+.ro-fill-icon { width: 18px; height: 18px; flex-shrink: 0; color: var(--ro-accent); }
 .ro-fill-text b { color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: .04em; }
 .ro-fill-btn {
-  border: none; background: var(--primary); color: #fff; font-weight: 700;
+  border: none; background: var(--ro-accent); color: #06202e; font-weight: 700;
   font-size: 12px; padding: 6px 14px; border-radius: 999px; cursor: pointer; font-family: inherit;
   flex-shrink: 0;
 }
@@ -1354,15 +1374,19 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   font-size: 28px; font-weight: 900; letter-spacing: .06em; color: var(--primary);
   font-variant-numeric: tabular-nums;
 }
+.ro-btn-icon { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ro-btn-icon svg, .ro-btn-icon-slot svg { width: 18px; height: 18px; flex-shrink: 0; }
+.ro-btn-icon-slot { display: flex; }
 #ro-copy-btn.ro-copied { background: var(--success, #4FA877) !important; }
 
 /* Morph-to-success burst: the OTP boxes shrink/fade out while this pulsing
    ring + hand-drawn checkmark takes over the same visual center, then
-   _roShowStep swaps in step-reveal underneath once it's played out. */
-.ro-step-otp-morphing .ro-otp-wrap,
-.ro-step-otp-morphing .ro-fill-pill,
-.ro-step-otp-morphing #ro-verify-btn,
-.ro-step-otp-morphing > p { transform: scale(.8); opacity: 0; transition: transform .35s ease, opacity .3s ease; }
+   _roShowStep swaps in step-reveal underneath once it's played out. Same
+   group also fades out on a failed verify, making way for .ro-error-card. */
+.ro-step-otp-morphing #ro-otp-group {
+  transform: scale(.8); opacity: 0; pointer-events: none;
+  transition: transform .35s ease, opacity .3s ease;
+}
 .ro-success-burst {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   pointer-events: none;
@@ -1371,6 +1395,7 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .ro-success-ring {
   width: 84px; height: 84px; animation: roPulseGlow 1s ease-out both;
 }
+.ro-success-ring--static { width: 56px; height: 56px; }
 .ro-success-ring circle {
   fill: none; stroke: var(--success, #4FA877); stroke-width: 3;
 }
@@ -1386,10 +1411,24 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 10px rgba(79,168,119,.35)); }
 }
 @keyframes roCheckDraw { to { stroke-dashoffset: 0; } }
+
+/* Anti-enumeration error card: replaces the OTP boxes in place (rather than
+   an inline one-liner) whenever verify fails, on purpose without saying
+   whether it was the phone or the code — see App.recoverOtpVerify. */
+.ro-error-card {
+  animation: roPop .35s cubic-bezier(.22,1.4,.36,1) both;
+  background: rgba(220,38,38,.08); border: 1px solid rgba(220,38,38,.25);
+  border-radius: 14px; padding: 20px 16px; margin-top: 4px;
+}
+.ro-error-card[hidden] { display: none; }
+.ro-error-icon { width: 32px; height: 32px; color: var(--danger, #dc2626); margin-bottom: 10px; }
+.ro-error-text { font-size: 13.5px; font-weight: 700; color: var(--danger, #991B1B); margin-bottom: 16px; line-height: 1.6; }
+.ro-error-support { margin: -8px 0 16px; }
+.ro-error-support a { color: var(--ro-accent); font-size: 12.5px; font-weight: 700; }
+
 @media (prefers-reduced-motion: reduce) {
   .ro-otp-box.ro-just-filled, .ro-active-ring, .ro-success-ring, .ro-success-ring path,
-  .ro-step-otp-morphing .ro-otp-wrap, .ro-step-otp-morphing .ro-fill-pill,
-  .ro-step-otp-morphing #ro-verify-btn, .ro-step-otp-morphing > p { animation: none !important; transition: none !important; }
+  .ro-error-card, .ro-step-otp-morphing #ro-otp-group { animation: none !important; transition: none !important; }
 }
 
 /* ── Tabs ────────────────────────────────────────────── */

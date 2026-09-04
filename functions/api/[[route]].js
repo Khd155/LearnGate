@@ -864,11 +864,16 @@ export async function onRequest({ request, env }) {
       // POST /api/auth/recover/request { phone } — OTP-based login-code
       // recovery, initiated from the student login screen itself (distinct
       // from GET recover-link above, which is the WhatsApp-bot-only flow).
-      // Always returns {ok:true} regardless of whether the phone matches an
-      // account, EXCEPT for the explicit "not registered" case the brief
-      // asked to surface — this still leaks phone-registration status, same
-      // trade-off recover-link already makes above, kept consistent rather
-      // than inventing a new disclosure policy for one endpoint.
+      // Anti-enumeration: a code is generated and stored for ANY well-formed
+      // phone number, whether or not it belongs to a student (student_id is
+      // NULL when it doesn't) — this endpoint always answers {ok:true} and
+      // never reveals registration status itself. WhatsApp delivery (and the
+      // local-dev devCode passthrough) only happens when a student actually
+      // matches, so a non-account phone's code is real but never delivered
+      // to anyone — it can't practically be guessed (4 digits, 5 attempts).
+      // /verify only checks registration AFTER the code itself matches, so
+      // guessing wrong never leaks whether the phone has an account; only
+      // proving you received the real code does.
       if (sub === 'recover' && subsub === 'request' && method === 'POST') {
         const { phone: rawPhone } = await request.json().catch(() => ({}));
         if (!await rateLimit(DB, ip, 'recover-otp-request', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
@@ -878,12 +883,15 @@ export async function onRequest({ request, env }) {
           return err('طلبات كثيرة على هذا الرقم — أعد المحاولة لاحقًا', 429, CORS);
         }
         const student = await DB.prepare('SELECT id, name, phone FROM students WHERE phone = ?').bind(localPhone).first();
-        if (!student) return err('رقم الجوال غير مسجل', 404, CORS);
+        if (!student) {
+          await logEvent(DB, { level: 'warn', category: 'recover-otp', message: `طلب OTP لرقم غير مسجّل — الرقم المُرسَل: "${rawPhone}"`, ip });
+        }
 
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS otp_codes (
-          id TEXT PRIMARY KEY, phone TEXT NOT NULL, code TEXT NOT NULL, student_id TEXT NOT NULL,
+          id TEXT PRIMARY KEY, phone TEXT NOT NULL, code TEXT NOT NULL, student_id TEXT,
           attempts INTEGER NOT NULL DEFAULT 0, used_at TEXT, expires_at TEXT NOT NULL, created_at TEXT NOT NULL
         )`).run(); } catch {}
+        try { await DB.prepare(`ALTER TABLE otp_codes ALTER COLUMN student_id DROP NOT NULL`).run(); } catch {}
         try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_otp_phone ON otp_codes(phone)`).run(); } catch {}
         // Invalidate any still-live code for this phone first — only the
         // most recent request should ever be verifiable.
@@ -894,16 +902,20 @@ export async function onRequest({ request, env }) {
         const expiresAt = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
         await DB.prepare(
           'INSERT INTO otp_codes (id, phone, code, student_id, attempts, used_at, expires_at, created_at) VALUES (?, ?, ?, ?, 0, NULL, ?, ?)'
-        ).bind(crypto.randomUUID(), localPhone, code, student.id, expiresAt, now.toISOString()).run();
+        ).bind(crypto.randomUUID(), localPhone, code, student?.id || null, expiresAt, now.toISOString()).run();
 
         // Local/dev environments have no SendPulse credentials configured —
         // production always does, so this branch never fires there. Skip the
         // real WhatsApp send and hand the code back in the response so the
-        // OTP screen flow can be exercised without a live WhatsApp bot.
+        // whole flow (including the "correct code, no account" 404 case
+        // below in /verify) can be exercised without a live WhatsApp bot,
+        // whether or not this phone matches a student.
         if (!env.SENDPULSE_ID || !env.SENDPULSE_SECRET) {
-          await logEvent(DB, { level: 'warn', category: 'recover-otp', message: `[DEV] SendPulse غير مُهيّأ — تم تخطي الإرسال الفعلي، الرمز: ${code} — ${student.name}`, user_name: student.name, user_role: 'student', ip });
+          await logEvent(DB, { level: 'warn', category: 'recover-otp', message: `[DEV] SendPulse غير مُهيّأ — تم تخطي الإرسال الفعلي، الرمز: ${code} — ${student ? student.name : '(رقم غير مسجّل)'}`, user_name: student?.name || '', user_role: 'student', ip });
           return ok({ ok: true, devCode: code }, 200, CORS);
         }
+
+        if (!student) return ok({ ok: true }, 200, CORS);
 
         try {
           const result = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
@@ -917,19 +929,24 @@ export async function onRequest({ request, env }) {
           });
           const spError = result?.results?.[0]?.error || result?.error || result?.errors;
           if (result?.results?.[0]?.success === false || spError) {
+            // Still answer ok:true — an error response here (vs the silent
+            // 200 an unregistered number gets above) would itself leak that
+            // this phone IS registered, just that WhatsApp delivery failed.
             await logEvent(DB, { level: 'error', category: 'recover-otp', message: `فشل إرسال OTP عبر واتساب — ${student.name} | ${JSON.stringify(spError || result)}`, ip });
-            return err('تعذّر إرسال رمز التحقق — حاول لاحقًا', 502, CORS);
+            return ok({ ok: true }, 200, CORS);
           }
         } catch (e) {
           await logEvent(DB, { level: 'error', category: 'recover-otp', message: `فشل إرسال OTP عبر واتساب: ${e?.message || e}`, ip });
-          return err('تعذّر إرسال رمز التحقق — حاول لاحقًا', 502, CORS);
+          return ok({ ok: true }, 200, CORS);
         }
         await logEvent(DB, { level: 'success', category: 'recover-otp', message: `تم إرسال رمز OTP — ${student.name}`, user_name: student.name, user_role: 'student', ip });
         return ok({ ok: true }, 200, CORS);
       }
 
       // POST /api/auth/recover/verify { phone, code } — returns the
-      // student's login code (access_code) once the OTP matches.
+      // student's login code (access_code) once the OTP matches. Whether the
+      // phone belongs to an account is only checked AFTER the code itself
+      // matches — see the anti-enumeration note on /request above.
       if (sub === 'recover' && subsub === 'verify' && method === 'POST') {
         const { phone: rawPhone, code: submittedCode } = await request.json().catch(() => ({}));
         if (!await rateLimit(DB, ip, 'recover-otp-verify', 15)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
@@ -938,9 +955,10 @@ export async function onRequest({ request, env }) {
           return err('بيانات غير صالحة', 400, CORS);
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS otp_codes (
-          id TEXT PRIMARY KEY, phone TEXT NOT NULL, code TEXT NOT NULL, student_id TEXT NOT NULL,
+          id TEXT PRIMARY KEY, phone TEXT NOT NULL, code TEXT NOT NULL, student_id TEXT,
           attempts INTEGER NOT NULL DEFAULT 0, used_at TEXT, expires_at TEXT NOT NULL, created_at TEXT NOT NULL
         )`).run(); } catch {}
+        try { await DB.prepare(`ALTER TABLE otp_codes ALTER COLUMN student_id DROP NOT NULL`).run(); } catch {}
         const row = await DB.prepare(
           'SELECT * FROM otp_codes WHERE phone = ? AND used_at IS NULL ORDER BY created_at DESC LIMIT 1'
         ).bind(localPhone).first();
@@ -955,8 +973,8 @@ export async function onRequest({ request, env }) {
           return err('رمز التحقق غير صحيح', 401, CORS);
         }
         await DB.prepare('UPDATE otp_codes SET used_at = ? WHERE id = ?').bind(new Date().toISOString(), row.id).run();
-        const student = await DB.prepare('SELECT code, name FROM students WHERE id = ?').bind(row.student_id).first();
-        if (!student) return err('تعذّر إيجاد الحساب', 404, CORS);
+        const student = row.student_id ? await DB.prepare('SELECT code, name FROM students WHERE id = ?').bind(row.student_id).first() : null;
+        if (!student) return err('لا يوجد حساب مرتبط برقم الجوال هذا', 404, CORS);
         await logEvent(DB, { level: 'success', category: 'recover-otp', message: `تم كشف رقم الدخول عبر OTP — ${student.name}`, user_name: student.name, user_role: 'student', ip });
         return ok({ access_code: student.code, name: student.name }, 200, CORS);
       }

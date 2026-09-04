@@ -1103,6 +1103,7 @@ const App = {
     document.getElementById('ro-active-ring').classList.remove('show');
     document.getElementById('ro-step-otp').classList.remove('ro-step-otp-morphing');
     document.getElementById('ro-success-burst').hidden = true;
+    document.getElementById('ro-error-card').hidden = true;
     App._roShowStep('phone');
     document.getElementById('recover-otp-modal').classList.add('open');
     setTimeout(() => document.getElementById('ro-phone')?.focus(), 50);
@@ -1182,6 +1183,10 @@ const App = {
     });
   },
 
+  // Anti-enumeration: this always advances to the OTP step on any successful
+  // response — the backend itself never reveals whether the phone matched
+  // an account (see POST /auth/recover/request), so there is nothing here
+  // to branch on. Only client-side format/rate-limit failures short-circuit.
   async recoverOtpRequest(isResend) {
     const phoneInput = document.getElementById('ro-phone');
     const errEl = document.getElementById('ro-phone-err');
@@ -1196,11 +1201,10 @@ const App = {
       const res = await apiFetch('/auth/recover/request', { method: 'POST', body: JSON.stringify({ phone }) });
       State._recoverOtp = { phone };
       document.getElementById('ro-phone-echo').textContent = phone;
-      document.querySelectorAll('.ro-otp-box').forEach(b => b.value = '');
-      document.getElementById('ro-otp-err').classList.remove('show');
+      App.recoverOtpRetry(); // fresh boxes, ring, and no stale error card
       App._roShowStep('otp');
       setTimeout(() => { document.querySelector('.ro-otp-box')?.focus(); App._roPositionRing(); }, 50);
-      if (isResend) showToast('تم إرسال رمز جديد ✅');
+      if (isResend) showToast('تم إرسال رمز جديد');
       if (res?.devCode) {
         State._recoverOtp.devCode = res.devCode;
         document.getElementById('ro-fill-code').textContent = res.devCode;
@@ -1210,24 +1214,33 @@ const App = {
       }
     } catch (e) {
       const status = e?.status;
-      const msg = status === 404 ? 'رقم الجوال غير مسجل'
-        : status === 429 ? 'طلبات كثيرة — أعد المحاولة بعد قليل'
-        : status === 502 ? 'تعذّر إرسال الرمز عبر واتساب — حاول لاحقًا'
-        : (e?.message || 'تعذّر إرسال رمز التحقق');
+      const msg = status === 429 ? 'طلبات كثيرة — أعد المحاولة بعد قليل'
+        : (e?.message || 'تعذّر إرسال الطلب');
       if (isResend) { showToast(msg); } else { errEl.textContent = msg; errEl.classList.add('show'); }
     } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = 'إرسال رمز التحقق ←'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = 'متابعة'; }
     }
+  },
+
+  // Resets the OTP step back to a clean input state — used both when the
+  // step is first shown and when "إعادة المحاولة" dismisses the error card.
+  recoverOtpRetry() {
+    document.querySelectorAll('.ro-otp-box').forEach(b => b.value = '');
+    document.getElementById('ro-step-otp').classList.remove('ro-step-otp-morphing');
+    document.getElementById('ro-error-card').hidden = true;
+    document.getElementById('ro-active-ring').classList.remove('show');
+    const boxes = document.querySelectorAll('.ro-otp-box');
+    if (boxes[0]) { boxes[0].focus(); }
+    App._roPositionRing();
   },
 
   async recoverOtpVerify() {
     const boxes = Array.from(document.querySelectorAll('.ro-otp-box'));
     const code = boxes.map(b => b.value).join('');
-    const errEl = document.getElementById('ro-otp-err');
-    errEl.classList.remove('show');
-    if (!/^\d{4}$/.test(code)) { errEl.textContent = 'أدخل الرمز المكوّن من 4 أرقام.'; errEl.classList.add('show'); return; }
+    if (!/^\d{4}$/.test(code)) { boxes.find(b => !b.value)?.focus(); return; }
     const btn = document.getElementById('ro-verify-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> جارٍ التحقق…'; }
+    const otpStep = document.getElementById('ro-step-otp');
     try {
       const res = await apiFetch('/auth/recover/verify', {
         method: 'POST', body: JSON.stringify({ phone: State._recoverOtp.phone, code }),
@@ -1236,11 +1249,11 @@ const App = {
       document.getElementById('ro-name-echo').textContent = res.name || '';
       document.getElementById('ro-code-box').textContent = res.access_code;
       const copyBtn = document.getElementById('ro-copy-btn');
-      copyBtn.textContent = 'نسخ رقم الدخول 📋'; copyBtn.classList.remove('ro-copied');
+      copyBtn.classList.remove('ro-copied');
+      document.getElementById('ro-copy-label').textContent = 'نسخ رقم الدخول';
       // Morph transition: the OTP boxes shrink/fade while a pulsing
       // checkmark burst plays in their place, then step-reveal takes over
       // once the burst has had time to read — see .ro-step-otp-morphing.
-      const otpStep = document.getElementById('ro-step-otp');
       const burst = document.getElementById('ro-success-burst');
       otpStep.classList.add('ro-step-otp-morphing');
       burst.hidden = false;
@@ -1252,25 +1265,48 @@ const App = {
       return;
     } catch (e) {
       const status = e?.status;
-      const msg = status === 401 ? 'رمز التحقق غير صحيح'
+      // The backend only checks account existence AFTER the code itself
+      // matches (see /auth/recover/verify) — a code is generated and stored
+      // for every phone number regardless of registration, so a wrong-code
+      // guess can never reveal whether the phone has an account. That
+      // makes each status genuinely distinct, not a security trade-off:
+      //   401 — code exists for this phone, submitted value didn't match.
+      //   410 — no live code at all (never requested, or expired).
+      //   404 — the code WAS correct, but no student owns this phone.
+      // Only 404 gets the support link — it's the one case where "try
+      // again" can't fix anything. Anything else (network error, timeout,
+      // 5xx, dead server) is an infrastructure problem and must say so
+      // honestly rather than being folded into any of the above.
+      const showSupport = status === 404;
+      const msg = status === 429 ? 'تجاوزت عدد المحاولات المسموح — أعد المحاولة لاحقًا'
+        : status === 401 ? 'رمز التحقق غير صحيح — حاول مرة أخرى'
         : status === 410 ? 'انتهت صلاحية رمز التحقق — اطلب رمزًا جديدًا'
-        : status === 429 ? 'تجاوزت عدد المحاولات المسموح — اطلب رمزًا جديدًا'
-        : (e?.message || 'تعذّر التحقق من الرمز');
-      errEl.textContent = msg; errEl.classList.add('show');
-      boxes.forEach(b => b.value = '');
-      boxes[0]?.focus();
+        : status === 404 ? 'لا يوجد حساب مرتبط برقم الجوال هذا. إذا كنت تعتقد أن لديك حسابًا أو تحتاج إلى مساعدة، يرجى التواصل مع الدعم الفني.'
+        : (e?.message || '').includes('TIMEOUT') ? 'انتهت مهلة الاتصال — تحقق من الإنترنت وأعد المحاولة'
+        : (!navigator.onLine || (e?.message || '').includes('NETWORK_ERROR')) ? 'لا يوجد اتصال بالخادم — تحقق من الشبكة وأعد المحاولة'
+        : 'تعذّر الاتصال بالخادم — حاول مرة أخرى';
+      document.getElementById('ro-error-text').textContent = msg;
+      document.getElementById('ro-error-support').hidden = !showSupport;
+      otpStep.classList.add('ro-step-otp-morphing');
+      setTimeout(() => { document.getElementById('ro-error-card').hidden = false; }, 350);
     } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = 'تحقق ←'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = 'تحقق'; }
     }
   },
 
   recoverOtpCopy() {
     const code = document.getElementById('ro-code-box').textContent || '';
     const btn = document.getElementById('ro-copy-btn');
+    const slot = document.getElementById('ro-copy-icon-slot');
+    const label = document.getElementById('ro-copy-label');
     navigator.clipboard?.writeText(code).then(() => {
       if (!btn) return;
-      btn.textContent = 'تم النسخ ✅'; btn.classList.add('ro-copied');
-      setTimeout(() => { btn.textContent = 'نسخ رقم الدخول 📋'; btn.classList.remove('ro-copied'); }, 2000);
+      slot.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+      label.textContent = 'تم النسخ'; btn.classList.add('ro-copied');
+      setTimeout(() => {
+        slot.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+        label.textContent = 'نسخ رقم الدخول'; btn.classList.remove('ro-copied');
+      }, 2000);
     }).catch(() => {});
   },
 

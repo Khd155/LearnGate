@@ -217,7 +217,17 @@ function adminLabel(name) {
   return name ? `أ | ${name}` : name;
 }
 
-// ── Single-use account-access link ("?t=") — dev test tool ─────────────────
+// ── Account-access link ("?t=") landing ────────────────────────────────────
+// Captured at script-parse time, NOT re-read from location.search later.
+// show() rewrites the address bar via history.replaceState() to the plain
+// path of whatever screen it opens ('/' for this one, since it has no
+// _SCREEN_PATHS entry), which strips the "?t=..." query the moment the
+// access-token screen is displayed. Anything that asks "are we on an access
+// link?" after that point gets the wrong answer — which is exactly how the
+// session-restore handler at the bottom of this file used to miss its own
+// guard and overwrite this screen with the landing page.
+const IS_ACCESS_LINK_FLOW = !!new URLSearchParams(window.location.search).get('t');
+
 (function initAccessTokenLanding() {
   const t = new URLSearchParams(window.location.search).get('t');
   if (!t) return;
@@ -7048,9 +7058,14 @@ window.addEventListener('pageshow', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  // A one-time account-access link ("?t=") owns the screen entirely — skip
-  // session restore/auto-login so it can't get overridden mid-flight.
-  if (new URLSearchParams(window.location.search).get('t')) return;
+  // An account-access link ("?t=") owns the screen entirely — skip session
+  // restore/auto-login so it can't get overridden mid-flight. Checked via the
+  // parse-time IS_ACCESS_LINK_FLOW flag, never by re-reading location.search:
+  // the access-link handler above runs first and its show() call has already
+  // replaceState'd the "?t=..." out of the address bar by the time this fires,
+  // so reading the URL here always came back empty and this guard never held —
+  // which is why the landing screen kept stomping the access-token screen.
+  if (IS_ACCESS_LINK_FLOW) return;
   ActivityLog.info(`🌐 تحميل الصفحة — ${new Date().toLocaleString('ar-SA')} — ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
   const btn = document.getElementById('selfdiag-submit');
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }

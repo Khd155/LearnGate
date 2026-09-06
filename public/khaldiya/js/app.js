@@ -221,6 +221,22 @@ function adminLabel(name) {
 (function initAccessTokenLanding() {
   const t = new URLSearchParams(window.location.search).get('t');
   if (!t) return;
+  // A one-time access link owns this page load outright — wipe every stored
+  // admin/student session/remember-me entry up front, before anything else
+  // runs, so a stale login on this device/browser can't influence this flow
+  // in any way (the token exchange below never sent an Authorization header
+  // from these anyway — _authToken only gets set by the session-restore path
+  // this link's own guard skips — but clearing them removes any doubt and
+  // stops a leftover "المدرسة" hint or auto-restore from a *later* plain
+  // visit to '/' picking a stale identity back up).
+  try {
+    for (const role of ['student', 'admin']) {
+      sessionStorage.removeItem(`lg_session_${role}`);
+      localStorage.removeItem(`lg_xsession_${role}`);
+      localStorage.removeItem(`lg_remember_${role}`);
+    }
+    localStorage.removeItem('lg_active_role');
+  } catch (_) {}
   document.addEventListener('DOMContentLoaded', async () => {
     // The inline bootstrap script at the very top of index.html hides the
     // whole page (visibility:hidden) whenever ANY stored admin/student

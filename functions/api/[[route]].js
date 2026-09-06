@@ -1264,10 +1264,14 @@ export async function onRequest({ request, env }) {
           return ok({ added, updated, skipped: valid.length - added - updated, total: valid.length }, 200, CORS);
         }
 
-        const { name, code, school: bodySchool, phone } = body;
+        const { name, code, school: bodySchool, phone, gradeLevel } = body;
         // Same field constraints already enforced on the bulk-import path above.
         if (!code || !/^\d{10}$/.test(code)) return err('رمز غير صالح', 400, CORS);
         if (!name || typeof name !== 'string' || name.length > 100) return err('اسم غير صالح', 400, CORS);
+        // Optional for backward compatibility with older callers of this
+        // endpoint (e.g. the bulk-array branch above never sends it) — but
+        // whatever is sent must be one of the real stages, never freeform.
+        if (gradeLevel && !GRADE_LEVELS.includes(gradeLevel)) return err('مرحلة دراسية غير صالحة', 400, CORS);
         // Non-dev admins/directors scoped to a specific school can't override
         // it via body/query — only dev or a school='*' director may pick freely.
         const effectiveSchool = postClaims.school && postClaims.school !== '*' ? postClaims.school : (bodySchool || school);
@@ -1275,15 +1279,15 @@ export async function onRequest({ request, env }) {
         const now = new Date().toISOString();
         try {
           await DB.prepare(
-            'INSERT INTO students (id, code, name, school, phone, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-          ).bind(sid, code, name, effectiveSchool, phone || '', now).run();
+            'INSERT INTO students (id, code, name, school, phone, grade_level, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          ).bind(sid, code, name, effectiveSchool, phone || '', gradeLevel || '', now).run();
         } catch (e) {
           if (e.message && e.message.includes('UNIQUE'))
             return err('السجل المدني مسجّل مسبقاً', 409, CORS);
           throw e;
         }
         await logEvent(DB, { level: 'info', category: 'student', message: `إضافة طالب جديد: ${name}`, user_name: postClaims.name || '', user_role: postClaims.role, school: effectiveSchool || '' });
-        return ok({ student: { id: sid, code, name, school: effectiveSchool, phone: phone || '', created_at: now } }, 201, CORS);
+        return ok({ student: { id: sid, code, name, school: effectiveSchool, phone: phone || '', grade_level: gradeLevel || '', created_at: now } }, 201, CORS);
       }
 
       if (method === 'PATCH' && sub) {

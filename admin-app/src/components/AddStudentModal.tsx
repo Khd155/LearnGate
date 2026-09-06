@@ -2,7 +2,7 @@ import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useStore } from '../store/useStore';
 import { api, ApiError } from '../lib/api';
-import type { Student } from '../types';
+import { GRADE_LEVELS, type GradeLevel, type Student } from '../types';
 
 interface Props {
   open: boolean;
@@ -17,7 +17,8 @@ export default function AddStudentModal({ open, onOpenChange }: Props) {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [phone, setPhone] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; code?: string }>({});
+  const [gradeLevel, setGradeLevel] = useState<GradeLevel | ''>('');
+  const [errors, setErrors] = useState<{ name?: string; code?: string; gradeLevel?: string }>({});
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
 
@@ -25,6 +26,7 @@ export default function AddStudentModal({ open, onOpenChange }: Props) {
     setName('');
     setCode('');
     setPhone('');
+    setGradeLevel('');
     setErrors({});
   };
 
@@ -42,10 +44,11 @@ export default function AddStudentModal({ open, onOpenChange }: Props) {
   };
 
   const validate = () => {
-    const next: { name?: string; code?: string } = {};
+    const next: { name?: string; code?: string; gradeLevel?: string } = {};
     if (!name.trim()) next.name = 'الاسم مطلوب';
     else if (name.length > 100) next.name = 'الاسم طويل جداً (الحد 100 حرف)';
     if (!/^\d{10}$/.test(code)) next.code = 'اضغط "توليد" لإنشاء رقم دخول أولاً';
+    if (!gradeLevel) next.gradeLevel = 'المرحلة الدراسية مطلوبة';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -59,6 +62,7 @@ export default function AddStudentModal({ open, onOpenChange }: Props) {
         code,
         school: session?.school && session.school !== '*' ? session.school : undefined,
         phone: phone.trim(),
+        gradeLevel,
       });
       addStudent(res.student);
       pushToast('success', 'تمت إضافة الطالب بنجاح');
@@ -121,6 +125,24 @@ export default function AddStudentModal({ open, onOpenChange }: Props) {
                 </button>
               </div>
               {errors.code && <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{errors.code}</p>}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                المرحلة الدراسية
+              </label>
+              <select
+                value={gradeLevel}
+                onChange={(e) => setGradeLevel(e.target.value as GradeLevel)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+              >
+                <option value="">— اختر المرحلة —</option>
+                {GRADE_LEVELS.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+              {errors.gradeLevel && <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{errors.gradeLevel}</p>}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">

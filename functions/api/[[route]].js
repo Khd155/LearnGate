@@ -839,19 +839,32 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
-      // GET /api/auth/access-token?t=... — public, single-use, no time expiry.
-      // Redeems a dev-minted token once; a second attempt (or an unknown
-      // token) reports it as already used so the link can never be replayed.
+      // GET /api/auth/access-token?t=... — public. Redeems a dev-minted token,
+      // then keeps answering for a short grace window instead of dying on
+      // the very next request. Pure single-use (kill it on the first GET)
+      // sounds right but breaks in practice: WhatsApp itself (and most chat
+      // clients/link-preview bots) fetch a shared URL to build its preview
+      // card *before* the real recipient ever taps it — that fetch alone
+      // was burning the token every time, so the actual student always hit
+      // "410 Gone" on their first real click. A real replay attack still
+      // needs the token AND to hit it inside this window, which is an
+      // acceptable trade next to a link that's reliably dead on arrival.
+      const ACCESS_TOKEN_GRACE_MS = 10 * 60 * 1000;
       if (sub === 'access-token' && method === 'GET') {
         if (!await rateLimit(DB, ip, 'access-token', 20)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         const t = url.searchParams.get('t') || '';
         if (!t) return err('الرابط غير صالح', 400, CORS);
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
         const row = await DB.prepare('SELECT token, student_id, used_at FROM access_tokens WHERE token = ?').bind(t).first();
-        if (!row || row.used_at) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
+        if (!row) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
+        if (row.used_at && (Date.now() - new Date(row.used_at).getTime()) > ACCESS_TOKEN_GRACE_MS) {
+          return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
+        }
         const student = await DB.prepare('SELECT name, code, school FROM students WHERE id = ?').bind(row.student_id).first();
         if (!student) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
-        await DB.prepare('UPDATE access_tokens SET used_at = ? WHERE token = ?').bind(new Date().toISOString(), t).run();
+        if (!row.used_at) {
+          await DB.prepare('UPDATE access_tokens SET used_at = ? WHERE token = ?').bind(new Date().toISOString(), t).run();
+        }
         return ok({ name: student.name, code: student.code, school: student.school || '' }, 200, CORS);
       }
 

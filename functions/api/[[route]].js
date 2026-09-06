@@ -286,6 +286,44 @@ async function generateBatchStudentCode(DB, prefix) {
   throw new Error('تعذّر توليد كود فريد بعد عدة محاولات — حاول مرة أخرى');
 }
 
+// ── Account-access links ("?t=") ───────────────────────────────────────────
+// These are time-limited, NOT single-use. "Burn it on the first read" is the
+// obvious design and it does not survive contact with reality: WhatsApp (and
+// every other chat client / link-preview bot / antivirus URL scanner) fetches
+// a shared URL to build its preview card BEFORE the recipient ever taps it,
+// so the student's own first click always arrived at an already-dead link.
+// Validity is therefore decided solely by expires_at.
+//
+// `used_at` still gets stamped on the first read, but purely as the
+// "opened the link" analytics signal — GET /api/dev/wa-sends counts
+// opened_count off it (see the wa-sends handlers below). It never gates
+// access. Do not reintroduce a used_at check here.
+const ACCESS_TOKEN_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+async function ensureAccessTokensSchema(DB) {
+  try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (
+    token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL
+  )`).run(); } catch {}
+  // Both added post-launch, same idempotent try/catch ALTER pattern used for
+  // every other late column in this file.
+  try { await DB.prepare('ALTER TABLE access_tokens ADD COLUMN wa_send_id TEXT').run(); } catch {}
+  try { await DB.prepare('ALTER TABLE access_tokens ADD COLUMN expires_at TEXT').run(); } catch {}
+}
+
+// Rows minted before expires_at existed carry NULL — fall back to their own
+// created_at + the same TTL rather than backfilling with a date-cast UPDATE
+// over a TEXT column (dialect-fragile, and this is exact either way).
+function accessTokenExpiryMs(row) {
+  const explicit = row.expires_at ? Date.parse(row.expires_at) : NaN;
+  if (Number.isFinite(explicit)) return explicit;
+  const created = Date.parse(row.created_at);
+  return Number.isFinite(created) ? created + ACCESS_TOKEN_TTL_MS : Infinity;
+}
+
+function newAccessTokenExpiry() {
+  return new Date(Date.now() + ACCESS_TOKEN_TTL_MS).toISOString();
+}
+
 // Admin/director codes follow the same "prefix + 8 random digits" shape as
 // students, checked against the `admins` table instead. A company-wide
 // ('*') account has no real school to derive a prefix from, so it gets the
@@ -839,29 +877,25 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
-      // GET /api/auth/access-token?t=... — public. Redeems a dev-minted token,
-      // then keeps answering for a short grace window instead of dying on
-      // the very next request. Pure single-use (kill it on the first GET)
-      // sounds right but breaks in practice: WhatsApp itself (and most chat
-      // clients/link-preview bots) fetch a shared URL to build its preview
-      // card *before* the real recipient ever taps it — that fetch alone
-      // was burning the token every time, so the actual student always hit
-      // "410 Gone" on their first real click. A real replay attack still
-      // needs the token AND to hit it inside this window, which is an
-      // acceptable trade next to a link that's reliably dead on arrival.
-      const ACCESS_TOKEN_GRACE_MS = 10 * 60 * 1000;
+      // GET /api/auth/access-token?t=... — public, time-limited, repeatable.
+      // Answers 200 for every request until expires_at passes, no matter how
+      // many times or from how many devices it's opened (preview bots, a
+      // mistaken tap, then the student's real click all succeed). See
+      // ACCESS_TOKEN_TTL_MS above for why single-use was removed outright.
       if (sub === 'access-token' && method === 'GET') {
         if (!await rateLimit(DB, ip, 'access-token', 20)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         const t = url.searchParams.get('t') || '';
         if (!t) return err('الرابط غير صالح', 400, CORS);
-        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
-        const row = await DB.prepare('SELECT token, student_id, used_at FROM access_tokens WHERE token = ?').bind(t).first();
+        await ensureAccessTokensSchema(DB);
+        const row = await DB.prepare('SELECT token, student_id, used_at, created_at, expires_at FROM access_tokens WHERE token = ?').bind(t).first();
         if (!row) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
-        if (row.used_at && (Date.now() - new Date(row.used_at).getTime()) > ACCESS_TOKEN_GRACE_MS) {
+        if (Date.now() > accessTokenExpiryMs(row)) {
           return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
         }
         const student = await DB.prepare('SELECT name, code, school FROM students WHERE id = ?').bind(row.student_id).first();
         if (!student) return err('انتهت صلاحية هذا الرابط — تواصل مع الدعم الفني', 410, CORS);
+        // First-open timestamp only — powers opened_count in the WhatsApp
+        // send stats. Stamped once, never read back as a gate.
         if (!row.used_at) {
           await DB.prepare('UPDATE access_tokens SET used_at = ? WHERE token = ?').bind(new Date().toISOString(), t).run();
         }
@@ -895,11 +929,12 @@ export async function onRequest({ request, env }) {
           await logEvent(DB, { level: 'warn', category: 'recover-link', message: `لا يوجد حساب لهذا الرقم — الرقم المُرسَل: "${rawPhone}" (بعد التطبيع: ${localPhone})`, ip });
           return err('لا يوجد حساب مرتبط بهذا الرقم', 404, CORS);
         }
-        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        await ensureAccessTokensSchema(DB);
         const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
         const randBytes = crypto.getRandomValues(new Uint8Array(14));
         const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
-        await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, student.id, new Date().toISOString()).run();
+        await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
+          .bind(token, student.id, new Date().toISOString(), newAccessTokenExpiry()).run();
         const link = `${new URL(request.url).origin}/?t=${token}`;
         await logEvent(DB, { level: 'success', category: 'recover-link', message: `تم إرسال رابط الدخول — ${student.name} — الرقم المُرسَل: "${rawPhone}"`, user_name: student.name, user_role: 'student', ip });
         return ok({ link, name: student.name }, 200, CORS);
@@ -1492,12 +1527,12 @@ export async function onRequest({ request, env }) {
           id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
           template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
         )`).run(); } catch {}
-        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        await ensureAccessTokensSchema(DB);
 
         const templateName = 'student_account_access_template_1';
         // The button's {{1}} builds https://learngate.khormi.site/?t=<value> —
         // and GET /auth/access-token (see above) resolves ?t= strictly against
-        // access_tokens.token, an opaque single-use value, never the raw
+        // access_tokens.token, an opaque time-limited value, never the raw
         // 10-digit student code. Sending the code itself there would 404 for
         // every student, so this mints one real access token per student (the
         // same mechanism GET /api/students/recover-link already uses) and
@@ -1507,7 +1542,8 @@ export async function onRequest({ request, env }) {
         async function mintAccessToken(studentId) {
           const randBytes = crypto.getRandomValues(new Uint8Array(14));
           const token = Array.from(randBytes, b => linkAlphabet[b % linkAlphabet.length]).join('');
-          await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, studentId, new Date().toISOString()).run();
+          await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
+            .bind(token, studentId, new Date().toISOString(), newAccessTokenExpiry()).run();
           return token;
         }
         async function sendOne(student) {
@@ -3227,8 +3263,7 @@ export async function onRequest({ request, env }) {
           const atClaims = await verifyToken(request, env, DB);
           if (!atClaims || atClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
         }
-        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
-        try { await DB.prepare(`ALTER TABLE access_tokens ADD COLUMN wa_send_id TEXT`).run(); } catch {}
+        await ensureAccessTokensSchema(DB);
         const atBody = await request.json();
         const studentId = String(atBody.studentId || '');
         if (!studentId) return err('studentId مطلوب', 400, CORS);
@@ -3242,7 +3277,8 @@ export async function onRequest({ request, env }) {
         // show aggregate sent/opened stats per batch. Individual one-off sends
         // (generateTestAccessLink/sendAccountLinkWhatsApp) omit it, same as before.
         const waSendId = atBody.waSendId ? String(atBody.waSendId) : null;
-        await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at, wa_send_id) VALUES (?, ?, ?, ?)').bind(token, studentId, new Date().toISOString(), waSendId).run();
+        await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at, wa_send_id, expires_at) VALUES (?, ?, ?, ?, ?)')
+          .bind(token, studentId, new Date().toISOString(), waSendId, newAccessTokenExpiry()).run();
         return ok({ token }, 201, CORS);
       }
 
@@ -3256,9 +3292,9 @@ export async function onRequest({ request, env }) {
         }
         const studentId = url.searchParams.get('studentId') || '';
         if (!studentId) return err('studentId مطلوب', 400, CORS);
-        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
+        await ensureAccessTokensSchema(DB);
         const { results } = await DB.prepare(
-          'SELECT token, used_at, created_at FROM access_tokens WHERE student_id = ? ORDER BY created_at DESC'
+          'SELECT token, used_at, created_at, expires_at FROM access_tokens WHERE student_id = ? ORDER BY created_at DESC'
         ).bind(studentId).all();
         return ok({ tokens: results }, 200, CORS);
       }

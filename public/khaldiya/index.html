@@ -708,7 +708,7 @@
         <span id="at-code" style="font-size:22px;font-weight:800;letter-spacing:1px;font-variant-numeric:tabular-nums;color:var(--primary);"></span>
       </div>
       <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="App.copyAccessCode(this)">نسخ رقم الدخول 📋</button>
-      <div style="color:var(--warn);font-size:12px;margin-top:14px;">⚠️ هذا الرابط صالح لمرة واحدة فقط ولن يعمل بعد الآن.</div>
+      <div style="color:var(--muted);font-size:12px;margin-top:14px;">🔒 هذا الرابط خاص بك — صالح لمدة 14 يومًا، ويمكنك فتحه أكثر من مرة خلالها.</div>
       <ol style="text-align:right;color:var(--muted);font-size:13px;line-height:2;margin:18px 0 0;padding-inline-start:20px;background:var(--bg-tint);border-radius:12px;padding:14px 30px;">
         <li>انسخ رقم الدخول (الزر أعلاه)</li>
         <li>اضغط "التوجه إلى الموقع الرئيسي"</li>
@@ -727,10 +727,11 @@
     <div id="at-error" style="display:none;background:var(--surface);border:1.5px solid var(--border);
          border-radius:var(--radius-lg);padding:32px 24px;max-width:380px;width:100%;box-shadow:var(--shadow);">
       <div style="font-size:38px;margin-bottom:10px;">⛔</div>
-      <div style="font-weight:800;font-size:16px;margin-bottom:8px;">انتهت صلاحية هذا الرابط</div>
-      <div style="color:var(--muted);font-size:13px;margin-bottom:20px;">تعذّر الوصول لهذا الرابط — إما استُخدم من قبل أو أنه غير صحيح.</div>
-      <button class="btn btn-primary" style="width:100%;" onclick="App.openGuestSupport()">📩 تواصل مع الدعم الفني</button>
-      <button class="btn btn-outline" style="width:100%;margin-top:10px;" onclick="window.location.href='/'">التوجه إلى الموقع الرئيسي ←</button>
+      <div style="font-weight:800;font-size:16px;margin-bottom:8px;">تعذّر فتح هذا الرابط</div>
+      <div style="color:var(--muted);font-size:13.5px;line-height:1.9;margin-bottom:20px;">
+        عذراً، هذا الرابط غير صالح أو انتهت صلاحيته. يرجى التواصل مع المشرف للحصول على رابط جديد.
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="window.location.href='/'">العودة إلى الصفحة الرئيسية ←</button>
     </div>
   </div>
 </div>
@@ -3593,6 +3594,6 @@
 </div>
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
-<script src="/js/app.js?v=quiz30" defer></script>
+<script src="/js/app.js?v=quiz31" defer></script>
 </body>
 </html>

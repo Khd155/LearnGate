@@ -249,7 +249,17 @@ function adminLabel(name) {
     // ever had a login stored (e.g. the same phone/browser used to test
     // the admin panel) rendered this access-token screen invisible forever.
     document.documentElement.style.visibility = '';
+    document.body.style.visibility = 'visible';
     show('screen-access-token');
+    // Every exit from here must leave a visible card on screen — a silent
+    // redirect or a blank page is never an acceptable outcome for a student
+    // who just tapped their access link.
+    const _atShow = (which) => {
+      const loading = document.getElementById('at-loading');
+      if (loading) loading.style.display = 'none';
+      const card = document.getElementById(which);
+      if (card) card.style.display = 'block';
+    };
     try {
       const data = await apiFetch('/auth/access-token?t=' + encodeURIComponent(t));
       document.getElementById('at-name').textContent = firstLastName(data.name);
@@ -259,11 +269,10 @@ function adminLabel(name) {
         schoolEl.textContent = '🏫 مدرستك: ' + data.school;
         schoolEl.style.display = 'block';
       }
-      document.getElementById('at-loading').style.display = 'none';
-      document.getElementById('at-success').style.display = 'block';
-    } catch (_) {
-      document.getElementById('at-loading').style.display = 'none';
-      document.getElementById('at-error').style.display = 'block';
+      _atShow('at-success');
+    } catch (e) {
+      ActivityLog.error('رابط الدخول السريع: ' + (e && e.message ? e.message : 'خطأ غير معروف'));
+      _atShow('at-error');
     }
   });
 })();

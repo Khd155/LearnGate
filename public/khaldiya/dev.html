@@ -305,6 +305,7 @@
         <button class="tab-btn active" data-tab="overview"  onclick="Dev.setTab('overview')"><span class="tab-ic">📊</span> نظرة عامة</button>
         <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')"><span class="tab-ic">🏫</span> المدارس والمشرفون</button>
         <button class="tab-btn"        data-tab="students"  onclick="Dev.setTab('students')"><span class="tab-ic">👥</span> الطلاب</button>
+        <button class="tab-btn"        data-tab="import-batches" onclick="Dev.setTab('import-batches')"><span class="tab-ic">📦</span> دفعات الاستيراد</button>
         <button class="tab-btn"        data-tab="permissions" onclick="Dev.setTab('permissions')"><span class="tab-ic">🔐</span> الصلاحيات</button>
 
         <div class="nav-group-title">التقييمات والاختبارات</div>
@@ -421,6 +422,18 @@
         <div id="bulk-wa-progress" style="display:none;margin-bottom:10px;font-size:13px;color:var(--muted);"></div>
         <div id="students-list"><div class="empty">جارٍ التحميل...</div></div>
       </div>
+    </div>
+
+    <!-- ── Import Batches (smart-import history: re-export / re-send WhatsApp) ── -->
+    <div id="tab-import-batches" class="tab-pane">
+      <div class="section-title" style="margin-bottom:16px;"><span>📦</span> دفعات الاستيراد الذكي</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <select id="ib-school-filter" class="form-select" style="width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadImportBatches()">
+          <option value="">كل المدارس</option>
+        </select>
+        <button class="btn btn-warn btn-sm" onclick="Dev.loadImportBatches()">🔄 تحديث</button>
+      </div>
+      <div id="import-batches-list"><div class="empty">اضغط تحديث لعرض الدفعات</div></div>
     </div>
 
     <!-- ── Schools & Admins ── -->
@@ -982,6 +995,7 @@ const Dev = {
     if (tab === 'broadcasts')  { Dev.loadBroadcasts(); return; }
     if (tab === 'wa-stats')    { Dev.loadWaSends(); return; }
     if (tab === 'wa-issue')    { Dev.loadWaIssueStudents(); return; }
+    if (tab === 'import-batches') { Dev.loadImportBatches(); return; }
   },
 
   async loadAll() {
@@ -1373,6 +1387,10 @@ const Dev = {
 
     // WhatsApp issue-notification school filter
     document.getElementById('wi-school-filter').innerHTML =
+      `<option value="">كل المدارس</option>` + schoolOpts;
+
+    // Import-batches school filter
+    document.getElementById('ib-school-filter').innerHTML =
       `<option value="">كل المدارس</option>` + schoolOpts;
   },
 
@@ -2427,6 +2445,111 @@ const Dev = {
       }).join('');
     } catch(e) {
       if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
+    }
+  },
+
+  async loadImportBatches() {
+    const el = document.getElementById('import-batches-list');
+    const school = document.getElementById('ib-school-filter')?.value || '';
+    if (el) el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
+    try {
+      const params = school ? `?school=${encodeURIComponent(school)}` : '';
+      const data = await apiDev('/admin/students/batches' + params);
+      const list = data.batches || [];
+      if (!list.length) { el.innerHTML = '<div class="empty">لا توجد دفعات استيراد بعد</div>'; return; }
+      el.innerHTML = list.map(b => {
+        const date = new Date(b.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        const total = b.student_count || 0;
+        const sent = b.wa_sent || 0;
+        const failed = b.wa_failed || 0;
+        const notSent = Math.max(0, total - sent - failed);
+        return `<div class="section" id="ib-row-${b.id}" style="margin-bottom:14px;padding:0;overflow:hidden;">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted);">
+              <span>🏫 ${escapeHtml(b.school || '—')}</span>
+              <span>🎓 ${escapeHtml(b.grade_level || '—')}</span>
+              <span>🕐 ${date}</span>
+              <span>👥 ${total} طالب</span>
+            </div>
+          </div>
+          <div style="padding:12px 16px;background:rgba(255,255,255,.03);">
+            <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;font-size:13px;">
+              <span><span style="color:#4FA877;font-weight:700;">${sent}</span> <span style="color:var(--muted)">أُرسلت</span></span>
+              <span><span style="color:#ef4444;font-weight:700;">${failed}</span> <span style="color:var(--muted)">فشلت</span></span>
+              <span><span style="color:#94a3b8;font-weight:700;">${notSent}</span> <span style="color:var(--muted)">لم تُرسل بعد</span></span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-sm" style="font-size:12px;padding:5px 12px;" onclick="Dev.exportImportBatch('${b.id}')">⬇ تصدير Excel</button>
+              <button class="btn btn-sm btn-primary" id="ib-send-btn-${b.id}" style="font-size:12px;padding:5px 12px;" onclick="Dev.resendImportBatch('${b.id}')">📲 إعادة إرسال واتساب (${total})</button>
+            </div>
+            <div id="ib-progress-${b.id}" style="display:none;margin-top:10px;font-size:12px;color:var(--muted);"></div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
+    }
+  },
+
+  async exportImportBatch(batchId) {
+    try {
+      const data = await apiDev(`/admin/students/export-batch/${batchId}`);
+      const students = data.students || [];
+      const headers = ['الاسم', 'رقم الدخول', 'الجوال', 'المرحلة الدراسية'];
+      const textCell = v => `<td style="mso-number-format:'\\@';text-align:right;">${escapeHtml(v || '')}</td>`;
+      const cell = v => `<td style="text-align:right;">${escapeHtml(v || '')}</td>`;
+      const headerRow = `<tr>${headers.map(h => `<td style="font-weight:bold;background:#E2E8F0;text-align:center;">${escapeHtml(h)}</td>`).join('')}</tr>`;
+      const dataRows = students.map(s =>
+        `<tr>${[cell(s.name), textCell(s.code), textCell(s.phone), cell(s.grade_level)].join('')}</tr>`
+      ).join('');
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8"><style>table{border-collapse:collapse;font-family:Tahoma,Arial,sans-serif;font-size:13px;direction:rtl;}td{border:1px solid #CBD5E1;padding:6px 10px;}</style></head>
+<body><table>
+<tr><td colspan="4" style="text-align:center;font-weight:bold;font-size:18px;background:#0F172A;color:#FFFFFF;padding:16px;">دفعة استيراد — بوابة دعم التعلم</td></tr>
+${headerRow}
+${dataRows}
+<tr><td colspan="4" style="text-align:center;font-style:italic;color:#475569;">تاريخ التصدير: ${todayStr}</td></tr>
+</table></body></html>`;
+      const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `دفعة-طلاب-${todayStr}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch(e) {
+      showToast('تعذّر التصدير: ' + e.message, true);
+    }
+  },
+
+  _ibDispatching: {},
+  async resendImportBatch(batchId) {
+    if (Dev._ibDispatching[batchId]) return;
+    Dev._ibDispatching[batchId] = true;
+    const btn = document.getElementById(`ib-send-btn-${batchId}`);
+    const progressEl = document.getElementById(`ib-progress-${batchId}`);
+    if (btn) btn.disabled = true;
+    if (progressEl) { progressEl.style.display = 'block'; progressEl.textContent = 'جارٍ الإرسال...'; }
+    const poll = setInterval(async () => {
+      try {
+        const s = await apiDev(`/admin/students/dispatch-status/${batchId}`);
+        if (progressEl) progressEl.textContent = `نجح ${s.sent} · فشل ${s.failed}`;
+      } catch {}
+    }, 1200);
+    try {
+      const res = await apiDev(`/admin/students/whatsapp-dispatch-batch/${batchId}`, { method: 'POST' });
+      showToast(`تم الإرسال — نجح ${res.sent} / فشل ${res.failed} من ${res.total}`, res.failed > 0);
+      if (progressEl) progressEl.textContent = `نجح ${res.sent} · فشل ${res.failed} من ${res.total}`;
+      Dev.loadImportBatches();
+    } catch(e) {
+      showToast('تعذّر الإرسال: ' + e.message, true);
+    } finally {
+      clearInterval(poll);
+      Dev._ibDispatching[batchId] = false;
+      if (btn) btn.disabled = false;
     }
   },
 

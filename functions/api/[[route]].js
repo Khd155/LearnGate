@@ -1575,6 +1575,30 @@ export async function onRequest({ request, env }) {
         ).bind(subsub2).all();
         return ok({ sent, failed, errors: failedRows }, 200, CORS);
       }
+
+      // GET /api/admin/students/batches — every import batch (newest first),
+      // each with its own WhatsApp dispatch tally, so the dev panel can list
+      // past batches and offer a "resend" without the admin needing the raw
+      // batchId from when the batch was first created.
+      if (subsub === 'batches' && !subsub2 && method === 'GET') {
+        let q = 'SELECT * FROM import_batches';
+        const params = [];
+        if (effSchoolSI) { q += ' WHERE school = ?'; params.push(effSchoolSI); }
+        q += ' ORDER BY created_at DESC LIMIT 100';
+        const { results: batches } = await DB.prepare(q).bind(...params).all();
+        if (!batches.length) return ok({ batches: [] }, 200, CORS);
+        const ids = batches.map(b => b.id);
+        const placeholders = ids.map(() => '?').join(',');
+        const { results: waCounts } = await DB.prepare(
+          `SELECT batch_id, status, COUNT(*) as c FROM wa_template_logs WHERE batch_id IN (${placeholders}) GROUP BY batch_id, status`
+        ).bind(...ids).all();
+        const withCounts = batches.map(b => {
+          const sent = Number(waCounts.find(r => r.batch_id === b.id && r.status === 'sent')?.c || 0);
+          const failed = Number(waCounts.find(r => r.batch_id === b.id && r.status === 'failed')?.c || 0);
+          return { ...b, wa_sent: sent, wa_failed: failed };
+        });
+        return ok({ batches: withCounts }, 200, CORS);
+      }
     }
 
     // ── PLANS ────────────────────────────────────────────────────────────────

@@ -228,6 +228,12 @@ function adminLabel(name) {
 // guard and overwrite this screen with the landing page.
 const IS_ACCESS_LINK_FLOW = !!new URLSearchParams(window.location.search).get('t');
 
+// The access link this page load came from, handed to /auth/student-login so
+// the server can retire it once the student is genuinely signed in (a preview
+// bot fetching the page never gets that far). Kept in memory only — show()
+// wipes the query string, so it can't be re-read off the URL later.
+let _accessLinkToken = new URLSearchParams(window.location.search).get('t') || '';
+
 (function initAccessTokenLanding() {
   const t = new URLSearchParams(window.location.search).get('t');
   if (!t) return;
@@ -1389,7 +1395,11 @@ const App = {
     try {
       const data = await apiFetch('/auth/student-login', {
         method: 'POST',
-        body: JSON.stringify({ code, school: State.school || '' }),
+        body: JSON.stringify({
+          code,
+          school: State.school || '',
+          ...(_accessLinkToken ? { accessToken: _accessLinkToken } : {}),
+        }),
         timeout: 5000,
       });
       token = data.token;
@@ -1419,6 +1429,10 @@ const App = {
     }
     try {
       _authToken = token;
+      // Consumed server-side by the call above — don't resend it on any later
+      // login in this tab (e.g. after a logout), which would be a no-op at
+      // best and confusing in the logs at worst.
+      _accessLinkToken = '';
       ActivityLog.success(`🎓 تسجيل دخول طالب: ${student.name} (${code}) — ${student.school || '—'}`);
       serverLog('success', 'login', `تسجيل دخول طالب: ${student.name}`, { user_name: student.name, user_role: 'student', school: student.school || '' });
       State.student = student;

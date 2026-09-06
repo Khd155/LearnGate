@@ -311,7 +311,12 @@ async function generateBatchStudentCode(DB, prefix) {
 // "opened the link" analytics signal — GET /api/dev/wa-sends counts
 // opened_count off it (see the wa-sends handlers below). It never gates
 // access. Do not reintroduce a used_at check here.
-const ACCESS_TOKEN_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+//
+// A link therefore dies in exactly two ways: the 30 days run out, or the
+// student actually completes a login through it (POST /auth/student-login
+// with accessToken), which expires it on the spot — a bot rendering a
+// preview card can't do that, only a real session can.
+const ACCESS_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 async function ensureAccessTokensSchema(DB) {
   try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (
@@ -1077,8 +1082,8 @@ export async function onRequest({ request, env }) {
         if (await isLockedOut(DB, ip, 'student-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
         const rawBody = await request.json();
         // Mass assignment guard: only accept known fields
-        const { code, school: bodySchool } = rawBody;
-        if (Object.keys(rawBody).some(k => !['code','school'].includes(k))) return err('حقول غير مسموحة', 400, CORS);
+        const { code, school: bodySchool, accessToken: usedAccessToken } = rawBody;
+        if (Object.keys(rawBody).some(k => !['code','school','accessToken'].includes(k))) return err('حقول غير مسموحة', 400, CORS);
         if (!code || !/^\d{10}$/.test(code)) return err('رمز غير صالح', 400, CORS);
         // Account-level lockout (by code) in addition to the IP-level check
         // above, so rotating IPs can't be used to brute-force one account.
@@ -1095,6 +1100,19 @@ export async function onRequest({ request, env }) {
         await clearFailedAttempts(DB, ip, 'student-login', code);
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const token = await jwtSign({ jti: crypto.randomUUID(), sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
+        // The login came through an access link and succeeded — retire that
+        // link now. This is the only thing that consumes one early: a preview
+        // bot fetching the page can't reach here, so the student's own click
+        // still works. Scoped to this student's own tokens so a guessed value
+        // can't be used to burn somebody else's link, and non-fatal, since the
+        // session is already valid either way.
+        if (usedAccessToken && typeof usedAccessToken === 'string') {
+          try {
+            await ensureAccessTokensSchema(DB);
+            await DB.prepare('UPDATE access_tokens SET expires_at = ? WHERE token = ? AND student_id = ?')
+              .bind(new Date().toISOString(), usedAccessToken, student.id).run();
+          } catch {}
+        }
         await logEvent(DB, { level: 'success', category: 'login', message: 'تسجيل دخول طالب', user_name: student.name, user_role: 'student', school: student.school || '', ip, student_id: student.id });
         return ok({ token, student: { id: student.id, name: student.name, school: student.school, phone: student.phone || '', has_seen_welcome: Number(student.has_seen_welcome) === 1 } }, 200, CORS);
       }

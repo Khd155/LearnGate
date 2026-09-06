@@ -22,7 +22,11 @@ export interface Student {
   // "at-risk" aggregate, so "آخر نشاط" reads the same everywhere it appears.
   last_active?: string | null;
   cooldown_until?: string | null;
+  grade_level?: string;
 }
+
+export const GRADE_LEVELS = ['أول ثانوي', 'ثاني ثانوي', 'ثالث ثانوي'] as const;
+export type GradeLevel = (typeof GRADE_LEVELS)[number];
 
 export type TestStatus = 'not_started' | 'started' | 'finished';
 

@@ -209,8 +209,23 @@ async function ensureCoreTables(DB) {
   // migration here, same idempotent try/catch ALTER pattern used
   // throughout this file for every other post-launch column.
   try { await DB.prepare('ALTER TABLE schools ADD COLUMN code TEXT UNIQUE').run(); } catch {}
+  try { await DB.prepare("ALTER TABLE students ADD COLUMN grade_level TEXT DEFAULT ''").run(); } catch {}
+  try { await DB.prepare("ALTER TABLE students ADD COLUMN batch_id TEXT DEFAULT ''").run(); } catch {}
+  // One-time backfill: every student that predates the grade_level column
+  // (grade_level IS NULL or '') is assumed ثالث ثانوي — the only stage the
+  // platform served before this column existed. Rows imported afterwards
+  // always carry their own grade_level, so this WHERE clause only ever
+  // matches the pre-existing legacy rows, once.
+  try { await DB.prepare("UPDATE students SET grade_level = 'ثالث ثانوي' WHERE grade_level IS NULL OR grade_level = ''").run(); } catch {}
+  try { await DB.prepare(`CREATE TABLE IF NOT EXISTS import_batches (
+    id TEXT PRIMARY KEY, school TEXT NOT NULL DEFAULT '', grade_level TEXT DEFAULT '',
+    student_count INTEGER NOT NULL DEFAULT 0, created_by TEXT DEFAULT '', created_at TEXT NOT NULL
+  )`).run(); } catch {}
   _coreTablesEnsured = true;
 }
+
+const GRADE_LEVELS = ['أول ثانوي', 'ثاني ثانوي', 'ثالث ثانوي'];
+const DEFAULT_STUDENT_ID_PREFIX = '11';
 
 // Every school gets a stable 2-digit numeric prefix, assigned once (lowest
 // unused 01-98) the first time anything needs it and persisted on its
@@ -247,6 +262,21 @@ async function getOrAssignSchoolCode(DB, schoolName) {
 // existing 409 handling in POST /api/dev/students either way).
 async function generateStudentCode(DB, schoolName) {
   const prefix = await getOrAssignSchoolCode(DB, schoolName);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const suffix = String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+    const candidate = prefix + suffix;
+    const exists = await DB.prepare('SELECT 1 FROM students WHERE code = ?').bind(candidate).first();
+    if (!exists) return candidate;
+  }
+  throw new Error('تعذّر توليد كود فريد بعد عدة محاولات — حاول مرة أخرى');
+}
+
+// Smart-import student codes use a configurable global prefix (app_settings
+// key 'student_id_prefix', default '11') instead of the per-school 2-digit
+// prefix generateStudentCode() above assigns — the import batch feature
+// needs one fixed, admin-editable prefix regardless of which school is
+// importing, not the auto-incrementing per-school scheme used elsewhere.
+async function generateBatchStudentCode(DB, prefix) {
   for (let attempt = 0; attempt < 20; attempt++) {
     const suffix = String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
     const candidate = prefix + suffix;
@@ -634,6 +664,7 @@ export async function onRequest({ request, env }) {
   const resource = parts[1];   // e.g. 'students', 'plans', 'dev'
   const sub      = parts[2];   // e.g. student id, 'admins'
   const subsub   = parts[3];   // e.g. admin id
+  const subsub2  = parts[4];   // e.g. import batch id under /api/admin/students/export-batch/:batchId
   const DB       = getDB(env);
   const school   = url.searchParams.get('school') || '';
 
@@ -1308,6 +1339,200 @@ export async function onRequest({ request, env }) {
         }
         await logEvent(DB, { level: 'warn', category: 'student', message: `حذف طالب: ${delTarget?.name || sub}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || delTarget?.school || school || '' });
         return ok({ ok: true }, 200, CORS);
+      }
+    }
+
+    // ── SMART STUDENT IMPORT (column-mapped batches, batch export/dispatch) ──
+    if (resource === 'admin' && sub === 'students') {
+      const _isDevSI = authDev(request, env);
+      const _claimsSI = _isDevSI ? null : await verifyToken(request, env, DB);
+      const roleSI = _isDevSI ? 'dev' : _claimsSI?.role;
+      if (!['admin', 'director', 'dev'].includes(roleSI || '')) return err('غير مصرح', 401, CORS);
+      const effSchoolSI = (roleSI !== 'dev' && _claimsSI?.school && _claimsSI.school !== '*')
+        ? _claimsSI.school : (school || '');
+
+      // POST /api/admin/students/import-preview — server-side normalization,
+      // column-value validation and duplicate detection for rows the browser
+      // already parsed out of the uploaded Excel file (this app has no
+      // server-side Excel parser; the client's `xlsx` package handles that,
+      // see admin-app's SmartImportModal). Returns a preview row per input
+      // row with its computed status, but commits nothing.
+      if (subsub === 'import-preview' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const rows = Array.isArray(body.rows) ? body.rows : [];
+        if (!effSchoolSI && !body.school) return err('المدرسة مطلوبة', 400, CORS);
+        const targetSchool = effSchoolSI || body.school;
+
+        const { results: existingPhones } = await DB.prepare('SELECT phone FROM students WHERE phone <> \'\'').all();
+        const existingPhoneSet = new Set(existingPhones.map(r => r.phone));
+        const seenPhonesInFile = new Set();
+        const seenNamesAndPhones = new Set();
+
+        const preview = rows.map((r, index) => {
+          const name = String(r.name || '').trim().slice(0, 100);
+          const phoneDigits = String(r.phone || '').replace(/\D/g, '');
+          const phone = /^05\d{8}$/.test(phoneDigits) ? phoneDigits : (phoneDigits ? phoneDigits.slice(0, 10) : '');
+          const gradeLevel = GRADE_LEVELS.includes(r.gradeLevel) ? r.gradeLevel : (body.uniformGradeLevel && GRADE_LEVELS.includes(body.uniformGradeLevel) ? body.uniformGradeLevel : '');
+
+          let status = 'new';
+          let error = '';
+          if (!name) { status = 'invalid'; error = 'الاسم مطلوب'; }
+          else if (!gradeLevel) { status = 'invalid'; error = 'المرحلة الدراسية مطلوبة'; }
+          else if (phone && !/^05\d{8}$/.test(phone)) { status = 'invalid'; error = 'رقم الجوال غير صالح'; }
+          else if (phone && seenPhonesInFile.has(phone)) { status = 'duplicate_in_file'; error = 'رقم الجوال مكرر في الملف'; }
+          else if (phone && existingPhoneSet.has(phone)) { status = 'duplicate_existing'; error = 'رقم الجوال مسجّل مسبقاً'; }
+          else if (!phone && seenNamesAndPhones.has(name)) { status = 'duplicate_in_file'; error = 'اسم مكرر في الملف بلا رقم جوال للتمييز'; }
+
+          if (status === 'new') {
+            if (phone) seenPhonesInFile.add(phone);
+            else seenNamesAndPhones.add(name);
+          }
+          return { index, name, phone, gradeLevel, status, error };
+        });
+
+        const validCount = preview.filter(r => r.status === 'new').length;
+        return ok({ school: targetSchool, total: preview.length, validCount, rows: preview }, 200, CORS);
+      }
+
+      // POST /api/admin/students/import-confirm — commits only rows the
+      // caller marked valid in the preview step, generating each a fresh
+      // login code under the configurable global prefix (not the per-school
+      // scheme generateStudentCode() uses elsewhere in this file).
+      if (subsub === 'import-confirm' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const rows = Array.isArray(body.rows) ? body.rows : [];
+        const targetSchool = effSchoolSI || body.school;
+        if (!targetSchool) return err('المدرسة مطلوبة', 400, CORS);
+        const valid = rows.filter(r => r.name && GRADE_LEVELS.includes(r.gradeLevel));
+        if (!valid.length) return err('لا توجد صفوف صالحة للاستيراد', 400, CORS);
+
+        const prefix = (await _getSetting('student_id_prefix')) || DEFAULT_STUDENT_ID_PREFIX;
+        const batchId = crypto.randomUUID();
+        const now = new Date().toISOString();
+        const created = [];
+        for (const r of valid) {
+          const code = await generateBatchStudentCode(DB, prefix);
+          const sid = crypto.randomUUID();
+          const name = String(r.name).trim().slice(0, 100);
+          const phone = /^05\d{8}$/.test(String(r.phone || '')) ? r.phone : '';
+          await DB.prepare(
+            'INSERT INTO students (id, code, name, school, phone, grade_level, batch_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+          ).bind(sid, code, name, targetSchool, phone, r.gradeLevel, batchId, now).run();
+          created.push({ id: sid, code, name, phone, gradeLevel: r.gradeLevel });
+        }
+        await DB.prepare(
+          'INSERT INTO import_batches (id, school, grade_level, student_count, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(batchId, targetSchool, valid[0].gradeLevel, created.length, _claimsSI?.name || 'dev', now).run();
+        await logEvent(DB, { level: 'success', category: 'student', message: `استيراد ذكي — دفعة جديدة (${created.length} طالب) — ${targetSchool}`, user_name: _claimsSI?.name || '', user_role: roleSI, school: targetSchool });
+        return ok({ batchId, created, skipped: rows.length - created.length }, 201, CORS);
+      }
+
+      // GET /api/admin/students/export-batch/:batchId — students belonging
+      // to one import batch only, for the completion screen's scoped export
+      // (JSON here; the admin-app builds the actual downloadable .xls
+      // client-side the same way it already does for the full student list
+      // in lib/csv.ts — there's no server-side Excel writer in this app).
+      if (subsub === 'export-batch' && subsub2 && method === 'GET') {
+        const batch = await DB.prepare('SELECT * FROM import_batches WHERE id = ?').bind(subsub2).first();
+        if (!batch) return err('الدفعة غير موجودة', 404, CORS);
+        if (effSchoolSI && batch.school !== effSchoolSI) return err('غير مصرح', 401, CORS);
+        const { results } = await DB.prepare(
+          'SELECT id, code, name, phone, grade_level, school FROM students WHERE batch_id = ? ORDER BY created_at ASC'
+        ).bind(subsub2).all();
+        return ok({ batch, students: results }, 200, CORS);
+      }
+
+      // POST /api/admin/students/whatsapp-dispatch-batch/:batchId — sends
+      // login credentials only to this batch's students, reusing the same
+      // wa_template_logs table/batch_id-scoped shape as
+      // POST /api/sendpulse/template-send above so GET dispatch-status below
+      // can aggregate progress with one simple COUNT query.
+      if (subsub === 'whatsapp-dispatch-batch' && subsub2 && method === 'POST') {
+        if (roleSI !== 'dev' && !(Array.isArray(_claimsSI?.permissions) && _claimsSI.permissions.includes('send_whatsapp'))) {
+          return err('لا تملك صلاحية إرسال الواتساب', 403, CORS);
+        }
+        const batch = await DB.prepare('SELECT * FROM import_batches WHERE id = ?').bind(subsub2).first();
+        if (!batch) return err('الدفعة غير موجودة', 404, CORS);
+        if (effSchoolSI && batch.school !== effSchoolSI) return err('غير مصرح', 401, CORS);
+        const { results: targets } = await DB.prepare(
+          'SELECT id, name, phone, code FROM students WHERE batch_id = ?'
+        ).bind(subsub2).all();
+
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_template_logs (
+          id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
+          template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
+        )`).run(); } catch {}
+
+        const templateName = 'student_credentials_dispatch';
+        async function sendOne(student) {
+          const now = () => new Date().toISOString();
+          const variablesJson = JSON.stringify({ name: student.name, code: student.code });
+          if (!student.phone) {
+            await DB.prepare(
+              'INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
+            ).bind(crypto.randomUUID(), subsub2, student.id, student.name, '', templateName, variablesJson, 'failed', 'رقم جوال غير صالح', now()).run();
+            return;
+          }
+          const components = sanitizeWaComponents([{
+            type: 'body',
+            parameters: [{ type: 'text', text: student.name || 'الطالب' }, { type: 'text', text: student.code }],
+          }]);
+          let lastError = null;
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              const res = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+                bot_id: env.SENDPULSE_BOT_ID,
+                phone: normalizeSaudiPhone(student.phone),
+                template: { name: templateName, language: { code: 'ar', policy: 'deterministic' }, components },
+              });
+              const r0 = res?.results?.[0] ?? res;
+              const spError = r0?.error || r0?.data?.error || r0?.errors;
+              if (r0?.success === false || spError) throw new Error(JSON.stringify(spError || r0));
+              await DB.prepare(
+                'INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
+              ).bind(crypto.randomUUID(), subsub2, student.id, student.name, student.phone, templateName, variablesJson, 'sent', '', now()).run();
+              return;
+            } catch (e) {
+              lastError = e?.message || String(e);
+              if (attempt < 3) await new Promise(r => setTimeout(r, 300));
+            }
+          }
+          await DB.prepare(
+            'INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
+          ).bind(crypto.randomUUID(), subsub2, student.id, student.name, student.phone, templateName, variablesJson, 'failed', lastError, now()).run();
+        }
+
+        const CHUNK = 10;
+        for (let i = 0; i < targets.length; i += CHUNK) {
+          const chunk = targets.slice(i, i + CHUNK);
+          await Promise.all(chunk.map(sendOne));
+          if (i + CHUNK < targets.length) await new Promise(r => setTimeout(r, 1000));
+        }
+
+        const { results: finalLogs } = await DB.prepare(
+          'SELECT status, COUNT(*) as c FROM wa_template_logs WHERE batch_id = ? GROUP BY status'
+        ).bind(subsub2).all();
+        const sentCount = finalLogs.find(r => r.status === 'sent')?.c || 0;
+        const failedCount = finalLogs.find(r => r.status === 'failed')?.c || 0;
+        await logEvent(DB, {
+          level: failedCount > 0 ? 'warn' : 'success',
+          category: 'whatsapp',
+          message: `إرسال بيانات دخول لدفعة استيراد — نجح ${sentCount} / فشل ${failedCount} من ${targets.length}`,
+          user_name: _claimsSI?.name || '', user_role: roleSI, school: batch.school,
+        });
+        return ok({ total: targets.length, sent: Number(sentCount), failed: Number(failedCount) }, 200, CORS);
+      }
+
+      // GET /api/admin/students/dispatch-status/:batchId — lightweight
+      // progress poll for the completion screen's WhatsApp progress bar,
+      // read concurrently with the POST above while it's still running.
+      if (subsub === 'dispatch-status' && subsub2 && method === 'GET') {
+        const { results } = await DB.prepare(
+          'SELECT status, COUNT(*) as c FROM wa_template_logs WHERE batch_id = ? GROUP BY status'
+        ).bind(subsub2).all();
+        const sent = Number(results.find(r => r.status === 'sent')?.c || 0);
+        const failed = Number(results.find(r => r.status === 'failed')?.c || 0);
+        return ok({ sent, failed }, 200, CORS);
       }
     }
 
@@ -2707,9 +2932,11 @@ export async function onRequest({ request, env }) {
         const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin', 'director', 'dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const ratio = await _getQuizPassRatio();
+        const idPrefix = (await _getSetting('student_id_prefix')) || DEFAULT_STUDENT_ID_PREFIX;
         return ok({
           settings: {
             quiz_pass_ratio: { value: ratio, default: DEFAULT_QUIZ_PASS_RATIO, label: 'نسبة النجاح في الاختبارات القصيرة' },
+            student_id_prefix: { value: idPrefix, default: DEFAULT_STUDENT_ID_PREFIX, label: 'بادئة معرفات الطلاب الجدد (الاستيراد الذكي)' },
           },
         }, 200, CORS);
       }
@@ -2721,11 +2948,14 @@ export async function onRequest({ request, env }) {
         const claims = await verifyToken(request, env, DB);
         if (!claims || !['director', 'dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const { key, value } = await request.json();
-        const ALLOWED_KEYS = new Set(['quiz_pass_ratio']);
+        const ALLOWED_KEYS = new Set(['quiz_pass_ratio', 'student_id_prefix']);
         if (!ALLOWED_KEYS.has(key)) return err('إعداد غير معروف', 400, CORS);
         if (key === 'quiz_pass_ratio') {
           const n = Number(value);
           if (!Number.isFinite(n) || n < 0.5 || n > 1) return err('القيمة يجب أن تكون بين 0.5 و1', 400, CORS);
+        }
+        if (key === 'student_id_prefix' && !/^\d{1,4}$/.test(String(value))) {
+          return err('البادئة يجب أن تكون من 1 إلى 4 أرقام', 400, CORS);
         }
         await _ensureAppSettingsSchema();
         await DB.prepare(

@@ -174,6 +174,11 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
   const [dispatchDone, setDispatchDone] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // A ref, not the `dispatching` state, gates re-entry into dispatchWhatsapp:
+  // state updates are batched/async, so a fast double-click could fire the
+  // function twice before the first setDispatching(true) actually re-renders
+  // the button as disabled. The ref is set synchronously on the first call.
+  const dispatchingRef = useRef(false);
 
   const reset = () => {
     setStep('upload');
@@ -297,7 +302,8 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
   };
 
   const dispatchWhatsapp = async () => {
-    if (!batchId) return;
+    if (!batchId || dispatchingRef.current) return;
+    dispatchingRef.current = true;
     setDispatching(true);
     setDispatchDone(false);
     setDispatchProgress({ sent: 0, failed: 0 });
@@ -321,6 +327,7 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
       pushToast('error', e instanceof Error ? e.message : 'فشل إرسال رسائل الواتساب');
     } finally {
       clearInterval(poll);
+      dispatchingRef.current = false;
       setDispatching(false);
       setDispatchDone(true);
     }

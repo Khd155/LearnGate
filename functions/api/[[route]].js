@@ -1479,8 +1479,24 @@ export async function onRequest({ request, env }) {
           id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
           template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
         )`).run(); } catch {}
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_tokens (token TEXT PRIMARY KEY, student_id TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL)`).run(); } catch {}
 
-        const templateName = 'student_credentials_dispatch';
+        const templateName = 'student_account_access_template_1';
+        // The button's {{1}} builds https://learngate.khormi.site/?t=<value> —
+        // and GET /auth/access-token (see above) resolves ?t= strictly against
+        // access_tokens.token, an opaque single-use value, never the raw
+        // 10-digit student code. Sending the code itself there would 404 for
+        // every student, so this mints one real access token per student (the
+        // same mechanism GET /api/students/recover-link already uses) and
+        // puts THAT in the button, while {{1}} in the body text stays the
+        // plain student name.
+        const linkAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        async function mintAccessToken(studentId) {
+          const randBytes = crypto.getRandomValues(new Uint8Array(14));
+          const token = Array.from(randBytes, b => linkAlphabet[b % linkAlphabet.length]).join('');
+          await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at) VALUES (?, ?, ?)').bind(token, studentId, new Date().toISOString()).run();
+          return token;
+        }
         async function sendOne(student) {
           const now = () => new Date().toISOString();
           const variablesJson = JSON.stringify({ name: student.name, code: student.code });
@@ -1490,10 +1506,11 @@ export async function onRequest({ request, env }) {
             ).bind(crypto.randomUUID(), subsub2, student.id, student.name, '', templateName, variablesJson, 'failed', 'رقم جوال غير صالح', now()).run();
             return;
           }
-          const components = sanitizeWaComponents([{
-            type: 'body',
-            parameters: [{ type: 'text', text: student.name || 'الطالب' }, { type: 'text', text: student.code }],
-          }]);
+          const accessToken = await mintAccessToken(student.id);
+          const components = sanitizeWaComponents([
+            { type: 'body', parameters: [{ type: 'text', text: student.name || 'الطالب' }] },
+          ]);
+          components.push({ type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: accessToken }] });
           let lastError = null;
           for (let attempt = 1; attempt <= 3; attempt++) {
             try {

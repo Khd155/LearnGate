@@ -31,6 +31,12 @@ interface CreatedStudent {
   gradeLevel: string;
 }
 
+interface DispatchError {
+  student_name: string;
+  phone: string;
+  error_message: string;
+}
+
 const STATUS_LABEL: Record<PreviewRow['status'], string> = {
   new: 'جاهز',
   invalid: 'غير صالح',
@@ -164,6 +170,7 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
   const [exporting, setExporting] = useState(false);
   const [dispatching, setDispatching] = useState(false);
   const [dispatchProgress, setDispatchProgress] = useState({ sent: 0, failed: 0 });
+  const [dispatchErrors, setDispatchErrors] = useState<DispatchError[]>([]);
   const [dispatchDone, setDispatchDone] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -183,6 +190,7 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
     setExporting(false);
     setDispatching(false);
     setDispatchProgress({ sent: 0, failed: 0 });
+    setDispatchErrors([]);
     setDispatchDone(false);
   };
 
@@ -293,10 +301,12 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
     setDispatching(true);
     setDispatchDone(false);
     setDispatchProgress({ sent: 0, failed: 0 });
+    setDispatchErrors([]);
     const poll = setInterval(async () => {
       try {
-        const s = await api.get<{ sent: number; failed: number }>(`/admin/students/dispatch-status/${batchId}`);
+        const s = await api.get<{ sent: number; failed: number; errors: DispatchError[] }>(`/admin/students/dispatch-status/${batchId}`);
         setDispatchProgress(s);
+        setDispatchErrors(s.errors);
       } catch {
         /* ignore transient poll errors */
       }
@@ -304,6 +314,8 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
     try {
       const res = await api.post<{ total: number; sent: number; failed: number }>(`/admin/students/whatsapp-dispatch-batch/${batchId}`);
       setDispatchProgress({ sent: res.sent, failed: res.failed });
+      const status = await api.get<{ sent: number; failed: number; errors: DispatchError[] }>(`/admin/students/dispatch-status/${batchId}`);
+      setDispatchErrors(status.errors);
       pushToast(res.failed > 0 ? 'error' : 'success', `تم الإرسال — نجح ${res.sent} / فشل ${res.failed} من ${res.total}`);
     } catch (e) {
       pushToast('error', e instanceof Error ? e.message : 'فشل إرسال رسائل الواتساب');
@@ -552,6 +564,15 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     نجح {dispatchProgress.sent} · فشل {dispatchProgress.failed} من {total}
                   </p>
+                  {dispatchErrors.length > 0 && (
+                    <div className="mt-2 max-h-32 overflow-auto rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
+                      {dispatchErrors.map((e, i) => (
+                        <div key={i}>
+                          {e.student_name} ({e.phone || 'بلا جوال'}): {e.error_message}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

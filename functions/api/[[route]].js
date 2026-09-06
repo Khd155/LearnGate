@@ -1549,7 +1549,14 @@ export async function onRequest({ request, env }) {
         ).bind(subsub2).all();
         const sent = Number(results.find(r => r.status === 'sent')?.c || 0);
         const failed = Number(results.find(r => r.status === 'failed')?.c || 0);
-        return ok({ sent, failed }, 200, CORS);
+        // Surfacing the actual per-student error alongside the count — a
+        // blanket "X فشل" with no reason is unactionable (wrong template
+        // name, missing SendPulse bot id, malformed phone, etc. all look
+        // identical from the progress bar alone).
+        const { results: failedRows } = await DB.prepare(
+          'SELECT student_name, phone, error_message FROM wa_template_logs WHERE batch_id = ? AND status = \'failed\' ORDER BY created_at DESC LIMIT 20'
+        ).bind(subsub2).all();
+        return ok({ sent, failed, errors: failedRows }, 200, CORS);
       }
     }
 

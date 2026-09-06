@@ -1572,10 +1572,17 @@ const Dev = {
         body: JSON.stringify({ studentId }),
       });
       const link = `${window.location.origin}/?t=${token}`;
-      try { await navigator.clipboard.writeText(link); } catch (_) {}
-      window.prompt(`رابط تجريبي لمرة واحدة لـ ${name} (تم نسخه):`, link);
+      let copied = false;
+      try { await navigator.clipboard.writeText(link); copied = true; } catch (_) {}
+      // window.prompt() is silently blocked/no-op in a lot of mobile browsers
+      // and in-app webviews — this codebase already replaced native
+      // confirm()/prompt() with its own modal system (see promptModal above)
+      // for exactly that reason; this button was the one leftover spot still
+      // calling the native dialog directly, which read as "the button does
+      // nothing" wherever prompt() is suppressed.
+      await promptModal(`رابط تجريبي لمرة واحدة لـ ${name}${copied ? ' (تم نسخه)' : ''}:`, link);
     } catch (e) {
-      showToast('تعذّر توليد الرابط: ' + e.message);
+      showToast('تعذّر توليد الرابط: ' + e.message, true);
     }
   },
 

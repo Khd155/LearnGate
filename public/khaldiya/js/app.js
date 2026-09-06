@@ -222,6 +222,17 @@ function adminLabel(name) {
   const t = new URLSearchParams(window.location.search).get('t');
   if (!t) return;
   document.addEventListener('DOMContentLoaded', async () => {
+    // The inline bootstrap script at the very top of index.html hides the
+    // whole page (visibility:hidden) whenever ANY stored admin/student
+    // session already exists on this device, to avoid a flash of the
+    // landing screen before session-restore below decides where to send
+    // it. But the session-restore handler bails out immediately when `?t=`
+    // is present (this exact link owns the screen — see its own guard
+    // further down) and never reaches the `visibility = ''` reset every
+    // other branch there performs. Left alone, that meant any device that
+    // ever had a login stored (e.g. the same phone/browser used to test
+    // the admin panel) rendered this access-token screen invisible forever.
+    document.documentElement.style.visibility = '';
     show('screen-access-token');
     try {
       const data = await apiFetch('/auth/access-token?t=' + encodeURIComponent(t));

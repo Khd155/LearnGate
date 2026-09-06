@@ -276,7 +276,10 @@ const IS_ACCESS_LINK_FLOW = !!new URLSearchParams(window.location.search).get('t
       document.getElementById('at-code').textContent = data.code || '';
       if (data.school) {
         const schoolEl = document.getElementById('at-school');
-        schoolEl.textContent = '🏫 مدرستك: ' + data.school;
+        schoolEl.textContent = 'مدرستك: ' + data.school;
+        // Raw value kept on the element so useAccessCode() can preselect the
+        // school without having to unpick it back out of the label text.
+        schoolEl.dataset.school = data.school;
         schoolEl.style.display = 'block';
       }
       _atShow('at-success');
@@ -1938,16 +1941,42 @@ const App = {
     }
   },
 
-  copyAccessCode(btn) {
-    const code = document.getElementById('at-code')?.textContent || '';
+  // Single action for the access-link card: copy the code, confirm it, and
+  // drop the student straight on the login form with the code and school
+  // already filled in — the seven manual steps that card used to spell out.
+  // The copy is best-effort: clipboard access is blocked in plenty of mobile
+  // in-app browsers, and the code is prefilled and visible either way, so a
+  // failed copy must never stop the navigation.
+  async useAccessCode(btn) {
+    const code = document.getElementById('at-code')?.textContent.trim() || '';
     if (!code) return;
-    navigator.clipboard?.writeText(code).then(() => {
-      if (!btn) return;
-      const original = btn.textContent;
-      btn.textContent = '✅ تم نسخ رقم الدخول';
-      btn.disabled = true;
-      setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2000);
-    }).catch(() => {});
+    if (btn) btn.disabled = true;
+
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(code);
+      copied = true;
+    } catch (_) { /* not available/permitted — carry on */ }
+
+    const school = (document.getElementById('at-school')?.dataset.school || '').trim();
+    if (school) {
+      State.school = school;
+      App._updateSchoolDisplay(school);
+    }
+
+    showToast(copied ? 'تم نسخ رقم الدخول' : 'رقم الدخول جاهز في الحقل');
+    show('screen-student-login');
+
+    const input = document.getElementById('sl-code');
+    if (input) {
+      input.value = code;
+      // Remember-me on by default here: this student arrived from a link
+      // precisely so they wouldn't have to keep re-entering the number.
+      const remember = document.getElementById('sl-remember');
+      if (remember) remember.checked = true;
+      setTimeout(() => input.focus(), 120);
+    }
+    if (btn) btn.disabled = false;
   },
 
   // Runs `fn` immediately if a student is logged in; otherwise remembers it

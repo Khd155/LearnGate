@@ -677,13 +677,13 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
-     ACCESS-TOKEN LANDING (single-use "?t=" link)
+     ACCESS-TOKEN LANDING (14-day "?t=" link)
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-access-token" class="screen">
-  <div class="page-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:28px;">
-      <img src="/logo.png" alt="وزارة التعليم" style="height:150px;">
-      <div style="font-weight:800;font-size:16px;color:var(--primary);">بوابة دعم التعلم</div>
+  <div class="page-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100dvh;padding:20px 16px;text-align:center;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:20px;">
+      <img src="/logo.png" alt="وزارة التعليم" style="height:84px;">
+      <div style="font-weight:800;font-size:15px;color:var(--primary);">بوابة دعم التعلم</div>
     </div>
     <div id="at-loading">
       <div style="width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);
@@ -691,42 +691,36 @@
       <div style="color:var(--muted);font-size:14px;">جارٍ التحقق من الرابط…</div>
     </div>
     <div id="at-success" style="display:none;background:var(--surface);border:1.5px solid var(--border);
-         border-radius:var(--radius-lg);padding:32px 24px;max-width:380px;width:100%;box-shadow:var(--shadow);">
-      <div style="font-size:38px;margin-bottom:10px;">🎓</div>
-      <div style="font-weight:800;font-size:19px;margin-bottom:10px;">مرحبًا بك، <span id="at-name"></span></div>
-      <div style="color:var(--muted);font-size:13.5px;line-height:1.8;margin-bottom:14px;text-align:right;">
-        بوابة دعم التعلم منصة تعليمية لطلاب الثانوية، تساعدهم على إتقان المهارات والاستعداد لاختبار القدرات.
-        <br><br>
-        تبدأ باختبار تشخيصي (50 سؤالًا) لتحديد نقاط الضعف، ثم تُنشئ خطة دعم شخصية لكل طالب تشمل لكل مهارة: مقاطع شرح، ملخصًا علميًا، وتدريبات (10 أسئلة) بتغذية راجعة فورية.
-        <br><br>
-        بعد التدريب، يخوض الطالب اختبارات محاكية لقياس تقدمه، ويمكنه إعادة التشخيص لتحديث خطته والاستمرار حتى الإتقان.
+         border-radius:var(--radius-lg);padding:28px 24px;max-width:380px;width:100%;box-shadow:var(--shadow);">
+      <div style="font-weight:800;font-size:20px;color:var(--text);">مرحبًا بك، <span id="at-name"></span></div>
+      <div id="at-school" style="display:none;color:var(--muted);font-size:13.5px;margin-top:6px;"></div>
+
+      <div style="color:var(--muted);font-size:13px;margin:22px 0 8px;">رقم الدخول الخاص بك</div>
+      <div style="display:flex;align-items:center;justify-content:center;background:var(--bg-tint);
+                  border:1.5px solid var(--border-strong);border-radius:12px;padding:16px;">
+        <span id="at-code" style="font-size:26px;font-weight:800;letter-spacing:2px;font-variant-numeric:tabular-nums;color:var(--primary);"></span>
       </div>
-      <div id="at-school" style="display:none;font-size:13px;color:var(--primary);font-weight:700;margin-bottom:18px;"></div>
-      <div style="color:var(--muted);font-size:13px;margin-bottom:8px;">رقم الدخول الخاص بك</div>
-      <div style="display:flex;align-items:center;gap:8px;background:var(--bg-tint);border:1.5px solid var(--border-strong);
-                  border-radius:12px;padding:14px 16px;justify-content:center;">
-        <span id="at-code" style="font-size:22px;font-weight:800;letter-spacing:1px;font-variant-numeric:tabular-nums;color:var(--primary);"></span>
-      </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="App.copyAccessCode(this)">نسخ رقم الدخول 📋</button>
-      <div style="color:var(--muted);font-size:12px;margin-top:14px;">🔒 هذا الرابط خاص بك — صالح لمدة 14 يومًا، ويمكنك فتحه أكثر من مرة خلالها.</div>
-      <ol style="text-align:right;color:var(--muted);font-size:13px;line-height:2;margin:18px 0 0;padding-inline-start:20px;background:var(--bg-tint);border-radius:12px;padding:14px 30px;">
-        <li>انسخ رقم الدخول (الزر أعلاه)</li>
-        <li>اضغط "التوجه إلى الموقع الرئيسي"</li>
-        <li>اختر مدرستك من القائمة</li>
-        <li>اختر "طالب"</li>
-        <li>الصق أو اكتب رقم الدخول في الحقل المخصص</li>
-        <li>فعّل خيار "تذكرني" (حتى لا تحتاج لكتابة الرقم كل مرة)</li>
-        <li>اضغط "دخول"</li>
-      </ol>
-      <button class="btn btn-outline" style="width:100%;margin-top:20px;" onclick="window.location.href='/'">التوجه إلى الموقع الرئيسي ←</button>
-      <div style="border-top:1px solid var(--border);margin-top:22px;padding-top:16px;font-size:12.5px;color:var(--muted);">
+
+      <button class="btn btn-primary" style="width:100%;margin-top:18px;display:flex;align-items:center;justify-content:center;gap:8px;"
+              onclick="App.useAccessCode(this)">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="9" y="9" width="12" height="12" rx="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        <span>نسخ الرقم والانتقال لتسجيل الدخول</span>
+      </button>
+
+      <div style="color:var(--muted);font-size:12px;margin-top:12px;">الرابط صالح لمدة 14 يومًا.</div>
+      <div style="border-top:1px solid var(--border);margin-top:18px;padding-top:14px;font-size:12.5px;color:var(--muted);">
         تواجه مشكلة؟
         <a href="#" onclick="App.openGuestSupport();return false;" style="color:var(--primary);font-weight:700;">تواصل مع الدعم الفني</a>
       </div>
     </div>
     <div id="at-error" style="display:none;background:var(--surface);border:1.5px solid var(--border);
          border-radius:var(--radius-lg);padding:32px 24px;max-width:380px;width:100%;box-shadow:var(--shadow);">
-      <div style="font-size:38px;margin-bottom:10px;">⛔</div>
+      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--danger, #dc2626)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>
+      </svg>
       <div style="font-weight:800;font-size:16px;margin-bottom:8px;">تعذّر فتح هذا الرابط</div>
       <div style="color:var(--muted);font-size:13.5px;line-height:1.9;margin-bottom:20px;">
         عذراً، هذا الرابط غير صالح أو انتهت صلاحيته. يرجى التواصل مع المشرف للحصول على رابط جديد.
@@ -3594,6 +3588,6 @@
 </div>
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
-<script src="/js/app.js?v=quiz32" defer></script>
+<script src="/js/app.js?v=quiz33" defer></script>
 </body>
 </html>

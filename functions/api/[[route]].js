@@ -1154,7 +1154,15 @@ export async function onRequest({ request, env }) {
           ? gcClaims.school : school;
         if (!gcSchool) return err('المدرسة مطلوبة', 400, CORS);
         try {
-          const code = await generateStudentCode(DB, gcSchool);
+          // Every new student — whether added one at a time here or through
+          // the smart-import batch flow — gets the same configurable global
+          // prefix (app_settings 'student_id_prefix', default '11'), not the
+          // legacy per-school 2-digit scheme generateStudentCode() used to
+          // assign here; that scheme still backs existing student codes and
+          // admin/director logins, but new student IDs going forward all
+          // follow the one admin-editable prefix.
+          const prefix = (await _getSetting('student_id_prefix')) || DEFAULT_STUDENT_ID_PREFIX;
+          const code = await generateBatchStudentCode(DB, prefix);
           return ok({ code }, 200, CORS);
         } catch (e) {
           return err(e.message || 'تعذّر توليد الكود', 500, CORS);

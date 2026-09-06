@@ -223,7 +223,7 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
   };
 
   const runPreview = async () => {
-    if (!mapping.name) {
+    if (mapping.name === null) {
       pushToast('error', 'حدد عمود اسم الطالب أولاً');
       return;
     }

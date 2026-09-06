@@ -221,6 +221,19 @@ async function ensureCoreTables(DB) {
     id TEXT PRIMARY KEY, school TEXT NOT NULL DEFAULT '', grade_level TEXT DEFAULT '',
     student_count INTEGER NOT NULL DEFAULT 0, created_by TEXT DEFAULT '', created_at TEXT NOT NULL
   )`).run(); } catch {}
+  // First-login welcome modal: 0/NULL = never shown it, 1 = dismissed. Every
+  // student that predates this column has already been using the platform, so
+  // leaving them at 0 would pop a "welcome, here's how it works" modal at
+  // people mid-journey — they're marked as done instead, and only genuinely
+  // new rows start at 0.
+  let _welcomeColumnIsNew = false;
+  try {
+    await DB.prepare('ALTER TABLE students ADD COLUMN has_seen_welcome INTEGER DEFAULT 0').run();
+    _welcomeColumnIsNew = true;
+  } catch {}
+  if (_welcomeColumnIsNew) {
+    try { await DB.prepare('UPDATE students SET has_seen_welcome = 1').run(); } catch {}
+  }
   _coreTablesEnsured = true;
 }
 
@@ -1072,8 +1085,8 @@ export async function onRequest({ request, env }) {
         if (await isLockedOut(DB, ip, 'student-login', code)) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
         const sc = bodySchool || school;
         const student = sc
-          ? await DB.prepare('SELECT id, code, name, school, phone FROM students WHERE code = ? AND school = ?').bind(code, sc).first()
-          : await DB.prepare('SELECT id, code, name, school, phone FROM students WHERE code = ?').bind(code).first();
+          ? await DB.prepare('SELECT id, code, name, school, phone, has_seen_welcome FROM students WHERE code = ? AND school = ?').bind(code, sc).first()
+          : await DB.prepare('SELECT id, code, name, school, phone, has_seen_welcome FROM students WHERE code = ?').bind(code).first();
         if (!student) {
           await recordFailedAttempt(DB, ip, 'student-login', code);
           await logEvent(DB, { level: 'warn', category: 'login', message: 'محاولة دخول طالب فاشلة — بيانات غير صحيحة أو الحساب غير موجود', user_role: 'student', school: sc, ip });
@@ -1083,7 +1096,7 @@ export async function onRequest({ request, env }) {
         if (!env.JWT_SECRET) return err('خطأ في إعدادات الخادم', 500, CORS);
         const token = await jwtSign({ jti: crypto.randomUUID(), sub: student.id, role: 'student', name: student.name, school: student.school, exp: Math.floor(Date.now() / 1000) + 8 * 3600 }, env.JWT_SECRET);
         await logEvent(DB, { level: 'success', category: 'login', message: 'تسجيل دخول طالب', user_name: student.name, user_role: 'student', school: student.school || '', ip, student_id: student.id });
-        return ok({ token, student: { id: student.id, name: student.name, school: student.school, phone: student.phone || '' } }, 200, CORS);
+        return ok({ token, student: { id: student.id, name: student.name, school: student.school, phone: student.phone || '', has_seen_welcome: Number(student.has_seen_welcome) === 1 } }, 200, CORS);
       }
 
       // POST /api/auth/admin-login
@@ -1179,6 +1192,24 @@ export async function onRequest({ request, env }) {
     if (resource === 'schools' && method === 'GET') {
       const { results } = await DB.prepare('SELECT * FROM schools ORDER BY name ASC').all();
       return ok({ schools: results }, 200, CORS);
+    }
+
+    // ── STUDENT (self-service, singular — the logged-in student only) ────────
+    if (resource === 'student') {
+      // POST /api/student/complete-onboarding — the student dismissed the
+      // first-login welcome modal. Flag lives on their own row so it follows
+      // them to any device; the client also mirrors it into localStorage so
+      // the modal doesn't flash again before this response lands.
+      if (sub === 'complete-onboarding' && method === 'POST') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        // Impersonation ("عرض كطالب") mints a synthetic student id with no
+        // students row behind it — nothing to persist, and it must not 404.
+        if (claims.trial) return ok({ ok: true, trial: true }, 200, CORS);
+        await DB.prepare('UPDATE students SET has_seen_welcome = 1 WHERE id = ?').bind(claims.sub).run();
+        return ok({ ok: true }, 200, CORS);
+      }
+      return err('غير موجود', 404, CORS);
     }
 
     // ── STUDENTS ─────────────────────────────────────────────────────────────

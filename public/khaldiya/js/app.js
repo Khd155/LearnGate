@@ -871,8 +871,13 @@ function show(id, opts) {
       sc.classList.remove('animate');
       requestAnimationFrame(() => requestAnimationFrame(() => sc.classList.add('animate')));
     }
-    // First-ever visit to home — show the onboarding tour once, then never again.
-    if (!localStorage.getItem(_skey('lg_tour_seen', 'student'))) {
+    // First-ever visit to home — show the onboarding tour once, then never
+    // again. On a brand-new account the welcome modal comes first and owns the
+    // screen: the tour's full-screen overlay would otherwise render on top of
+    // it and swallow every click, leaving the student staring at a modal whose
+    // button does nothing. completeStudentOnboarding() starts the tour itself
+    // once that modal is dismissed.
+    if (!localStorage.getItem(_skey('lg_tour_seen', 'student')) && !App._shouldShowWelcome()) {
       setTimeout(startOnboardingTour, 500);
     }
   }
@@ -1388,7 +1393,7 @@ const App = {
         timeout: 5000,
       });
       token = data.token;
-      student = { id: data.student.id, code, name: data.student.name, school: data.student.school || '', phone: data.student.phone || '' };
+      student = { id: data.student.id, code, name: data.student.name, school: data.student.school || '', phone: data.student.phone || '', has_seen_welcome: !!data.student.has_seen_welcome };
     } catch (e) {
       const msg = e?.message || '';
       const status = e?.status;
@@ -1591,10 +1596,64 @@ const App = {
     App.renderStudentPerformanceCard();
     // Check for unread support replies
     App.loadTicketNotifications();
+    // First login ever: the welcome modal comes before anything else that
+    // wants the screen (the phone prompt below, the spotlight tour in show()),
+    // so a brand-new student gets one thing at a time instead of three
+    // overlays at once.
+    if (App._shouldShowWelcome()) {
+      setTimeout(() => App.showStudentWelcome(), 400);
+      return;
+    }
     // Prompt phone if missing (non-blocking — student can skip)
     if (!State.student.phone) {
       setTimeout(() => App.showStudentPhoneModal(), 800);
     }
+  },
+
+  // ── First-login welcome modal ───────────────────────────────────────────
+  // Server flag (students.has_seen_welcome, returned by /auth/student-login)
+  // is the source of truth so it follows the student across devices; the
+  // per-student localStorage key mirrors it so the modal can't flash again
+  // on a reload before the login response lands.
+  _welcomeKey() {
+    return 'learngate_onboarding_' + (State.student?.id || 'anon');
+  },
+  _shouldShowWelcome() {
+    if (!State.student) return false;
+    if (State.student.has_seen_welcome) return false;
+    try { if (localStorage.getItem(App._welcomeKey())) return false; } catch (_) {}
+    return true;
+  },
+  showStudentWelcome() {
+    const modal = document.getElementById('student-welcome-modal');
+    if (!modal) return;
+    modal.classList.remove('sw-closing');
+    modal.classList.add('open');
+  },
+  async completeStudentOnboarding(btn) {
+    const modal = document.getElementById('student-welcome-modal');
+    if (btn) btn.disabled = true;
+    // Mark it locally and close immediately — the student should never wait on
+    // a network round-trip to get into the platform. A failed request just
+    // means the server flag catches up on the next dismissal; the local key
+    // already stops it reappearing on this device.
+    if (State.student) State.student.has_seen_welcome = true;
+    try { localStorage.setItem(App._welcomeKey(), '1'); } catch (_) {}
+
+    if (modal) {
+      modal.classList.add('sw-closing');
+      setTimeout(() => {
+        modal.classList.remove('open', 'sw-closing');
+        if (btn) btn.disabled = false;
+        // Hand off to whatever the fresh-login flow would have shown next.
+        if (State.student && !State.student.phone) App.showStudentPhoneModal();
+        else if (!localStorage.getItem(_skey('lg_tour_seen', 'student'))) startOnboardingTour();
+      }, 260);
+    }
+
+    try {
+      await apiFetch('/student/complete-onboarding', { method: 'POST' });
+    } catch (_) { /* local flag already set — retried on next dismissal */ }
   },
 
   // ── مسار الإنجاز (Journey) ──────────────────────────────────────────────

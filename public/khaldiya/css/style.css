@@ -2268,3 +2268,50 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   .tour-overlay, .tour-spotlight, .tour-bubble { animation: none; transition: none; }
   .notif-bell-btn.has-notif { animation: none; }
 }
+
+/* ── First-login welcome modal (#student-welcome-modal) ─────────────────
+   Same glass treatment as the OTP-recovery box (.ro-box) so the two
+   full-screen student modals read as one family. Vertically centred and
+   capped at the viewport with its own internal scroll — the three journey
+   cards plus header overflow a short phone otherwise. */
+.sw-box {
+  max-width: 440px; text-align: center; margin: auto;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border); border-radius: 18px;
+  box-shadow: var(--shadow-lg, 0 24px 60px -20px rgba(63,124,184,.3));
+  padding: 26px 22px; max-height: calc(100dvh - 40px);
+  overflow-y: auto; animation: slideUpFadeRo .32s ease-out;
+}
+@media (prefers-reduced-motion: reduce) { .sw-box { animation: none; } }
+.sw-header { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.sw-logo { height: 66px; }
+.sw-title { font-size: 19px; font-weight: 800; color: var(--text); margin-top: 2px; }
+.sw-intro { font-size: 13.5px; line-height: 1.85; color: var(--muted); margin: 4px 0 0; }
+.sw-steps { display: flex; flex-direction: column; gap: 10px; margin: 20px 0 22px; }
+.sw-step {
+  display: flex; align-items: flex-start; gap: 12px; text-align: right;
+  background: var(--bg-tint); border: 1px solid var(--border);
+  border-radius: 12px; padding: 13px 14px;
+}
+.sw-step-ic {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+}
+.sw-step-ic svg { width: 18px; height: 18px; }
+.sw-step-title { font-size: 13.5px; font-weight: 800; color: var(--text); margin-bottom: 3px; }
+.sw-step-text { font-size: 12.5px; line-height: 1.8; color: var(--muted); }
+.sw-cta {
+  width: 100%; background: #1e293b; color: #fff; border: none;
+  font-weight: 800; transition: background .18s ease, transform .18s ease;
+}
+.sw-cta:hover:not(:disabled) { background: #0f172a; transform: translateY(-1px); }
+.sw-cta:disabled { opacity: .7; cursor: default; }
+[data-theme="dark"] .sw-cta { background: #334155; }
+[data-theme="dark"] .sw-cta:hover:not(:disabled) { background: #475569; }
+/* Fade-out on dismiss — the overlay is display:flex while open, so the
+   transition runs on opacity before the .open class is dropped. */
+#student-welcome-modal { transition: opacity .25s ease; }
+#student-welcome-modal.sw-closing { opacity: 0; }

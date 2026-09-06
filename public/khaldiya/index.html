@@ -2930,6 +2930,59 @@
 <!-- ═══════════════════════════════════════════════════════
      STUDENT PHONE PROMPT MODAL (non-blocking)
 ═══════════════════════════════════════════════════════ -->
+<!-- First-login welcome / onboarding (shown once, then never again) -->
+<div id="student-welcome-modal" class="modal-overlay">
+  <div class="modal-box sw-box">
+    <div class="sw-header">
+      <img src="/logo.png" alt="وزارة التعليم" class="sw-logo">
+      <div class="sw-title">مرحبًا بك في بوابة دعم التعلّم</div>
+      <p class="sw-intro">
+        بوابة دعم التعلم منصة تعليمية لطلاب الثانوية، تساعدهم على إتقان المهارات والاستعداد لاختبار القدرات.
+      </p>
+    </div>
+
+    <div class="sw-steps">
+      <div class="sw-step">
+        <div class="sw-step-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>
+          </svg>
+        </div>
+        <div class="sw-step-body">
+          <div class="sw-step-title">التشخيص</div>
+          <div class="sw-step-text">تبدأ باختبار تشخيصي (50 سؤالًا) لتحديد نقاط الضعف بدقة.</div>
+        </div>
+      </div>
+
+      <div class="sw-step">
+        <div class="sw-step-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="m9 15 2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="sw-step-body">
+          <div class="sw-step-title">خطة الدعم الشخصية</div>
+          <div class="sw-step-text">تُنشأ خطة دعم شخصية تشمل لكل مهارة: مقاطع شرح، ملخصًا علميًا، وتدريبات (10 أسئلة) بتغذية راجعة فورية.</div>
+        </div>
+      </div>
+
+      <div class="sw-step">
+        <div class="sw-step-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v4"/><path d="M5 8h14l-1.5 11a2 2 0 0 1-2 1.8H8.5a2 2 0 0 1-2-1.8Z"/><path d="M9 13h6"/>
+          </svg>
+        </div>
+        <div class="sw-step-body">
+          <div class="sw-step-title">المحاكاة والإتقان</div>
+          <div class="sw-step-text">بعد التدريب، تخوض اختبارات محاكية لقياس تقدمك، مع إمكانية إعادة التشخيص لتحديث خطتك حتى الوصول للإتقان.</div>
+        </div>
+      </div>
+    </div>
+
+    <button id="sw-cta" class="btn sw-cta" onclick="App.completeStudentOnboarding(this)">فهمت، ابدأ الآن</button>
+  </div>
+</div>
+
 <div id="student-phone-modal" class="modal-overlay">
   <div class="modal-box" style="max-width:380px;text-align:center;">
     <div style="font-size:42px;margin-bottom:8px;">📱</div>
@@ -3588,6 +3641,6 @@
 </div>
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
-<script src="/js/app.js?v=quiz33" defer></script>
+<script src="/js/app.js?v=quiz34" defer></script>
 </body>
 </html>

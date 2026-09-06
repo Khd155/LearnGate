@@ -255,15 +255,17 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
       const res = await api.post<{ batchId: string; created: CreatedStudent[]; skipped: number }>('/admin/students/import-confirm', {
         rows: validRows.map((r) => ({ name: r.name, phone: r.phone, gradeLevel: r.gradeLevel })),
       });
-      // The import already succeeded once this response comes back — show
-      // the completion screen (with the batch's real created students) no
-      // matter what happens next. A failing background refresh must never
-      // swallow that success into the generic catch below and hide it.
+      // Deliberately NOT calling loadCore() here: it flips the global
+      // `loadingCore` flag, which StudentsTable uses for an early-return
+      // skeleton render that unmounts its entire subtree — including this
+      // modal — wiping this component's local `step`/batch state back to
+      // its initial values the moment it remounts. The background refresh
+      // happens once, on the explicit "إنهاء" action below, after the user
+      // is done looking at this screen — never mid-flow.
       setBatchId(res.batchId);
       setCreatedStudents(res.created);
       setStep('done');
       pushToast('success', `تمت إضافة ${res.created.length} طالب في دفعة جديدة`);
-      loadCore().catch(() => {});
     } catch (e) {
       pushToast('error', e instanceof Error ? e.message : 'فشل الاستيراد');
     } finally {
@@ -556,14 +558,28 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
           )}
 
           <div className="mt-5 flex justify-end gap-2">
-            <Dialog.Close asChild>
+            {step === 'done' ? (
               <button
                 type="button"
+                onClick={() => {
+                  loadCore().catch(() => {});
+                  reset();
+                  onOpenChange(false);
+                }}
                 className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
               >
-                {step === 'done' ? 'إغلاق' : 'إلغاء'}
+                إنهاء
               </button>
-            </Dialog.Close>
+            ) : (
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  إلغاء
+                </button>
+              </Dialog.Close>
+            )}
             {step === 'mapping' && (
               <button
                 type="button"

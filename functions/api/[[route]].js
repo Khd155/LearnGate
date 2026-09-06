@@ -1378,8 +1378,13 @@ export async function onRequest({ request, env }) {
 
         const preview = rows.map((r, index) => {
           const name = String(r.name || '').trim().slice(0, 100);
-          const phoneDigits = String(r.phone || '').replace(/\D/g, '');
-          const phone = /^05\d{8}$/.test(phoneDigits) ? phoneDigits : (phoneDigits ? phoneDigits.slice(0, 10) : '');
+          // Excel frequently stores a phone column as a number, which drops
+          // the leading zero (e.g. "0560521057" -> 560521057) — normalize
+          // through the same helper used for WhatsApp-sourced phone numbers
+          // rather than a raw digit-count check, so that common case still
+          // resolves to a valid 05XXXXXXXX number instead of being rejected.
+          const phoneRaw = String(r.phone || '').trim();
+          const phone = phoneRaw ? toLocalSaudiPhone(phoneRaw) : '';
           const gradeLevel = GRADE_LEVELS.includes(r.gradeLevel) ? r.gradeLevel : (body.uniformGradeLevel && GRADE_LEVELS.includes(body.uniformGradeLevel) ? body.uniformGradeLevel : '');
 
           let status = 'new';

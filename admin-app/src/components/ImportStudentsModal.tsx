@@ -255,11 +255,15 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
       const res = await api.post<{ batchId: string; created: CreatedStudent[]; skipped: number }>('/admin/students/import-confirm', {
         rows: validRows.map((r) => ({ name: r.name, phone: r.phone, gradeLevel: r.gradeLevel })),
       });
+      // The import already succeeded once this response comes back — show
+      // the completion screen (with the batch's real created students) no
+      // matter what happens next. A failing background refresh must never
+      // swallow that success into the generic catch below and hide it.
       setBatchId(res.batchId);
       setCreatedStudents(res.created);
-      pushToast('success', `تمت إضافة ${res.created.length} طالب في دفعة جديدة`);
-      await loadCore();
       setStep('done');
+      pushToast('success', `تمت إضافة ${res.created.length} طالب في دفعة جديدة`);
+      loadCore().catch(() => {});
     } catch (e) {
       pushToast('error', e instanceof Error ? e.message : 'فشل الاستيراد');
     } finally {
@@ -492,10 +496,34 @@ export default function ImportStudentsModal({ open, onOpenChange }: Props) {
           )}
 
           {step === 'done' && (
-            <div className="mt-5 space-y-4">
+            <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                 تم إنشاء دفعة جديدة بعدد {total} طالب بأرقام دخول جديدة.
               </div>
+
+              <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                <table className="w-full text-right text-sm">
+                  <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900">
+                    <tr className="text-slate-500 dark:text-slate-400">
+                      <th className="px-3 py-2 font-medium">الاسم</th>
+                      <th className="px-3 py-2 font-medium">رقم الدخول</th>
+                      <th className="px-3 py-2 font-medium">الجوال</th>
+                      <th className="px-3 py-2 font-medium">المرحلة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {createdStudents.map((s) => (
+                      <tr key={s.id}>
+                        <td className="px-3 py-1.5">{s.name}</td>
+                        <td className="px-3 py-1.5 font-mono">{s.code}</td>
+                        <td className="px-3 py-1.5">{s.phone || '—'}</td>
+                        <td className="px-3 py-1.5">{s.gradeLevel || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"

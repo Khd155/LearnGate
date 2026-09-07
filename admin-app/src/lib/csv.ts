@@ -22,7 +22,7 @@ function escapeHtml(value: string): string {
 // frequently mangles under Arabic/Gulf regional settings (defaulting to ';'
 // as the list separator, dumping every field into column A).
 export function exportStudentsXls(students: Student[], statusOf: (id: string) => DerivedStatus) {
-  const headers = ['الاسم', 'رقم الهوية', 'الجوال', 'الحالة', 'تاريخ التسجيل'];
+  const headers = ['الاسم', 'رقم الدخول', 'الجوال', 'الحالة', 'تاريخ التسجيل'];
   const todayStr = new Date().toISOString().slice(0, 10);
 
   // mso-number-format:"\@" forces Excel to treat the cell as Text — without

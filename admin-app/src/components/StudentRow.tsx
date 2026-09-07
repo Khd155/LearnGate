@@ -4,6 +4,10 @@ import type { Student } from '../types';
 import { testStatusColor, testStatusLabel, type DerivedStatus } from '../lib/status';
 import { cn } from '../lib/cn';
 import { formatLastActive } from '../lib/relativeTime';
+import {
+  CheckIcon, TrendUpIcon, TrendDownIcon, MinusIcon, ClockIcon,
+  PencilIcon, MoreIcon, MicroscopeIcon, ChatIcon, UnlockIcon, TrashIcon,
+} from './Icons';
 
 interface Props {
   student: Student;
@@ -19,6 +23,8 @@ interface Props {
   onDelete: (student: Student) => void;
   onMessage: (student: Student) => void;
 }
+
+const GRADE_BADGE_STYLE = 'inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300';
 
 export default function StudentRow({
   student,
@@ -43,7 +49,9 @@ export default function StudentRow({
           onCheckedChange={() => onToggleSelect(student.id)}
           className="flex h-5 w-5 items-center justify-center rounded-md border border-slate-300 bg-white data-[state=checked]:border-indigo-600 data-[state=checked]:bg-indigo-600 dark:border-slate-600 dark:bg-slate-800"
         >
-          <Checkbox.Indicator className="text-white text-xs">✓</Checkbox.Indicator>
+          <Checkbox.Indicator className="text-white">
+            <CheckIcon className="h-3 w-3" />
+          </Checkbox.Indicator>
         </Checkbox.Root>
       </td>
       <td className="px-4 py-3">
@@ -55,6 +63,13 @@ export default function StudentRow({
         >
           {student.name}
         </button>
+      </td>
+      <td className="px-4 py-3">
+        {student.grade_level ? (
+          <span className={GRADE_BADGE_STYLE}>{student.grade_level}</span>
+        ) : (
+          <span className="text-sm text-slate-400">—</span>
+        )}
       </td>
       <td className="px-4 py-3 font-mono text-sm text-slate-600 dark:text-slate-300">{student.code}</td>
       <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{student.phone || '—'}</td>
@@ -79,14 +94,16 @@ export default function StudentRow({
             )}
             title={score < 50 ? 'أداء ضعيف — يحتاج متابعة' : score >= 70 ? 'أداء متقدم' : 'أداء متوسط'}
           >
-            {score >= 70 ? '▲' : score < 50 ? '▼' : '—'} {score}%
+            {score >= 70 ? <TrendUpIcon className="h-3 w-3" /> : score < 50 ? <TrendDownIcon className="h-3 w-3" /> : <MinusIcon className="h-3 w-3" />}
+            {score}%
           </span>
         )}
       </td>
       <td className="px-4 py-3">
         {student.cooldown_until && new Date(student.cooldown_until).getTime() > Date.now() ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
-            ⏳ فترة استراحة
+            <ClockIcon className="h-3 w-3" />
+            فترة استراحة
           </span>
         ) : (
           <span className={cn('text-xs', student.last_active ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500')}>
@@ -112,7 +129,7 @@ export default function StudentRow({
           aria-label="تعديل بيانات الطالب"
           title="تعديل"
         >
-          ✏️
+          <PencilIcon className="h-4 w-4" />
         </button>
       </td>
       <td className="px-4 py-3 text-end">
@@ -123,7 +140,7 @@ export default function StudentRow({
               className="rounded-lg p-2 text-slate-400 opacity-0 transition group-hover:opacity-100 hover:bg-slate-100 hover:text-slate-700 focus:opacity-100 dark:hover:bg-slate-700"
               aria-label="إجراءات"
             >
-              ⋮
+              <MoreIcon className="h-4 w-4" />
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
@@ -134,28 +151,32 @@ export default function StudentRow({
             >
               <DropdownMenu.Item
                 onSelect={() => onOpenProfile(student)}
-                className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
               >
-                🔬 الملف العلمي
+                <MicroscopeIcon className="h-4 w-4 text-slate-400" />
+                الملف العلمي
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={() => onMessage(student)}
-                className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
               >
-                💬 رسالة
+                <ChatIcon className="h-4 w-4 text-slate-400" />
+                رسالة
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={() => onResetTest(student)}
-                className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
               >
-                🔓 سماح بإعادة الاختبار
+                <UnlockIcon className="h-4 w-4 text-slate-400" />
+                سماح بإعادة الاختبار
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
               <DropdownMenu.Item
                 onSelect={() => onDelete(student)}
-                className="cursor-pointer rounded-lg px-3 py-2 text-sm text-rose-600 outline-none hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 outline-none hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/50"
               >
-                🗑️ حذف
+                <TrashIcon className="h-4 w-4" />
+                حذف
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>

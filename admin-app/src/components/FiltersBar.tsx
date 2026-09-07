@@ -1,6 +1,10 @@
 import * as Select from '@radix-ui/react-select';
 import SearchInput from './SearchInput';
 import type { DerivedStatus } from '../lib/status';
+import { GRADE_LEVELS, type GradeLevel } from '../types';
+import { DownloadIcon, PlusIcon, ChevronDownIcon } from './Icons';
+
+export type GradeFilter = GradeLevel | 'all';
 
 export type SortKey = 'name' | 'status' | 'score_asc' | 'recent' | 'last_active_desc' | 'last_active_asc';
 
@@ -25,6 +29,8 @@ interface Props {
   onSearch: (v: string) => void;
   statusFilter: DerivedStatus | 'all';
   onStatusFilter: (v: DerivedStatus | 'all') => void;
+  gradeFilter: GradeFilter;
+  onGradeFilter: (v: GradeFilter) => void;
   sort: SortKey;
   onSort: (v: SortKey) => void;
   onAdd: () => void;
@@ -42,24 +48,34 @@ function SelectItem({ value, children }: { value: string; children: React.ReactN
   );
 }
 
+const triggerCls =
+  'flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700';
+
 export default function FiltersBar({
   search,
   onSearch,
   statusFilter,
   onStatusFilter,
+  gradeFilter,
+  onGradeFilter,
   sort,
   onSort,
   onAdd,
   onExport,
 }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <SearchInput value={search} onChange={onSearch} />
+    // A single wrapping row: the search box takes the leftover space so the
+    // controls stay packed next to it instead of the add button being pushed
+    // to the far edge by me-auto, which left a wide dead gap mid-bar in RTL.
+    <div className="flex flex-wrap items-center gap-2.5">
+      <div className="min-w-[200px] flex-1">
+        <SearchInput value={search} onChange={onSearch} />
+      </div>
 
       <Select.Root value={statusFilter} onValueChange={(v) => onStatusFilter(v as DerivedStatus | 'all')}>
-        <Select.Trigger className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+        <Select.Trigger className={triggerCls}>
           <Select.Value>{STATUS_LABELS[statusFilter]}</Select.Value>
-          <Select.Icon>▾</Select.Icon>
+          <Select.Icon><ChevronDownIcon className="h-4 w-4 text-slate-400" /></Select.Icon>
         </Select.Trigger>
         <Select.Portal>
           <Select.Content className="z-50 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-800">
@@ -73,10 +89,27 @@ export default function FiltersBar({
         </Select.Portal>
       </Select.Root>
 
+      <Select.Root value={gradeFilter} onValueChange={(v) => onGradeFilter(v as GradeFilter)}>
+        <Select.Trigger className={triggerCls}>
+          <Select.Value>{gradeFilter === 'all' ? 'جميع المراحل' : gradeFilter}</Select.Value>
+          <Select.Icon><ChevronDownIcon className="h-4 w-4 text-slate-400" /></Select.Icon>
+        </Select.Trigger>
+        <Select.Portal>
+          <Select.Content className="z-50 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+            <Select.Viewport>
+              <SelectItem value="all">جميع المراحل</SelectItem>
+              {GRADE_LEVELS.map((g) => (
+                <SelectItem key={g} value={g}>{g}</SelectItem>
+              ))}
+            </Select.Viewport>
+          </Select.Content>
+        </Select.Portal>
+      </Select.Root>
+
       <Select.Root value={sort} onValueChange={(v) => onSort(v as SortKey)}>
-        <Select.Trigger className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+        <Select.Trigger className={triggerCls}>
           <Select.Value>{SORT_LABELS[sort]}</Select.Value>
-          <Select.Icon>▾</Select.Icon>
+          <Select.Icon><ChevronDownIcon className="h-4 w-4 text-slate-400" /></Select.Icon>
         </Select.Trigger>
         <Select.Portal>
           <Select.Content className="z-50 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-800">
@@ -95,17 +128,19 @@ export default function FiltersBar({
       <button
         type="button"
         onClick={onExport}
-        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        className={triggerCls + ' font-medium'}
       >
-        ⬇️ تصدير Excel
+        <DownloadIcon className="h-4 w-4 text-slate-400" />
+        تصدير Excel
       </button>
 
       <button
         type="button"
         onClick={onAdd}
-        className="me-auto rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 dark:shadow-none"
+        className="flex h-11 items-center gap-1.5 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 dark:shadow-none"
       >
-        ＋ إضافة طالب
+        <PlusIcon className="h-4 w-4" />
+        إضافة طالب
       </button>
     </div>
   );

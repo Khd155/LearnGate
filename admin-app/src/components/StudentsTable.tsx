@@ -6,13 +6,14 @@ import { api } from '../lib/api';
 import { resetStudentTest } from '../lib/students';
 import type { DerivedStatus } from '../lib/status';
 import type { Student } from '../types';
-import FiltersBar, { type SortKey } from './FiltersBar';
+import FiltersBar, { type SortKey, type GradeFilter } from './FiltersBar';
 import StudentRow from './StudentRow';
 import AddStudentChooser from './AddStudentChooser';
 import AddStudentModal from './AddStudentModal';
 import ImportStudentsModal from './ImportStudentsModal';
 import StudentModal from './StudentModal';
 import ConfirmDialog from './ConfirmDialog';
+import { MegaphoneIcon, TrashIcon } from './Icons';
 
 const PAGE_SIZE = 20;
 
@@ -45,6 +46,7 @@ export default function StudentsTable() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 250);
   const [statusFilter, setStatusFilter] = useState<DerivedStatus | 'all'>('all');
+  const [gradeFilter, setGradeFilter] = useState<GradeFilter>('all');
   const [sort, setSort] = useState<SortKey>('name');
   const [page, setPage] = useState(1);
 
@@ -75,6 +77,7 @@ export default function StudentsTable() {
     const q = debouncedSearch.trim().toLowerCase();
     let list = students.filter((s) => {
       if (statusFilter !== 'all' && statusOf(s.id) !== statusFilter) return false;
+      if (gradeFilter !== 'all' && s.grade_level !== gradeFilter) return false;
       if (!q) return true;
       return (
         s.name.toLowerCase().includes(q) ||
@@ -102,7 +105,7 @@ export default function StudentsTable() {
       return order[statusOf(a.id)] - order[statusOf(b.id)];
     });
     return list;
-  }, [students, debouncedSearch, statusFilter, sort, statusOf, latestScoreOf]);
+  }, [students, debouncedSearch, statusFilter, gradeFilter, sort, statusOf, latestScoreOf]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -213,6 +216,11 @@ export default function StudentsTable() {
           setStatusFilter(v);
           setPage(1);
         }}
+        gradeFilter={gradeFilter}
+        onGradeFilter={(v) => {
+          setGradeFilter(v);
+          setPage(1);
+        }}
         sort={sort}
         onSort={setSort}
         onAdd={() => setChooserOpen(true)}
@@ -228,16 +236,18 @@ export default function StudentsTable() {
             <button
               type="button"
               onClick={broadcastSelected}
-              className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100 dark:bg-slate-800 dark:text-indigo-300"
+              className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100 dark:bg-slate-800 dark:text-indigo-300"
             >
-              📢 بث للمحددين
+              <MegaphoneIcon className="h-4 w-4" />
+              بث للمحددين
             </button>
             <button
               type="button"
               onClick={() => setBulkDeleteOpen(true)}
-              className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:bg-slate-800 dark:text-rose-400"
+              className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:bg-slate-800 dark:text-rose-400"
             >
-              🗑️ حذف المحددين
+              <TrashIcon className="h-4 w-4" />
+              حذف المحددين
             </button>
             <button
               type="button"
@@ -263,7 +273,8 @@ export default function StudentsTable() {
                 />
               </th>
               <th className="px-4 py-3 font-medium">الاسم</th>
-              <th className="px-4 py-3 font-medium">رقم الهوية</th>
+              <th className="px-4 py-3 font-medium">المرحلة</th>
+              <th className="px-4 py-3 font-medium">رقم الدخول</th>
               <th className="px-4 py-3 font-medium">الجوال</th>
               <th className="px-4 py-3 font-medium">الحالة</th>
               <th className="px-4 py-3 font-medium">آخر درجة تشخيصي</th>
@@ -288,7 +299,7 @@ export default function StudentsTable() {
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-12 text-center text-slate-400">
+                <td colSpan={11} className="px-4 py-12 text-center text-slate-400">
                   لا يوجد طلاب مطابقون
                 </td>
               </tr>

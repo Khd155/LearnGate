@@ -2,20 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useStore, type TabKey } from '../store/useStore';
 import { cn } from '../lib/cn';
+import { HomeIcon, FlaskIcon, UsersIcon, ChatIcon, MegaphoneIcon, SettingsIcon } from './Icons';
 
-const BASE_TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: 'dashboard', label: 'لوحة المعلومات', icon: '🏠' },
-  { key: 'testcenter', label: 'مركز الاختبارات', icon: '🧪' },
-  { key: 'students', label: 'الطلاب', icon: '👥' },
-  { key: 'conversations', label: 'المحادثات', icon: '💬' },
-  { key: 'broadcast', label: 'الرسائل الجماعية', icon: '📢' },
+type TabDef = { key: TabKey; label: string; Icon: (p: { className?: string }) => React.ReactElement };
+
+const BASE_TABS: TabDef[] = [
+  { key: 'dashboard', label: 'لوحة المعلومات', Icon: HomeIcon },
+  { key: 'testcenter', label: 'مركز الاختبارات', Icon: FlaskIcon },
+  { key: 'students', label: 'الطلاب', Icon: UsersIcon },
+  { key: 'conversations', label: 'المحادثات', Icon: ChatIcon },
+  { key: 'broadcast', label: 'الرسائل الجماعية', Icon: MegaphoneIcon },
 ];
 
-const ADMIN_TAB: { key: TabKey; label: string; icon: string } = {
-  key: 'admin',
-  label: 'الإدارة',
-  icon: '⚙️',
-};
+const ADMIN_TAB: TabDef = { key: 'admin', label: 'الإدارة', Icon: SettingsIcon };
 
 export default function TabsNavigation() {
   const tab = useStore((s) => s.tab);
@@ -59,7 +58,7 @@ export default function TabsNavigation() {
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
             )}
           >
-            <span>{t.icon}</span>
+            <t.Icon className="h-4 w-4 shrink-0" />
             <span>{t.label}</span>
           </Tabs.Trigger>
         ))}

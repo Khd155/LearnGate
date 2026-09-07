@@ -4,6 +4,7 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import { useStore } from '../store/useStore';
 import { api, ApiError, clearSession } from '../lib/api';
 import { adminLabel } from '../lib/adminLabel';
+import { FlaskIcon, PersonIcon, LogoutIcon } from './Icons';
 
 interface ImpersonateResponse {
   token: string;
@@ -228,7 +229,8 @@ export default function Header() {
             disabled={impersonating}
             className="hidden h-9 items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-3 text-sm font-bold hover:bg-white/20 disabled:opacity-60 sm:flex"
           >
-            🧪 {impersonating ? 'جارٍ…' : 'عرض كطالب'}
+            <FlaskIcon className="h-4 w-4" />
+            {impersonating ? 'جارٍ…' : 'عرض كطالب'}
           </button>
 
           {/* Profile dropdown — replaces standalone خروج button */}
@@ -261,14 +263,14 @@ export default function Header() {
                   onSelect={openProfile}
                   className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700"
                 >
-                  <span>👤</span>
+                  <PersonIcon className="h-4 w-4 text-slate-400" />
                   <span>الملف الشخصي</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item
                   onSelect={impersonate}
                   className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700 sm:hidden"
                 >
-                  <span>🧪</span>
+                  <FlaskIcon className="h-4 w-4 text-slate-400" />
                   <span>{impersonating ? 'جارٍ…' : 'عرض كطالب'}</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
@@ -276,7 +278,7 @@ export default function Header() {
                   onSelect={logout}
                   className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-rose-600 outline-none hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
                 >
-                  <span>🚪</span>
+                  <LogoutIcon className="h-4 w-4" />
                   <span>تسجيل خروج</span>
                 </DropdownMenu.Item>
               </DropdownMenu.Content>

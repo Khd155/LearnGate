@@ -7159,6 +7159,216 @@ window.addEventListener('pageshow', (e) => {
   });
 });
 
+// ── Landing page (#screen-landing) ────────────────────────────────────────
+// Everything the marketing landing needs that isn't a plain show() call:
+// in-page section navigation, the mobile menu, the categorised FAQ, the
+// scroll-triggered reveals, the count-up metrics and the hero preview card.
+//
+// Section navigation deliberately avoids real "#hash" anchors: show() owns
+// the address bar (history.replaceState to the screen's path) and scrolls to
+// the top on every screen switch, so a native anchor jump would be undone —
+// or worse, rewritten into a path the router doesn't know. scrollIntoView
+// keeps the URL untouched and the page in place.
+const LP_NAV_OFFSET = 72; // sticky navbar height + a little breathing room
+
+// Strips the leading emoji/pictographs that FAQ_DATA carries for the in-app
+// FAQ screen. The landing is SVG-only, so titles and button labels lose them.
+function _lpStripEmoji(s) {
+  return String(s || '')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{2B50}\u{2B06}\u{2194}-\u{21AA}]/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+// The landing groups the 7 in-app FAQ categories into 5 tabs (the two
+// smallest pairs are merged so no tab is a single lonely row). Indices
+// refer to FAQ_DATA above so the answers stay the single source of truth.
+const LP_FAQ_TABS = [
+  { title: 'التعريف بالبوابة',                 cats: [0] },
+  { title: 'الحساب والدخول',                   cats: [1] },
+  { title: 'الاختبار التشخيصي',                cats: [2] },
+  { title: 'خطة التدريب والشروحات',            cats: [3, 4] },
+  { title: 'الاختبارات المحاكية والدعم الفني', cats: [5, 6] },
+];
+
+// Visitor-side counterpart of App.runFaqAction: nobody is logged in on the
+// landing, so anything that needs an account routes to the login flow, and
+// the supervisor chat / ticket actions map to the guest support form.
+function _lpFaqAction(key) {
+  const guest = {
+    'about':         { label: 'التعرّف على البوابة',       run: () => App.lpScrollTo('about') },
+    'guest-support': { label: 'تواصل مع الدعم الفني',      run: () => App.openGuestSupport() },
+    'chat':          { label: 'تواصل مع الدعم الفني',      run: () => App.openGuestSupport() },
+    'tickets':       { label: 'فتح نموذج الدعم الفني',     run: () => App.openGuestSupport() },
+  };
+  if (guest[key]) return guest[key];
+  if (!key) return null;
+  return { label: 'سجّل الدخول للمتابعة', run: () => show('screen-school') };
+}
+
+const LP_ICON_PLUS  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const LP_ICON_ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>';
+
+App.lpScrollTo = function (id) {
+  App.lpToggleMenu(false);
+  const el = document.getElementById(id);
+  if (!el) return;
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // <body> is the scroll container on this app (html/body are height:100%
+  // with overflow-y:auto on body — see show()), so window.scrollY is always 0
+  // and window.scrollTo() is a no-op. Scroll the body itself.
+  const scroller = _lpScroller();
+  const top = el.getBoundingClientRect().top + scroller.scrollTop - LP_NAV_OFFSET;
+  scroller.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' });
+};
+
+function _lpScroller() {
+  const b = document.body;
+  return (b.scrollHeight > b.clientHeight && getComputedStyle(b).overflowY !== 'visible') ? b : document.scrollingElement || document.documentElement;
+}
+
+App.lpToggleMenu = function (force) {
+  const menu = document.getElementById('lp-mobile-menu');
+  const btn  = document.querySelector('#lp-nav .lp-menu-btn');
+  if (!menu) return;
+  const open = typeof force === 'boolean' ? force : !menu.classList.contains('open');
+  menu.classList.toggle('open', open);
+  if (btn) {
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', open ? 'إغلاق القائمة' : 'فتح القائمة');
+  }
+};
+
+App.lpSelectFaqTab = function (ti) {
+  const tabs = document.getElementById('lp-faq-tabs');
+  const list = document.getElementById('lp-faq-list');
+  if (!tabs || !list) return;
+  tabs.querySelectorAll('.lp-faq-tab').forEach((b, i) => {
+    const on = i === ti;
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
+  const tab = LP_FAQ_TABS[ti];
+  if (!tab) return;
+  const items = tab.cats.flatMap((ci) => (FAQ_DATA[ci] ? FAQ_DATA[ci].items : []));
+  list.innerHTML = items.map((it, qi) => {
+    const act = _lpFaqAction(it.action);
+    return `
+      <div class="lp-faq-item" id="lp-faq-item-${ti}-${qi}">
+        <button type="button" class="lp-faq-q" aria-expanded="false" aria-controls="lp-faq-a-${ti}-${qi}" onclick="App.lpToggleFaq(${ti},${qi})">
+          <span>${escapeHtml(it.q)}</span>${LP_ICON_PLUS}
+        </button>
+        <div class="lp-faq-a" id="lp-faq-a-${ti}-${qi}" aria-hidden="true">
+          <div class="lp-faq-a-inner">
+            <p>${escapeHtml(it.a)}</p>
+            ${act ? `<button type="button" class="lp-faq-action" data-lp-act="${escapeHtml(it.action)}">${escapeHtml(act.label)}${LP_ICON_ARROW}</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  list.querySelectorAll('.lp-faq-action').forEach((b) => {
+    const act = _lpFaqAction(b.dataset.lpAct);
+    if (act) b.addEventListener('click', (e) => { e.stopPropagation(); act.run(); });
+  });
+  // First question open so the section never reads as an empty list.
+  App.lpToggleFaq(ti, 0);
+};
+
+App.lpToggleFaq = function (ti, qi) {
+  const item = document.getElementById(`lp-faq-item-${ti}-${qi}`);
+  if (!item) return;
+  const open = item.classList.toggle('open');
+  const q = item.querySelector('.lp-faq-q');
+  const a = item.querySelector('.lp-faq-a');
+  if (q) q.setAttribute('aria-expanded', String(open));
+  if (a) a.setAttribute('aria-hidden', String(!open));
+};
+
+function _lpRenderFaqTabs() {
+  const tabs = document.getElementById('lp-faq-tabs');
+  if (!tabs) return;
+  tabs.innerHTML = LP_FAQ_TABS.map((t, i) =>
+    `<button type="button" class="lp-faq-tab" role="tab" aria-selected="${i === 0}" onclick="App.lpSelectFaqTab(${i})">${escapeHtml(t.title)}</button>`
+  ).join('');
+  tabs.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const btns = [...tabs.querySelectorAll('.lp-faq-tab')];
+    const cur = btns.findIndex((b) => b.getAttribute('aria-selected') === 'true');
+    // RTL: ArrowLeft moves forward through the row.
+    const next = (cur + (e.key === 'ArrowLeft' ? 1 : -1) + btns.length) % btns.length;
+    App.lpSelectFaqTab(next);
+    btns[next].focus();
+    e.preventDefault();
+  });
+  App.lpSelectFaqTab(0);
+}
+
+function _lpCountUp(el) {
+  const target = parseInt(el.dataset.lpCount, 10);
+  if (!Number.isFinite(target)) return;
+  const suffix = /%$/.test(el.textContent.trim()) ? '%' : '';
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { el.textContent = target + suffix; return; }
+  const dur = 1100, t0 = performance.now();
+  const step = (now) => {
+    const p = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(target * eased) + suffix;
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function _lpInit() {
+  const root = document.getElementById('lp-root');
+  if (!root) return;
+
+  const year = document.getElementById('lp-year');
+  if (year) year.textContent = String(new Date().getFullYear());
+
+  // Hero preview: 30-skill mastery grid, 21 lit — mirrors the "21 متقنة" label.
+  const dots = root.querySelector('.lp-mock-dots');
+  if (dots && !dots.children.length) {
+    dots.innerHTML = Array.from({ length: 30 }, (_, i) =>
+      `<span${i < 21 ? ' class="on"' : ''} style="transition-delay:${i * 18}ms"></span>`).join('');
+  }
+
+  _lpRenderFaqTabs();
+
+  // Glass navbar gains its bottom border/shadow once the hero scrolls away.
+  const nav = document.getElementById('lp-nav');
+  const onScroll = () => { if (nav) nav.classList.toggle('is-scrolled', (_lpScroller().scrollTop || window.scrollY) > 8); };
+  document.body.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // Close the mobile menu on Escape / outside tap.
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') App.lpToggleMenu(false); });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#lp-nav')) App.lpToggleMenu(false);
+  });
+
+  // Scroll reveals + count-ups. Elements above the fold are revealed on the
+  // first observer callback, everything else as it enters the viewport.
+  const reveal = (el) => {
+    el.classList.add('is-in');
+    el.querySelectorAll('[data-lp-count]').forEach(_lpCountUp);
+    if (el.matches('[data-lp-count]')) _lpCountUp(el);
+  };
+  const targets = [...root.querySelectorAll('.lp-reveal, .lp-mock')];
+  if (!('IntersectionObserver' in window)) { targets.forEach(reveal); return; }
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      reveal(en.target);
+      io.unobserve(en.target);
+    });
+  }, { rootMargin: '0px 0px -10% 0px', threshold: 0.08 });
+  targets.forEach((t) => io.observe(t));
+}
+
+document.addEventListener('DOMContentLoaded', _lpInit);
+
 document.addEventListener('DOMContentLoaded', () => {
   // An account-access link ("?t=") owns the screen entirely — skip session
   // restore/auto-login so it can't get overridden mid-flight. Checked via the

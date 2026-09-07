@@ -552,92 +552,372 @@
     }
     .perf-skill-breakdown { background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
 
-    /* ── Landing Hero ─────────────────────────────────────── */
-    .landing-hero {
-      flex: 1; display: flex; flex-direction: column; align-items: center;
-      justify-content: center; text-align: center;
-      padding: clamp(16px, 3.5vh, 32px) 24px;
+    /* ── Landing page (screen-landing) ──────────────────────────────────────
+       Light canvas with brand-tinted glows instead of the old full-bleed
+       gradient, so the hero can hold real typography and a UI preview. All
+       colours come from the :root tokens so the opt-in dark theme still
+       works; the only hard-coded ink is the footer, which is deliberately
+       dark in both themes. Every icon is inline SVG sized 20/24px and inherits
+       currentColor — no emoji anywhere on this screen. */
+    .lp {
+      --lp-max: 1120px;
+      --lp-ink: var(--text);
+      --lp-grad: linear-gradient(120deg, #3F7CB8 0%, #4A96A0 55%, #4FA877 100%);
+      --lp-grad-dark: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+      --lp-glass: rgba(255,255,255,.72);
+      --lp-glass-border: rgba(255,255,255,.75);
+      --lp-card: var(--surface);
+      --lp-ease: cubic-bezier(.22,1,.36,1);
+      width: 100%; min-height: 100vh;
+      background: var(--bg); color: var(--lp-ink);
+      display: flex; flex-direction: column;
+      scroll-behavior: smooth;
     }
-    .landing-nav-pill {
-      display: flex; align-items: center; gap: 2px;
-      background: rgba(255,255,255,.14);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,.28);
-      border-radius: 99px; padding: 4px;
+    :root[data-theme="dark"] .lp {
+      --lp-glass: rgba(15,23,42,.72);
+      --lp-glass-border: rgba(255,255,255,.10);
     }
-    .landing-nav-pill button {
-      background: transparent; border: none; color: #fff;
-      font-family: inherit; font-weight: 600; font-size: 12.5px;
-      padding: 7px 14px; border-radius: 99px; cursor: pointer;
-      transition: background .2s ease;
+    .lp main { flex: 1; }
+    .lp-container { width: 100%; max-width: var(--lp-max); margin: 0 auto; padding-inline: 24px; }
+    .lp h1, .lp h2, .lp h3, .lp h4 { font-family: 'Cairo', 'Tajawal', sans-serif; }
+    .lp p, .lp button, .lp small { font-family: 'Tajawal', 'Cairo', sans-serif; }
+    .lp button { cursor: pointer; }
+    .lp :focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 10px; }
+
+    /* Buttons */
+    .lp-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 42px; padding: 0 18px; border-radius: 12px; border: 1.5px solid transparent;
+      font-size: 14px; font-weight: 700; white-space: nowrap; line-height: 1;
+      transition: transform .22s var(--lp-ease), box-shadow .22s ease, background .2s ease, border-color .2s ease, color .2s ease;
     }
-    .landing-nav-pill button:hover { background: rgba(255,255,255,.16); }
-    .landing-nav-pill .pill-divider { width: 1px; height: 16px; background: rgba(255,255,255,.25); flex-shrink: 0; }
-    .landing-login-btn {
-      display: inline-flex; align-items: center; gap: 7px;
-      background: rgba(255,255,255,.15);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,.32); color: #fff;
-      border-radius: 99px; padding: 8px 20px; font-size: 13px;
-      font-family: inherit; font-weight: 600; cursor: pointer;
-      transition: background .2s ease, border-color .2s ease;
+    .lp-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .lp-btn-lg { height: 54px; padding: 0 28px; font-size: 16px; border-radius: 14px; }
+    .lp-btn:active { transform: translateY(1px); }
+    .lp-btn-primary {
+      background: var(--lp-grad); color: #fff;
+      box-shadow: 0 10px 28px -10px rgba(63,124,184,.65), inset 0 1px 0 rgba(255,255,255,.22);
     }
-    .landing-login-btn:hover { background: rgba(255,255,255,.24); border-color: rgba(255,255,255,.5); }
-    .landing-login-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
-    .landing-badge {
-      color: rgba(255,255,255,.95); font-size: 12.5px; font-weight: 600;
-      background: rgba(255,255,255,.15);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,.25);
-      display: inline-block; padding: 4px 16px; border-radius: 20px;
+    .lp-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -12px rgba(63,124,184,.7), inset 0 1px 0 rgba(255,255,255,.22); }
+    .lp-btn-primary .lp-arrow { transition: transform .3s var(--lp-ease); }
+    .lp-btn-primary:hover .lp-arrow { transform: translateX(-5px); }
+    .lp-btn-soft { background: var(--bg-tint); color: var(--primary-dk); border-color: var(--border); }
+    .lp-btn-soft:hover { background: var(--surface); border-color: var(--border-strong); transform: translateY(-2px); }
+    .lp-btn-dark { background: var(--lp-grad-dark); color: #fff; box-shadow: 0 8px 22px -10px rgba(15,23,42,.7); }
+    .lp-btn-dark:hover { transform: translateY(-1px); box-shadow: 0 12px 28px -10px rgba(15,23,42,.75); }
+    .lp-btn-ghost { background: transparent; color: var(--lp-ink); border-color: var(--border-strong); }
+    .lp-btn-ghost:hover { background: var(--surface); border-color: var(--primary); color: var(--primary-dk); }
+    .lp-btn-white { background: #fff; color: var(--primary-dk); }
+    .lp-btn-white:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -12px rgba(0,0,0,.35); }
+    .lp-btn-outline-light { background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
+    .lp-btn-outline-light:hover { background: rgba(255,255,255,.12); border-color: #fff; }
+
+    /* Navbar */
+    .lp-nav {
+      position: sticky; top: 0; z-index: 60;
+      background: var(--lp-glass);
+      -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%);
+      border-bottom: 1px solid transparent;
+      transition: border-color .3s ease, box-shadow .3s ease, background .3s ease;
     }
-    .landing-cards {
-      display: flex; flex-wrap: nowrap; gap: 12px; justify-content: center;
-      width: 100%; max-width: 480px;
-      margin-block: clamp(16px, 3.5vh, 40px);
+    .lp-nav.is-scrolled { border-bottom-color: var(--border); box-shadow: 0 10px 30px -18px rgba(15,23,42,.25); }
+    .lp-nav-inner { display: flex; align-items: center; gap: 20px; height: 64px; }
+    .lp-brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; min-width: 0; }
+    .lp-brand-moe { height: 44px; width: auto; flex-shrink: 0; }
+    .lp-brand-sep { width: 1px; height: 26px; background: var(--border-strong); flex-shrink: 0; }
+    .lp-brand-mark {
+      width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
+      background: var(--lp-grad); color: #fff; display: inline-flex; align-items: center; justify-content: center;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.3);
     }
-    .landing-feature-card {
-      background: rgba(255,255,255,.12);
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,.22); border-radius: 20px;
-      padding: 18px 16px; flex: 1; min-width: 0; max-width: 140px; text-align: center;
-      box-shadow: 0 8px 32px 0 rgba(0,0,0,.12);
-      transition: transform .3s cubic-bezier(.16,1,.3,1), box-shadow .3s ease, border-color .3s ease;
+    .lp-brand-mark svg { width: 19px; height: 19px; }
+    .lp-brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+    .lp-brand-text strong { font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 800; white-space: nowrap; }
+    .lp-brand-text small { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    .lp-links { display: flex; align-items: center; gap: 2px; margin-inline-start: auto; }
+    .lp-links button {
+      position: relative; background: none; border: none; color: var(--muted);
+      font-size: 14px; font-weight: 600; padding: 8px 10px; border-radius: 10px; white-space: nowrap;
+      transition: color .2s ease, background .2s ease;
     }
-    .landing-feature-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 30px rgba(0,0,0,.18);
-      border-color: rgba(255,255,255,.4);
+    .lp-links button::after {
+      content: ''; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px; border-radius: 2px;
+      background: var(--lp-grad); transform: scaleX(0); transform-origin: right; transition: transform .25s var(--lp-ease);
     }
-    .landing-feature-icon { font-size: 28px; margin-bottom: 8px; }
-    .landing-feature-text {
-      color: #fff; font-size: 12.5px; font-weight: 600; line-height: 1.5;
-      text-shadow: 0 1px 3px rgba(0,0,0,.3);
+    .lp-links button:hover { color: var(--lp-ink); }
+    .lp-links button:hover::after { transform: scaleX(1); }
+    .lp-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .lp-menu-btn { display: none; width: 42px; height: 42px; border-radius: 12px; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--lp-ink); align-items: center; justify-content: center; }
+    .lp-menu-btn svg { width: 20px; height: 20px; }
+    .lp-mobile-menu {
+      display: none; flex-direction: column; gap: 2px; padding: 10px 16px 18px;
+      border-top: 1px solid var(--border);
     }
-    .landing-cta-btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: #fff; color: var(--primary); border: none; border-radius: 14px;
-      padding: 16px 52px; font-size: 17px; font-weight: 800; font-family: inherit;
-      cursor: pointer; box-shadow: 0 8px 32px rgba(0,0,0,.2);
-      transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s ease;
+    .lp-mobile-menu.open { display: flex; }
+    .lp-mobile-menu > button { background: none; border: none; text-align: right; color: var(--lp-ink); font-size: 15px; font-weight: 600; padding: 12px 10px; border-radius: 10px; }
+    .lp-mobile-menu > button:hover { background: var(--bg-tint); }
+    .lp-mobile-menu-actions { display: flex; gap: 10px; margin-top: 10px; }
+    .lp-mobile-menu-actions .lp-btn { flex: 1; }
+
+    /* Hero */
+    .lp-hero { position: relative; overflow: hidden; padding: clamp(44px, 8vh, 96px) 0 clamp(48px, 8vh, 88px); }
+    .lp-hero-glow { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .55; pointer-events: none; }
+    .lp-hero-glow-a { width: 520px; height: 520px; top: -180px; right: -120px; background: radial-gradient(circle, rgba(63,124,184,.55), transparent 65%); }
+    .lp-hero-glow-b { width: 460px; height: 460px; bottom: -200px; left: -140px; background: radial-gradient(circle, rgba(79,168,119,.5), transparent 65%); }
+    :root[data-theme="dark"] .lp-hero-glow { opacity: .35; }
+    .lp-hero-grid { position: relative; display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(28px, 5vw, 64px); align-items: center; }
+    .lp-pill {
+      display: inline-flex; align-items: center; gap: 9px;
+      background: var(--lp-glass); border: 1px solid var(--lp-glass-border);
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+      color: var(--primary-dk); font-size: 12.5px; font-weight: 700;
+      padding: 7px 14px 7px 12px; border-radius: 99px; box-shadow: var(--shadow-sm);
     }
-    .landing-cta-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(0,0,0,.28); }
-    .landing-cta-arrow { display: inline-block; transition: transform .3s cubic-bezier(.16,1,.3,1); }
-    .landing-cta-btn:hover .landing-cta-arrow { transform: translateX(-3px); }
-    @media (max-width: 480px) {
-      .landing-cards { gap: 8px; }
-      .landing-feature-card { padding: 12px 8px; border-radius: 16px; }
-      .landing-feature-icon { font-size: 22px; margin-bottom: 5px; }
-      .landing-feature-text { font-size: 11px; }
-      .landing-cta-btn { padding: 14px 40px; font-size: 15.5px; }
+    :root[data-theme="dark"] .lp-pill { color: var(--primary-lt); }
+    .lp-pill-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 0 rgba(79,168,119,.55); animation: lpPulse 2.2s ease-out infinite; flex-shrink: 0; }
+    @keyframes lpPulse { 0% { box-shadow: 0 0 0 0 rgba(79,168,119,.55); } 70% { box-shadow: 0 0 0 9px rgba(79,168,119,0); } 100% { box-shadow: 0 0 0 0 rgba(79,168,119,0); } }
+    .lp-h1 {
+      font-size: clamp(30px, 4.6vw, 50px); font-weight: 900; line-height: 1.38;
+      letter-spacing: -.2px; margin: 20px 0 14px; text-wrap: balance;
     }
-    @media (max-height: 700px) {
-      .landing-hero h1 { font-size: 26px !important; margin-bottom: 4px !important; }
-      .landing-hero .brand-logo { margin-bottom: 4px !important; }
+    .lp-lead { font-size: clamp(15.5px, 1.4vw, 17.5px); font-weight: 500; line-height: 1.95; color: var(--muted); max-width: 580px; margin: 0; }
+    .lp-hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+    .lp-hero-meta { display: inline-flex; align-items: center; gap: 8px; margin-top: 24px; font-size: 13px; color: var(--muted); }
+    .lp-hero-meta svg { width: 17px; height: 17px; color: var(--success); flex-shrink: 0; }
+
+    /* Hero UI preview */
+    .lp-hero-visual { position: relative; padding: 18px 10px 26px; }
+    .lp-mock {
+      position: relative; width: 100%; max-width: 440px; margin: 0 auto;
+      background: var(--lp-glass); border: 1px solid var(--lp-glass-border);
+      -webkit-backdrop-filter: blur(18px) saturate(150%); backdrop-filter: blur(18px) saturate(150%);
+      border-radius: 24px; padding: 20px; box-shadow: var(--shadow-lg), 0 2px 8px rgba(15,23,42,.05);
+      transform: perspective(1200px) rotateY(-9deg) rotateX(4deg);
+      transition: transform .7s var(--lp-ease), box-shadow .5s ease;
     }
-    @media (max-height: 640px) {
-      .landing-hero .brand-logo { width: min(92px, 28vw) !important; }
-      .landing-cards { margin-block: 12px !important; }
+    .lp-mock::before { content: ''; position: absolute; inset: 0 0 auto; height: 1px; border-radius: 24px 24px 0 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.9), transparent); pointer-events: none; }
+    .lp-hero-visual:hover .lp-mock { transform: perspective(1200px) rotateY(0) rotateX(0); box-shadow: 0 30px 70px -24px rgba(63,124,184,.45); }
+    .lp-mock-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+    .lp-mock-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--lp-grad); box-shadow: inset 0 1px 0 rgba(255,255,255,.35); }
+    .lp-mock-title { font-family: 'Cairo', sans-serif; font-size: 14px; font-weight: 800; }
+    .lp-mock-chip {
+      flex-basis: 100%; display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(79,168,119,.12); color: #1f7a4d; border: 1px solid rgba(79,168,119,.3);
+      font-size: 11.5px; font-weight: 700; padding: 6px 10px; border-radius: 99px; width: fit-content;
+    }
+    :root[data-theme="dark"] .lp-mock-chip { color: #9ad9b9; }
+    .lp-mock-skill { background: var(--lp-card); border: 1px solid var(--border); border-radius: 16px; padding: 14px; box-shadow: var(--shadow-sm); }
+    .lp-mock-skill-top { display: flex; align-items: center; gap: 10px; }
+    .lp-mock-icon { width: 36px; height: 36px; border-radius: 11px; background: rgba(63,124,184,.12); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .lp-mock-icon svg { width: 18px; height: 18px; }
+    .lp-mock-skill-name { font-family: 'Cairo', sans-serif; font-size: 14px; font-weight: 800; }
+    .lp-mock-skill-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+    .lp-mock-pct { margin-inline-start: auto; font-family: 'Cairo', sans-serif; font-size: 20px; font-weight: 900; color: var(--primary); font-variant-numeric: tabular-nums; }
+    .lp-mock-bar { height: 8px; border-radius: 99px; background: var(--bg-tint); overflow: hidden; margin: 12px 0 8px; }
+    .lp-mock-bar-fill { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--lp-grad); transition: width 1.3s var(--lp-ease) .25s; }
+    .lp-mock.is-in .lp-mock-bar-fill { width: var(--w); }
+    .lp-mock-skill-foot { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+    .lp-mock-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 12px 14px; border-radius: 16px; background: var(--lp-card); border: 1px solid var(--border); }
+    .lp-mock-play { width: 38px; height: 38px; border-radius: 50%; background: var(--lp-grad-dark); color: #fff; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 6px 16px -6px rgba(15,23,42,.6); }
+    .lp-mock-play svg { width: 16px; height: 16px; margin-inline-start: -2px; }
+    .lp-mock-row-title { font-size: 13.5px; font-weight: 700; }
+    .lp-mock-row-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+    .lp-mock-grid { margin-top: 12px; }
+    .lp-mock-grid-label { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+    .lp-mock-dots { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+    .lp-mock-dots span { aspect-ratio: 1; border-radius: 6px; border: 1.5px solid var(--border-strong); background: transparent; transform: scale(.6); opacity: 0; transition: transform .4s var(--lp-ease), opacity .4s ease, background .4s ease; }
+    .lp-mock-dots span.on { background: var(--lp-grad); border-color: transparent; }
+    .lp-mock.is-in .lp-mock-dots span { transform: scale(1); opacity: 1; }
+    .lp-float {
+      position: absolute; display: inline-flex; align-items: center; gap: 8px;
+      background: var(--lp-glass); border: 1px solid var(--lp-glass-border);
+      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+      font-size: 12.5px; font-weight: 700; padding: 9px 13px; border-radius: 14px;
+      box-shadow: var(--shadow); animation: lpFloat 6s ease-in-out infinite;
+    }
+    .lp-float svg { width: 16px; height: 16px; }
+    .lp-float-a { top: 2px; right: -6px; color: #1f7a4d; }
+    .lp-float-a svg { color: var(--success); }
+    .lp-float-b { bottom: 4px; left: -8px; color: var(--primary-dk); animation-delay: -3s; }
+    .lp-float-b svg { color: var(--primary); }
+    :root[data-theme="dark"] .lp-float-a { color: #9ad9b9; }
+    :root[data-theme="dark"] .lp-float-b { color: var(--primary-lt); }
+    @keyframes lpFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+    /* Sections */
+    .lp-section { padding: clamp(56px, 8vw, 96px) 0; }
+    .lp-section-tight { padding: clamp(32px, 5vw, 56px) 0; }
+    .lp-section-alt { background: linear-gradient(180deg, var(--bg-tint) 0%, var(--bg) 100%); }
+    .lp-section-head { max-width: 720px; margin-bottom: clamp(28px, 4vw, 44px); }
+    .lp-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 800; color: var(--primary); letter-spacing: .3px; margin-bottom: 12px; }
+    .lp-eyebrow::before { content: ''; width: 22px; height: 2px; border-radius: 2px; background: var(--lp-grad); }
+    .lp-h2 { font-size: clamp(24px, 3.2vw, 36px); font-weight: 800; line-height: 1.4; margin: 0 0 12px; text-wrap: balance; }
+    .lp-p { font-size: 16px; font-weight: 500; line-height: 1.95; color: var(--muted); margin: 0; }
+
+    /* Metrics */
+    .lp-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .lp-metric {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: var(--lp-card); border: 1px solid var(--border); border-radius: 20px; padding: 20px;
+      box-shadow: var(--shadow-sm); transition: transform .25s var(--lp-ease), box-shadow .25s ease;
+    }
+    .lp-metric:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+    .lp-metric-ic { width: 46px; height: 46px; border-radius: 14px; background: rgba(63,124,184,.12); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .lp-metric-ic svg { width: 22px; height: 22px; }
+    .lp-metric-num { font-family: 'Cairo', sans-serif; font-size: 19px; font-weight: 900; line-height: 1.3; font-variant-numeric: tabular-nums; }
+    .lp-metric-txt { font-size: 13.5px; color: var(--muted); line-height: 1.8; margin-top: 4px; }
+    .lp-about { max-width: 780px; margin-top: clamp(40px, 6vw, 64px); }
+
+    /* Steps */
+    .lp-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; counter-reset: none; }
+    .lp-step {
+      position: relative; background: var(--lp-card); border: 1px solid var(--border); border-radius: 22px;
+      padding: 30px 22px 24px; box-shadow: var(--shadow-sm);
+      transition: transform .3s var(--lp-ease), box-shadow .3s ease, border-color .3s ease;
+    }
+    .lp-step::before { content: ''; position: absolute; inset: 0 0 auto; height: 3px; border-radius: 22px 22px 0 0; background: var(--lp-grad); opacity: .0; transition: opacity .3s ease; }
+    .lp-step:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: var(--border-strong); }
+    .lp-step:hover::before { opacity: 1; }
+    .lp-step-num {
+      position: absolute; top: -14px; right: 20px; width: 30px; height: 30px; border-radius: 50%;
+      background: var(--lp-grad-dark); color: #fff; font-family: 'Cairo', sans-serif; font-size: 13px; font-weight: 900;
+      display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 6px 14px -6px rgba(15,23,42,.6);
+    }
+    .lp-step-ic { width: 46px; height: 46px; border-radius: 14px; background: rgba(79,168,119,.12); color: #2a8a5c; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+    .lp-step-ic svg { width: 22px; height: 22px; }
+    .lp-step h3 { font-size: 16px; font-weight: 800; line-height: 1.5; margin: 0 0 8px; }
+    .lp-step p { font-size: 14px; line-height: 1.85; color: var(--muted); margin: 0; }
+
+    /* Bento */
+    .lp-bento { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .lp-card {
+      position: relative; overflow: hidden; background: var(--lp-card); border: 1px solid var(--border); border-radius: 24px;
+      padding: 28px; box-shadow: var(--shadow-sm); transition: transform .3s var(--lp-ease), box-shadow .3s ease;
+    }
+    .lp-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+    .lp-card-wide { grid-column: span 2; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; }
+    .lp-card-wide > .lp-card-ic, .lp-card-wide > h3, .lp-card-wide > p { grid-column: 1; }
+    .lp-card-ic { width: 48px; height: 48px; border-radius: 14px; background: var(--lp-grad); color: #fff; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: inset 0 1px 0 rgba(255,255,255,.3); }
+    .lp-card-ic svg { width: 22px; height: 22px; }
+    .lp-card h3 { font-size: 18px; font-weight: 800; margin: 0 0 8px; line-height: 1.45; }
+    .lp-card p { font-size: 14.5px; line-height: 1.9; color: var(--muted); margin: 0; }
+    .lp-podium { grid-column: 2; grid-row: 1 / span 3; display: flex; align-items: flex-end; gap: 10px; height: 118px; padding-inline: 6px; }
+    .lp-podium-col { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 40px; height: 100%; justify-content: flex-end; font-family: 'Cairo', sans-serif; font-size: 12px; font-weight: 900; color: var(--muted); }
+    .lp-podium-bar { display: block; width: 100%; height: var(--h); border-radius: 10px 10px 4px 4px; background: linear-gradient(180deg, #cbd5e1, #94a3b8); transition: height .9s var(--lp-ease); }
+    .lp-podium-first .lp-podium-bar { background: linear-gradient(180deg, #fcd34d, #f59e0b); box-shadow: 0 8px 20px -8px rgba(245,158,11,.7); }
+    .lp-podium-first { color: #b45309; }
+
+    /* FAQ */
+    .lp-faq-wrap { max-width: 860px; }
+    .lp-faq-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .lp-faq-tab {
+      background: var(--lp-card); border: 1.5px solid var(--border); color: var(--muted);
+      font-size: 13.5px; font-weight: 700; padding: 9px 16px; border-radius: 99px;
+      transition: background .2s ease, color .2s ease, border-color .2s ease, transform .2s var(--lp-ease);
+    }
+    .lp-faq-tab:hover { border-color: var(--border-strong); color: var(--lp-ink); transform: translateY(-1px); }
+    .lp-faq-tab[aria-selected="true"] { background: var(--lp-grad-dark); color: #fff; border-color: transparent; }
+    .lp-faq-list { display: flex; flex-direction: column; gap: 10px; }
+    .lp-faq-item { background: var(--lp-card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; transition: border-color .2s ease, box-shadow .2s ease; }
+    .lp-faq-item.open { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+    .lp-faq-q {
+      width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      background: none; border: none; text-align: right; color: var(--lp-ink);
+      font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 700; padding: 17px 20px; line-height: 1.6;
+    }
+    .lp-faq-q svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--muted); transition: transform .3s var(--lp-ease), color .2s ease; }
+    .lp-faq-item.open .lp-faq-q svg { transform: rotate(45deg); color: var(--primary); }
+    .lp-faq-a { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s var(--lp-ease); }
+    .lp-faq-item.open .lp-faq-a { grid-template-rows: 1fr; }
+    .lp-faq-a-inner { overflow: hidden; }
+    .lp-faq-a p { margin: 0; padding: 0 20px 18px; font-size: 14.5px; line-height: 1.95; color: var(--muted); }
+    .lp-faq-action {
+      display: inline-flex; align-items: center; gap: 6px; margin: 0 20px 18px;
+      background: var(--bg-tint); color: var(--primary-dk); border: 1px solid var(--border);
+      font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 10px; transition: background .2s ease, border-color .2s ease;
+    }
+    .lp-faq-action:hover { background: var(--surface); border-color: var(--primary); }
+    .lp-faq-action svg { width: 15px; height: 15px; }
+
+    /* Support band */
+    .lp-support {
+      display: grid; grid-template-columns: 1.3fr 1fr; gap: 28px; align-items: center;
+      background: var(--lp-grad); border-radius: 28px; padding: clamp(28px, 4vw, 48px);
+      color: #fff; box-shadow: 0 30px 60px -30px rgba(63,124,184,.6); position: relative; overflow: hidden;
+    }
+    .lp-support::after { content: ''; position: absolute; width: 380px; height: 380px; border-radius: 50%; right: -120px; bottom: -220px; background: rgba(255,255,255,.12); filter: blur(10px); pointer-events: none; }
+    .lp-eyebrow-light { color: rgba(255,255,255,.9); }
+    .lp-eyebrow-light::before { background: rgba(255,255,255,.8); }
+    .lp-h2-light { color: #fff; }
+    .lp-p-light { color: rgba(255,255,255,.86); }
+    .lp-support-actions { display: flex; flex-direction: column; gap: 12px; position: relative; }
+
+    /* Footer */
+    .lp-footer { background: #0f172a; color: rgba(255,255,255,.7); margin-top: auto; }
+    .lp-footer-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 32px; padding: 48px 24px 32px; }
+    .lp-footer-brand p { font-size: 13.5px; line-height: 1.9; margin: 14px 0 0; max-width: 420px; }
+    .lp-brand-footer .lp-brand-text strong, .lp-brand-footer .lp-brand-text small { color: #fff; }
+    .lp-brand-footer .lp-brand-text small { color: rgba(255,255,255,.6); max-width: none; }
+    .lp-brand-footer .lp-brand-moe { border-radius: 10px; background: #fff; }
+    .lp-footer-col { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+    .lp-footer-col h4 { color: #fff; font-size: 13.5px; font-weight: 800; margin: 0 0 8px; }
+    .lp-footer-col button { background: none; border: none; color: rgba(255,255,255,.7); font-size: 14px; font-weight: 500; padding: 6px 0; transition: color .2s ease; }
+    .lp-footer-col button:hover { color: #fff; }
+    .lp-footer-bottom { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px 24px 26px; border-top: 1px solid rgba(255,255,255,.1); font-size: 12.5px; }
+    .lp-footer-dot { width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.35); }
+
+    /* Reveal-on-scroll */
+    .lp-reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s var(--lp-ease); }
+    .lp-reveal.is-in { opacity: 1; transform: none; }
+    .lp-steps .lp-step:nth-child(2) { transition-delay: .07s; }
+    .lp-steps .lp-step:nth-child(3) { transition-delay: .14s; }
+    .lp-steps .lp-step:nth-child(4) { transition-delay: .21s; }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .lp-steps { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 1180px) {
+      .lp-brand-moe, .lp-brand-sep { display: none; }
+      .lp-links button { padding: 8px 8px; font-size: 13.5px; }
+    }
+    @media (max-width: 960px) {
+      .lp-brand-moe, .lp-brand-sep { display: inline-block; }
+      .lp-links { display: none; }
+      .lp-actions .lp-btn { display: none; }
+      .lp-menu-btn { display: inline-flex; margin-inline-start: auto; }
+      .lp-hero-grid { grid-template-columns: 1fr; }
+      .lp-hero-visual { max-width: 480px; margin: 0 auto; width: 100%; }
+      .lp-mock { transform: none; }
+      .lp-metrics { grid-template-columns: 1fr; }
+      .lp-support { grid-template-columns: 1fr; }
+      .lp-support-actions { flex-direction: row; flex-wrap: wrap; }
+      .lp-footer-grid { grid-template-columns: 1fr 1fr; }
+      .lp-footer-brand { grid-column: span 2; }
+    }
+    @media (max-width: 640px) {
+      .lp-container { padding-inline: 16px; }
+      .lp-brand-sep, .lp-brand-mark { display: none; }
+      .lp-brand-text small { max-width: 150px; }
+      .lp-hero { padding-top: 32px; }
+      .lp-h1 { font-size: clamp(27px, 7.4vw, 34px); }
+      .lp-hero-cta .lp-btn { width: 100%; }
+      .lp-float { display: none; }
+      .lp-steps, .lp-bento { grid-template-columns: 1fr; }
+      .lp-card-wide { grid-column: span 1; grid-template-columns: 1fr; }
+      .lp-podium { grid-column: 1; grid-row: auto; height: 96px; justify-content: center; }
+      .lp-support-actions .lp-btn { width: 100%; }
+      .lp-footer-grid { grid-template-columns: 1fr; }
+      .lp-footer-brand { grid-column: span 1; }
+      .lp-mobile-menu-actions { flex-direction: column; }
+      .lp-mobile-menu-actions .lp-btn { flex: none; width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .lp, .lp * { animation: none !important; transition-duration: .01ms !important; }
+      .lp-reveal { opacity: 1; transform: none; }
+      .lp-mock { transform: none; }
+      .lp-mock-bar-fill { width: var(--w); }
+      .lp-mock-dots span { transform: scale(1); opacity: 1; }
     }
   </style>
 </head>
@@ -734,57 +1014,316 @@
      SCREEN 0: LANDING PAGE
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-landing" class="screen active">
-  <div style="background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);min-height:100vh;width:100%;display:flex;flex-direction:column;overflow:hidden;">
-    <!-- Header bar -->
-    <div style="padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
-      <div class="landing-nav-pill">
-        <button onclick="show('screen-about')">ℹ️ عن البوابة</button>
-        <div class="pill-divider"></div>
-        <button onclick="App.openFaq()">❓ الأسئلة الشائعة</button>
-      </div>
-      <button class="landing-login-btn" onclick="show('screen-school')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        دخول
-      </button>
-    </div>
+  <div class="lp" id="lp-root">
 
-    <!-- Hero -->
-    <div class="landing-hero">
-      <img src="/logo-white.png" alt="وزارة التعليم" class="brand-logo" style="margin-bottom:10px;">
-      <p style="color:rgba(255,255,255,.85);font-size:13.5px;font-weight:700;margin-bottom:2px;">
-        الإدارة العامة للتعليم بمنطقة مكة المكرمة
-      </p>
-      <p id="landing-school-name" style="color:rgba(255,255,255,.7);font-size:13px;margin-bottom:14px;">
-        ثانوية الخالدية بالوسقة
-      </p>
-      <h1 style="color:#fff;font-size:32px;font-weight:900;margin-bottom:6px;line-height:1.3;">
-        بوابة دعم التعلم
-      </h1>
-      <span class="landing-badge">النسخة التجريبية</span>
-      <p style="margin-top:8px;">
-        <span class="landing-badge">للمرحلة الثانوية</span>
-      </p>
+    <!-- ── Sticky glass navbar ─────────────────────────────────────────── -->
+    <header class="lp-nav" id="lp-nav">
+      <div class="lp-container lp-nav-inner">
+        <a class="lp-brand" href="/" onclick="App.lpScrollTo('lp-hero');return false;" aria-label="بوابة دعم التعلّم — الصفحة الرئيسية">
+          <img src="/moe-icon.png" alt="وزارة التعليم" class="lp-brand-moe">
+          <span class="lp-brand-sep" aria-hidden="true"></span>
+          <span class="lp-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 10.5 12 5l10 5.5-10 5.5L2 10.5Z"/><path d="M6 12.7V17c0 1.2 2.7 3 6 3s6-1.8 6-3v-4.3"/><path d="M22 10.5V16"/>
+            </svg>
+          </span>
+          <span class="lp-brand-text">
+            <strong>بوابة دعم التعلّم</strong>
+            <small id="landing-school-name">ثانوية الخالدية بالوسقة</small>
+          </span>
+        </a>
 
-      <!-- Feature cards -->
-      <div class="landing-cards">
-        <div class="landing-feature-card">
-          <div class="landing-feature-icon">🧠</div>
-          <div class="landing-feature-text">تشخيص ذاتي دقيق</div>
-        </div>
-        <div class="landing-feature-card">
-          <div class="landing-feature-icon">📊</div>
-          <div class="landing-feature-text">تحليل آلي للفجوات</div>
-        </div>
-        <div class="landing-feature-card">
-          <div class="landing-feature-icon">📋</div>
-          <div class="landing-feature-text">خطة دعم مخصصة</div>
+        <nav class="lp-links" aria-label="أقسام الصفحة">
+          <button type="button" onclick="App.lpScrollTo('about')">عن البوابة</button>
+          <button type="button" onclick="App.lpScrollTo('journey')">رحلة التعلّم</button>
+          <button type="button" onclick="App.lpScrollTo('features')">مميزات المنصة</button>
+          <button type="button" onclick="App.lpScrollTo('faq')">الأسئلة الشائعة</button>
+          <button type="button" onclick="App.lpScrollTo('support')">الدعم الفني</button>
+        </nav>
+
+        <div class="lp-actions">
+          <button type="button" class="lp-btn lp-btn-ghost" onclick="App.openRecoverOtp()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2 19 4"/><path d="m15.5 7.5 3 3L22 6l-3-3"/><circle cx="9" cy="15" r="6"/><path d="m12.5 11.5 3-3"/></svg>
+            استعادة رمز الدخول
+          </button>
+          <button type="button" class="lp-btn lp-btn-dark" onclick="show('screen-school')">
+            تسجيل الدخول
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17-5-5 5-5"/><path d="M5 12h12"/></svg>
+          </button>
+          <button type="button" class="lp-menu-btn" aria-label="فتح القائمة" aria-expanded="false" onclick="App.lpToggleMenu()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
+          </button>
         </div>
       </div>
 
-      <button class="landing-cta-btn" onclick="show('screen-school')">
-        ابدأ الآن <span class="landing-cta-arrow">←</span>
-      </button>
-    </div>
+      <div class="lp-mobile-menu" id="lp-mobile-menu">
+        <button type="button" onclick="App.lpScrollTo('about')">عن البوابة</button>
+        <button type="button" onclick="App.lpScrollTo('journey')">رحلة التعلّم</button>
+        <button type="button" onclick="App.lpScrollTo('features')">مميزات المنصة</button>
+        <button type="button" onclick="App.lpScrollTo('faq')">الأسئلة الشائعة</button>
+        <button type="button" onclick="App.lpScrollTo('support')">الدعم الفني</button>
+        <div class="lp-mobile-menu-actions">
+          <button type="button" class="lp-btn lp-btn-ghost" onclick="App.lpToggleMenu(false);App.openRecoverOtp()">استعادة رمز الدخول</button>
+          <button type="button" class="lp-btn lp-btn-dark" onclick="show('screen-school')">تسجيل الدخول</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- ── Hero ────────────────────────────────────────────────────────── -->
+      <section class="lp-hero" id="lp-hero">
+        <div class="lp-hero-glow lp-hero-glow-a" aria-hidden="true"></div>
+        <div class="lp-hero-glow lp-hero-glow-b" aria-hidden="true"></div>
+        <div class="lp-container lp-hero-grid">
+          <div class="lp-hero-copy lp-reveal">
+            <span class="lp-pill">
+              <span class="lp-pill-dot" aria-hidden="true"></span>
+              المنصة الذكية الموجهة لطلاب المرحلة الثانوية
+            </span>
+            <h1 class="lp-h1">من التشخيص الدقيق إلى الإتقان الكامل.. طريقك المنهجي لاختبار القدرات.</h1>
+            <p class="lp-lead">منظومة تعليمية تفاعلية تحدد احتياجك الفعلي عبر 50 سؤالاً تشخيصياً، وتبني لك مسار دعم شخصي ينقلك من التأسيس إلى حل الأسئلة المعقدة بثقة وسرعة.</p>
+            <div class="lp-hero-cta">
+              <button type="button" class="lp-btn lp-btn-primary lp-btn-lg" onclick="show('screen-school')">
+                ابدأ رحلتك التعليمية الآن
+                <svg class="lp-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+              </button>
+              <button type="button" class="lp-btn lp-btn-soft lp-btn-lg" onclick="App.lpScrollTo('journey')">
+                استكشف آلية عمل الخطة
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+              </button>
+            </div>
+            <p class="lp-hero-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+              منصة رسمية تابعة للإدارة العامة للتعليم بمنطقة مكة المكرمة
+            </p>
+          </div>
+
+          <!-- Interactive UI preview -->
+          <div class="lp-hero-visual lp-reveal" aria-hidden="true">
+            <div class="lp-mock">
+              <div class="lp-mock-head">
+                <span class="lp-mock-avatar"></span>
+                <span class="lp-mock-title">خطة الدعم الشخصية</span>
+                <span class="lp-mock-chip">
+                  <span class="lp-pill-dot"></span>
+                  خطة دعم مخصصة 100% مبنية على تشخيصك
+                </span>
+              </div>
+
+              <div class="lp-mock-skill">
+                <div class="lp-mock-skill-top">
+                  <span class="lp-mock-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M4 12h10"/><path d="M4 17h7"/></svg>
+                  </span>
+                  <div>
+                    <div class="lp-mock-skill-name">التناظر اللفظي</div>
+                    <div class="lp-mock-skill-sub">القسم اللفظي · المستوى المتوسط</div>
+                  </div>
+                  <span class="lp-mock-pct" data-lp-count="78">0%</span>
+                </div>
+                <div class="lp-mock-bar"><span class="lp-mock-bar-fill" style="--w:78%"></span></div>
+                <div class="lp-mock-skill-foot">
+                  <span>مستوى الإتقان</span><span>اجتياز التدريب التقويمي</span>
+                </div>
+              </div>
+
+              <div class="lp-mock-row">
+                <span class="lp-mock-play">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </span>
+                <div>
+                  <div class="lp-mock-row-title">تغذية راجعة فورية مع شروحات بالفيديو</div>
+                  <div class="lp-mock-row-sub">إجابتك · لماذا؟ · القاعدة الذهبية · مقطع الحل</div>
+                </div>
+              </div>
+
+              <div class="lp-mock-grid">
+                <div class="lp-mock-grid-label"><span>30 مهارة</span><span>21 متقنة</span></div>
+                <div class="lp-mock-dots"></div>
+              </div>
+            </div>
+
+            <div class="lp-float lp-float-a">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              تم اجتياز المهارة
+            </div>
+            <div class="lp-float lp-float-b">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
+              تحسّن 12% هذا الأسبوع
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Value metrics + about ───────────────────────────────────────── -->
+      <section class="lp-section lp-section-tight" id="about">
+        <div class="lp-container">
+          <div class="lp-metrics lp-reveal">
+            <div class="lp-metric">
+              <span class="lp-metric-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+              <div>
+                <div class="lp-metric-num"><span data-lp-count="30">0</span> مهارة أساسية</div>
+                <div class="lp-metric-txt">تغطية شاملة لكافة مهارات القسمين الكمي واللفظي.</div>
+              </div>
+            </div>
+            <div class="lp-metric">
+              <span class="lp-metric-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="11" cy="11" r="7"/><path d="M11 8v3l2 2"/></svg></span>
+              <div>
+                <div class="lp-metric-num"><span data-lp-count="50">0</span> سؤالاً تشخيصياً</div>
+                <div class="lp-metric-txt">مسح شامل لتحديد نقاط القوة والاحتياج بدقة علمية.</div>
+              </div>
+            </div>
+            <div class="lp-metric">
+              <span class="lp-metric-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></span>
+              <div>
+                <div class="lp-metric-num">تغذية راجعة فورية</div>
+                <div class="lp-metric-txt">شروحات تفاعلية وتدريبات قصيرة لترسيخ المفاهيم خطوة بخطوة.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lp-about lp-reveal">
+            <span class="lp-eyebrow">عن البوابة</span>
+            <h2 class="lp-h2">بوابة تعليمية رسمية لطلاب المرحلة الثانوية</h2>
+            <p class="lp-p">بوابة دعم التعلّم بوابة تعليمية موجهة لطلاب المرحلة الثانوية، تهدف إلى مساعدتهم على اكتساب المهارات اللازمة في المواد الدراسية، والاستعداد للاختبارات الوطنية، وبخاصة اختبار القدرات والاختبار التحصيلي. تبدأ من قياس احتياجك الفعلي، لا من افتراضات عامة، ثم تركّز جهدك حيث يحدث الفرق.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 4-step adaptive loop ────────────────────────────────────────── -->
+      <section class="lp-section" id="journey">
+        <div class="lp-container">
+          <div class="lp-section-head lp-reveal">
+            <span class="lp-eyebrow">رحلة التعلّم</span>
+            <h2 class="lp-h2">دورة تعلّم رباعية تتكيّف مع مستواك</h2>
+            <p class="lp-p">أربع خطوات متسلسلة، كل خطوة تُبنى على نتائج ما قبلها، وتعود بك إلى التشخيص كلما تقدّمت حتى تبلغ الإتقان.</p>
+          </div>
+
+          <ol class="lp-steps">
+            <li class="lp-step lp-reveal">
+              <span class="lp-step-num" aria-hidden="true">1</span>
+              <span class="lp-step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l1 3h3v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h3l1-3Z"/><path d="m9 13 2 2 4-4"/></svg></span>
+              <h3>الاختبار التشخيصي المركّز (50 سؤالاً)</h3>
+              <p>قياس الحد الأدنى لإتقان المهارات في القسمين الكمي واللفظي لتحديد الفجوات بدقة، ودون إصدار أحكام مسبقة على مستواك.</p>
+            </li>
+            <li class="lp-step lp-reveal">
+              <span class="lp-step-num" aria-hidden="true">2</span>
+              <span class="lp-step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="M12 18v3"/><path d="m5.6 5.6 2.2 2.2"/><path d="m16.2 16.2 2.2 2.2"/><path d="M3 12h3"/><path d="M18 12h3"/><circle cx="12" cy="12" r="4"/></svg></span>
+              <h3>خطة الدعم الشخصية التكيفية</h3>
+              <p>توليد خطة ذكية تركّز فقط على المهارات التي أظهر التشخيص احتياجك الفعلي لدعمها، وتخطّي ما أتقنته بالفعل.</p>
+            </li>
+            <li class="lp-step lp-reveal">
+              <span class="lp-step-num" aria-hidden="true">3</span>
+              <span class="lp-step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3V9Z"/></svg></span>
+              <h3>التدريب الثلاثي المتكامل: تأسيس، ملخص، تطبيق</h3>
+              <p>مقطع مرئي تأسيسي لكل مهارة، وملخص علمي يركّز على القواعد، وتدريبات قصيرة (10 أسئلة) مع تغذية راجعة فورية ومقاطع حل سريعة للأخطاء.</p>
+            </li>
+            <li class="lp-step lp-reveal">
+              <span class="lp-step-num" aria-hidden="true">4</span>
+              <span class="lp-step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></span>
+              <h3>التقويم والمحاكاة وإعادة التشخيص</h3>
+              <p>خوض اختبارات محاكية لقياس تطوّر مستواك، مع إمكانية إعادة التشخيص لتحديث الخطة باستمرار وصولاً إلى الإتقان الكامل.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ── Feature bento ───────────────────────────────────────────────── -->
+      <section class="lp-section lp-section-alt" id="features">
+        <div class="lp-container">
+          <div class="lp-section-head lp-reveal">
+            <span class="lp-eyebrow">مميزات المنصة</span>
+            <h2 class="lp-h2">مصمّمة لتجربة طالب لا تنقطع</h2>
+          </div>
+          <div class="lp-bento">
+            <article class="lp-card lp-card-wide lp-reveal">
+              <div class="lp-card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M17 5h2.5a2.5 2.5 0 0 1-2.5 4"/><path d="M7 5H4.5A2.5 2.5 0 0 0 7 9"/><path d="M12 14v3"/><path d="M9 20h6"/><path d="M10 17h4l.5 3h-5Z"/></svg></div>
+              <h3>لوحة شرف المهارات التنافسية</h3>
+              <p>تحفيز مستمر يعتمد فقط على اجتياز التدريبات التقويمية الحقيقية؛ لا نقاط على المشاهدة أو الدخول، بل على الإتقان المثبت.</p>
+              <div class="lp-podium" aria-hidden="true">
+                <div class="lp-podium-col"><span class="lp-podium-bar" style="--h:58%"></span><span>2</span></div>
+                <div class="lp-podium-col lp-podium-first"><span class="lp-podium-bar" style="--h:100%"></span><span>1</span></div>
+                <div class="lp-podium-col"><span class="lp-podium-bar" style="--h:42%"></span><span>3</span></div>
+              </div>
+            </article>
+            <article class="lp-card lp-reveal">
+              <div class="lp-card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="14" height="10" rx="2"/><path d="M6 20h6"/><path d="M9 14v6"/><rect x="17" y="8" width="5" height="12" rx="1.5"/></svg></div>
+              <h3>توافق كامل مع مختلف الأجهزة</h3>
+              <p>تجربة سلسة على الجوال والآيباد وأجهزة الحاسب المكتبي، بواجهة تتكيّف مع حجم الشاشة دون فقدان أي وظيفة.</p>
+            </article>
+            <article class="lp-card lp-reveal">
+              <div class="lp-card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg></div>
+              <h3>مسارات استعادة ووصول فورية</h3>
+              <p>نظام ذكي للدخول السريع عبر رابط شخصي، واستعادة رمز الدخول برسالة تحقق، مع حفظ الجلسة دون تعقيد.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── FAQ ─────────────────────────────────────────────────────────── -->
+      <section class="lp-section" id="faq">
+        <div class="lp-container lp-faq-wrap">
+          <div class="lp-section-head lp-reveal">
+            <span class="lp-eyebrow">الأسئلة الشائعة</span>
+            <h2 class="lp-h2">إجابات مباشرة عن أكثر ما يُسأل عنه</h2>
+          </div>
+          <div class="lp-faq-tabs lp-reveal" id="lp-faq-tabs" role="tablist" aria-label="تصنيفات الأسئلة"></div>
+          <div class="lp-faq-list lp-reveal" id="lp-faq-list"></div>
+        </div>
+      </section>
+
+      <!-- ── Support band ────────────────────────────────────────────────── -->
+      <section class="lp-section lp-section-tight" id="support">
+        <div class="lp-container">
+          <div class="lp-support lp-reveal">
+            <div>
+              <span class="lp-eyebrow lp-eyebrow-light">الدعم الفني</span>
+              <h2 class="lp-h2 lp-h2-light">تواجه مشكلة أو لم يصلك رمز الدخول؟</h2>
+              <p class="lp-p lp-p-light">فريق الدعم والمشرفون يتابعون طلباتك مباشرة. ارفع طلباً موضحاً المشكلة، أو استعد رمز دخولك برسالة تحقق على جوالك.</p>
+            </div>
+            <div class="lp-support-actions">
+              <button type="button" class="lp-btn lp-btn-white lp-btn-lg" onclick="App.openGuestSupport()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H8l-5 3V8Z"/></svg>
+                تواصل مع الدعم الفني
+              </button>
+              <button type="button" class="lp-btn lp-btn-outline-light lp-btn-lg" onclick="App.openRecoverOtp()">استعادة رمز الدخول</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ── Footer ──────────────────────────────────────────────────────── -->
+    <footer class="lp-footer">
+      <div class="lp-container lp-footer-grid">
+        <div class="lp-footer-brand">
+          <div class="lp-brand lp-brand-footer">
+            <img src="/moe-icon.png" alt="وزارة التعليم" class="lp-brand-moe">
+            <span class="lp-brand-text"><strong>بوابة دعم التعلّم</strong><small>الإدارة العامة للتعليم بمنطقة مكة المكرمة</small></span>
+          </div>
+          <p>منصة تعليمية تساعد طلاب المرحلة الثانوية على اكتساب المهارات الأساسية والاستعداد لاختبار القدرات والاختبار التحصيلي، عبر تشخيص دقيق وخطة دعم شخصية.</p>
+        </div>
+        <div class="lp-footer-col">
+          <h4>أقسام الصفحة</h4>
+          <button type="button" onclick="App.lpScrollTo('about')">عن البوابة</button>
+          <button type="button" onclick="App.lpScrollTo('journey')">رحلة التعلّم</button>
+          <button type="button" onclick="App.lpScrollTo('features')">مميزات المنصة</button>
+          <button type="button" onclick="App.lpScrollTo('faq')">الأسئلة الشائعة</button>
+        </div>
+        <div class="lp-footer-col">
+          <h4>الحساب والمساعدة</h4>
+          <button type="button" onclick="show('screen-school')">تسجيل الدخول</button>
+          <button type="button" onclick="App.openRecoverOtp()">استعادة رمز الدخول</button>
+          <button type="button" onclick="App.openGuestSupport()">الدعم الفني المباشر</button>
+          <button type="button" onclick="show('screen-about')">ضوابط الاستخدام الآمن</button>
+        </div>
+      </div>
+      <div class="lp-container lp-footer-bottom">
+        <span>تطوير وتشغيل: ثانوية الخالدية بالوسقة</span>
+        <span class="lp-footer-dot" aria-hidden="true"></span>
+        <span>جميع الحقوق محفوظة <span id="lp-year"></span></span>
+      </div>
+    </footer>
   </div>
 </div>
 
@@ -3641,6 +4180,6 @@
 </div>
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
-<script src="/js/app.js?v=quiz35" defer></script>
+<script src="/js/app.js?v=quiz36" defer></script>
 </body>
 </html>

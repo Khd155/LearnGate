@@ -1596,6 +1596,29 @@ export async function onRequest({ request, env }) {
         await ensureAccessTokensSchema(DB);
 
         const templateName = 'student_account_access_template_1';
+        // Register this run in wa_sends too, and stamp its id on every token
+        // minted below. Without it an import-batch dispatch was invisible in
+        // the dev panel's "إحصائيات واتساب" tab: that view lists wa_sends rows
+        // and derives sent/opened/entered from access_tokens.wa_send_id, while
+        // this handler only ever wrote wa_template_logs. Every other WhatsApp
+        // path (the single "واتساب" button, the bulk welcome send) already
+        // registers here — this one was the odd one out, so its sends simply
+        // did not exist as far as that tab was concerned. One row per dispatch
+        // run, so a resend shows as its own batch rather than inflating the
+        // original.
+        let waSendId = null;
+        try {
+          await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_sends (id TEXT PRIMARY KEY, label TEXT NOT NULL, school TEXT, template_name TEXT, admin_name TEXT, total_targeted INTEGER DEFAULT 0, created_at TEXT NOT NULL)`).run();
+          waSendId = crypto.randomUUID();
+          const batchDate = new Date(batch.created_at || Date.now()).toISOString().slice(0, 10);
+          await DB.prepare(
+            'INSERT INTO wa_sends (id, label, school, template_name, admin_name, total_targeted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          ).bind(
+            waSendId,
+            `دفعة استيراد — ${batch.grade_level || 'غير محددة'} (${batchDate})`,
+            batch.school || '', templateName, _claimsSI?.name || 'dev', targets.length, new Date().toISOString(),
+          ).run();
+        } catch { waSendId = null; }
         // The button's {{1}} builds https://learngate.khormi.site/?t=<value> —
         // and GET /auth/access-token (see above) resolves ?t= strictly against
         // access_tokens.token, an opaque time-limited value, never the raw
@@ -1608,8 +1631,8 @@ export async function onRequest({ request, env }) {
         async function mintAccessToken(studentId) {
           const randBytes = crypto.getRandomValues(new Uint8Array(14));
           const token = Array.from(randBytes, b => linkAlphabet[b % linkAlphabet.length]).join('');
-          await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
-            .bind(token, studentId, new Date().toISOString(), newAccessTokenExpiry()).run();
+          await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at, expires_at, wa_send_id) VALUES (?, ?, ?, ?, ?)')
+            .bind(token, studentId, new Date().toISOString(), newAccessTokenExpiry(), waSendId).run();
           return token;
         }
         async function sendOne(student) {

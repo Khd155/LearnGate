@@ -186,8 +186,48 @@ function DiagnosticSection() {
 
 interface LevelStat { level: 'easy' | 'medium' | 'advanced'; passRate: number; reachedCount: number; completedCount: number; opened: boolean }
 interface SkillMatrixEntry { id: string; section: 'verbal' | 'quantitative'; level: 'easy' | 'medium' | 'advanced'; skillId: string; skillName: string; masteredCount: number; masteryPct: number }
-interface LeaderboardEntry { id: string; name: string; mastered: number }
-interface QuizHubOverviewRes { totalStudents: number; totalSkills: number; levelStats: LevelStat[]; skillMatrix: SkillMatrixEntry[]; leaderboard: LeaderboardEntry[] }
+interface LeaderboardEntry { id: string; name: string; mastered: number; reachedAt: string | null }
+interface QuizHubOverviewRes { totalStudents: number; totalSkills: number; catalogueSkills?: number; levelStats: LevelStat[]; skillMatrix: SkillMatrixEntry[]; leaderboard: LeaderboardEntry[] }
+
+// Podium treatment for the top three. Each rank owns its metal: ring + soft
+// surface tint + the bar fill, so the standing reads at a glance without
+// leaning on the rank number alone. Only #1 gets the glow.
+const PODIUM = [
+  {
+    ring: 'border-amber-300/80 dark:border-amber-500/40',
+    surface: 'bg-gradient-to-b from-amber-50/90 to-white/60 dark:from-amber-500/10 dark:to-slate-900/40',
+    glow: 'shadow-[0_0_0_1px_rgba(245,158,11,.18),0_10px_30px_-12px_rgba(245,158,11,.55)]',
+    medal: 'text-amber-500', bar: 'bg-gradient-to-l from-amber-400 to-amber-500', label: 'المركز الأول',
+  },
+  {
+    ring: 'border-slate-300/80 dark:border-slate-500/40',
+    surface: 'bg-gradient-to-b from-slate-50/90 to-white/60 dark:from-slate-400/10 dark:to-slate-900/40',
+    glow: '', medal: 'text-slate-400', bar: 'bg-gradient-to-l from-slate-300 to-slate-400', label: 'المركز الثاني',
+  },
+  {
+    ring: 'border-orange-300/70 dark:border-orange-700/40',
+    surface: 'bg-gradient-to-b from-orange-50/80 to-white/60 dark:from-orange-600/10 dark:to-slate-900/40',
+    glow: '', medal: 'text-orange-600/80', bar: 'bg-gradient-to-l from-orange-300 to-orange-500', label: 'المركز الثالث',
+  },
+] as const;
+
+function MedalIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M7.2 3h9.6l-3.4 6.2a4.9 4.9 0 0 0-2.8 0Z" />
+      <circle cx="12" cy="15.5" r="5.5" />
+      <path d="m12 12.6 1 2.1 2.2.3-1.6 1.6.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.6 2.2-.3Z" />
+    </svg>
+  );
+}
+function TrophyIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M7 4h10v5a5 5 0 0 1-10 0Z" /><path d="M17 5h2.5a2.5 2.5 0 0 1-2.5 4" />
+      <path d="M7 5H4.5A2.5 2.5 0 0 0 7 9" /><path d="M12 14v3" /><path d="M9 20h6" /><path d="M10 17h4l.5 3h-5Z" />
+    </svg>
+  );
+}
 interface EngagedStudent { id: string; name: string; school: string; skillsTouched: number; totalAttempts: number; passedCount: number; lastAttemptAt: string | null; coveragePct: number }
 interface QuizEngagementRes { totalStudents: number; participants: number; participationRate: number; totalSkills: number; topEngaged: EngagedStudent[] }
 interface SettingsRes { settings: { quiz_pass_ratio: { value: number; default: number; label: string } } }
@@ -377,27 +417,82 @@ function QuizSkillsSection() {
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Mastery leaderboard */}
         <div className={card}>
-          <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">🏆 لوحة شرف المهارات</h3>
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+            <TrophyIcon className="h-4 w-4 text-amber-500" />
+            لوحة شرف المهارات
+          </h3>
+          <p className="mb-4 text-[11px] text-slate-400">
+            تُحتسب المهارة عند اجتياز اختبارها التقويمي فقط — من أصل {hub?.totalSkills ?? 30} مهارة معتمدة
+          </p>
           {!hub?.leaderboard.length ? (
             <p className="py-6 text-center text-sm text-slate-400">لا يوجد طلاب أتقنوا مهارة بعد</p>
           ) : (
-            <ol className="space-y-1.5">
-              {hub.leaderboard.map((s, i) => (
-                <li key={s.id} className="flex items-center justify-between gap-2 rounded-lg bg-indigo-50/60 px-3 py-1.5 text-sm dark:bg-indigo-950/20">
-                  <span className="flex items-center gap-2 truncate font-medium text-slate-700 dark:text-slate-200">
-                    <span className="text-[11px] font-bold text-indigo-500">#{i + 1}</span>
-                    {s.name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => openStudentProfile(s.id)}
-                    className="shrink-0 rounded-lg bg-indigo-100 px-2 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-300"
-                  >
-                    {s.mastered}/{hub.totalSkills} مهارة
-                  </button>
-                </li>
-              ))}
-            </ol>
+            <>
+              {/* Podium — top three */}
+              <div className="mb-3 grid gap-2.5 sm:grid-cols-3">
+                {hub.leaderboard.slice(0, 3).map((s, i) => {
+                  const p = PODIUM[i];
+                  const pct = Math.round((s.mastered / (hub.totalSkills || 30)) * 100);
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => openStudentProfile(s.id)}
+                      className={cn(
+                        'group flex flex-col items-center rounded-2xl border p-3 text-center backdrop-blur-sm transition-all duration-300',
+                        'hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500',
+                        p.ring, p.surface, p.glow,
+                      )}
+                    >
+                      <div className="relative">
+                        <MedalIcon className={cn('h-9 w-9 transition-transform duration-300 group-hover:scale-110', p.medal)} />
+                        <span className="absolute -bottom-1 -start-1 rounded-full bg-white px-1.5 text-[10px] font-black text-slate-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-700">
+                          {i + 1}
+                        </span>
+                      </div>
+                      <span className="mt-2 text-[10px] font-bold text-slate-400">{p.label}</span>
+                      <span className="mt-0.5 w-full truncate text-[13px] font-bold text-slate-800 dark:text-slate-100">{s.name}</span>
+                      <span className="mt-1 text-[11px] font-bold tabular-nums text-slate-600 dark:text-slate-300">
+                        {s.mastered}<span className="text-slate-400">/{hub.totalSkills}</span>
+                      </span>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-700/60">
+                        <div className={cn('h-full rounded-full transition-[width] duration-700 ease-out', p.bar)} style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="mt-1 text-[10px] font-bold tabular-nums text-slate-400">{pct}%</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* The rest */}
+              {hub.leaderboard.length > 3 && (
+                <ol className="space-y-1.5">
+                  {hub.leaderboard.slice(3).map((s, i) => {
+                    const pct = Math.round((s.mastered / (hub.totalSkills || 30)) * 100);
+                    return (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          onClick={() => openStudentProfile(s.id)}
+                          className="flex w-full items-center gap-2.5 rounded-xl border border-slate-200/70 bg-slate-50/60 px-3 py-2 text-start transition-colors duration-200 hover:border-indigo-200 hover:bg-indigo-50/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:border-indigo-900 dark:hover:bg-indigo-950/30"
+                        >
+                          <span className="w-6 shrink-0 text-center text-[11px] font-black tabular-nums text-slate-400">{i + 4}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13px] font-semibold text-slate-700 dark:text-slate-200">{s.name}</span>
+                            <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-700/60">
+                              <span className="block h-full rounded-full bg-indigo-400/90 transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-[11px] font-bold tabular-nums text-slate-600 dark:text-slate-300">
+                            {s.mastered}<span className="text-slate-400">/{hub.totalSkills}</span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </>
           )}
         </div>
 

@@ -238,6 +238,9 @@ async function ensureCoreTables(DB) {
 }
 
 const GRADE_LEVELS = ['أول ثانوي', 'ثاني ثانوي', 'ثالث ثانوي'];
+// The approved skill catalogue: 2 sections × 3 levels × 5 skills. Fixed
+// denominator for the mastery honour board (see quiz-hub-overview).
+const MASTERY_TARGET_SKILLS = 30;
 const DEFAULT_STUDENT_ID_PREFIX = '11';
 
 // Every school gets a stable 2-digit numeric prefix, assigned once (lowest
@@ -759,6 +762,20 @@ export async function onRequest({ request, env }) {
         UNIQUE(student_id, quiz_skill_id)
       )`).run();
       try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_sp_student ON skill_progress(student_id, section, level)`).run(); } catch {}
+      // When this skill was FIRST mastered — the honour-board tie-breaker
+      // ("who got there first"). Deliberately not last_attempt_at: that moves
+      // on every later retry, so a student who revisits a skill they already
+      // mastered would keep sliding down the ranking against someone who
+      // never went back. Backfilled once from last_attempt_at for rows that
+      // were already passed before this column existed.
+      let _passedAtIsNew = false;
+      try {
+        await DB.prepare('ALTER TABLE skill_progress ADD COLUMN passed_at TEXT').run();
+        _passedAtIsNew = true;
+      } catch {}
+      if (_passedAtIsNew) {
+        try { await DB.prepare("UPDATE skill_progress SET passed_at = last_attempt_at WHERE status = 'passed' AND passed_at IS NULL").run(); } catch {}
+      }
 
       // Seed the 2 sections × 3 levels × 5 skills = 30 rows once, matching data.js SKILLS.
       const QS_SKILLS = {
@@ -2524,23 +2541,52 @@ export async function onRequest({ request, env }) {
           return { level, passRate, reachedCount, completedCount: completedCountByLevel[level] || 0, opened: reachedCount > 0 };
         });
 
+        // Honour board. Every input here is assessment-only by construction:
+        // skill_progress is written in exactly one place — the quiz-skills
+        // submit handler — and status only reaches 'passed' through
+        // computeQuizPass() clearing the configured mastery threshold. Logins,
+        // video views and summary reads never touch this table, so they cannot
+        // move the counter.
+        //
+        // COUNT(DISTINCT quiz_skill_id) rather than a row count: the UNIQUE
+        // (student_id, quiz_skill_id) constraint already makes those equal
+        // today, but stating it explicitly means a future duplicate row (a
+        // failed migration, a manual fix) can never inflate someone's total.
+        // Note it counts quiz_skill_id, NOT skill_id — skill_id ('v2', 'q5')
+        // repeats across the three levels, so counting it would collapse
+        // verbal-easy-v2 and verbal-medium-v2 into one and cap everyone at 10
+        // out of 30.
+        //
+        // Ties break on who reached the count first: earliest MAX(passed_at),
+        // i.e. the student whose final qualifying skill landed soonest.
         const { results: leaderRows } = await DB.prepare(
           `SELECT sp.student_id as id, s.name as name,
-                  SUM(CASE WHEN sp.status = 'passed' THEN 1 ELSE 0 END) as mastered
+                  COUNT(DISTINCT sp.quiz_skill_id) as mastered,
+                  MAX(sp.passed_at) as "reachedAt"
            FROM skill_progress sp JOIN students s ON s.id = sp.student_id
-           WHERE 1=1${engCond}
+           WHERE sp.status = 'passed'${engCond}
            GROUP BY sp.student_id, s.name
-           HAVING SUM(CASE WHEN sp.status = 'passed' THEN 1 ELSE 0 END) > 0
-           ORDER BY mastered DESC
-           LIMIT 10`
+           ORDER BY mastered DESC, MAX(sp.passed_at) ASC NULLS LAST
+           LIMIT 50`
         ).bind(...sArgs).all();
 
         return ok({
           totalStudents,
-          totalSkills: skillMatrix.length,
+          // The catalogue is a fixed 30 approved skills (2 sections × 3 levels
+          // × 5), and the board's denominator is pinned to that constant so a
+          // half-seeded quiz_skills table can't quietly rescale everyone's
+          // percentage. catalogueSkills reports what's actually seeded, so a
+          // mismatch shows up instead of silently changing the maths.
+          totalSkills: MASTERY_TARGET_SKILLS,
+          catalogueSkills: skillMatrix.length,
           levelStats,
           skillMatrix,
-          leaderboard: (leaderRows || []).map(r => ({ id: r.id, name: r.name, mastered: Number(r.mastered) })),
+          leaderboard: (leaderRows || []).map(r => ({
+            id: r.id,
+            name: r.name,
+            mastered: Number(r.mastered),
+            reachedAt: r.reachedAt || null,
+          })),
         }, 200, CORS);
       }
 
@@ -3043,16 +3089,26 @@ export async function onRequest({ request, env }) {
         const existing = await DB.prepare('SELECT * FROM skill_progress WHERE student_id = ? AND quiz_skill_id = ?').bind(claims.sub, sub).first();
         const bestCorrect = Math.max(correct, existing?.best_correct || 0);
         const attempts = (existing?.attempts || 0) + 1;
-        const status = pass ? 'passed' : 'failed';
+        // Mastery is sticky, exactly like best_correct above. Recomputing
+        // status purely from the latest attempt meant a student who had
+        // already passed a skill and went back to practise it lost the
+        // mastery credit the moment they scored below the threshold on a
+        // casual retry — silently dropping them down the honour board and
+        // leaving the row self-contradictory (best_correct 5/5, status
+        // 'failed'). Once earned, it stays earned.
+        const alreadyPassed = existing?.status === 'passed';
+        const status = (pass || alreadyPassed) ? 'passed' : 'failed';
+        // Stamped once, on the attempt that actually earned it.
+        const passedAt = alreadyPassed ? (existing.passed_at || existing.last_attempt_at || now) : (pass ? now : null);
         if (existing) {
           await DB.prepare(
-            'UPDATE skill_progress SET status = ?, best_correct = ?, best_total = ?, attempts = ?, last_attempt_at = ? WHERE id = ?'
-          ).bind(status, bestCorrect, total, attempts, now, existing.id).run();
+            'UPDATE skill_progress SET status = ?, best_correct = ?, best_total = ?, attempts = ?, last_attempt_at = ?, passed_at = ? WHERE id = ?'
+          ).bind(status, bestCorrect, total, attempts, now, passedAt, existing.id).run();
         } else {
           await DB.prepare(
-            `INSERT INTO skill_progress (id, student_id, quiz_skill_id, section, level, status, best_correct, best_total, attempts, last_attempt_at, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).bind(crypto.randomUUID(), claims.sub, sub, skillRow.section, skillRow.level, status, bestCorrect, total, attempts, now, now).run();
+            `INSERT INTO skill_progress (id, student_id, quiz_skill_id, section, level, status, best_correct, best_total, attempts, last_attempt_at, passed_at, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(crypto.randomUUID(), claims.sub, sub, skillRow.section, skillRow.level, status, bestCorrect, total, attempts, now, passedAt, now).run();
         }
 
         // Smart Feedback & Tiered Hinting Engine — review content, built only

@@ -38,26 +38,30 @@ interface HealthRes { students: HealthStudent[] }
 interface EngagedStudent { id: string; name: string; school: string; skillsTouched: number; totalAttempts: number; passedCount: number; lastAttemptAt: string | null; coveragePct: number }
 interface QuizEngagementRes { totalStudents: number; participants: number; participationRate: number; totalSkills: number; topEngaged: EngagedStudent[] }
 
-// GET /api/analytics/journey-overview — same passed/totalNodes math as a
-// student's own GET /api/journey, aggregated across the whole (school-scoped)
-// roster in one grouped query. Powers "توزيع الطلاب حسب التقدم" below.
-interface ProgressBucket { code: string; label: string; count: number }
-interface LevelCompletion { section: 'verbal' | 'quantitative'; level: 'easy' | 'medium' | 'advanced'; totalSkills: number; studentsCompleted: number; completionRate: number }
-interface TopProgressingStudent { id: string; name: string; school: string; passedNodes: number; totalNodes: number; overallProgressPct: number }
-interface JourneyOverviewRes {
-  totalStudents: number; totalNodes: number; diagnosticCompleted: number; finalMockAttempted: number;
-  buckets: ProgressBucket[]; levelCompletion: LevelCompletion[]; topProgressing: TopProgressingStudent[];
-}
+// GET /api/analytics/quiz-hub-overview — same skill_progress mastery math
+// that powers the honour board on the "قصيرة" test-center tab (TestCenterTab).
+// Reused here (rather than journey-overview's topProgressing) because it's
+// the one endpoint that already breaks ties by who reached the count first
+// (ORDER BY mastered DESC, MAX(passed_at) ASC), matching the spec's
+// "تنازلياً بحسب عدد المهارات المتقنة، ثم الأسبقية الزمنية" ordering.
+interface MasteryLeaderboardEntry { id: string; name: string; mastered: number; reachedAt: string | null }
+interface MasteryHubRes { totalSkills: number; leaderboard: MasteryLeaderboardEntry[] }
 
-const BUCKET_STYLE: Record<string, { chip: string; bar: string }> = {
-  advanced:       { chip: '🟢', bar: 'bg-emerald-500' },
-  on_track:       { chip: '🟡', bar: 'bg-amber-400' },
-  needs_support:  { chip: '🟠', bar: 'bg-orange-500' },
-  stalled:        { chip: '🔴', bar: 'bg-rose-500' },
-  not_started:    { chip: '⚪', bar: 'bg-slate-300 dark:bg-slate-700' },
-};
-const LEVEL_LABEL_SHORT: Record<string, string> = { easy: 'سهل', medium: 'متوسط', advanced: 'متقدم' };
-const SECTION_LABEL_SHORT: Record<string, string> = { verbal: 'اللفظي', quantitative: 'الكمي' };
+function ActivityIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M3 12h4l2.5-7 4 14 2.5-7H21" />
+    </svg>
+  );
+}
+function TrophyIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M7 4h10v5a5 5 0 0 1-10 0Z" /><path d="M17 5h2.5a2.5 2.5 0 0 1-2.5 4" />
+      <path d="M7 5H4.5A2.5 2.5 0 0 0 7 9" /><path d="M12 14v3" /><path d="M9 20h6" /><path d="M10 17h4l.5 3h-5Z" />
+    </svg>
+  );
+}
 
 // Matches the exactly-3 cooldown-aware triggers classifyFollowUp() in
 // functions/_lib/journey.js can return — a student still inside their
@@ -95,7 +99,7 @@ export default function DashboardTab() {
   const [skills, setSkills] = useState<SkillsRes | null>(null);
   const [health, setHealth] = useState<HealthRes | null>(null);
   const [engagement, setEngagement] = useState<QuizEngagementRes | null>(null);
-  const [journeyOverview, setJourneyOverview] = useState<JourneyOverviewRes | null>(null);
+  const [mastery, setMastery] = useState<MasteryHubRes | null>(null);
 
   useEffect(() => {
     loadThreads();
@@ -121,9 +125,9 @@ export default function DashboardTab() {
       api.get<SkillsRes>(`/analytics/skills${schoolQuery}`),
       api.get<HealthRes>(`/analytics/health${schoolQuery}`),
       api.get<QuizEngagementRes>(`/analytics/quiz-engagement${schoolQuery}`),
-      api.get<JourneyOverviewRes>(`/analytics/journey-overview${schoolQuery}`),
+      api.get<MasteryHubRes>(`/analytics/quiz-hub-overview${schoolQuery}`),
     ])
-      .then(([a, ac, p, sk, h, eng, jo]) => {
+      .then(([a, ac, p, sk, h, eng, mh]) => {
         if (cancelled) return;
         setAtRisk(a);
         setActivity(ac);
@@ -131,7 +135,7 @@ export default function DashboardTab() {
         setSkills(sk);
         setHealth(h);
         setEngagement(eng);
-        setJourneyOverview(jo);
+        setMastery(mh);
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -475,87 +479,47 @@ export default function DashboardTab() {
         </div>
       </section>
 
-      {/* ── Zone 4: most engaged with the short-quiz system — real skill_progress aggregate ── */}
-      {!!engagement && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">🧩 الأكثر تفاعلاً مع الاختبارات القصيرة</h3>
-            <span className="text-[11px] text-slate-400">
-              {engagement.participants} من {engagement.totalStudents} طالب خاضوا اختبارًا قصيرًا واحدًا على الأقل ({engagement.participationRate}%)
-            </span>
-          </div>
-          {engagement.topEngaged.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">لا يوجد بعد أي محاولات مسجّلة في نظام الاختبارات القصيرة</p>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {engagement.topEngaged.map((s, i) => (
-                <div key={s.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/60">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="text-[11px] font-bold text-indigo-500">#{i + 1}</span>
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-slate-700 dark:text-slate-200">{s.name}</p>
-                      <p className="truncate text-[10px] text-slate-400">{s.skillsTouched}/{engagement.totalSkills} مهارة · {s.coveragePct}% تغطية</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => openStudentProfile(s.id)}
-                    className="shrink-0 rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300"
-                  >
-                    {s.totalAttempts} محاولة
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* ── Zone 5: مسار الإنجاز across the roster — same passed/totalNodes math
-          as each student's own journey, aggregated in one grouped query. ── */}
-      {!!journeyOverview && (
-        <section className="grid gap-3 lg:grid-cols-[1.1fr_1fr]">
+      {/* ── Zone 4: short-quiz activity — two signals only. Engagement (who's
+          attempting the most, regardless of outcome) and mastery (who has
+          actually passed the most skills), side by side on desktop, stacked
+          on mobile. Every other short-quiz box (per-level completion tiles,
+          the journey-bucket distribution) was dropped: same underlying
+          skill_progress numbers, re-sliced into noise. ── */}
+      {(!!engagement || !!mastery) && (
+        <section className="grid gap-3 lg:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">🧭 توزيع الطلاب حسب التقدم في مسار الإنجاز</h3>
-            <div className="space-y-2.5">
-              {journeyOverview.buckets.map((b) => {
-                const style = BUCKET_STYLE[b.code] || BUCKET_STYLE.not_started;
-                const pct = journeyOverview.totalStudents ? Math.round((b.count / journeyOverview.totalStudents) * 100) : 0;
-                return (
-                  <div key={b.code} className="flex items-center gap-3">
-                    <span className="w-24 shrink-0 text-xs font-semibold text-slate-600 dark:text-slate-300">{style.chip} {b.label}</span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                      <div className={`h-full rounded-full ${style.bar}`} style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="w-16 shrink-0 text-end text-xs font-bold text-slate-500 dark:text-slate-400">{b.count} ({pct}%)</span>
-                  </div>
-                );
-              })}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+                <ActivityIcon className="h-4 w-4 text-indigo-500" />
+                الأكثر تفاعلاً وإصراراً
+              </h3>
+              {engagement && (
+                <span className="text-[11px] text-slate-400">
+                  {engagement.participants} من {engagement.totalStudents} شاركوا ({engagement.participationRate}%)
+                </span>
+              )}
             </div>
-            <p className="mt-3 text-[11px] text-slate-400">
-              {journeyOverview.diagnosticCompleted} من {journeyOverview.totalStudents} أنهوا التشخيص الذاتي · التقدم = مهارات مجتازة من أصل {journeyOverview.totalNodes}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="mb-2 text-sm font-bold text-indigo-700 dark:text-indigo-400">🏆 الأكثر تقدمًا في مسار المهارات</h3>
-            <p className="mb-2 text-[11px] text-slate-400">مرتّبون حسب عدد المهارات المجتازة من أصل {journeyOverview.totalNodes} — مقياس تقدّم هيكلي، وليس متوسط درجات</p>
-            {journeyOverview.topProgressing.length === 0 ? (
-              <p className="py-6 text-center text-sm text-slate-400">لا يوجد طلاب اجتازوا مهارة بعد</p>
+            {!engagement?.topEngaged.length ? (
+              <p className="py-6 text-center text-sm text-slate-400">لا توجد بعد أي محاولات مسجّلة في نظام الاختبارات القصيرة</p>
             ) : (
               <ol className="space-y-1.5">
-                {journeyOverview.topProgressing.map((s, i) => (
-                  <li key={s.id} className="flex items-center justify-between gap-2 rounded-lg bg-indigo-50/60 px-3 py-1.5 text-sm dark:bg-indigo-950/20">
-                    <span className="flex items-center gap-2 truncate font-medium text-slate-700 dark:text-slate-200">
-                      <span className="text-[11px] font-bold text-indigo-500">#{i + 1}</span>
-                      {s.name}
-                    </span>
+                {engagement.topEngaged.slice(0, 8).map((s, i) => (
+                  <li key={s.id}>
                     <button
                       type="button"
                       onClick={() => openStudentProfile(s.id)}
-                      className="shrink-0 rounded-lg bg-indigo-100 px-2 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-300"
+                      className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-start transition-colors hover:border-indigo-200 hover:bg-indigo-50/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-indigo-900 dark:hover:bg-indigo-950/30"
                     >
-                      {s.passedNodes}/{s.totalNodes} — {s.overallProgressPct}%
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="w-5 shrink-0 text-center text-[11px] font-black tabular-nums text-indigo-500">{i + 1}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-[13px] font-semibold text-slate-700 dark:text-slate-200">{s.name}</span>
+                          <span className="block text-[10px] text-slate-400">{s.skillsTouched}/{engagement.totalSkills} مهارة · {s.coveragePct}% تغطية</span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-bold tabular-nums text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                        {s.totalAttempts} محاولة
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -563,19 +527,43 @@ export default function DashboardTab() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
-            <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">📶 نسبة إكمال كل مستوى</h3>
-            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              {journeyOverview.levelCompletion
-                .sort((a, b) => (a.section === b.section ? 0 : a.section === 'verbal' ? -1 : 1))
-                .map((lc) => (
-                  <div key={`${lc.section}-${lc.level}`} className="rounded-xl border border-slate-100 px-3 py-2 text-center dark:border-slate-800">
-                    <p className="text-[11px] font-bold text-slate-400">{SECTION_LABEL_SHORT[lc.section]} · {LEVEL_LABEL_SHORT[lc.level]}</p>
-                    <p className="mt-1 text-lg font-extrabold text-slate-700 dark:text-slate-200">{lc.completionRate}%</p>
-                    <p className="text-[10px] text-slate-400">{lc.studentsCompleted} طالب</p>
-                  </div>
-                ))}
-            </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+              <TrophyIcon className="h-4 w-4 text-amber-500" />
+              لوحة شرف إتقان المهارات
+            </h3>
+            <p className="mb-3 text-[11px] text-slate-400">
+              مرتّبون حسب عدد المهارات المتقنة من أصل {mastery?.totalSkills ?? 30}، ثم أسبقية من وصل أولاً
+            </p>
+            {!mastery?.leaderboard.length ? (
+              <p className="py-6 text-center text-sm text-slate-400">لا يوجد طلاب أتقنوا مهارة بعد</p>
+            ) : (
+              <ol className="space-y-1.5">
+                {mastery.leaderboard.slice(0, 8).map((s, i) => {
+                  const pct = mastery.totalSkills ? Math.round((s.mastered / mastery.totalSkills) * 100) : 0;
+                  return (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() => openStudentProfile(s.id)}
+                        className="flex w-full items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-start transition-colors hover:border-amber-200 hover:bg-amber-50/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-amber-900/50 dark:hover:bg-amber-950/20"
+                      >
+                        <span className="w-5 shrink-0 text-center text-[11px] font-black tabular-nums text-amber-500">{i + 1}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-semibold text-slate-700 dark:text-slate-200">{s.name}</span>
+                          <span className="mt-1.5 block h-1 w-full overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-700/60">
+                            <span className="block h-full rounded-full bg-amber-400" style={{ width: `${pct}%` }} />
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-[11px] font-bold tabular-nums text-slate-600 dark:text-slate-300">
+                          {s.mastered}<span className="text-slate-400">/{mastery.totalSkills}</span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
           </div>
         </section>
       )}

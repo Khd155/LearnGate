@@ -989,6 +989,12 @@ export async function onRequest({ request, env }) {
       // guessing wrong never leaks whether the phone has an account; only
       // proving you received the real code does.
       if (sub === 'recover' && subsub === 'request' && method === 'POST') {
+        // LOCKED — feature disabled by explicit request; the UI trigger on
+        // the student login screen was already removed, but that alone
+        // doesn't stop a direct API call, so the endpoint itself refuses
+        // every request here too. Logic below is left intact to re-enable
+        // by deleting this block.
+        return err('هذه الميزة غير متاحة حالياً', 403, CORS);
         const { phone: rawPhone } = await request.json().catch(() => ({}));
         if (!await rateLimit(DB, ip, 'recover-otp-request', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         const localPhone = toLocalSaudiPhone(rawPhone || '');
@@ -1062,6 +1068,8 @@ export async function onRequest({ request, env }) {
       // phone belongs to an account is only checked AFTER the code itself
       // matches — see the anti-enumeration note on /request above.
       if (sub === 'recover' && subsub === 'verify' && method === 'POST') {
+        // LOCKED — see the matching guard on /recover/request above.
+        return err('هذه الميزة غير متاحة حالياً', 403, CORS);
         const { phone: rawPhone, code: submittedCode } = await request.json().catch(() => ({}));
         if (!await rateLimit(DB, ip, 'recover-otp-verify', 15)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         const localPhone = toLocalSaudiPhone(rawPhone || '');

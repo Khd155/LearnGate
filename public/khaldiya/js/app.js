@@ -3062,23 +3062,12 @@ const App = {
 
       // Smart Feedback & Tiered Hinting Engine — review data only ever
       // arrives here, AFTER submission; never shown during quiz-take.
-      //
-      // Gating this on explanation/smartHint text existing (as before) hid
-      // the WHOLE review — including which questions were wrong and what
-      // the correct answer was, which renderQuizReview() shows regardless
-      // of whether any explanation text was ever imported for this skill —
-      // any time a skill's questions had no explanation/golden_rule/
-      // smart_hint typed in yet. A student who just failed could see their
-      // score but never which 2 of 5 questions they missed. The review is
-      // useful with or without explanation text, so show it whenever there
-      // are graded questions at all; renderQuizReview() already renders an
-      // empty feedbackHtml gracefully when no explanation exists.
-      State._quizReview = (res.review && res.review.length) ? res.review : null;
+      State._quizReview = (res.review || []).some(r => r.explanation || r.smartHint) ? res.review : null;
       const reviewToggle = document.getElementById('qt-review-toggle');
       const reviewList = document.getElementById('qt-review-list');
       reviewList.style.display = 'none';
       reviewList.innerHTML = '';
-      reviewToggle.textContent = '🔍 مراجعة الأسئلة والإجابات';
+      reviewToggle.textContent = '🔍 مراجعة الأخطاء والشروحات التعليمية';
       reviewToggle.style.display = State._quizReview ? '' : 'none';
 
       // Patch the cached tree in-memory so gating/progress reflect this attempt
@@ -3124,7 +3113,7 @@ const App = {
       btn.textContent = 'إخفاء المراجعة ▲';
     } else {
       list.style.display = 'none';
-      btn.textContent = '🔍 مراجعة الأسئلة والإجابات';
+      btn.textContent = '🔍 مراجعة الأخطاء والشروحات التعليمية';
     }
   },
 

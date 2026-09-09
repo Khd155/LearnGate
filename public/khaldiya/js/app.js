@@ -1662,6 +1662,19 @@ const App = {
     // already stops it reappearing on this device.
     if (State.student) State.student.has_seen_welcome = true;
     try { localStorage.setItem(App._welcomeKey(), '1'); } catch (_) {}
+    // The stored session blobs (read back by _quickRestoreSession on every
+    // refresh) carry their own has_seen_welcome snapshot from login time —
+    // patch them too, or a refresh before the next full re-login would read
+    // the stale `false` right back into State.student.
+    for (const [store, key] of [[sessionStorage, _skey('lg_session', 'student')], [localStorage, _skey('lg_xsession', 'student')]]) {
+      try {
+        const raw = store.getItem(key);
+        if (!raw) continue;
+        const s = JSON.parse(raw);
+        s.has_seen_welcome = true;
+        store.setItem(key, JSON.stringify(s));
+      } catch (_) {}
+    }
 
     if (modal) {
       modal.classList.add('sw-closing');
@@ -7054,7 +7067,18 @@ async function _quickRestoreSession(sess) {
     _authToken = sess.token;
     const expiry = Date.now() + 4 * 60 * 60 * 1000;
     if (sess.role === 'student') {
-      State.student = { id: sess.id, code: sess.code, name: sess.name, school: sess.school || '', phone: sess.phone || '', trial: !!sess.trial };
+      // has_seen_welcome was missing here, even though it's present on the
+      // stored session object (student-login writes it in, see below) — so
+      // on every single refresh, _shouldShowWelcome() lost the server flag
+      // entirely and fell back to relying solely on the per-student
+      // localStorage marker. The comment above _shouldShowWelcome() already
+      // claims the server flag is "the source of truth", but it never
+      // actually reached State here to be checked. Restoring it is what
+      // makes that true, and stops the welcome modal from being able to
+      // resurface after being dismissed just because a student refreshed
+      // or navigated (e.g. landing back on /plan) on a device/browser state
+      // where the localStorage marker didn't stick.
+      State.student = { id: sess.id, code: sess.code, name: sess.name, school: sess.school || '', phone: sess.phone || '', trial: !!sess.trial, has_seen_welcome: !!sess.has_seen_welcome };
       State.role = 'student';
       if (sess.school) { State.school = sess.school; App._updateSchoolDisplay(sess.school); }
       if (sess.trial) _showTrialBanner();

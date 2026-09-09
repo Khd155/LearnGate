@@ -754,6 +754,14 @@ export async function onRequest({ request, env }) {
       for (const col of ['relation', 'explanation', 'golden_rule', 'smart_hint']) {
         try { await DB.prepare(`ALTER TABLE quiz_skill_questions ADD COLUMN IF NOT EXISTS ${col} TEXT`).run(); } catch {}
       }
+      // Reading-comprehension passage a question is built on (استيعاب
+      // المقروء). Stored per-question, not per-skill: a skill's 5 questions
+      // can all share one passage (the common case today) or be split
+      // across more than one, and duplicating the text across the rows that
+      // share it costs far less than a second table/join for what is a
+      // handful of skills. Nullable — every non-reading skill just stores
+      // NULL, exactly like the Smart Feedback fields above.
+      try { await DB.prepare(`ALTER TABLE quiz_skill_questions ADD COLUMN IF NOT EXISTS passage TEXT`).run(); } catch {}
       await DB.prepare(`CREATE TABLE IF NOT EXISTS skill_progress (
         id TEXT PRIMARY KEY, student_id TEXT NOT NULL, quiz_skill_id TEXT NOT NULL,
         section TEXT NOT NULL, level TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'not_started',
@@ -3055,7 +3063,7 @@ export async function onRequest({ request, env }) {
           if (!unlocked) return err('هذا المستوى مقفل حتى تكمل المستوى السابق', 403, CORS);
         }
         const { results: questions } = await DB.prepare(
-          'SELECT id, qnum, text, opt1, opt2, opt3, opt4 FROM quiz_skill_questions WHERE quiz_skill_id = ? ORDER BY qnum ASC'
+          'SELECT id, qnum, text, opt1, opt2, opt3, opt4, passage FROM quiz_skill_questions WHERE quiz_skill_id = ? ORDER BY qnum ASC'
         ).bind(sub).all();
         return ok({ skill: { id: skillRow.id, section: skillRow.section, level: skillRow.level, skillName: skillRow.skill_name }, questions }, 200, CORS);
       }
@@ -3077,20 +3085,42 @@ export async function onRequest({ request, env }) {
         const existingNums = new Set(existing.map(r => r.qnum));
         const now = new Date().toISOString();
         const stmt = DB.prepare(
-          `INSERT INTO quiz_skill_questions (id, quiz_skill_id, qnum, text, opt1, opt2, opt3, opt4, ans, relation, explanation, golden_rule, smart_hint, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO quiz_skill_questions (id, quiz_skill_id, qnum, text, opt1, opt2, opt3, opt4, ans, relation, explanation, golden_rule, smart_hint, passage, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
         let added = 0;
         for (const q of rows) {
           if (existingNums.has(q.qnum)) continue;
           await stmt.bind(
             crypto.randomUUID(), sub, q.qnum, q.text, q.opts[0], q.opts[1], q.opts[2], q.opts[3], q.ans,
-            q.relation || null, q.explanation || null, q.golden_rule || null, q.smart_hint || null, now
+            q.relation || null, q.explanation || null, q.golden_rule || null, q.smart_hint || null, q.passage || null, now
           ).run();
           added++;
         }
         await logEvent(DB, { level: 'info', category: 'quiz-skills', message: `استيراد أسئلة المهارة ${skillRow.skill_name} (${skillRow.section}/${skillRow.level}) — ${added} مضافة`, user_name: claims?.name || '', user_role: claims?.role || 'dev', school: claims?.school || '' });
         return ok({ added, skipped: rows.length - added }, 200, CORS);
+      }
+
+      // PATCH /api/quiz-skills/:quizSkillId/passage { passage } — attach/update
+      // the shared reading passage for a skill's questions without touching
+      // their text/options/answers. Separate from .../import: a passage fix
+      // (or a passage added after questions were already imported without
+      // one) shouldn't require re-supplying the whole question bank, which
+      // would risk silently changing content nobody meant to change.
+      // Applies to every existing question row for the skill — this app's
+      // reading-comprehension skills are always built from a single shared
+      // passage, never a per-question one.
+      if (resource === 'quiz-skills' && sub && subsub === 'passage' && method === 'PATCH') {
+        const claims = await verifyToken(request, env, DB);
+        const isDev = claims?.role === 'dev' || authDev(request, env);
+        if (!isDev && (!claims || !['admin', 'director'].includes(claims.role))) return err('غير مصرح', 401, CORS);
+        const skillRow = await DB.prepare('SELECT * FROM quiz_skills WHERE id = ?').bind(sub).first();
+        if (!skillRow) return err('المهارة غير موجودة', 404, CORS);
+        const { passage } = await request.json();
+        if (!passage || typeof passage !== 'string' || !passage.trim()) return err('نص القطعة مطلوب', 400, CORS);
+        const { meta } = await DB.prepare('UPDATE quiz_skill_questions SET passage = ? WHERE quiz_skill_id = ?').bind(passage.trim(), sub).run();
+        await logEvent(DB, { level: 'info', category: 'quiz-skills', message: `تحديث نص القطعة القرائية للمهارة ${skillRow.skill_name} (${skillRow.section}/${skillRow.level})`, user_name: claims?.name || '', user_role: claims?.role || 'dev', school: claims?.school || '' });
+        return ok({ updated: meta?.changes ?? null }, 200, CORS);
       }
 
       // POST /api/quiz-skills/:quizSkillId/submit — grade (pure correct-count, no timing/anti-cheat)
@@ -3102,7 +3132,7 @@ export async function onRequest({ request, env }) {
         const { answers: submitted } = await request.json();
         if (!Array.isArray(submitted)) return err('إجابات مطلوبة', 400, CORS);
         const { results: questions } = await DB.prepare(
-          'SELECT qnum, text, opt1, opt2, opt3, opt4, ans, relation, explanation, golden_rule, smart_hint FROM quiz_skill_questions WHERE quiz_skill_id = ?'
+          'SELECT qnum, text, opt1, opt2, opt3, opt4, ans, relation, explanation, golden_rule, smart_hint, passage FROM quiz_skill_questions WHERE quiz_skill_id = ?'
         ).bind(sub).all();
         const ansMap = Object.fromEntries(submitted.map(a => [Number(a.qnum), a.selected]));
         let correct = 0;
@@ -3167,6 +3197,7 @@ export async function onRequest({ request, env }) {
             explanation: withholdAnswer ? null : (q.explanation || null),
             goldenRule: withholdAnswer ? null : (q.golden_rule || null),
             smartHint: withholdAnswer ? (q.smart_hint || null) : null,
+            passage: q.passage || null,
           };
         });
 

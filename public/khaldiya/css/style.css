@@ -1195,6 +1195,17 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
 .test-nav { display: flex; gap: 12px; margin-top: 8px; }
 .test-nav .btn { flex: 1; }
 
+/* ── Reading-comprehension passage (استيعاب المقروء) ───── */
+.qt-passage-box {
+  background: var(--bg-tint, #f4f8fb);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  margin-bottom: 16px;
+}
+.qt-passage-label { font-size: 13px; font-weight: 800; color: var(--primary); margin-bottom: 10px; }
+.qt-passage-text { font-size: 15px; line-height: 2; white-space: pre-line; color: var(--text); }
+
 /* ── Result / Plan ───────────────────────────────────── */
 .status-banner {
   border-radius: var(--radius); padding: 20px 22px;

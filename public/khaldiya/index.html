@@ -21,7 +21,7 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="/css/style.css?v=quiz10">
+  <link rel="stylesheet" href="/css/style.css?v=quiz11">
   <style>
     .diag-radio { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
     .diag-radio input { display:none; }
@@ -2584,6 +2584,15 @@
     </div>
     <div class="test-progress-label" id="qt-progress-label">سؤال 1 من 5</div>
 
+    <!-- Reading-comprehension passage (استيعاب المقروء) — shared by however
+         many of this skill's questions were built on it; stays visible and
+         unchanged across those questions since it's re-rendered from the
+         current question's own `passage` field every time, not toggled. -->
+    <div class="qt-passage-box" id="qt-passage-box" style="display:none;">
+      <div class="qt-passage-label">📖 نص القطعة</div>
+      <div class="qt-passage-text" id="qt-passage-text"></div>
+    </div>
+
     <div class="q-card">
       <div class="q-num" id="qt-q-num">سؤال 1</div>
       <div class="q-text" id="qt-q-text"></div>
@@ -3638,6 +3647,6 @@
 </div>
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
-<script src="/js/app.js?v=quiz36" defer></script>
+<script src="/js/app.js?v=quiz37" defer></script>
 </body>
 </html>

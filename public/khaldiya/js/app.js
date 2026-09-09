@@ -1011,10 +1011,19 @@ function _goBackSteps(n, fallbackId) {
     const popped = State.navStack.pop();
     if (i === n - 1) target = popped || fallbackId;
   }
-  if (_historyDepth >= n) {
-    history.go(-n);
-    return;
-  }
+  // Used to delegate to history.go(-n) whenever _historyDepth said there was
+  // a real browser entry to pop, instead of calling show(target) directly.
+  // That made every in-app "رجوع" button's actual landing depend on the
+  // browser's own back-navigation timing (and, on some mobile/Chromebook
+  // contexts, on whether it re-fires a fresh popstate at all) rather than on
+  // this function's own decision — and popstate's generic branch never
+  // called the per-screen refreshers (App.renderStudentHome() etc.) that the
+  // direct-show fallback below already did, so a "رجوع" that happened to
+  // take the history.go() path could land on a screen whose dynamic content
+  // was never refreshed. show(target) is a synchronous, zero-network DOM
+  // swap for the vast majority of screens, so there's no responsiveness
+  // reason to prefer the indirect path — always resolve explicitly instead.
+  _historyDepth = Math.max(0, _historyDepth - n);
   _isBackNav = true;
   show(target);
   // Home's dynamic bits (plan banner, performance card, notifications) need a
@@ -2959,6 +2968,14 @@ const App = {
     document.getElementById('qt-q-num').textContent = `سؤال ${idx + 1}`;
     document.getElementById('qt-q-text').textContent = q.text;
 
+    const passageBox = document.getElementById('qt-passage-box');
+    if (q.passage) {
+      document.getElementById('qt-passage-text').textContent = q.passage;
+      passageBox.style.display = '';
+    } else {
+      passageBox.style.display = 'none';
+    }
+
     const opts = [q.opt1, q.opt2, q.opt3, q.opt4];
     const selected = answers[q.qnum];
     document.getElementById('qt-q-opts').innerHTML = [...opts.map((opt, i) => `
@@ -3115,8 +3132,16 @@ const App = {
     const list = document.getElementById('qt-review-list');
     const review = State._quizReview || [];
     const letters = ['أ', 'ب', 'ج', 'د'];
+    // The passage only needs to appear once, right before the first question
+    // built on it — repeating it before every one of the 3-5 questions that
+    // share it would bury the actual review under duplicate text.
+    let lastPassage = null;
 
     list.innerHTML = review.map((r, i) => {
+      const passageHtml = (r.passage && r.passage !== lastPassage)
+        ? `<div class="qt-passage-box"><div class="qt-passage-label">📖 نص القطعة</div><div class="qt-passage-text">${escapeHtml(r.passage)}</div></div>`
+        : '';
+      lastPassage = r.passage || lastPassage;
       const optsHtml = r.opts.map((opt, oi) => {
         let cls = '';
         if (r.correctIndex !== null && oi === r.correctIndex) cls = ' qz-rv-opt-correct';
@@ -3146,6 +3171,7 @@ const App = {
       }
 
       return `
+        ${passageHtml}
         <div class="qz-rv-card">
           <div class="qz-rv-num">سؤال ${i + 1}${r.isCorrect ? ' — ✅ إجابة صحيحة' : ' — ❌ إجابة خاطئة'}</div>
           <div class="qz-rv-text">${escapeHtml(r.text)}</div>
@@ -3507,12 +3533,20 @@ const App = {
   buildVideosTab(skillId) {
     const url = SKILL_LESSONS[skillId];
     if (!url) return '<p class="tab-empty">المواد العلمية لهذه المهارة قريباً.</p>';
+    // `?from=plan` tells the lesson page's own "رجوع" button to return here
+    // instead of the general lessons list (/study) — see topbar-back in
+    // every public/khaldiya/lessons/*/index.html. target="_blank" opens a
+    // real new tab on desktop, but several mobile/in-app browsers (and some
+    // Chromebook contexts) silently ignore it and navigate the SAME tab —
+    // in that case the student's only way back is this button, so it has
+    // to know where "back" actually means regardless of which happened.
+    const backUrl = url + (url.includes('?') ? '&' : '?') + 'from=plan';
     return `
       <p class="videos-note">
         تجد هنا جميع المقاطع والشروحات المتعلقة بهذه المهارة — ابدأ بمقطع التأسيس ثم انتقل للمقاطع بالترتيب.
       </p>
       <div class="videos-btn-wrap">
-        <a href="${url}" target="_blank" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
+        <a href="${backUrl}" target="_blank" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
           🎬 عرض المقاطع التعليمية
         </a>
         <p style="color:var(--muted);font-size:12px;margin-top:10px;">يفتح في تبويب جديد</p>
@@ -7079,7 +7113,14 @@ async function _quickRestoreSession(sess) {
       show('screen-student-home');
       document.documentElement.style.visibility = '';
       App._checkPhoneGate();
-      if (State.student?.phone) _routeToCurrentPath();
+      // Used to skip the deep-link restore entirely for a student with no
+      // phone on file — refreshing on /plan, /study or /skills/... silently
+      // dropped them on the plain home screen instead, looking exactly like
+      // the route "got stuck". _checkPhoneGate() already shows its modal as
+      // a non-blocking overlay on top of whatever screen is current, so
+      // there's no reason routing to the actual deep link needs to wait on
+      // (or be skipped for) the phone gate at all.
+      _routeToCurrentPath();
     } else {
       State.role  = sess.role;
       State.admin = { code: sess.code, name: sess.name, school: sess.school || '' };

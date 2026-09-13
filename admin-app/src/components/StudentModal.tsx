@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore';
 import { api, ApiError } from '../lib/api';
 import { resetStudentTest } from '../lib/students';
 import ConfirmDialog from './ConfirmDialog';
-import type { Plan, Student, PlanGap } from '../types';
+import { GRADE_LEVELS, type GradeLevel, type Plan, type Student, type PlanGap } from '../types';
 
 function planScore(p: Plan): number | null {
   const gaps = Array.isArray(p.gaps) ? p.gaps : [];
@@ -150,6 +150,7 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [gradeLevel, setGradeLevel] = useState<GradeLevel | ''>('');
   const [saving, setSaving] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -171,6 +172,7 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
     if (!student) return;
     setName(student.name);
     setPhone(student.phone || '');
+    setGradeLevel((student.grade_level as GradeLevel) || '');
     setHistory(null);
     setDetailPlan(null);
     setHistoryLoading(true);
@@ -181,13 +183,19 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
       .finally(() => setHistoryLoading(false));
   }, [student]);
 
+  // API body uses `gradeLevel` (camelCase, matching every other student
+  // endpoint in this app — import-preview/confirm, generate-code), while
+  // the Student type/store field is `grade_level` (matching the DB column
+  // name returned by GET /students) — kept separate so each side gets the
+  // shape it actually expects instead of one object serving both.
   const changed = useMemo(() => {
     if (!student) return {};
-    const patch: Partial<Pick<Student, 'name' | 'phone'>> = {};
+    const patch: Partial<Pick<Student, 'name' | 'phone'>> & { gradeLevel?: GradeLevel } = {};
     if (name.trim() !== student.name) patch.name = name.trim();
     if (phone.trim() !== (student.phone || '')) patch.phone = phone.trim();
+    if (gradeLevel && gradeLevel !== (student.grade_level || '')) patch.gradeLevel = gradeLevel;
     return patch;
-  }, [student, name, phone]);
+  }, [student, name, phone, gradeLevel]);
 
   if (!student) return null;
 
@@ -199,7 +207,8 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
     setSaving(true);
     try {
       await api.patch(`/students/${student.id}`, changed);
-      updateStudent(student.id, changed);
+      const { gradeLevel: newGradeLevel, ...rest } = changed;
+      updateStudent(student.id, { ...rest, ...(newGradeLevel ? { grade_level: newGradeLevel } : {}) });
       pushToast('success', 'تم حفظ التعديلات');
     } catch (e) {
       pushToast('error', e instanceof ApiError ? e.message : 'فشل حفظ التعديلات');
@@ -318,6 +327,23 @@ export default function StudentModal({ student, onOpenChange, onMessage }: Props
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
                 />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  المرحلة الدراسية
+                </label>
+                <select
+                  value={gradeLevel}
+                  onChange={(e) => setGradeLevel(e.target.value as GradeLevel)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                >
+                  <option value="">— اختر المرحلة —</option>
+                  {GRADE_LEVELS.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
               </div>
               <button
                 type="button"

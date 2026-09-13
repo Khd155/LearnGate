@@ -6,22 +6,11 @@ import { DownloadIcon, PlusIcon, ChevronDownIcon } from './Icons';
 
 export type GradeFilter = GradeLevel | 'all';
 
-export type SortKey = 'name' | 'status' | 'score_asc' | 'recent' | 'last_active_desc' | 'last_active_asc';
-
 const STATUS_LABELS: Record<DerivedStatus | 'all', string> = {
   all: 'كل الحالات',
   not_started: 'لم يبدأ',
   started: 'بدأ',
   finished: 'انتهى',
-};
-
-const SORT_LABELS: Record<SortKey, string> = {
-  name: 'ترتيب بالاسم',
-  status: 'ترتيب بالحالة',
-  score_asc: 'الأداء (الأضعف أولاً)',
-  recent: 'الأحدث انضمامًا',
-  last_active_desc: 'آخر نشاط (الأحدث أولاً)',
-  last_active_asc: 'آخر نشاط (الأقدم أولاً)',
 };
 
 interface Props {
@@ -31,8 +20,6 @@ interface Props {
   onStatusFilter: (v: DerivedStatus | 'all') => void;
   gradeFilter: GradeFilter;
   onGradeFilter: (v: GradeFilter) => void;
-  sort: SortKey;
-  onSort: (v: SortKey) => void;
   onAdd: () => void;
   onExport: () => void;
 }
@@ -58,8 +45,6 @@ export default function FiltersBar({
   onStatusFilter,
   gradeFilter,
   onGradeFilter,
-  sort,
-  onSort,
   onAdd,
   onExport,
 }: Props) {
@@ -101,25 +86,6 @@ export default function FiltersBar({
               {GRADE_LEVELS.map((g) => (
                 <SelectItem key={g} value={g}>{g}</SelectItem>
               ))}
-            </Select.Viewport>
-          </Select.Content>
-        </Select.Portal>
-      </Select.Root>
-
-      <Select.Root value={sort} onValueChange={(v) => onSort(v as SortKey)}>
-        <Select.Trigger className={triggerCls}>
-          <Select.Value>{SORT_LABELS[sort]}</Select.Value>
-          <Select.Icon><ChevronDownIcon className="h-4 w-4 text-slate-400" /></Select.Icon>
-        </Select.Trigger>
-        <Select.Portal>
-          <Select.Content className="z-50 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-800">
-            <Select.Viewport>
-              <SelectItem value="name">ترتيب بالاسم</SelectItem>
-              <SelectItem value="status">ترتيب بالحالة</SelectItem>
-              <SelectItem value="score_asc">الأداء (الأضعف أولاً)</SelectItem>
-              <SelectItem value="recent">الأحدث انضمامًا</SelectItem>
-              <SelectItem value="last_active_desc">آخر نشاط (الأحدث أولاً)</SelectItem>
-              <SelectItem value="last_active_asc">آخر نشاط (الأقدم أولاً)</SelectItem>
             </Select.Viewport>
           </Select.Content>
         </Select.Portal>

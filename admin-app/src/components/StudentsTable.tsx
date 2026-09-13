@@ -5,17 +5,74 @@ import { exportStudentsXls } from '../lib/csv';
 import { api } from '../lib/api';
 import { resetStudentTest } from '../lib/students';
 import type { DerivedStatus } from '../lib/status';
-import type { Student } from '../types';
-import FiltersBar, { type SortKey, type GradeFilter } from './FiltersBar';
+import { GRADE_LEVELS, type Student } from '../types';
+import FiltersBar, { type GradeFilter } from './FiltersBar';
 import StudentRow from './StudentRow';
 import AddStudentChooser from './AddStudentChooser';
 import AddStudentModal from './AddStudentModal';
 import ImportStudentsModal from './ImportStudentsModal';
 import StudentModal from './StudentModal';
 import ConfirmDialog from './ConfirmDialog';
-import { MegaphoneIcon, TrashIcon } from './Icons';
+import { MegaphoneIcon, TrashIcon, SortAscIcon, SortDescIcon, SortNeutralIcon } from './Icons';
 
 const PAGE_SIZE = 20;
+
+// Column-header sorting — replaces the old standalone "sort by" dropdown.
+// Each column has its own natural default direction (e.g. a fresh click on
+// "آخر درجة" should show the highest score first, not the lowest), so
+// clicking a *different* column resets to that default rather than always
+// starting ascending.
+type SortColumn = 'name' | 'grade' | 'code' | 'phone' | 'status' | 'score' | 'last_active';
+type SortDir = 'asc' | 'desc';
+const DEFAULT_DIR: Record<SortColumn, SortDir> = {
+  name: 'asc',
+  grade: 'asc',
+  code: 'asc',
+  phone: 'asc',
+  status: 'asc',
+  score: 'desc',
+  last_active: 'desc',
+};
+const STATUS_ORDER: Record<DerivedStatus, number> = { not_started: 0, started: 1, finished: 2 };
+const GRADE_ORDER = new Map<string, number>(GRADE_LEVELS.map((g, i) => [g, i]));
+
+function SortableTh({
+  label,
+  col,
+  activeCol,
+  dir,
+  onSort,
+  align = 'start',
+}: {
+  label: string;
+  col: SortColumn;
+  activeCol: SortColumn;
+  dir: SortDir;
+  onSort: (col: SortColumn) => void;
+  align?: 'start' | 'center';
+}) {
+  const active = activeCol === col;
+  return (
+    <th className={`px-4 py-3 font-medium ${align === 'center' ? 'text-center' : ''}`}>
+      <button
+        type="button"
+        onClick={() => onSort(col)}
+        className={`group flex items-center gap-1 ${align === 'center' ? 'mx-auto' : ''} hover:text-indigo-600 dark:hover:text-indigo-400`}
+      >
+        {label}
+        {active ? (
+          dir === 'asc' ? (
+            <SortAscIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+          ) : (
+            <SortDescIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+          )
+        ) : (
+          <SortNeutralIcon className="h-3.5 w-3.5 text-slate-300 opacity-60 transition-opacity group-hover:opacity-100 dark:text-slate-600" />
+        )}
+      </button>
+    </th>
+  );
+}
 
 function TableSkeleton() {
   return (
@@ -47,8 +104,18 @@ export default function StudentsTable() {
   const debouncedSearch = useDebounce(search, 250);
   const [statusFilter, setStatusFilter] = useState<DerivedStatus | 'all'>('all');
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>('all');
-  const [sort, setSort] = useState<SortKey>('name');
+  const [sortCol, setSortCol] = useState<SortColumn>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [page, setPage] = useState(1);
+
+  const handleSort = (col: SortColumn) => {
+    setPage(1);
+    if (col === sortCol) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortCol(col);
+      setSortDir(DEFAULT_DIR[col]);
+    }
+  };
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [chooserOpen, setChooserOpen] = useState(false);
@@ -85,27 +152,43 @@ export default function StudentsTable() {
         (s.phone || '').toLowerCase().includes(q)
       );
     });
+    const sign = sortDir === 'asc' ? 1 : -1;
     list = [...list].sort((a, b) => {
-      if (sort === 'name') return a.name.localeCompare(b.name, 'ar');
-      if (sort === 'recent') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      if (sort === 'last_active_desc' || sort === 'last_active_asc') {
-        const ta = a.last_active ? new Date(a.last_active).getTime() : -Infinity;
-        const tb = b.last_active ? new Date(b.last_active).getTime() : -Infinity;
-        return sort === 'last_active_desc' ? tb - ta : ta - tb;
+      switch (sortCol) {
+        case 'name':
+          return sign * a.name.localeCompare(b.name, 'ar');
+        case 'grade': {
+          const ga = GRADE_ORDER.get(a.grade_level || '') ?? -1;
+          const gb = GRADE_ORDER.get(b.grade_level || '') ?? -1;
+          return sign * (ga - gb);
+        }
+        case 'code':
+          return sign * a.code.localeCompare(b.code, undefined, { numeric: true });
+        case 'phone':
+          return sign * (a.phone || '').localeCompare(b.phone || '', undefined, { numeric: true });
+        case 'status':
+          return sign * (STATUS_ORDER[statusOf(a.id)] - STATUS_ORDER[statusOf(b.id)]);
+        case 'score': {
+          const sa = latestScoreOf(a.id);
+          const sb = latestScoreOf(b.id);
+          // No score always sorts to the end, in either direction — a student
+          // who hasn't tested yet isn't "the weakest", they're unranked.
+          if (sa === null && sb === null) return 0;
+          if (sa === null) return 1;
+          if (sb === null) return -1;
+          return sign * (sa - sb);
+        }
+        case 'last_active': {
+          const ta = a.last_active ? new Date(a.last_active).getTime() : -Infinity;
+          const tb = b.last_active ? new Date(b.last_active).getTime() : -Infinity;
+          return sign * (ta - tb);
+        }
+        default:
+          return 0;
       }
-      if (sort === 'score_asc') {
-        const sa = latestScoreOf(a.id);
-        const sb = latestScoreOf(b.id);
-        if (sa === null && sb === null) return 0;
-        if (sa === null) return 1; // no score = pushed to the end, not treated as "weakest"
-        if (sb === null) return -1;
-        return sa - sb;
-      }
-      const order: Record<DerivedStatus, number> = { not_started: 0, started: 1, finished: 2 };
-      return order[statusOf(a.id)] - order[statusOf(b.id)];
     });
     return list;
-  }, [students, debouncedSearch, statusFilter, gradeFilter, sort, statusOf, latestScoreOf]);
+  }, [students, debouncedSearch, statusFilter, gradeFilter, sortCol, sortDir, statusOf, latestScoreOf]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -221,8 +304,6 @@ export default function StudentsTable() {
           setGradeFilter(v);
           setPage(1);
         }}
-        sort={sort}
-        onSort={setSort}
         onAdd={() => setChooserOpen(true)}
         onExport={() => exportStudentsXls(filtered, statusOf)}
       />
@@ -272,25 +353,13 @@ export default function StudentsTable() {
                   className="h-4 w-4 rounded"
                 />
               </th>
-              <th className="px-4 py-3 font-medium">الاسم</th>
-              <th className="px-4 py-3 font-medium">المرحلة</th>
-              <th className="px-4 py-3 font-medium">رقم الدخول</th>
-              <th className="px-4 py-3 font-medium">الجوال</th>
-              <th className="px-4 py-3 font-medium">الحالة</th>
-              <th className="px-4 py-3 font-medium">آخر درجة تشخيصي</th>
-              <th className="px-4 py-3">
-                <button
-                  type="button"
-                  onClick={() => setSort(sort === 'last_active_desc' ? 'last_active_asc' : 'last_active_desc')}
-                  className="flex items-center gap-1 font-medium hover:text-indigo-600 dark:hover:text-indigo-400"
-                  title="فرز حسب آخر نشاط"
-                >
-                  آخر نشاط
-                  {(sort === 'last_active_desc' || sort === 'last_active_asc') && (
-                    <span className="text-[10px]">{sort === 'last_active_desc' ? '▾' : '▴'}</span>
-                  )}
-                </button>
-              </th>
+              <SortableTh label="الاسم" col="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+              <SortableTh label="المرحلة" col="grade" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+              <SortableTh label="رقم الدخول" col="code" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+              <SortableTh label="الجوال" col="phone" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+              <SortableTh label="الحالة" col="status" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+              <SortableTh label="آخر درجة تشخيصي" col="score" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+              <SortableTh label="آخر نشاط" col="last_active" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
               <th className="px-4 py-3 font-medium">آخر رسالة</th>
               <th className="px-4 py-3 text-center font-medium">تعديل</th>
               <th className="px-4 py-3"></th>

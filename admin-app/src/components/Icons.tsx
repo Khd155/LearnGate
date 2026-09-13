@@ -89,6 +89,24 @@ export function ChevronDownIcon({ className }: IconProps) {
     <svg {...base} className={className}><path d="m6 9 6 6 6-6" /></svg>
   );
 }
+// Column-header sort indicators — a neutral double chevron when a column
+// isn't the active sort, a single directional chevron (in the accent
+// color, set by the caller via currentColor) once it is.
+export function SortNeutralIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}><path d="m7 8 5-5 5 5" /><path d="m7 16 5 5 5-5" /></svg>
+  );
+}
+export function SortAscIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}><path d="m5 12 7-7 7 7" /><path d="M12 5v14" /></svg>
+  );
+}
+export function SortDescIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}><path d="m5 12 7 7 7-7" /><path d="M12 19V5" /></svg>
+  );
+}
 export function PencilIcon({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

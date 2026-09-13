@@ -1455,6 +1455,10 @@ export async function onRequest({ request, env }) {
           if (!code) return err('رقم الهوية مطلوب', 400, CORS);
           sets.push('code = ?'); vals.push(code);
         }
+        if ('gradeLevel' in body) {
+          if (!GRADE_LEVELS.includes(body.gradeLevel)) return err('المرحلة الدراسية غير صالحة', 400, CORS);
+          sets.push('grade_level = ?'); vals.push(body.gradeLevel);
+        }
         if (!sets.length) return err('لا توجد بيانات للتحديث', 400, CORS);
         try {
           await DB.prepare(`UPDATE students SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, sub).run();

@@ -49,6 +49,18 @@ function nodeHeadersToFetchHeaders(nodeHeaders) {
 
 const app = express();
 app.disable('x-powered-by');
+
+// Deployment health probes — registered before every other middleware
+// (security headers, request logging, trust-proxy) and touching nothing
+// (no DB, no env lookups) so they answer as fast as this process can
+// possibly respond. CranL's post-deploy health check was timing out at a
+// consistent ~36s across two regions right after this app started
+// listening — the process itself was up and serving normally, so the
+// most likely fix is giving its health check the cheapest possible path
+// to hit instead of whatever fuller request it may have been probing.
+app.get('/health', (req, res) => res.status(200).send('OK'));
+app.get('/ping', (req, res) => res.status(200).send('pong'));
+
 // CranL terminates TLS at a proxy and forwards plain HTTP; without this,
 // req.protocol is always 'http', so the constructed Request URL's origin
 // mismatches the browser's "https://..." Origin header and every request

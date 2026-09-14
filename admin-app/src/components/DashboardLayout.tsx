@@ -6,7 +6,7 @@ import DashboardTab from './DashboardTab';
 import StudentsTable from './StudentsTable';
 import TestCenterTab from './TestCenterTab';
 import ConversationsTab from './ConversationsTab';
-import BroadcastTab from './BroadcastTab';
+import MessagingCenterTab from './MessagingCenterTab';
 import AccessRequestsTab from './AccessRequestsTab';
 import AdminTab from './AdminTab';
 import StudentProfilePage from './StudentProfilePage';
@@ -42,7 +42,7 @@ export default function DashboardLayout() {
           {tab === 'students' && <StudentsTable />}
           {tab === 'testcenter' && <TestCenterTab />}
           {tab === 'conversations' && <ConversationsTab />}
-          {tab === 'broadcast' && <BroadcastTab />}
+          {tab === 'broadcast' && <MessagingCenterTab />}
           {tab === 'accessRequests' && <AccessRequestsTab />}
           {tab === 'admin' && <AdminTab />}
           {tab === 'studentProfile' && <StudentProfilePage />}

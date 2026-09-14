@@ -3210,23 +3210,33 @@ export async function onRequest({ request, env }) {
         if (!claims || !['admin', 'director', 'dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const ratio = await _getQuizPassRatio();
         const idPrefix = (await _getSetting('student_id_prefix')) || DEFAULT_STUDENT_ID_PREFIX;
+        // Default ON — every existing WhatsApp send path (single-student
+        // button, import-batch dispatch, the recover-link bot flow) already
+        // works today with no flag check at all; this only gates the new
+        // مركز المراسلات dispatcher UI, and defaulting it off would silently
+        // break those pre-existing, already-relied-on features the moment
+        // this setting is first read on a deployment that never set it.
+        const waEnabledRaw = await _getSetting('whatsapp_dispatch_enabled');
+        const waEnabled = waEnabledRaw === null ? true : waEnabledRaw === 'true';
         return ok({
           settings: {
             quiz_pass_ratio: { value: ratio, default: DEFAULT_QUIZ_PASS_RATIO, label: 'نسبة النجاح في الاختبارات القصيرة' },
             student_id_prefix: { value: idPrefix, default: DEFAULT_STUDENT_ID_PREFIX, label: 'بادئة معرفات الطلاب الجدد (الاستيراد الذكي)' },
+            whatsapp_dispatch_enabled: { value: waEnabled, default: true, label: 'تفعيل إرسال قوالب واتساب من مركز المراسلات' },
           },
         }, 200, CORS);
       }
 
-      // PATCH /api/settings { key, value } — director/dev only: this is a
-      // single global setting affecting grading across every school, so it
-      // stays out of reach of a single-school admin.
+      // PATCH /api/settings { key, value } — director/dev only, EXCEPT
+      // whatsapp_dispatch_enabled which is dev-only per the spec ("يتم
+      // تفعيل/تعطيل الميزة يدوياً وحصرياً من لوحة المطور").
       if (!sub && method === 'PATCH') {
         const claims = await verifyToken(request, env, DB);
         if (!claims || !['director', 'dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const { key, value } = await request.json();
-        const ALLOWED_KEYS = new Set(['quiz_pass_ratio', 'student_id_prefix']);
+        const ALLOWED_KEYS = new Set(['quiz_pass_ratio', 'student_id_prefix', 'whatsapp_dispatch_enabled']);
         if (!ALLOWED_KEYS.has(key)) return err('إعداد غير معروف', 400, CORS);
+        if (key === 'whatsapp_dispatch_enabled' && claims.role !== 'dev') return err('هذا الإعداد يُعدَّل من لوحة المطور فقط', 403, CORS);
         if (key === 'quiz_pass_ratio') {
           const n = Number(value);
           if (!Number.isFinite(n) || n < 0.5 || n > 1) return err('القيمة يجب أن تكون بين 0.5 و1', 400, CORS);
@@ -5149,6 +5159,37 @@ export async function onRequest({ request, env }) {
 
     // ── SendPulse WhatsApp ──────────────────────────────────────────────
     if (resource === 'sendpulse') {
+      // POST /api/sendpulse/mint-access-token { studentId } — same auth as
+      // /sendpulse/send below (admin/director with send_whatsapp, or dev):
+      // مركز المراسلات's WhatsApp dispatcher needs a login-link token for
+      // "إشعار الحساب وبيانات الدخول السريع" even when the recipient is an
+      // existing student, not one just created by an import batch (the only
+      // other place that mints these). Mirrors whatsapp-dispatch-batch's own
+      // mintAccessToken() — same table, same expiry, no wa_send_id since this
+      // isn't tied to an import batch.
+      if (sub === 'mint-access-token' && method === 'POST') {
+        const _isDevMint = authDev(request, env);
+        const _claimsMint = _isDevMint ? null : await verifyToken(request, env, DB);
+        if (!_isDevMint && (!_claimsMint || !['admin', 'director'].includes(_claimsMint.role))) return err('غير مصرح', 401, CORS);
+        if (!_isDevMint && _claimsMint.role !== 'dev' && !(Array.isArray(_claimsMint.permissions) && _claimsMint.permissions.includes('send_whatsapp'))) {
+          return err('لا تملك صلاحية إرسال الواتساب', 403, CORS);
+        }
+        const { studentId: mintStudentId } = await request.json();
+        if (!mintStudentId) return err('studentId مطلوب', 400, CORS);
+        const mintStudent = await DB.prepare('SELECT id, school FROM students WHERE id = ?').bind(mintStudentId).first();
+        if (!mintStudent) return err('الطالب غير موجود', 404, CORS);
+        if (_claimsMint && _claimsMint.role !== 'dev' && _claimsMint.school && _claimsMint.school !== '*' && mintStudent.school !== _claimsMint.school) {
+          return err('غير مصرح', 401, CORS);
+        }
+        await ensureAccessTokensSchema(DB);
+        const mintAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        const mintRandBytes = crypto.getRandomValues(new Uint8Array(14));
+        const mintedToken = Array.from(mintRandBytes, b => mintAlphabet[b % mintAlphabet.length]).join('');
+        await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
+          .bind(mintedToken, mintStudentId, new Date().toISOString(), newAccessTokenExpiry()).run();
+        return ok({ token: mintedToken }, 200, CORS);
+      }
+
       // POST /api/sendpulse/send — also accepts admin/director JWT (not just dev key)
       if (sub === 'send' && method === 'POST') {
         const _isDevSend = authDev(request, env);
@@ -5158,7 +5199,7 @@ export async function onRequest({ request, env }) {
           return err('لا تملك صلاحية إرسال الواتساب', 403, CORS);
         }
         const body = await request.json();
-        const { phones, template_name, language_code = 'ar', components = [] } = body;
+        const { phones, template_name, language_code = 'ar', components = [], recipients } = body;
         if (!phones?.length) return err('phones مطلوب', 400, CORS);
         if (!template_name) return err('template_name مطلوب', 400, CORS);
         const botId = env.SENDPULSE_BOT_ID;
@@ -5174,6 +5215,30 @@ export async function onRequest({ request, env }) {
           category: 'whatsapp',
           message: `SendPulse send — template=${template_name} | sent=${JSON.stringify(sentPayloads)} | received=${JSON.stringify(results)}`,
         });
+        // مركز المراسلات's dispatcher passes `recipients` (studentId/name per
+        // phone, same order as `phones`) so this shows up in سجل المراسلات
+        // (GET /sendpulse/logs) — every other send path already writes
+        // wa_template_logs itself; this is the one entry point that only had
+        // the free-form logEvent() above until now.
+        if (Array.isArray(recipients) && recipients.length === phones.length) {
+          try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_template_logs (
+            id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
+            template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
+          )`).run(); } catch {}
+          const logNow = new Date().toISOString();
+          for (let i = 0; i < recipients.length; i++) {
+            const r0 = results[i]?.results?.[0] ?? results[i];
+            const spErr = r0?.error || r0?.data?.error || r0?.errors;
+            const failed = r0?.success === false || !!spErr;
+            await DB.prepare(
+              `INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at)
+               VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).bind(
+              crypto.randomUUID(), recipients[i]?.studentId || null, recipients[i]?.studentName || '', phones[i],
+              template_name, JSON.stringify({}), failed ? 'failed' : 'sent', failed ? JSON.stringify(spErr || r0) : '', logNow,
+            ).run();
+          }
+        }
         return ok({ sent_to: phones.length, results }, 200, CORS);
       }
 
@@ -5284,6 +5349,36 @@ export async function onRequest({ request, env }) {
           user_name: _claimsTpl?.name || '', user_role: _claimsTpl?.role || 'dev', school: scopedSchool || '',
         });
         return ok({ total: targets.length, sent: sentCount, failed: failedCount, results }, 200, CORS);
+      }
+
+      // GET /api/sendpulse/logs — سجل المراسلات المباشرة والعمليات: the most
+      // recent WhatsApp template sends across every dispatch path (single-
+      // student button, import-batch dispatch, the general-issue broadcast
+      // above) — they all write into wa_template_logs already, so this is
+      // one read over that existing table rather than a new log store.
+      // School-scoped the same way every other admin-facing list in this
+      // file is: admin/director default to their own JWT school, dev may
+      // pass ?school= or omit it for everyone.
+      if (sub === 'logs' && method === 'GET') {
+        const claimsLogs = await verifyToken(request, env, DB);
+        if (!claimsLogs || !['admin', 'director', 'dev'].includes(claimsLogs.role)) return err('غير مصرح', 401, CORS);
+        const effSchoolLogs = (claimsLogs.role !== 'dev' && claimsLogs.school && claimsLogs.school !== '*')
+          ? claimsLogs.school : school;
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_template_logs (
+          id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
+          template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
+        )`).run(); } catch {}
+        const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
+        const q = effSchoolLogs
+          ? `SELECT l.id, l.student_name, l.phone, l.template_name, l.status, l.error_message, l.created_at
+             FROM wa_template_logs l JOIN students s ON s.id = l.student_id
+             WHERE s.school = ? ORDER BY l.created_at DESC LIMIT ?`
+          : `SELECT id, student_name, phone, template_name, status, error_message, created_at
+             FROM wa_template_logs ORDER BY created_at DESC LIMIT ?`;
+        const { results } = effSchoolLogs
+          ? await DB.prepare(q).bind(effSchoolLogs, limit).all()
+          : await DB.prepare(q).bind(limit).all();
+        return ok({ logs: results }, 200, CORS);
       }
 
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);

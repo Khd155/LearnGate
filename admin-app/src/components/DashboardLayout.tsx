@@ -6,7 +6,7 @@ import DashboardTab from './DashboardTab';
 import StudentsTable from './StudentsTable';
 import TestCenterTab from './TestCenterTab';
 import ConversationsTab from './ConversationsTab';
-import BroadcastTab from './BroadcastTab';
+import MessagingCenterTab from './MessagingCenterTab';
 import AdminTab from './AdminTab';
 import StudentProfilePage from './StudentProfilePage';
 import ToastSystem from './ToastSystem';
@@ -41,7 +41,7 @@ export default function DashboardLayout() {
           {tab === 'students' && <StudentsTable />}
           {tab === 'testcenter' && <TestCenterTab />}
           {tab === 'conversations' && <ConversationsTab />}
-          {tab === 'broadcast' && <BroadcastTab />}
+          {tab === 'broadcast' && <MessagingCenterTab />}
           {tab === 'admin' && <AdminTab />}
           {tab === 'studentProfile' && <StudentProfilePage />}
         </div>

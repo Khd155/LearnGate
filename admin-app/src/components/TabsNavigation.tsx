@@ -11,7 +11,7 @@ const BASE_TABS: TabDef[] = [
   { key: 'testcenter', label: 'مركز الاختبارات', Icon: FlaskIcon },
   { key: 'students', label: 'الطلاب', Icon: UsersIcon },
   { key: 'conversations', label: 'المحادثات', Icon: ChatIcon },
-  { key: 'broadcast', label: 'الرسائل الجماعية', Icon: MegaphoneIcon },
+  { key: 'broadcast', label: 'مركز المراسلات', Icon: MegaphoneIcon },
 ];
 
 const ADMIN_TAB: TabDef = { key: 'admin', label: 'الإدارة', Icon: SettingsIcon };

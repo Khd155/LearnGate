@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useStore, type TabKey } from '../store/useStore';
 import { cn } from '../lib/cn';
-import { HomeIcon, FlaskIcon, UsersIcon, ChatIcon, MegaphoneIcon, SettingsIcon } from './Icons';
+import { HomeIcon, FlaskIcon, UsersIcon, ChatIcon, MegaphoneIcon, InboxIcon, SettingsIcon } from './Icons';
 
 type TabDef = { key: TabKey; label: string; Icon: (p: { className?: string }) => React.ReactElement };
 
@@ -14,6 +14,7 @@ const BASE_TABS: TabDef[] = [
   { key: 'broadcast', label: 'مركز المراسلات', Icon: MegaphoneIcon },
 ];
 
+const ACCESS_REQUESTS_TAB: TabDef = { key: 'accessRequests', label: 'طلبات الانضمام', Icon: InboxIcon };
 const ADMIN_TAB: TabDef = { key: 'admin', label: 'الإدارة', Icon: SettingsIcon };
 
 export default function TabsNavigation() {
@@ -28,7 +29,13 @@ export default function TabsNavigation() {
   const canEditQuestions =
     session?.role === 'director' || session?.role === 'dev' || !!session?.permissions?.includes('edit_questions');
   const showAdmin = canViewDiff || canEditQuestions;
-  const TABS = [...BASE_TABS, ...(showAdmin ? [ADMIN_TAB] : [])];
+  const canManageAccessRequests =
+    session?.role === 'director' || session?.role === 'dev' || !!session?.permissions?.includes('can_manage_access_requests');
+  const TABS = [
+    ...BASE_TABS,
+    ...(canManageAccessRequests ? [ACCESS_REQUESTS_TAB] : []),
+    ...(showAdmin ? [ADMIN_TAB] : []),
+  ];
 
   useEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`);

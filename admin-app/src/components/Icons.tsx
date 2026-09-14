@@ -43,6 +43,14 @@ export function UsersIcon({ className }: IconProps) {
     </svg>
   );
 }
+export function InboxIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M4 12h4l2 3h4l2-3h4" />
+      <path d="M5.5 5h13a1 1 0 0 1 .97.76L21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6l1.53-6.24A1 1 0 0 1 5.5 5Z" />
+    </svg>
+  );
+}
 export function ChatIcon({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

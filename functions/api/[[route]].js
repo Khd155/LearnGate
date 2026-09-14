@@ -331,6 +331,30 @@ async function ensureAccessTokensSchema(DB) {
   try { await DB.prepare('ALTER TABLE access_tokens ADD COLUMN expires_at TEXT').run(); } catch {}
 }
 
+// ── Access requests ("طلبات الانضمام") ─────────────────────────────────
+// Public, unauthenticated intake for the unlisted /request-access page —
+// a prospective student fills this out and an authorized admin approves it
+// (which provisions the real `students` row + mints an access token + sends
+// the same WhatsApp template used everywhere else) or rejects/archives it.
+async function ensureAccessRequestsSchema(DB) {
+  try { await DB.prepare(`CREATE TABLE IF NOT EXISTS access_requests (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    grade_level TEXT NOT NULL,
+    school TEXT NOT NULL,
+    is_other_school INTEGER NOT NULL DEFAULT 0,
+    source TEXT DEFAULT '',
+    note TEXT DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    admin_note TEXT DEFAULT '',
+    student_id TEXT,
+    decided_by TEXT,
+    decided_at TEXT,
+    created_at TEXT NOT NULL
+  )`).run(); } catch {}
+}
+
 // Rows minted before expires_at existed carry NULL — fall back to their own
 // created_at + the same TTL rather than backfilling with a date-cast UPDATE
 // over a TEXT column (dialect-fragile, and this is exact either way).
@@ -3218,25 +3242,33 @@ export async function onRequest({ request, env }) {
         // this setting is first read on a deployment that never set it.
         const waEnabledRaw = await _getSetting('whatsapp_dispatch_enabled');
         const waEnabled = waEnabledRaw === null ? true : waEnabledRaw === 'true';
+        // Default OFF — unlike whatsapp_dispatch_enabled, nothing relies on
+        // this being on already; the public /request-access intake page
+        // should not silently start accepting submissions the moment this
+        // key is first read on a deployment that never explicitly set it.
+        const arEnabledRaw = await _getSetting('access_requests_enabled');
+        const arEnabled = arEnabledRaw === 'true';
         return ok({
           settings: {
             quiz_pass_ratio: { value: ratio, default: DEFAULT_QUIZ_PASS_RATIO, label: 'نسبة النجاح في الاختبارات القصيرة' },
             student_id_prefix: { value: idPrefix, default: DEFAULT_STUDENT_ID_PREFIX, label: 'بادئة معرفات الطلاب الجدد (الاستيراد الذكي)' },
             whatsapp_dispatch_enabled: { value: waEnabled, default: true, label: 'تفعيل إرسال قوالب واتساب من مركز المراسلات' },
+            access_requests_enabled: { value: arEnabled, default: false, label: 'استقبال طلبات الانضمام (/request-access)' },
           },
         }, 200, CORS);
       }
 
       // PATCH /api/settings { key, value } — director/dev only, EXCEPT
-      // whatsapp_dispatch_enabled which is dev-only per the spec ("يتم
-      // تفعيل/تعطيل الميزة يدوياً وحصرياً من لوحة المطور").
+      // whatsapp_dispatch_enabled and access_requests_enabled which are
+      // dev-only per their specs ("يتم تفعيل/تعطيل الميزة يدوياً وحصرياً من
+      // لوحة المطور").
       if (!sub && method === 'PATCH') {
         const claims = await verifyToken(request, env, DB);
         if (!claims || !['director', 'dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const { key, value } = await request.json();
-        const ALLOWED_KEYS = new Set(['quiz_pass_ratio', 'student_id_prefix', 'whatsapp_dispatch_enabled']);
+        const ALLOWED_KEYS = new Set(['quiz_pass_ratio', 'student_id_prefix', 'whatsapp_dispatch_enabled', 'access_requests_enabled']);
         if (!ALLOWED_KEYS.has(key)) return err('إعداد غير معروف', 400, CORS);
-        if (key === 'whatsapp_dispatch_enabled' && claims.role !== 'dev') return err('هذا الإعداد يُعدَّل من لوحة المطور فقط', 403, CORS);
+        if ((key === 'whatsapp_dispatch_enabled' || key === 'access_requests_enabled') && claims.role !== 'dev') return err('هذا الإعداد يُعدَّل من لوحة المطور فقط', 403, CORS);
         if (key === 'quiz_pass_ratio') {
           const n = Number(value);
           if (!Number.isFinite(n) || n < 0.5 || n > 1) return err('القيمة يجب أن تكون بين 0.5 و1', 400, CORS);
@@ -3251,6 +3283,155 @@ export async function onRequest({ request, env }) {
         ).bind(key, String(value), new Date().toISOString()).run();
         await logEvent(DB, { level: 'info', category: 'settings', message: `تحديث إعداد ${key} إلى ${value}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
         return ok({ ok: true }, 200, CORS);
+      }
+
+      return err('غير موجود', 404, CORS);
+    }
+
+    // ── ACCESS REQUESTS (طلبات الانضمام) ────────────────────────────────────
+    if (resource === 'access-requests') {
+      const canManageAR = (claims) => !!claims && (
+        claims.role === 'dev' || claims.role === 'director' ||
+        (claims.role === 'admin' && Array.isArray(claims.permissions) && claims.permissions.includes('can_manage_access_requests'))
+      );
+
+      // POST /api/access-requests — public, unauthenticated, rate-limited.
+      // The unlisted /request-access page's only entry point into the system.
+      if (!sub && method === 'POST') {
+        await ensureAccessRequestsSchema(DB);
+        const arEnabledRaw = await _getSetting('access_requests_enabled');
+        if (arEnabledRaw !== 'true') return err('الاستمارة غير متاحة حالياً', 403, CORS);
+        const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
+        const allowed = await rateLimit(DB, ip, 'access_request', 5);
+        if (!allowed) return err('محاولات كثيرة جداً — حاول لاحقاً', 429, CORS);
+
+        const body = await request.json();
+        const name = String(body.name || '').trim();
+        const phoneRaw = String(body.phone || '').trim();
+        const gradeLevel = String(body.gradeLevel || '').trim();
+        const schoolChoice = String(body.school || '').trim();
+        const otherSchoolName = String(body.otherSchoolName || '').trim();
+        const source = String(body.source || '').trim();
+        const note = String(body.note || '').trim();
+
+        if (!name || name.length > 100) return err('الاسم غير صالح', 400, CORS);
+        if (!/^05\d{8}$/.test(phoneRaw)) return err('رقم الجوال غير صالح — الصيغة المطلوبة 05xxxxxxxx', 400, CORS);
+        if (!GRADE_LEVELS.includes(gradeLevel)) return err('المرحلة الدراسية غير صالحة', 400, CORS);
+        const isOther = schoolChoice === 'مدرسة أخرى';
+        if (!isOther && schoolChoice !== 'ثانوية الخالدية') return err('المدرسة غير صالحة', 400, CORS);
+        if (isOther && (!otherSchoolName || otherSchoolName.length > 150)) return err('اسم المدرسة مطلوب', 400, CORS);
+        if (note.length > 500) return err('الملاحظة طويلة جداً', 400, CORS);
+
+        const id = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await DB.prepare(
+          `INSERT INTO access_requests (id, name, phone, grade_level, school, is_other_school, source, note, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
+        ).bind(id, name, phoneRaw, gradeLevel, isOther ? otherSchoolName : schoolChoice, isOther ? 1 : 0, source, note, now).run();
+        await logEvent(DB, { level: 'info', category: 'access_request', message: `طلب انضمام جديد: ${name}`, ip });
+        return ok({ ok: true, id }, 201, CORS);
+      }
+
+      // GET /api/access-requests — admin/director/dev with can_manage_access_requests.
+      // Returns the list plus ready-made metrics for the admin UI's stats bar.
+      if (!sub && method === 'GET') {
+        const claims = await verifyToken(request, env, DB);
+        if (!canManageAR(claims)) return err('غير مصرح', 401, CORS);
+        await ensureAccessRequestsSchema(DB);
+        const scoped = claims.role === 'admin' && claims.school && claims.school !== '*';
+        const { results } = scoped
+          ? await DB.prepare('SELECT * FROM access_requests WHERE school = ? ORDER BY created_at DESC').bind(claims.school).all()
+          : await DB.prepare('SELECT * FROM access_requests ORDER BY created_at DESC').all();
+        const stats = { total: results.length, pending: 0, approved: 0, rejected: 0 };
+        for (const r of results) {
+          if (r.status === 'pending') stats.pending++;
+          else if (r.status === 'approved') stats.approved++;
+          else if (r.status === 'rejected') stats.rejected++;
+        }
+        return ok({ requests: results, stats }, 200, CORS);
+      }
+
+      // PATCH /api/access-requests/:id { action: 'approve'|'reject', adminNote?, gradeLevel? }
+      if (sub && method === 'PATCH') {
+        const claims = await verifyToken(request, env, DB);
+        if (!canManageAR(claims)) return err('غير مصرح', 401, CORS);
+        await ensureAccessRequestsSchema(DB);
+        const reqRow = await DB.prepare('SELECT * FROM access_requests WHERE id = ?').bind(sub).first();
+        if (!reqRow) return err('الطلب غير موجود', 404, CORS);
+        if (reqRow.status !== 'pending') return err('تم البت في هذا الطلب مسبقاً', 409, CORS);
+        if (claims.role === 'admin' && claims.school && claims.school !== '*' && reqRow.school !== claims.school) {
+          return err('غير مصرح', 401, CORS);
+        }
+
+        const body = await request.json();
+        const action = body.action;
+        const adminNote = String(body.adminNote || '').trim().slice(0, 500);
+        const now = new Date().toISOString();
+
+        if (action === 'reject') {
+          await DB.prepare(
+            `UPDATE access_requests SET status = 'rejected', admin_note = ?, decided_by = ?, decided_at = ? WHERE id = ?`
+          ).bind(adminNote, claims.name || '', now, sub).run();
+          await logEvent(DB, { level: 'info', category: 'access_request', message: `رفض/أرشفة طلب انضمام: ${reqRow.name}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
+          return ok({ ok: true }, 200, CORS);
+        }
+
+        if (action === 'approve') {
+          const gradeLevel = GRADE_LEVELS.includes(body.gradeLevel) ? body.gradeLevel : reqRow.grade_level;
+          const prefix = (await _getSetting('student_id_prefix')) || DEFAULT_STUDENT_ID_PREFIX;
+          const code = await generateBatchStudentCode(DB, prefix);
+          const sid = crypto.randomUUID();
+          try {
+            await DB.prepare(
+              'INSERT INTO students (id, code, name, school, phone, grade_level, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+            ).bind(sid, code, reqRow.name, reqRow.school, reqRow.phone, gradeLevel, now).run();
+          } catch (e) {
+            if (e.message && e.message.includes('UNIQUE')) return err('تعذّر إنشاء الحساب — تعارض في الكود، أعد المحاولة', 409, CORS);
+            throw e;
+          }
+
+          // Mint a login-access token and send the same approved WhatsApp
+          // template every other "new account" flow in this app uses —
+          // mirrors POST /api/sendpulse/mint-access-token + the button
+          // component shape from WhatsAppDispatchTab's own send() above.
+          await ensureAccessTokensSchema(DB);
+          const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+          const randBytes = crypto.getRandomValues(new Uint8Array(14));
+          const token = Array.from(randBytes, b => alphabet[b % alphabet.length]).join('');
+          await DB.prepare('INSERT INTO access_tokens (token, student_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
+            .bind(token, sid, now, newAccessTokenExpiry()).run();
+
+          let waStatus = 'sent', waError = null;
+          try {
+            const comps = sanitizeWaComponents([
+              { type: 'body', parameters: [{ type: 'text', text: reqRow.name }] },
+              { type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: token }] },
+            ]);
+            const waRes = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+              bot_id: env.SENDPULSE_BOT_ID,
+              phone: normalizeSaudiPhone(reqRow.phone),
+              template: { name: 'student_account_access_template_1', language: { code: 'ar', policy: 'deterministic' }, components: comps },
+            });
+            if (waRes?.success === false || waRes?.error || waRes?.errors) { waStatus = 'failed'; waError = JSON.stringify(waRes); }
+          } catch (e) { waStatus = 'failed'; waError = e.message || 'send failed'; }
+
+          try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_template_logs (
+            id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
+            template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
+          )`).run(); } catch {}
+          await DB.prepare(
+            `INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at)
+             VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(crypto.randomUUID(), sid, reqRow.name, reqRow.phone, 'student_account_access_template_1', JSON.stringify({}), waStatus, waError, now).run();
+
+          await DB.prepare(
+            `UPDATE access_requests SET status = 'approved', admin_note = ?, student_id = ?, decided_by = ?, decided_at = ? WHERE id = ?`
+          ).bind(adminNote, sid, claims.name || '', now, sub).run();
+          await logEvent(DB, { level: 'info', category: 'access_request', message: `قبول طلب انضمام وإنشاء حساب: ${reqRow.name}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
+          return ok({ ok: true, student: { id: sid, code, name: reqRow.name, school: reqRow.school, grade_level: gradeLevel } }, 200, CORS);
+        }
+
+        return err('إجراء غير معروف', 400, CORS);
       }
 
       return err('غير موجود', 404, CORS);

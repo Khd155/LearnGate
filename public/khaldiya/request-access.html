@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>طلب الانضمام — بوابة دعم التعلّم</title>
+  <meta name="description" content="استمارة طلب الانضمام إلى بوابة دعم التعلّم — منظومة تدريبية مخصصة لطلاب الثانوية.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="/moe-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/style.css?v=quiz12">
+
+  <style>
+    body.ra-body {
+      min-height: 100vh;
+      font-family: 'Tajawal', system-ui, sans-serif;
+      background: var(--grad-hero);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(20px, 4vh, 56px) 16px;
+      position: relative;
+      overflow-x: hidden;
+    }
+    .ra-glow { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .5; pointer-events: none; }
+    .ra-glow-a { width: 480px; height: 480px; top: -160px; right: -140px; background: radial-gradient(circle, rgba(255,255,255,.35), transparent 65%); }
+    .ra-glow-b { width: 420px; height: 420px; bottom: -180px; left: -120px; background: radial-gradient(circle, rgba(255,255,255,.22), transparent 65%); }
+
+    .ra-card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 560px;
+      background: rgba(255,255,255,.14);
+      border: 1.5px solid rgba(255,255,255,.3);
+      backdrop-filter: blur(22px) saturate(140%);
+      -webkit-backdrop-filter: blur(22px) saturate(140%);
+      border-radius: 28px;
+      box-shadow: 0 30px 80px -30px rgba(15,23,42,.55);
+      padding: clamp(24px, 4vw, 40px);
+      animation: raRise .5s cubic-bezier(.2,.8,.2,1);
+    }
+    @keyframes raRise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+
+    .ra-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+    .ra-brand img { height: 38px; width: auto; border-radius: 8px; background: #fff; padding: 3px; }
+    .ra-brand span { font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 15px; color: #fff; }
+
+    .ra-title { font-family: 'Cairo', sans-serif; font-weight: 900; font-size: clamp(22px, 4vw, 28px); color: #fff; text-wrap: balance; line-height: 1.3; }
+    .ra-sub { margin-top: 8px; font-size: 14px; line-height: 1.8; color: rgba(255,255,255,.85); max-width: 46ch; }
+
+    .ra-form { margin-top: 28px; display: flex; flex-direction: column; gap: 18px; }
+    .ra-field label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: rgba(255,255,255,.92); margin-bottom: 7px; }
+    .ra-field label svg { width: 15px; height: 15px; flex-shrink: 0; opacity: .85; }
+
+    .ra-input {
+      width: 100%; padding: 12px 14px; border-radius: 14px;
+      border: 1.5px solid rgba(255,255,255,.32);
+      background: rgba(255,255,255,.12);
+      color: #fff; font-size: 14.5px; font-family: inherit;
+      outline: none; transition: border-color .18s, background .18s;
+    }
+    .ra-input::placeholder { color: rgba(255,255,255,.55); }
+    .ra-input:focus { border-color: rgba(255,255,255,.75); background: rgba(255,255,255,.18); }
+    .ra-input.ra-invalid { border-color: #ffb4b4; }
+    textarea.ra-input { resize: none; min-height: 84px; line-height: 1.7; }
+
+    .ra-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .ra-cards.ra-cards-2 { grid-template-columns: repeat(2, 1fr); }
+    .ra-radio-card {
+      position: relative; cursor: pointer;
+      border: 1.5px solid rgba(255,255,255,.3); border-radius: 14px;
+      padding: 11px 8px; text-align: center;
+      background: rgba(255,255,255,.08);
+      font-size: 13.5px; font-weight: 700; color: rgba(255,255,255,.9);
+      transition: transform .15s, background .18s, border-color .18s;
+    }
+    .ra-radio-card input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+    .ra-radio-card:hover { transform: translateY(-1px); background: rgba(255,255,255,.14); }
+    .ra-radio-card:has(input:checked) {
+      background: #fff; color: var(--primary-dk); border-color: #fff;
+      box-shadow: 0 8px 22px -8px rgba(0,0,0,.35);
+    }
+
+    .ra-reveal { overflow: hidden; max-height: 0; opacity: 0; transition: max-height .32s cubic-bezier(.2,.8,.2,1), opacity .25s, margin-top .32s; margin-top: 0; }
+    .ra-reveal.open { max-height: 140px; opacity: 1; margin-top: 12px; }
+
+    select.ra-input { appearance: none; cursor: pointer; }
+    .ra-select-wrap { position: relative; }
+    .ra-select-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: rgba(255,255,255,.7); pointer-events: none; }
+
+    .ra-hint { margin-top: 5px; font-size: 11.5px; color: rgba(255,255,255,.65); }
+    .ra-error { margin-top: 5px; font-size: 11.5px; color: #ffd7d7; font-weight: 700; }
+
+    .ra-submit {
+      margin-top: 6px; width: 100%; border: none; border-radius: 16px;
+      padding: 14px; font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 15.5px;
+      color: var(--primary-dk); cursor: pointer;
+      background: linear-gradient(135deg, #ffffff, #eaf2f9);
+      box-shadow: 0 0 0 0 rgba(255,255,255,.5), 0 14px 32px -12px rgba(0,0,0,.45);
+      transition: transform .15s, box-shadow .25s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .ra-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 0 0 6px rgba(255,255,255,.18), 0 16px 36px -12px rgba(0,0,0,.5); }
+    .ra-submit:active:not(:disabled) { transform: translateY(0); }
+    .ra-submit:disabled { opacity: .65; cursor: not-allowed; }
+    .ra-submit svg { width: 18px; height: 18px; }
+    .ra-spin { animation: raSpin .8s linear infinite; }
+    @keyframes raSpin { to { transform: rotate(360deg); } }
+
+    .ra-form-error {
+      background: rgba(255,180,180,.15); border: 1.5px solid rgba(255,180,180,.4);
+      color: #fff; border-radius: 14px; padding: 11px 14px; font-size: 13px; font-weight: 700;
+      display: none;
+    }
+    .ra-form-error.show { display: block; }
+
+    .ra-success { display: none; text-align: center; padding: 12px 4px 4px; }
+    .ra-success.show { display: block; animation: raRise .45s cubic-bezier(.2,.8,.2,1); }
+    .ra-success-ring {
+      width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 50%;
+      background: rgba(255,255,255,.16); border: 1.5px solid rgba(255,255,255,.35);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ra-success-ring svg { width: 38px; height: 38px; color: #fff; }
+    .ra-success h2 { font-family: 'Cairo', sans-serif; font-weight: 900; font-size: 20px; color: #fff; }
+    .ra-success p { margin-top: 10px; font-size: 14px; line-height: 1.9; color: rgba(255,255,255,.88); max-width: 40ch; margin-inline: auto; }
+    .ra-success a { display: inline-block; margin-top: 22px; color: #fff; font-weight: 700; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+
+    .ra-unavailable { display: none; text-align: center; padding: 30px 4px; }
+    .ra-unavailable.show { display: block; }
+    .ra-unavailable h2 { font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 18px; color: #fff; }
+    .ra-unavailable p { margin-top: 10px; font-size: 13.5px; color: rgba(255,255,255,.8); line-height: 1.8; }
+
+    @media (max-width: 420px) {
+      .ra-cards { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .ra-radio-card { font-size: 12px; padding: 9px 4px; }
+    }
+  </style>
+</head>
+<body class="ra-body">
+  <div class="ra-glow ra-glow-a" aria-hidden="true"></div>
+  <div class="ra-glow ra-glow-b" aria-hidden="true"></div>
+
+  <div class="ra-card">
+    <div class="ra-brand">
+      <img src="/moe-icon.png" alt="وزارة التعليم">
+      <span>بوابة دعم التعلّم</span>
+    </div>
+
+    <div id="ra-formWrap">
+      <h1 class="ra-title">طلب الانضمام إلى بوابة دعم التعلّم</h1>
+      <p class="ra-sub">منظومة تدريبية مخصصة لتمكين طلاب الثانوية من إتقان مهارات القدرات وتحقيق التميز.</p>
+
+      <form class="ra-form" id="raForm" novalidate>
+        <div class="ra-form-error" id="raFormError"></div>
+
+        <div class="ra-field">
+          <label for="raName">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
+            الاسم الكامل
+          </label>
+          <input class="ra-input" id="raName" name="name" type="text" maxlength="100" placeholder="اسمك الثلاثي" required autocomplete="name">
+        </div>
+
+        <div class="ra-field">
+          <label for="raPhone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 14.4c-.9 0-1.8-.15-2.6-.43a1.3 1.3 0 0 0-1.3.28l-1.5 1.5a13.6 13.6 0 0 1-5.8-5.8l1.5-1.5c.32-.32.44-.8.28-1.3-.28-.8-.43-1.7-.43-2.6 0-.66-.54-1.2-1.2-1.2H4.2c-.66 0-1.2.54-1.2 1.2 0 8.5 6.9 15.4 15.4 15.4.66 0 1.2-.54 1.2-1.2v-2.35c0-.66-.54-1.2-1.2-1.2Z"/></svg>
+            رقم الجوال (واتساب)
+          </label>
+          <input class="ra-input" id="raPhone" name="phone" type="tel" inputmode="numeric" maxlength="10" placeholder="05xxxxxxxx" required autocomplete="tel">
+          <p class="ra-hint">سيتم إرسال بيانات الدخول إلى هذا الرقم عبر واتساب فور اعتماد طلبك.</p>
+          <p class="ra-error" id="raPhoneError" style="display:none;">الصيغة المطلوبة: 05xxxxxxxx</p>
+        </div>
+
+        <div class="ra-field">
+          <label>المرحلة الدراسية</label>
+          <div class="ra-cards" id="raGradeCards"></div>
+        </div>
+
+        <div class="ra-field">
+          <label>المدرسة</label>
+          <div class="ra-cards ra-cards-2" id="raSchoolCards">
+            <label class="ra-radio-card"><input type="radio" name="school" value="ثانوية الخالدية" checked>ثانوية الخالدية</label>
+            <label class="ra-radio-card"><input type="radio" name="school" value="مدرسة أخرى">مدرسة أخرى</label>
+          </div>
+          <div class="ra-reveal" id="raOtherSchoolWrap">
+            <input class="ra-input" id="raOtherSchool" type="text" maxlength="150" placeholder="اسم مدرستك">
+          </div>
+        </div>
+
+        <div class="ra-field">
+          <label for="raSource">كيف تعرفت على المنصة؟</label>
+          <div class="ra-select-wrap">
+            <select class="ra-input" id="raSource">
+              <option value="ترشيح من معلم / إدارة المدرسة">ترشيح من معلم / إدارة المدرسة</option>
+              <option value="توصية من زميل دراسي">توصية من زميل دراسي</option>
+              <option value="عبر منصات التواصل الاجتماعي">عبر منصات التواصل الاجتماعي</option>
+              <option value="الدعم الفني المباشر">الدعم الفني المباشر</option>
+              <option value="أخرى">أخرى</option>
+            </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+
+        <div class="ra-field">
+          <label for="raNote">ملاحظات أو سبب الرغبة بالانضمام (اختياري)</label>
+          <textarea class="ra-input" id="raNote" maxlength="500" placeholder="اكتب هنا إن أحببت..."></textarea>
+        </div>
+
+        <button type="submit" class="ra-submit" id="raSubmitBtn">
+          <span id="raSubmitLabel">إرسال الطلب</span>
+        </button>
+      </form>
+    </div>
+
+    <div class="ra-success" id="raSuccess">
+      <div class="ra-success-ring">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>
+      </div>
+      <h2>تم استلام طلبك بنجاح</h2>
+      <p>طلبك الآن قيد المراجعة لدى الإدارة، وسيتم إرسال بيانات الدخول إلى حسابك عبر واتساب فور الاعتماد.</p>
+      <a href="/">← العودة إلى الصفحة الرئيسية</a>
+    </div>
+
+    <div class="ra-unavailable" id="raUnavailable">
+      <h2>الاستمارة غير متاحة حالياً</h2>
+      <p>استقبال طلبات الانضمام معطّل مؤقتاً. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني.</p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var GRADE_LEVELS = ['أول ثانوي', 'ثاني ثانوي', 'ثالث ثانوي'];
+      var gradeWrap = document.getElementById('raGradeCards');
+      GRADE_LEVELS.forEach(function (g, i) {
+        var label = document.createElement('label');
+        label.className = 'ra-radio-card';
+        label.innerHTML = '<input type="radio" name="gradeLevel" value="' + g + '"' + (i === 0 ? ' checked' : '') + '>' + g;
+        gradeWrap.appendChild(label);
+      });
+
+      var schoolRadios = document.querySelectorAll('input[name="school"]');
+      var otherWrap = document.getElementById('raOtherSchoolWrap');
+      var otherInput = document.getElementById('raOtherSchool');
+      function syncOtherSchool() {
+        var isOther = document.querySelector('input[name="school"]:checked').value === 'مدرسة أخرى';
+        otherWrap.classList.toggle('open', isOther);
+        if (!isOther) otherInput.value = '';
+      }
+      schoolRadios.forEach(function (r) { r.addEventListener('change', syncOtherSchool); });
+
+      var phoneInput = document.getElementById('raPhone');
+      var phoneError = document.getElementById('raPhoneError');
+      phoneInput.addEventListener('input', function () {
+        phoneInput.value = phoneInput.value.replace(/[^\d]/g, '').slice(0, 10);
+      });
+
+      var form = document.getElementById('raForm');
+      var formError = document.getElementById('raFormError');
+      var submitBtn = document.getElementById('raSubmitBtn');
+      var submitLabel = document.getElementById('raSubmitLabel');
+
+      function showFormError(msg) {
+        formError.textContent = msg;
+        formError.classList.add('show');
+      }
+      function hideFormError() {
+        formError.classList.remove('show');
+      }
+
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        hideFormError();
+
+        var name = document.getElementById('raName').value.trim();
+        var phone = phoneInput.value.trim();
+        var gradeLevel = document.querySelector('input[name="gradeLevel"]:checked').value;
+        var school = document.querySelector('input[name="school"]:checked').value;
+        var otherSchoolName = otherInput.value.trim();
+        var source = document.getElementById('raSource').value;
+        var note = document.getElementById('raNote').value.trim();
+
+        var phoneValid = /^05\d{8}$/.test(phone);
+        phoneInput.classList.toggle('ra-invalid', !phoneValid);
+        phoneError.style.display = phoneValid ? 'none' : 'block';
+
+        if (!name) { showFormError('يرجى إدخال الاسم الكامل'); return; }
+        if (!phoneValid) { showFormError('رقم الجوال غير صالح — تأكد من الصيغة 05xxxxxxxx'); return; }
+        if (school === 'مدرسة أخرى' && !otherSchoolName) { showFormError('يرجى كتابة اسم مدرستك'); return; }
+
+        submitBtn.disabled = true;
+        submitLabel.textContent = 'جارٍ الإرسال…';
+
+        try {
+          var res = await fetch('/api/access-requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, phone: phone, gradeLevel: gradeLevel, school: school, otherSchoolName: otherSchoolName, source: source, note: note }),
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (!res.ok) {
+            if (res.status === 403) {
+              document.getElementById('ra-formWrap').style.display = 'none';
+              document.getElementById('raUnavailable').classList.add('show');
+              return;
+            }
+            throw new Error(data.error || 'تعذّر إرسال الطلب');
+          }
+          document.getElementById('ra-formWrap').style.display = 'none';
+          document.getElementById('raSuccess').classList.add('show');
+        } catch (err) {
+          showFormError(err.message || 'تعذّر إرسال الطلب — حاول مرة أخرى');
+          submitBtn.disabled = false;
+          submitLabel.textContent = 'إرسال الطلب';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

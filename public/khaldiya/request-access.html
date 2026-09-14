@@ -15,14 +15,16 @@
   <link rel="stylesheet" href="/css/style.css?v=quiz12">
 
   <style>
+    html { color-scheme: dark; }
     body.ra-body {
       min-height: 100vh;
+      min-height: 100dvh;
       font-family: 'Tajawal', system-ui, sans-serif;
       background: var(--grad-hero);
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      padding: clamp(20px, 4vh, 56px) 16px;
+      padding: clamp(20px, 4vh, 56px) 16px calc(clamp(20px, 4vh, 56px) + env(safe-area-inset-bottom, 0px));
       position: relative;
       overflow-x: hidden;
     }
@@ -34,16 +36,18 @@
       position: relative;
       z-index: 1;
       width: 100%;
-      max-width: 560px;
-      background: rgba(255,255,255,.14);
-      border: 1.5px solid rgba(255,255,255,.3);
-      backdrop-filter: blur(22px) saturate(140%);
-      -webkit-backdrop-filter: blur(22px) saturate(140%);
+      max-width: 512px;
+      margin: auto;
+      background: rgba(15,23,42,.55);
+      border: 1.5px solid rgba(255,255,255,.2);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
       border-radius: 28px;
       box-shadow: 0 30px 80px -30px rgba(15,23,42,.55);
-      padding: clamp(24px, 4vw, 40px);
+      padding: 24px;
       animation: raRise .5s cubic-bezier(.2,.8,.2,1);
     }
+    @media (min-width: 480px) { .ra-card { padding: 32px; } }
     @keyframes raRise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 
     .ra-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
@@ -70,28 +74,36 @@
     textarea.ra-input { resize: none; min-height: 84px; line-height: 1.7; }
 
     .ra-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    @media (min-width: 480px) { .ra-cards { gap: 10px; } }
     .ra-cards.ra-cards-2 { grid-template-columns: repeat(2, 1fr); }
     .ra-radio-card {
       position: relative; cursor: pointer;
-      border: 1.5px solid rgba(255,255,255,.3); border-radius: 14px;
+      border: 1.5px solid rgba(255,255,255,.28); border-radius: 14px;
       padding: 11px 8px; text-align: center;
-      background: rgba(255,255,255,.08);
-      font-size: 13.5px; font-weight: 700; color: rgba(255,255,255,.9);
+      background: rgba(255,255,255,.1);
+      font-size: 13.5px; font-weight: 700; color: #fff;
       transition: transform .15s, background .18s, border-color .18s;
     }
     .ra-radio-card input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
-    .ra-radio-card:hover { transform: translateY(-1px); background: rgba(255,255,255,.14); }
+    .ra-radio-card:hover { transform: translateY(-1px); background: rgba(255,255,255,.2); }
     .ra-radio-card:has(input:checked) {
       background: #fff; color: var(--primary-dk); border-color: #fff;
-      box-shadow: 0 8px 22px -8px rgba(0,0,0,.35);
+      font-weight: 800; box-shadow: 0 8px 22px -8px rgba(0,0,0,.35);
     }
 
     .ra-reveal { overflow: hidden; max-height: 0; opacity: 0; transition: max-height .32s cubic-bezier(.2,.8,.2,1), opacity .25s, margin-top .32s; margin-top: 0; }
     .ra-reveal.open { max-height: 140px; opacity: 1; margin-top: 12px; }
 
-    select.ra-input { appearance: none; cursor: pointer; }
+    /* Native <select> — kept native (not a hand-rolled floating list) per
+       spec's own preference for mobile responsiveness. color-scheme:dark
+       above makes the OS-rendered options popup follow this page's dark
+       theme instead of clashing with it; explicit background/color here
+       keep the closed control itself readable, and z-index/position:static
+       (the default) mean the popup layer never participates in document
+       flow, so it can't push the submit button down. */
+    select.ra-input { appearance: none; cursor: pointer; background-color: rgba(30,41,59,.55); padding-left: 40px; }
     .ra-select-wrap { position: relative; }
-    .ra-select-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: rgba(255,255,255,.7); pointer-events: none; }
+    .ra-select-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: rgba(255,255,255,.8); pointer-events: none; }
 
     .ra-hint { margin-top: 5px; font-size: 11.5px; color: rgba(255,255,255,.65); }
     .ra-error { margin-top: 5px; font-size: 11.5px; color: #ffd7d7; font-weight: 700; }

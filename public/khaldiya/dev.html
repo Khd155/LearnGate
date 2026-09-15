@@ -611,16 +611,15 @@
         <div id="sp-msg-search-results" style="display:none;position:absolute;top:100%;right:0;left:0;z-index:20;background:var(--card-bg,#1e293b);border:1px solid rgba(255,255,255,.12);border-radius:10px;margin-top:4px;max-height:260px;overflow-y:auto;"></div>
       </div>
       <div id="sp-msg-search-thread"></div>
+      <!-- Open (needs reply) / Resolved sub-tabs -->
+      <div class="sp-sub-tabs" id="sp-ticket-view-tabs">
+        <button class="sp-sub-btn active" id="sp-view-btn-open" onclick="Dev.setTicketView('open')">🔴 تحتاج رد <span id="sp-view-open-count" style="background:rgba(239,68,68,.25);border-radius:99px;padding:1px 8px;font-size:11px;margin-right:4px;display:none"></span></button>
+        <button class="sp-sub-btn" id="sp-view-btn-resolved" onclick="Dev.setTicketView('resolved')">🟢 محلولة</button>
+      </div>
       <!-- Ticket filters row -->
       <div id="sp-ticket-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
         <select id="sp-school-filter" class="form-select" style="width:auto;font-size:13px;padding:7px 12px;" onchange="Dev.loadTickets()">
           <option value="">🏫 كل المدارس</option>
-        </select>
-        <select id="sp-status-filter" class="form-select" style="width:auto;font-size:13px;padding:7px 12px;" onchange="Dev.loadTickets()">
-          <option value="">كل الحالات</option>
-          <option value="open">🔴 مفتوح</option>
-          <option value="in_progress">🟡 قيد المعالجة</option>
-          <option value="resolved">🟢 تم الحل</option>
         </select>
         <select id="sp-cat-filter" class="form-select" style="width:auto;font-size:13px;padding:7px 12px;" onchange="Dev.loadTickets()">
           <option value="">كل التصنيفات</option>
@@ -3162,10 +3161,20 @@ ${note}
     document.getElementById('sp-btn-messages').classList.toggle('active', tab === 'messages');
     const filtersEl = document.getElementById('sp-ticket-filters');
     if (filtersEl) filtersEl.style.display = tab === 'tickets' ? 'flex' : 'none';
+    const viewTabsEl = document.getElementById('sp-ticket-view-tabs');
+    if (viewTabsEl) viewTabsEl.style.display = tab === 'tickets' ? 'flex' : 'none';
     const searchRow = document.getElementById('sp-msg-search-row');
     if (searchRow) searchRow.style.display = tab === 'messages' ? 'flex' : 'none';
     if (tab === 'tickets') Dev.loadTickets();
     else Dev.loadUnreadMessages();
+  },
+
+  _ticketView: 'open',
+  setTicketView(view) {
+    Dev._ticketView = view;
+    document.getElementById('sp-view-btn-open').classList.toggle('active', view === 'open');
+    document.getElementById('sp-view-btn-resolved').classList.toggle('active', view === 'resolved');
+    Dev.loadTickets();
   },
 
   // Search all students by name/code so any conversation can be opened and
@@ -3236,24 +3245,30 @@ ${note}
     el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
     try {
       const schoolFilter = document.getElementById('sp-school-filter')?.value || '';
-      const statusFilter = document.getElementById('sp-status-filter')?.value || '';
       const catFilter    = document.getElementById('sp-cat-filter')?.value    || '';
+      const view = Dev._ticketView || 'open';
       let url = '/api/tickets';
       if (schoolFilter) url += '?school=' + encodeURIComponent(schoolFilter);
       const { tickets: all } = await fetch(url, { headers: { 'X-Dev-Key': devKey } }).then(r => r.json());
-      let tickets = all;
-      if (statusFilter) tickets = tickets.filter(t => t.status === statusFilter);
-      if (catFilter)    tickets = tickets.filter(t => t.category === catFilter);
+      // Open sub-tab = "تحتاج رد" (open + in_progress); Resolved sub-tab = تم الحل.
+      let tickets = all.filter(t => view === 'resolved' ? t.status === 'resolved' : t.status !== 'resolved');
+      if (catFilter) tickets = tickets.filter(t => t.category === catFilter);
 
-      // Update count badge on tab button
+      // Update count badges (tab button + open sub-tab)
       const open = all.filter(t => t.status === 'open').length;
       const countEl = document.getElementById('sp-ticket-count');
       if (countEl) {
         countEl.textContent = open > 0 ? open + ' مفتوحة' : '';
         countEl.style.display = open > 0 ? 'inline' : 'none';
       }
+      const openViewCountEl = document.getElementById('sp-view-open-count');
+      if (openViewCountEl) {
+        const needsReply = all.filter(t => t.status !== 'resolved').length;
+        openViewCountEl.textContent = needsReply > 0 ? needsReply : '';
+        openViewCountEl.style.display = needsReply > 0 ? 'inline' : 'none';
+      }
 
-      if (!tickets.length) { el.innerHTML = '<div class="empty">لا توجد تذاكر' + (schoolFilter ? ' لهذه المدرسة' : '') + '</div>'; return; }
+      if (!tickets.length) { el.innerHTML = '<div class="empty">' + (view === 'resolved' ? 'لا توجد تذاكر محلولة' : 'لا توجد تذاكر تحتاج رد') + (schoolFilter ? ' لهذه المدرسة' : '') + '</div>'; return; }
 
       // Group open tickets at top
       const sorted = [...tickets].sort((a, b) => {

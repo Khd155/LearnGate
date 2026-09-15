@@ -840,7 +840,7 @@
             <select id="wi-school-filter" class="form-select" style="width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadWaIssueStudents()">
               <option value="">كل المدارس</option>
             </select>
-            <input type="text" id="wi-search" class="form-input" placeholder="🔍 بحث بالاسم" style="width:auto;font-size:13px;padding:6px 12px;flex:1;min-width:140px;" oninput="Dev.filterWaIssueStudents()">
+            <input type="text" id="wi-search" class="form-input" placeholder="🔍 بحث بالاسم أو رقم الجوال" style="width:auto;font-size:13px;padding:6px 12px;flex:1;min-width:140px;" oninput="Dev.filterWaIssueStudents()">
             <button class="btn btn-warn btn-sm" onclick="Dev.loadWaIssueStudents()">🔄 تحديث</button>
           </div>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;cursor:pointer;">
@@ -2860,19 +2860,26 @@ ${dataRows}
 
   filterWaIssueStudents() {
     const q = (document.getElementById('wi-search')?.value || '').trim().toLowerCase();
-    const filtered = q ? Dev._waIssueStudents.filter(s => (s.name || '').toLowerCase().includes(q)) : Dev._waIssueStudents;
+    const filtered = q
+      ? Dev._waIssueStudents.filter(s => (s.name || '').toLowerCase().includes(q) || (s.phone || '').includes(q))
+      : Dev._waIssueStudents;
     Dev._renderWaIssueStudents(filtered);
   },
 
   _renderWaIssueStudents(list) {
     const el = document.getElementById('wi-students-list');
     if (!list.length) { el.innerHTML = '<div class="empty">لا يوجد طلاب</div>'; return; }
-    el.innerHTML = list.map(s => `
-      <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;">
-        <input type="checkbox" data-wi-id="${s.id}" ${Dev._waIssueSelected.has(s.id) ? 'checked' : ''} onchange="Dev.toggleWaIssueStudent('${s.id}', this.checked)">
-        <span style="flex:1;">${escapeHtml(s.name)}</span>
-        <span style="color:var(--muted);font-size:12px;direction:ltr;">${s.phone ? escapeHtml(s.phone) : '— بدون جوال'}</span>
-      </label>`).join('');
+    el.innerHTML = `<table class="data-table" style="width:100%;">
+      <thead><tr><th style="width:34px;"></th><th>الطالب</th><th>الجوال</th><th>المدرسة</th></tr></thead>
+      <tbody>${list.map(s => `
+        <tr style="cursor:pointer;" onclick="if(event.target.tagName!=='INPUT'){const c=this.querySelector('input');c.checked=!c.checked;Dev.toggleWaIssueStudent('${s.id}',c.checked);}">
+          <td><input type="checkbox" data-wi-id="${s.id}" ${Dev._waIssueSelected.has(s.id) ? 'checked' : ''} onchange="Dev.toggleWaIssueStudent('${s.id}', this.checked)" onclick="event.stopPropagation()"></td>
+          <td style="font-weight:600;">${escapeHtml(s.name)}</td>
+          <td style="direction:ltr;text-align:right;color:${s.phone ? 'inherit' : 'var(--muted)'};font-size:12.5px;">${s.phone ? escapeHtml(s.phone) : '— بدون جوال'}</td>
+          <td><span class="badge badge-school">${escapeHtml(s.school) || '—'}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
     Dev._updateWaIssueCount();
   },
 

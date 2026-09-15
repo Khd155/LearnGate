@@ -124,6 +124,25 @@
     .perm-toggle{display:flex;align-items:center;justify-content:center}
     .perm-toggle input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--primary)}
 
+    /* ── Permissions page v2: per-admin grouped cards + soft toggle switches ── */
+    .perm-cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:16px}
+    .perm-cat-card{background:var(--surface);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px}
+    .perm-cat-title{font-size:13.5px;font-weight:700;color:#e2e8f0;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+    .perm-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.06)}
+    .perm-row:first-of-type{border-top:none}
+    .perm-row-label{font-size:13px;color:#cbd5e1;line-height:1.5}
+    .toggle-switch{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0}
+    .toggle-switch input{opacity:0;width:0;height:0}
+    .toggle-slider{position:absolute;inset:0;background:var(--surface2);border-radius:99px;cursor:pointer;transition:background .18s}
+    .toggle-slider::before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .18s}
+    .toggle-switch input:checked + .toggle-slider{background:var(--primary)}
+    .toggle-switch input:checked + .toggle-slider::before{transform:translateX(-18px)}
+    .toggle-switch input:disabled + .toggle-slider{opacity:.5;cursor:not-allowed}
+    .floating-save-bar{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:60;
+      display:flex;align-items:center;gap:12px;background:#111c2e;border:1px solid rgba(255,255,255,.14);
+      border-radius:14px;padding:10px 16px;box-shadow:0 12px 34px -10px rgba(0,0,0,.55)}
+    .floating-save-bar span{font-size:12.5px;color:#cbd5e1}
+
     /* ── Forms ── */
     .form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:4px}
     .form-group{display:flex;flex-direction:column;gap:6px;flex:1;min-width:160px}
@@ -499,10 +518,23 @@
       <div class="section">
         <div class="section-title"><span>🔐</span> صلاحيات المشرفين</div>
         <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
-          فعّل صلاحية "تعديل الأسئلة" لمشرف معين ليظهر له تبويب الأسئلة في لوحته، ويتمكن من إضافة/تعديل/حذف الأسئلة.
+          اختر مشرفاً لعرض وتعديل صلاحياته — التبديلات لا تُحفظ إلا عند الضغط على "حفظ الصلاحيات".
         </div>
-        <div id="permissions-list"><div class="empty">جارٍ التحميل...</div></div>
+        <div class="form-group" style="max-width:420px;">
+          <select id="perm-admin-select" class="form-select" onchange="Dev.selectPermAdmin(this.value)">
+            <option value="">— اختر مشرفاً —</option>
+          </select>
+        </div>
+        <div id="perm-admin-body" style="margin-top:6px;">
+          <div class="empty">اختر مشرفاً من القائمة أعلاه لعرض صلاحياته</div>
+        </div>
       </div>
+    </div>
+
+    <div id="perm-save-bar" class="floating-save-bar" style="display:none;">
+      <span id="perm-save-bar-text">تعديلات غير محفوظة</span>
+      <button class="btn" style="background:var(--surface2);color:#e2e8f0" onclick="Dev.discardPermChanges()">تراجع</button>
+      <button class="btn btn-primary" onclick="Dev.savePermChanges()">💾 حفظ الصلاحيات</button>
     </div>
 
     <!-- ── Questions ── -->
@@ -934,6 +966,28 @@ function confirmDialog(message, { title = 'تأكيد', okText = 'تأكيد', c
   return new Promise(res => { _modalResolve = res; });
 }
 
+// Typed-word confirmation for the truly destructive danger-zone actions
+// (whole-school wipe, question-bank wipe) — the OK button stays disabled
+// until the exact word is typed, on top of the existing confirmDialog step.
+function typedConfirmDialog(message, requiredWord, { title = 'تأكيد نهائي', okText = 'تنفيذ نهائي' } = {}) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-msg').innerHTML = `${escapeHtml(message)}<br><br>اكتب كلمة <b>${escapeHtml(requiredWord)}</b> لتأكيد التنفيذ:`;
+  const input = document.getElementById('modal-input');
+  input.style.display = 'block';
+  input.value = '';
+  input.placeholder = requiredWord;
+  document.getElementById('modal-actions').innerHTML = `
+    <button class="btn" style="background:var(--surface2);color:#e2e8f0" onclick="_closeModal(false)">إلغاء</button>
+    <button class="btn btn-danger" id="modal-typed-ok" disabled onclick="_closeModal(true)">${okText}</button>`;
+  document.getElementById('modal-overlay').classList.add('show');
+  document.addEventListener('keydown', _modalKeydown);
+  input.oninput = () => {
+    document.getElementById('modal-typed-ok').disabled = input.value.trim() !== requiredWord;
+  };
+  setTimeout(() => input.focus(), 50);
+  return new Promise(res => { _modalResolve = res; });
+}
+
 function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -1169,57 +1223,121 @@ const Dev = {
   // in functions/api/[[route]].js) — toggling them off here changes what's
   // stored but doesn't restrict a director; change their role instead if
   // real restriction is the goal (see the note under the table).
-  _PERMISSION_COLUMNS: [
-    { key: 'edit_questions',   label: 'تعديل/إضافة/حذف الأسئلة',        directorAuto: true },
-    { key: 'view_diff',        label: 'رؤية ومقارنة إجابات الطلاب',      directorAuto: true },
-    { key: 'send_whatsapp',    label: 'إرسال رسائل واتساب',              directorAuto: false },
-    { key: 'manage_students',  label: 'إضافة/حذف الطلاب',                directorAuto: false },
-    { key: 'export_students',  label: 'تصدير بيانات الطلاب (Excel)',     directorAuto: false },
-    { key: 'send_broadcast',   label: 'إرسال رسائل جماعية',              directorAuto: false },
-    { key: 'reply_tickets',    label: 'الرد على تذاكر الدعم الفني',      directorAuto: false },
-    { key: 'can_manage_access_requests', label: 'مراجعة طلبات الانضمام', directorAuto: false },
+  // Categorized for the per-admin card grid (spec's 3 groups) — same keys
+  // the backend's ALLOWED_PERMISSIONS whitelist accepts, just grouped for
+  // display instead of one wide table with horizontal scroll.
+  _PERMISSION_CATEGORIES: [
+    { title: 'إدارة التقييمات والأسئلة', icon: '📝', perms: [
+      { key: 'edit_questions', label: 'تعديل/إضافة/حذف الأسئلة', directorAuto: true },
+      { key: 'view_diff',      label: 'رؤية ومقارنة إجابات الطلاب', directorAuto: true },
+    ] },
+    { title: 'شؤون الطلاب', icon: '👥', perms: [
+      { key: 'manage_students', label: 'إضافة/حذف الطلاب', directorAuto: false },
+      { key: 'export_students', label: 'تصدير بيانات الطلاب (Excel)', directorAuto: false },
+      { key: 'can_manage_access_requests', label: 'مراجعة طلبات الانضمام', directorAuto: false },
+    ] },
+    { title: 'المراسلات والدعم الفني', icon: '💬', perms: [
+      { key: 'send_whatsapp',  label: 'إرسال رسائل واتساب', directorAuto: false },
+      { key: 'send_broadcast', label: 'إرسال رسائل جماعية', directorAuto: false },
+      { key: 'reply_tickets',  label: 'الرد على تذاكر الدعم الفني', directorAuto: false },
+    ] },
   ],
+
+  _permAdmins: [],
+  _permSelectedId: null,
+  _permOriginal: [],  // permission keys the selected admin had on load
+  _permPending: [],   // permission keys as currently toggled (unsaved)
 
   async loadPermissions() {
     const { admins } = await apiDev('/dev/admins');
-    const el = document.getElementById('permissions-list');
-    if (!admins.length) { el.innerHTML = '<div class="empty">لا يوجد مشرفون</div>'; return; }
-    const cols = Dev._PERMISSION_COLUMNS;
-    el.innerHTML = `<div class="dt-scroll"><table class="data-table dt-frozen-first">
-      <thead><tr><th>الاسم</th><th>المدرسة</th>${cols.map(c => `<th>${escapeHtml(c.label)}${c.directorAuto ? ' ⚠️' : ''}</th>`).join('')}</tr></thead>
-      <tbody>${admins.map(a => {
-        let perms = [];
-        try { perms = JSON.parse(a.permissions || '[]'); } catch {}
-        const isDirector = a.role === 'director';
-        return `<tr>
-          <td>${escapeHtml(adminLabel(a.name))}${isDirector ? ' <span class="badge">مدير</span>' : ''}</td>
-          <td>${a.school === '*' ? '<span class="badge badge-super">⭐ كل المدارس</span>' : escapeHtml(a.school || '—')}</td>
-          ${cols.map(c => `<td>
-            <label class="perm-toggle">
-              <input type="checkbox" ${perms.includes(c.key) ? 'checked' : ''}
-                onchange="Dev.togglePermission('${a.id}','${c.key}',this.checked)">
-            </label>
-          </td>`).join('')}
-        </tr>`;
-      }).join('')}</tbody>
-    </table></div>
-    <p style="font-size:12px;color:var(--muted);margin-top:10px;">
-      ⚠️ صلاحيتا "تعديل الأسئلة" و"مقارنة الإجابات" ممنوحتان تلقائيًا للمدير بحكم دوره في نقاط تحقق أخرى بالخادم — تعطيلهما هنا لمدير يغيّر ما يُخزَّن لكنه لا يقيّده فعليًا؛ لتقييد مدير فعليًا غيّر دوره إلى "مشرف" من الجدول أعلاه.
-    </p>`;
+    Dev._permAdmins = admins;
+    const sel = document.getElementById('perm-admin-select');
+    const keepId = Dev._permSelectedId;
+    sel.innerHTML = '<option value="">— اختر مشرفاً —</option>' +
+      admins.map(a => `<option value="${a.id}">${escapeHtml(adminLabel(a.name))}${a.role === 'director' ? ' (مدير)' : ''} — ${a.school === '*' ? 'كل المدارس' : escapeHtml(a.school || '—')}</option>`).join('');
+    if (keepId && admins.some(a => a.id === keepId)) {
+      sel.value = keepId;
+      Dev.selectPermAdmin(keepId);
+    } else {
+      Dev._permSelectedId = null;
+      document.getElementById('perm-admin-body').innerHTML = '<div class="empty">اختر مشرفاً من القائمة أعلاه لعرض صلاحياته</div>';
+      Dev._syncPermSaveBar();
+    }
   },
 
-  async togglePermission(adminId, perm, enabled) {
-    const { admins } = await apiDev('/dev/admins');
-    const admin = admins.find(a => a.id === adminId);
+  selectPermAdmin(id) {
+    Dev._permSelectedId = id || null;
+    const body = document.getElementById('perm-admin-body');
+    if (!id) { body.innerHTML = '<div class="empty">اختر مشرفاً من القائمة أعلاه لعرض صلاحياته</div>'; Dev._syncPermSaveBar(); return; }
+    const admin = Dev._permAdmins.find(a => a.id === id);
+    if (!admin) return;
     let perms = [];
-    try { perms = JSON.parse(admin?.permissions || '[]'); } catch {}
-    perms = enabled ? Array.from(new Set([...perms, perm])) : perms.filter(p => p !== perm);
+    try { perms = JSON.parse(admin.permissions || '[]'); } catch {}
+    Dev._permOriginal = [...perms];
+    Dev._permPending = [...perms];
+    Dev._renderPermBody(admin);
+  },
+
+  _renderPermBody(admin) {
+    const isDirector = admin.role === 'director';
+    const body = document.getElementById('perm-admin-body');
+    body.innerHTML = `
+      <div class="perm-cat-grid">
+        ${Dev._PERMISSION_CATEGORIES.map(cat => `
+          <div class="perm-cat-card">
+            <div class="perm-cat-title"><span>${cat.icon}</span> ${escapeHtml(cat.title)}</div>
+            ${cat.perms.map(p => `
+              <div class="perm-row">
+                <span class="perm-row-label">${escapeHtml(p.label)}${p.directorAuto ? ' <span title="ممنوحة تلقائياً لدور المدير بحكم نقاط تحقق أخرى بالخادم">⚠️</span>' : ''}</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" ${Dev._permPending.includes(p.key) ? 'checked' : ''}
+                    onchange="Dev.togglePermPending('${p.key}', this.checked)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>`).join('')}
+          </div>`).join('')}
+      </div>
+      ${isDirector ? `<p style="font-size:12px;color:var(--muted);margin-top:14px;">
+        ⚠️ صلاحيتا "تعديل الأسئلة" و"مقارنة الإجابات" ممنوحتان تلقائيًا للمدير بحكم دوره — تعطيلهما هنا يغيّر ما يُخزَّن لكنه لا يقيّده فعليًا؛ لتقييد مدير فعليًا غيّر دوره إلى "مشرف" من تبويب المدارس والمشرفون.
+      </p>` : ''}`;
+    Dev._syncPermSaveBar();
+  },
+
+  togglePermPending(key, enabled) {
+    Dev._permPending = enabled
+      ? Array.from(new Set([...Dev._permPending, key]))
+      : Dev._permPending.filter(k => k !== key);
+    Dev._syncPermSaveBar();
+  },
+
+  _permDirty() {
+    if (Dev._permOriginal.length !== Dev._permPending.length) return true;
+    const a = [...Dev._permOriginal].sort(), b = [...Dev._permPending].sort();
+    return a.some((v, i) => v !== b[i]);
+  },
+
+  _syncPermSaveBar() {
+    const bar = document.getElementById('perm-save-bar');
+    bar.style.display = (Dev._permSelectedId && Dev._permDirty()) ? 'flex' : 'none';
+  },
+
+  discardPermChanges() {
+    Dev._permPending = [...Dev._permOriginal];
+    const admin = Dev._permAdmins.find(a => a.id === Dev._permSelectedId);
+    if (admin) Dev._renderPermBody(admin);
+  },
+
+  async savePermChanges() {
+    if (!Dev._permSelectedId) return;
     try {
-      await apiDev('/dev/admins/' + adminId, { method: 'PATCH', body: JSON.stringify({ permissions: perms }) });
+      await apiDev('/dev/admins/' + Dev._permSelectedId, { method: 'PATCH', body: JSON.stringify({ permissions: Dev._permPending }) });
       showToast('تم تحديث الصلاحيات ✅');
+      Dev._permOriginal = [...Dev._permPending];
+      Dev._syncPermSaveBar();
+      const idx = Dev._permAdmins.findIndex(a => a.id === Dev._permSelectedId);
+      if (idx !== -1) Dev._permAdmins[idx].permissions = JSON.stringify(Dev._permPending);
     } catch (e) {
       showToast('فشل تحديث الصلاحيات: ' + e.message, true);
-      Dev.loadPermissions();
     }
   },
 
@@ -1938,8 +2056,7 @@ const Dev = {
   async clearSchoolStudents() {
     const school = document.getElementById('clear-school-select').value;
     if (!school) return;
-    if (!await confirmDialog(`حذف جميع طلاب "${school}" نهائياً؟`, { title: 'مسح طلاب مدرسة', okText: 'استمرار' })) return;
-    if (!await confirmDialog('هذا الإجراء لا يمكن التراجع عنه. متأكد؟', { title: 'تأكيد أخير', okText: 'حذف نهائي' })) return;
+    if (!await typedConfirmDialog(`حذف جميع طلاب "${school}" نهائياً — هذا الإجراء لا يمكن التراجع عنه.`, 'تأكيد', { title: 'مسح طلاب مدرسة' })) return;
     await apiDev('/dev/students?school=' + encodeURIComponent(school), { method: 'DELETE' });
     showToast('تم الحذف ✅');
     Dev.loadStats();
@@ -1970,7 +2087,7 @@ const Dev = {
   },
 
   async clearQuestions() {
-    if (!await confirmDialog('مسح جميع الأسئلة من قاعدة البيانات؟ سيتم استخدام الأسئلة الافتراضية.', { title: 'مسح بنك الأسئلة', okText: 'مسح' })) return;
+    if (!await typedConfirmDialog('مسح جميع الأسئلة من قاعدة البيانات نهائياً — سيتم استخدام الأسئلة الافتراضية.', 'تأكيد', { title: 'مسح بنك الأسئلة' })) return;
     await apiDev('/dev/questions', { method: 'DELETE' });
     showToast('تم مسح الأسئلة ✅');
     Dev.loadQuestions();
@@ -2028,8 +2145,7 @@ const Dev = {
   async resetSchoolTests() {
     const school = document.getElementById('tm-reset-school').value;
     if (!school) return;
-    if (!await confirmDialog(`حذف جميع نتائج اختبارات الأحياء لمدرسة "${school}" نهائياً؟`, { title: 'إعادة تعيين اختبارات مدرسة', okText: 'استمرار' })) return;
-    if (!await confirmDialog('هذا الإجراء لا يمكن التراجع عنه. متأكد؟', { title: 'تأكيد أخير', okText: 'حذف نهائي' })) return;
+    if (!await typedConfirmDialog(`حذف جميع نتائج اختبارات الأحياء لمدرسة "${school}" نهائياً — هذا الإجراء لا يمكن التراجع عنه.`, 'تأكيد', { title: 'إعادة تعيين اختبارات مدرسة' })) return;
     await apiDev('/dev/test-results?school=' + encodeURIComponent(school) + '&confirm=RESET_SCHOOL_TESTS', { method: 'DELETE' });
     showToast('تم إعادة تعيين اختبارات المدرسة ✅');
     Dev.loadTestResults();

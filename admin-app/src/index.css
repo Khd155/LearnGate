@@ -113,6 +113,15 @@ html {
 }
 .animate-pulse-ring { animation: pulse-ring 2s ease-out infinite; }
 
+/* Gentle attention pulse for the access-requests nav badge — a slow
+   opacity/scale breathe, not Tailwind's default animate-pulse (too fast/
+   strong for something sitting in the tab bar at all times). */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .75; transform: scale(1.06); }
+}
+.animate-pulse-soft { animation: pulse-soft 2.2s ease-in-out infinite; }
+
 /* ─── Interactive element base enhancements ──────────────────────────────── */
 button, [role="button"] {
   cursor: pointer;

@@ -78,6 +78,54 @@ function severityChip(reasons: string[]) {
   return '🟡';
 }
 
+const ACCESS_REQUESTS_BANNER_DISMISS_KEY = 'lg_admin_ar_banner_dismissed';
+
+// Session-scoped dismiss (sessionStorage, not localStorage) — reappears
+// next login/reload, same "ignore for now, not forever" behavior the spec
+// asks for ("تجاهل التنبيه أثناء الجلسة الحالية").
+function AccessRequestsBanner({ count }: { count: number }) {
+  const setTab = useStore((s) => s.setTab);
+  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(ACCESS_REQUESTS_BANNER_DISMISS_KEY) === '1');
+
+  if (dismissed || count <= 0) return null;
+
+  const dismiss = () => {
+    sessionStorage.setItem(ACCESS_REQUESTS_BANNER_DISMISS_KEY, '1');
+    setDismissed(true);
+  };
+
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 backdrop-blur-sm dark:border-amber-500/25 dark:bg-amber-500/10">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5" aria-hidden="true">
+          <path d="M4 12h4l2 3h4l2-3h4" />
+          <path d="M5.5 5h13a1 1 0 0 1 .97.76L21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6l1.53-6.24A1 1 0 0 1 5.5 5Z" />
+        </svg>
+      </span>
+      <p className="flex-1 text-sm font-medium text-amber-800 dark:text-amber-300">
+        لديك {count} {count === 1 ? 'طلب انضمام جديد' : 'طلبات انضمام جديدة'} قيد المراجعة بانتظار الاعتماد.
+      </p>
+      <button
+        type="button"
+        onClick={() => setTab('accessRequests')}
+        className="shrink-0 whitespace-nowrap rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700"
+      >
+        مراجعة الطلبات الآن ←
+      </button>
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label="إغلاق"
+        className="shrink-0 text-amber-500 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-200"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+          <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 export default function DashboardTab() {
   const session = useStore((s) => s.session);
   const students = useStore((s) => s.students);
@@ -91,6 +139,7 @@ export default function DashboardTab() {
   const openStudentProfile = useStore((s) => s.openStudentProfile);
   const threads = useStore((s) => s.threads);
   const loadThreads = useStore((s) => s.loadThreads);
+  const pendingAccessRequestsCount = useStore((s) => s.pendingAccessRequestsCount);
 
   const [loading, setLoading] = useState(true);
   const [atRisk, setAtRisk] = useState<AtRiskRes | null>(null);
@@ -266,6 +315,8 @@ export default function DashboardTab() {
 
   return (
     <div className="space-y-5">
+      <AccessRequestsBanner count={pendingAccessRequestsCount} />
+
       {/* ── Zone 1: Quick Actions — the first thing on the page. Every card is
           an actionable worklist, not a stat. ── */}
       <section>

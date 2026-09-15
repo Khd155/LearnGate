@@ -67,6 +67,13 @@ interface StoreState {
   statsLoading: boolean;
   loadStats: () => Promise<void>;
 
+  // access requests: pending count, used for the nav-tab badge + dashboard
+  // welcome banner. Silently no-ops (stays at 0) for a session without
+  // can_manage_access_requests — the endpoint 401s and the catch swallows it.
+  pendingAccessRequestsCount: number;
+  setPendingAccessRequestsCount: (n: number) => void;
+  loadPendingAccessRequestsCount: () => Promise<void>;
+
   // messages
   unreadCounts: UnreadCount[];
   loadUnreadCounts: () => Promise<void>;
@@ -192,6 +199,17 @@ export const useStore = create<StoreState>((set, get) => ({
     if (typeof r.score === 'number') return r.score;
     if (r.total) return Math.round((r.correct / r.total) * 100);
     return null;
+  },
+
+  pendingAccessRequestsCount: 0,
+  setPendingAccessRequestsCount: (n) => set({ pendingAccessRequestsCount: n }),
+  loadPendingAccessRequestsCount: async () => {
+    try {
+      const res = await api.get<{ stats: { pending: number } }>('/access-requests');
+      set({ pendingAccessRequestsCount: res.stats.pending });
+    } catch {
+      /* non-fatal — 401 for a session without the permission, network blip, etc. */
+    }
   },
 
   unreadCounts: [],

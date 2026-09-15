@@ -371,9 +371,17 @@ export default function AccessRequestsTab() {
     return () => clearTimeout(t);
   }, [search]);
 
+  const setPendingAccessRequestsCount = useStore((s) => s.setPendingAccessRequestsCount);
   const load = () => {
     api.get<{ requests: AccessRequest[]; stats: typeof stats }>('/access-requests')
-      .then((r) => { setRequests(r.requests); setStats(r.stats); setSelected(new Set()); })
+      .then((r) => {
+        setRequests(r.requests);
+        setStats(r.stats);
+        setSelected(new Set());
+        // Keeps the nav-tab badge + dashboard banner in sync the moment a
+        // decision changes the pending count — no reload, no separate poll.
+        setPendingAccessRequestsCount(r.stats.pending);
+      })
       .catch(() => setRequests([]));
   };
 

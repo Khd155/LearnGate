@@ -1056,13 +1056,22 @@ const Dev = {
     } catch (e) { showToast('فشل التعديل: ' + e.message, true); }
   },
 
+  _adminsCache: [],
+  _editingAdminId: null,
+
   async loadAdmins() {
     const { admins } = await apiDev('/dev/admins');
+    Dev._adminsCache = admins;
+    Dev._renderAdmins();
+  },
+
+  _renderAdmins() {
+    const admins = Dev._adminsCache;
     const el = document.getElementById('admins-list');
     if (!admins.length) { el.innerHTML = '<div class="empty">لا يوجد مشرفون</div>'; return; }
     el.innerHTML = `<div class="dt-scroll"><table class="data-table dt-frozen-first">
       <thead><tr><th>الاسم</th><th>رقم السجل</th><th>الدور</th><th>المدرسة</th><th></th></tr></thead>
-      <tbody>${admins.map(a => `
+      <tbody>${admins.map(a => Dev._editingAdminId === a.id ? Dev._renderAdminEditRow(a) : `
         <tr>
           <td>${escapeHtml(adminLabel(a.name))}</td>
           <td style="direction:ltr;text-align:right">${escapeHtml(a.code)}</td>
@@ -1078,10 +1087,65 @@ const Dev = {
             : a.school
               ? '<span class="badge badge-school">' + escapeHtml(a.school) + '</span>'
               : '<span class="badge badge-any">—</span>'}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="Dev.deleteAdmin('${a.id}','${escapeHtml(a.name).replace(/'/g, "\\'")}')">حذف</button></td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-sm" title="تعديل الاسم/رقم الدخول" onclick="Dev.startEditAdmin('${a.id}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="Dev.deleteAdmin('${a.id}','${escapeHtml(a.name).replace(/'/g, "\\'")}')">حذف</button>
+          </td>
         </tr>`).join('')}
       </tbody>
     </table></div>`;
+  },
+
+  _renderAdminEditRow(a) {
+    return `
+        <tr>
+          <td><input type="text" id="edit-admin-name-${a.id}" class="form-input" value="${escapeHtml(a.name)}" style="min-width:140px;"></td>
+          <td style="direction:ltr;">
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="edit-admin-code-${a.id}" class="form-input" value="${escapeHtml(a.code)}" maxlength="10" inputmode="numeric"
+                style="flex:1;min-width:110px;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+              <button type="button" class="btn btn-sm" title="توليد رقم دخول عشوائي" onclick="Dev.regenerateEditAdminCode('${a.id}', '${(a.school || '*').replace(/'/g, "\\'")}')">🎲</button>
+            </div>
+          </td>
+          <td colspan="2" style="color:var(--muted);font-size:12.5px;">الدور والمدرسة لا تتغيران هنا</td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-success btn-sm" onclick="Dev.saveEditAdmin('${a.id}')">✔️ حفظ</button>
+            <button class="btn btn-sm" onclick="Dev.cancelEditAdmin()">إلغاء</button>
+          </td>
+        </tr>`;
+  },
+
+  startEditAdmin(id) {
+    Dev._editingAdminId = id;
+    Dev._renderAdmins();
+  },
+
+  cancelEditAdmin() {
+    Dev._editingAdminId = null;
+    Dev._renderAdmins();
+  },
+
+  async regenerateEditAdminCode(id, school) {
+    try {
+      const { code } = await apiDev('/dev/generate-admin-code?school=' + encodeURIComponent(school));
+      const input = document.getElementById(`edit-admin-code-${id}`);
+      if (input) input.value = code;
+    } catch (e) { showToast('تعذّر توليد رقم: ' + e.message, true); }
+  },
+
+  async saveEditAdmin(id) {
+    const name = document.getElementById(`edit-admin-name-${id}`).value.trim();
+    const code = document.getElementById(`edit-admin-code-${id}`).value.trim();
+    if (!name) { showToast('أدخل الاسم', true); return; }
+    if (!/^\d{10}$/.test(code)) { showToast('رقم الدخول يجب أن يكون ١٠ أرقام', true); return; }
+    try {
+      await apiDev(`/dev/admins/${id}`, { method: 'PATCH', body: JSON.stringify({ name, code }) });
+      showToast('تم تحديث بيانات المشرف بنجاح ✅');
+      Dev._editingAdminId = null;
+      Dev.loadAdmins();
+    } catch (e) {
+      showToast('فشل التحديث: ' + e.message, true);
+    }
   },
 
   // Dynamic role switch — updates in place via PATCH, no delete/recreate.

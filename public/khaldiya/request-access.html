@@ -52,12 +52,22 @@
     @media (min-width: 480px) { .ra-card { padding: 32px; } }
     @keyframes raRise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 
-    .ra-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
-    .ra-brand img { height: 38px; width: auto; border-radius: 8px; background: #fff; padding: 3px; }
-    .ra-brand span { font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 15px; color: #fff; }
+    .ra-header { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 24px; }
+    .ra-brand {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 16px; margin-bottom: 16px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,.22);
+      box-shadow: 0 4px 14px -6px rgba(0,0,0,.25);
+    }
+    .ra-brand img { height: 18px; width: 18px; border-radius: 5px; object-fit: contain; background: #fff; padding: 2px; }
+    .ra-brand span { font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 13px; color: #fff; }
 
-    .ra-title { font-family: 'Cairo', sans-serif; font-weight: 900; font-size: clamp(22px, 4vw, 28px); color: #fff; text-wrap: balance; line-height: 1.3; }
-    .ra-sub { margin-top: 8px; font-size: 14px; line-height: 1.8; color: rgba(255,255,255,.85); max-width: 46ch; }
+    .ra-title { font-family: 'Cairo', sans-serif; font-weight: 900; font-size: clamp(24px, 4vw, 30px); color: #fff; letter-spacing: -.01em; text-wrap: balance; line-height: 1.3; }
+    .ra-sub { margin-top: 8px; font-size: 13.5px; line-height: 1.8; color: rgb(226,232,240); max-width: 38ch; }
 
     .ra-form { margin-top: 28px; display: flex; flex-direction: column; gap: 18px; }
     .ra-field label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: rgba(255,255,255,.92); margin-bottom: 7px; }
@@ -164,14 +174,16 @@
   <div class="ra-glow ra-glow-b" aria-hidden="true"></div>
 
   <div class="ra-card">
-    <div class="ra-brand">
-      <img src="/moe-icon.png" alt="وزارة التعليم">
-      <span>بوابة دعم التعلّم</span>
+    <div class="ra-header">
+      <div class="ra-brand">
+        <img src="/moe-icon.png" alt="وزارة التعليم">
+        <span>بوابة دعم التعلّم</span>
+      </div>
+      <h1 class="ra-title">طلب الانضمام</h1>
+      <p class="ra-sub">منظومة تدريبية مخصصة لتمكين طلاب الثانوية من إتقان مهارات القدرات وتحقيق التميز.</p>
     </div>
 
     <div id="ra-formWrap">
-      <h1 class="ra-title">طلب الانضمام</h1>
-      <p class="ra-sub">منظومة تدريبية مخصصة لتمكين طلاب الثانوية من إتقان مهارات القدرات وتحقيق التميز.</p>
 
       <form class="ra-form" id="raForm" novalidate>
         <div class="ra-form-error" id="raFormError"></div>

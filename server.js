@@ -64,7 +64,7 @@ app.get('/ping', (req, res) => res.status(200).send('pong'));
 // actually picked up a given commit (auto-deploy or manual) by checking
 // this value changed, without relying on CDN cache headers.
 const _processStartedAt = new Date().toISOString();
-app.get('/deploy-check', (req, res) => res.json({ startedAt: _processStartedAt }));
+app.get('/deploy-check', (req, res) => res.json({ startedAt: _processStartedAt, marker: 2 }));
 
 // CranL terminates TLS at a proxy and forwards plain HTTP; without this,
 // req.protocol is always 'http', so the constructed Request URL's origin

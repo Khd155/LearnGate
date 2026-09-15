@@ -60,6 +60,11 @@ app.disable('x-powered-by');
 // to hit instead of whatever fuller request it may have been probing.
 app.get('/health', (req, res) => res.status(200).send('OK'));
 app.get('/ping', (req, res) => res.status(200).send('pong'));
+// Process-start timestamp, not request time — lets us confirm a deploy
+// actually picked up a given commit (auto-deploy or manual) by checking
+// this value changed, without relying on CDN cache headers.
+const _processStartedAt = new Date().toISOString();
+app.get('/deploy-check', (req, res) => res.json({ startedAt: _processStartedAt }));
 
 // CranL terminates TLS at a proxy and forwards plain HTTP; without this,
 // req.protocol is always 'http', so the constructed Request URL's origin

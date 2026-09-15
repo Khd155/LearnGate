@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { api, ApiError } from '../lib/api';
 import { GRADE_LEVELS, type GradeLevel } from '../types';
-import { CheckIcon, TrashIcon, InboxIcon, ChevronDownIcon } from './Icons';
+import { CheckIcon, TrashIcon, InboxIcon, ChevronDownIcon, EyeIcon } from './Icons';
 
 interface AccessRequest {
   id: string;
@@ -82,6 +82,92 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone: 
     <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
       <p className="text-xs font-medium text-slate-400">{label}</p>
       <p className={`mt-1 text-2xl font-extrabold tabular-nums ${tones[tone]}`}>{value}</p>
+    </div>
+  );
+}
+
+function SchoolBadge({ request }: { request: AccessRequest }) {
+  const isKhaldiya = request.school === 'ثانوية الخالدية' && !request.is_other_school;
+  return (
+    <span
+      className={
+        isKhaldiya
+          ? 'inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400'
+          : 'inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400'
+      }
+    >
+      {request.school}
+    </span>
+  );
+}
+
+function fmtDate(iso: string) {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' }),
+    time: d.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
+  };
+}
+
+function DetailsModal({ request, onClose }: { request: AccessRequest; onClose: () => void }) {
+  const { date, time } = fmtDate(request.created_at);
+  const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <div>
+      <p className="text-xs font-medium text-slate-400">{label}</p>
+      <p className="mt-0.5 text-sm font-medium text-slate-700 dark:text-slate-200">{value}</p>
+    </div>
+  );
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2">
+          <EyeIcon className="h-4 w-4 text-slate-400" />
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">تفاصيل الطلب</h3>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <Row label="الاسم الرباعي" value={request.name} />
+          <Row label="رقم الجوال" value={<span className="font-mono">{request.phone}</span>} />
+          <Row label="المرحلة الدراسية" value={request.grade_level} />
+          <Row label="المدرسة" value={<SchoolBadge request={request} />} />
+          <Row label="مصدر المعرفة" value={SOURCE_LABELS[request.source] || request.source || '—'} />
+          <Row
+            label="توقيت الطلب"
+            value={
+              <span>
+                {date}
+                <br />
+                <span className="text-xs text-slate-400">{time}</span>
+              </span>
+            }
+          />
+        </div>
+
+        <div className="mt-4">
+          <p className="text-xs font-medium text-slate-400">الملاحظات / سبب الرغبة بالانضمام</p>
+          <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            {request.note || '— لا توجد ملاحظات —'}
+          </p>
+        </div>
+
+        {request.status !== 'pending' && (
+          <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+            {request.status === 'approved' ? 'تم القبول' : 'تم الرفض/الأرشفة'} بواسطة {request.decided_by || '—'}
+            {request.admin_note && <> — {request.admin_note}</>}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-5 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          إغلاق
+        </button>
+      </div>
     </div>
   );
 }
@@ -177,6 +263,92 @@ function DecisionModal({
   );
 }
 
+// Bulk confirm dialog — approves/rejects every selected pending request in
+// one pass, reusing each request's own submitted grade_level as-is (no
+// per-row override — that's what the single-request DecisionModal is for).
+function BulkConfirmModal({
+  requests, action, onClose, onDone,
+}: {
+  requests: AccessRequest[];
+  action: 'approve' | 'reject';
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const pushToast = useStore((s) => s.pushToast);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const submit = async () => {
+    setBusy(true);
+    let okCount = 0, failCount = 0;
+    for (const r of requests) {
+      try {
+        await api.patch(`/access-requests/${r.id}`, {
+          action,
+          adminNote: action === 'reject' ? 'رفض جماعي' : '',
+          ...(action === 'approve' ? { gradeLevel: r.grade_level } : {}),
+        });
+        okCount++;
+      } catch {
+        failCount++;
+      }
+      setProgress((p) => p + 1);
+    }
+    setBusy(false);
+    pushToast(
+      failCount ? 'error' : 'success',
+      failCount ? `تم ${okCount} وفشل ${failCount}` : action === 'approve' ? `تم قبول ${okCount} طلب وإرسال بيانات الدخول` : `تم رفض/أرشفة ${okCount} طلب`,
+    );
+    onDone();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={busy ? undefined : onClose}>
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+          {action === 'approve' ? `قبول ${requests.length} طلب وإنشاء الحسابات` : `رفض/أرشفة ${requests.length} طلب`}
+        </h3>
+        <p className="mt-2 text-xs text-slate-400">
+          {action === 'approve'
+            ? 'سيتم إنشاء حساب لكل طالب وإرسال بيانات الدخول عبر واتساب دفعة واحدة.'
+            : 'سيتم تحويل كل الطلبات المحددة إلى مؤرشفة.'}
+        </p>
+        {busy && (
+          <div className="mt-4">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full rounded-full bg-indigo-600 transition-all"
+                style={{ width: `${(progress / requests.length) * 100}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-center text-xs text-slate-400">{progress}/{requests.length}</p>
+          </div>
+        )}
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            إلغاء
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={busy}
+            className={`flex-1 rounded-xl px-3 py-2 text-sm font-bold text-white disabled:opacity-50 ${
+              action === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+            }`}
+          >
+            {busy ? '…' : 'تأكيد'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AccessRequestsTab() {
   const session = useStore((s) => s.session);
   const isDev = session?.role === 'dev';
@@ -187,11 +359,21 @@ export default function AccessRequestsTab() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [gradeFilter, setGradeFilter] = useState<GradeLevel | 'all'>('all');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'خالدية' | 'other'>('all');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [modal, setModal] = useState<{ request: AccessRequest; action: 'approve' | 'reject' } | null>(null);
+  const [detailsRequest, setDetailsRequest] = useState<AccessRequest | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 250);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const load = () => {
     api.get<{ requests: AccessRequest[]; stats: typeof stats }>('/access-requests')
-      .then((r) => { setRequests(r.requests); setStats(r.stats); })
+      .then((r) => { setRequests(r.requests); setStats(r.stats); setSelected(new Set()); })
       .catch(() => setRequests([]));
   };
 
@@ -209,9 +391,24 @@ export default function AccessRequestsTab() {
       if (gradeFilter !== 'all' && r.grade_level !== gradeFilter) return false;
       if (schoolFilter === 'خالدية' && r.school !== 'ثانوية الخالدية') return false;
       if (schoolFilter === 'other' && (r.school === 'ثانوية الخالدية' && !r.is_other_school)) return false;
+      if (debouncedSearch && !r.name.toLowerCase().includes(debouncedSearch) && !r.phone.includes(debouncedSearch)) return false;
       return true;
     });
-  }, [requests, statusFilter, gradeFilter, schoolFilter]);
+  }, [requests, statusFilter, gradeFilter, schoolFilter, debouncedSearch]);
+
+  const selectablePending = filtered.filter((r) => r.status === 'pending');
+  const allSelected = selectablePending.length > 0 && selectablePending.every((r) => selected.has(r.id));
+  const toggleAll = () => {
+    setSelected(allSelected ? new Set() : new Set(selectablePending.map((r) => r.id)));
+  };
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const selectedRequests = requests?.filter((r) => selected.has(r.id)) || [];
 
   return (
     <div className="space-y-4">
@@ -224,7 +421,18 @@ export default function AccessRequestsTab() {
         <StatCard label="مرفوضة/مؤرشفة" value={stats.rejected} tone="rose" />
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+        <div className="relative min-w-[180px] flex-1">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ابحث بالاسم أو رقم الجوال…"
+            className="w-full rounded-xl border border-slate-200 py-2 pe-3 ps-9 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400">
+            <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
+          </svg>
+        </div>
         <div className="relative">
           <select
             value={statusFilter}
@@ -280,6 +488,11 @@ export default function AccessRequestsTab() {
             <table className="w-full text-right text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                  <th className="px-5 py-2.5 font-medium">
+                    {selectablePending.length > 0 && (
+                      <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-slate-300" />
+                    )}
+                  </th>
                   <th className="px-5 py-2.5 font-medium">الاسم</th>
                   <th className="px-5 py-2.5 font-medium">الجوال</th>
                   <th className="px-5 py-2.5 font-medium">المرحلة</th>
@@ -293,10 +506,20 @@ export default function AccessRequestsTab() {
               <tbody>
                 {filtered.map((r) => (
                   <tr key={r.id} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
+                    <td className="px-5 py-2.5">
+                      {r.status === 'pending' && (
+                        <input
+                          type="checkbox"
+                          checked={selected.has(r.id)}
+                          onChange={() => toggleOne(r.id)}
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                      )}
+                    </td>
                     <td className="px-5 py-2.5 text-slate-700 dark:text-slate-200">{r.name}</td>
                     <td className="px-5 py-2.5 font-mono text-xs text-slate-500 dark:text-slate-400">{r.phone}</td>
                     <td className="px-5 py-2.5 text-slate-600 dark:text-slate-300">{r.grade_level}</td>
-                    <td className="px-5 py-2.5 text-slate-600 dark:text-slate-300">{r.school}</td>
+                    <td className="px-5 py-2.5"><SchoolBadge request={r} /></td>
                     <td className="px-5 py-2.5 text-xs text-slate-500 dark:text-slate-400">{SOURCE_LABELS[r.source] || r.source || '—'}</td>
                     <td className="px-5 py-2.5 text-xs text-slate-400">{new Date(r.created_at).toLocaleString('ar-SA')}</td>
                     <td className="px-5 py-2.5">
@@ -311,26 +534,36 @@ export default function AccessRequestsTab() {
                       )}
                     </td>
                     <td className="px-5 py-2.5">
-                      {r.status === 'pending' ? (
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setModal({ request: r, action: 'approve' })}
-                            className="flex items-center gap-1 rounded-lg bg-emerald-100 px-2.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400"
-                          >
-                            <CheckIcon className="h-3.5 w-3.5" /> قبول
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setModal({ request: r, action: 'reject' })}
-                            className="flex items-center gap-1 rounded-lg bg-rose-100 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-200 dark:bg-rose-500/15 dark:text-rose-400"
-                          >
-                            <TrashIcon className="h-3.5 w-3.5" /> رفض
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400">{r.decided_by || '—'}</span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setDetailsRequest(r)}
+                          title="عرض التفاصيل"
+                          className="flex items-center rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                        >
+                          <EyeIcon className="h-3.5 w-3.5" />
+                        </button>
+                        {r.status === 'pending' ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setModal({ request: r, action: 'approve' })}
+                              className="flex items-center gap-1 rounded-lg bg-emerald-100 px-2.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400"
+                            >
+                              <CheckIcon className="h-3.5 w-3.5" /> قبول
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setModal({ request: r, action: 'reject' })}
+                              className="flex items-center gap-1 rounded-lg bg-rose-100 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-200 dark:bg-rose-500/15 dark:text-rose-400"
+                            >
+                              <TrashIcon className="h-3.5 w-3.5" /> رفض
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-slate-400">{r.decided_by || '—'}</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -340,12 +573,52 @@ export default function AccessRequestsTab() {
         )}
       </div>
 
+      {selected.size > 0 && (
+        <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{selected.size} محدد</span>
+            <button
+              type="button"
+              onClick={() => setBulkAction('approve')}
+              className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+            >
+              <CheckIcon className="h-3.5 w-3.5" /> قبول المحددين
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkAction('reject')}
+              className="flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700"
+            >
+              <TrashIcon className="h-3.5 w-3.5" /> رفض المحددين
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="text-xs font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              إلغاء التحديد
+            </button>
+          </div>
+        </div>
+      )}
+
       {modal && (
         <DecisionModal
           request={modal.request}
           action={modal.action}
           onClose={() => setModal(null)}
           onDone={() => { setModal(null); load(); }}
+        />
+      )}
+
+      {detailsRequest && <DetailsModal request={detailsRequest} onClose={() => setDetailsRequest(null)} />}
+
+      {bulkAction && (
+        <BulkConfirmModal
+          requests={selectedRequests}
+          action={bulkAction}
+          onClose={() => setBulkAction(null)}
+          onDone={() => { setBulkAction(null); load(); }}
         />
       )}
     </div>

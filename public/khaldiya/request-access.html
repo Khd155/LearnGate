@@ -22,9 +22,11 @@
       font-family: 'Tajawal', system-ui, sans-serif;
       background: var(--grad-hero);
       display: flex;
-      align-items: flex-start;
+      flex-direction: column;
       justify-content: center;
-      padding: clamp(20px, 4vh, 56px) 16px calc(clamp(20px, 4vh, 56px) + env(safe-area-inset-bottom, 0px));
+      align-items: center;
+      padding: 48px 16px;
+      padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
       position: relative;
       overflow-x: hidden;
     }
@@ -68,7 +70,7 @@
       color: #fff; font-size: 14.5px; font-family: inherit;
       outline: none; transition: border-color .18s, background .18s;
     }
-    .ra-input::placeholder { color: rgba(255,255,255,.55); }
+    .ra-input::placeholder { color: rgba(226,232,240,.7); }
     .ra-input:focus { border-color: rgba(255,255,255,.75); background: rgba(255,255,255,.18); }
     .ra-input.ra-invalid { border-color: #ffb4b4; }
     textarea.ra-input { resize: none; min-height: 84px; line-height: 1.7; }
@@ -105,7 +107,10 @@
     .ra-select-wrap { position: relative; }
     .ra-select-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: rgba(255,255,255,.8); pointer-events: none; }
 
-    .ra-hint { margin-top: 5px; font-size: 11.5px; color: rgba(255,255,255,.65); }
+    .ra-hint { margin-top: 6px; font-size: 12px; color: rgb(226,232,240); }
+    .ra-login-link { margin-top: 18px; text-align: center; font-size: 13px; color: rgba(226,232,240,.8); }
+    .ra-login-link a { color: #7dd3c8; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+    .ra-login-link a:hover { color: #fff; }
     .ra-error { margin-top: 5px; font-size: 11.5px; color: #ffd7d7; font-weight: 700; }
 
     .ra-submit {
@@ -165,7 +170,7 @@
     </div>
 
     <div id="ra-formWrap">
-      <h1 class="ra-title">طلب الانضمام إلى بوابة دعم التعلّم</h1>
+      <h1 class="ra-title">طلب الانضمام</h1>
       <p class="ra-sub">منظومة تدريبية مخصصة لتمكين طلاب الثانوية من إتقان مهارات القدرات وتحقيق التميز.</p>
 
       <form class="ra-form" id="raForm" novalidate>
@@ -181,7 +186,7 @@
 
         <div class="ra-field">
           <label for="raPhone">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 14.4c-.9 0-1.8-.15-2.6-.43a1.3 1.3 0 0 0-1.3.28l-1.5 1.5a13.6 13.6 0 0 1-5.8-5.8l1.5-1.5c.32-.32.44-.8.28-1.3-.28-.8-.43-1.7-.43-2.6 0-.66-.54-1.2-1.2-1.2H4.2c-.66 0-1.2.54-1.2 1.2 0 8.5 6.9 15.4 15.4 15.4.66 0 1.2-.54 1.2-1.2v-2.35c0-.66-.54-1.2-1.2-1.2Z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3h3l1.5 5-2.5 1.5a11 11 0 0 0 5 5L14.5 12l5 1.5v3a2 2 0 0 1-2 2A15 15 0 0 1 4.5 5a2 2 0 0 1 2-2Z"/></svg>
             رقم الجوال (واتساب)
           </label>
           <input class="ra-input" id="raPhone" name="phone" type="tel" inputmode="numeric" maxlength="10" placeholder="05xxxxxxxx" required autocomplete="tel">
@@ -227,6 +232,8 @@
         <button type="submit" class="ra-submit" id="raSubmitBtn">
           <span id="raSubmitLabel">إرسال الطلب</span>
         </button>
+
+        <p class="ra-login-link">لديك حساب بالفعل؟ <a href="/">تسجيل الدخول</a></p>
       </form>
     </div>
 

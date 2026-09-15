@@ -3890,8 +3890,10 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
-      // PATCH /api/dev/admins/:id — update permissions and/or role (dev only).
-      // Body may include either or both of { permissions, role }.
+      // PATCH /api/dev/admins/:id — update permissions, role, name and/or
+      // login code (dev only). Body may include any combination of
+      // { permissions, role, name, code } — lets the dev panel edit a
+      // supervisor's name/login code in place instead of delete+recreate.
       // `permissions` is validated against a fixed allow-list — junk values
       // are silently dropped rather than stored, so the permissions table
       // can never end up with a typo'd key nothing checks for.
@@ -3904,6 +3906,7 @@ export async function onRequest({ request, env }) {
         const ALLOWED_PERMISSIONS = new Set([
           'edit_questions', 'view_diff', 'send_whatsapp',
           'manage_students', 'export_students', 'send_broadcast', 'reply_tickets',
+          'can_manage_access_requests',
         ]);
         const body = await request.json();
         const updates = [];
@@ -3919,10 +3922,24 @@ export async function onRequest({ request, env }) {
           updates.push('role = ?');
           binds.push(body.role);
         }
+        if (body.name !== undefined) {
+          const nm = String(body.name).trim();
+          if (!nm || nm.length > 100) return err('اسم غير صالح', 400, CORS);
+          updates.push('name = ?');
+          binds.push(nm);
+        }
+        if (body.code !== undefined) {
+          const cd = String(body.code).trim();
+          if (!/^\d{10}$/.test(cd)) return err('رقم الدخول يجب أن يكون 10 أرقام', 400, CORS);
+          const dupe = await DB.prepare('SELECT 1 FROM admins WHERE code = ? AND id != ?').bind(cd, subsub).first();
+          if (dupe) return err('رقم الدخول مستخدم من قبل مشرف آخر', 409, CORS);
+          updates.push('code = ?');
+          binds.push(cd);
+        }
         if (!updates.length) return err('لا يوجد شيء لتحديثه', 400, CORS);
         binds.push(subsub);
         await DB.prepare(`UPDATE admins SET ${updates.join(', ')} WHERE id = ?`).bind(...binds).run();
-        await logEvent(DB, { level: 'info', category: 'admin', message: `تعديل صلاحيات/دور مشرف`, user_role: 'dev' });
+        await logEvent(DB, { level: 'info', category: 'admin', message: `تعديل بيانات مشرف`, user_role: 'dev' });
         return ok({ ok: true }, 200, CORS);
       }
 

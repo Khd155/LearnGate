@@ -16,6 +16,11 @@
 
   <style>
     html { color-scheme: dark; }
+    /* /css/style.css sets html,body { height:100% } for the main SPA — a
+       fixed (not min) height that can clip this page's own taller content
+       (the submit button/login link at the bottom) instead of letting the
+       page grow and scroll. Override both back to auto height here. */
+    html, body.ra-body { height: auto; min-height: 100%; overflow-y: auto; }
     body.ra-body {
       min-height: 100vh;
       min-height: 100dvh;
@@ -54,17 +59,21 @@
 
     .ra-header { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 24px; }
     .ra-brand {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 7px 16px; margin-bottom: 16px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.1);
+      display: inline-flex; align-items: center; gap: 12px;
+      margin-bottom: 18px;
+    }
+    .ra-brand-icon {
+      width: 52px; height: 52px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 18px; padding: 7px;
+      background: rgba(255,255,255,.12);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,.22);
-      box-shadow: 0 4px 14px -6px rgba(0,0,0,.25);
+      border: 1px solid rgba(255,255,255,.25);
+      box-shadow: 0 10px 26px -10px rgba(0,0,0,.4);
     }
-    .ra-brand img { height: 18px; width: 18px; border-radius: 5px; object-fit: contain; background: #fff; padding: 2px; }
-    .ra-brand span { font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 13px; color: #fff; }
+    .ra-brand-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; }
+    .ra-brand span { font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 19px; color: #fff; letter-spacing: .01em; }
 
     .ra-title { font-family: 'Cairo', sans-serif; font-weight: 900; font-size: clamp(24px, 4vw, 30px); color: #fff; letter-spacing: -.01em; text-wrap: balance; line-height: 1.3; }
     .ra-sub { margin-top: 8px; font-size: 13.5px; line-height: 1.8; color: rgb(226,232,240); max-width: 38ch; }
@@ -176,7 +185,9 @@
   <div class="ra-card">
     <div class="ra-header">
       <div class="ra-brand">
-        <img src="/moe-icon.png" alt="وزارة التعليم">
+        <div class="ra-brand-icon">
+          <img src="/moe-icon.png" alt="وزارة التعليم">
+        </div>
         <span>بوابة دعم التعلّم</span>
       </div>
       <h1 class="ra-title">طلب الانضمام</h1>

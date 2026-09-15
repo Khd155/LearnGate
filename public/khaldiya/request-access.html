@@ -19,9 +19,13 @@
     /* /css/style.css sets html,body { height:100% } for the main SPA — a
        fixed (not min) height that can clip this page's own taller content
        (the submit button/login link at the bottom) instead of letting the
-       page grow and scroll. Override both back to auto height here. */
-    html, body.ra-body { height: auto; min-height: 100%; overflow-y: auto; }
+       page grow and scroll. Override both back to auto height here.
+       overflow-y is set on html ONLY — setting it on body too (as an
+       earlier revision did) gives the page two independent scrollable
+       boxes and a visible double scrollbar in some browsers. */
+    html { height: auto; min-height: 100%; overflow-y: auto; }
     body.ra-body {
+      height: auto;
       min-height: 100vh;
       min-height: 100dvh;
       font-family: 'Tajawal', system-ui, sans-serif;
@@ -63,16 +67,13 @@
       margin-bottom: 18px;
     }
     .ra-brand-icon {
-      width: 52px; height: 52px; flex-shrink: 0;
+      width: 46px; height: 46px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
-      border-radius: 18px; padding: 7px;
-      background: rgba(255,255,255,.12);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,.25);
-      box-shadow: 0 10px 26px -10px rgba(0,0,0,.4);
     }
-    .ra-brand-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; }
+    .ra-brand-icon img {
+      width: 100%; height: 100%; object-fit: contain;
+      filter: drop-shadow(0 6px 14px rgba(0,0,0,.35));
+    }
     .ra-brand span { font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 19px; color: #fff; letter-spacing: .01em; }
 
     .ra-title { font-family: 'Cairo', sans-serif; font-weight: 900; font-size: clamp(24px, 4vw, 30px); color: #fff; letter-spacing: -.01em; text-wrap: balance; line-height: 1.3; }

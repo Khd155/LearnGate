@@ -301,28 +301,30 @@
         </div>
       </div>
       <nav class="sidebar-nav">
-        <div class="nav-group-title">الأساسيات والتشغيل</div>
+        <div class="nav-group-title">📊 نظرة عامة</div>
         <button class="tab-btn active" data-tab="overview"  onclick="Dev.setTab('overview')"><span class="tab-ic">📊</span> نظرة عامة</button>
+
+        <div class="nav-group-title">🏫 المنظومة التعليمية وشؤون الطلاب</div>
         <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')"><span class="tab-ic">🏫</span> المدارس والمشرفون</button>
-        <button class="tab-btn"        data-tab="students"  onclick="Dev.setTab('students')"><span class="tab-ic">👥</span> الطلاب</button>
+        <button class="tab-btn"        data-tab="students"  onclick="Dev.setTab('students')"><span class="tab-ic">👥</span> سجل الطلاب</button>
         <button class="tab-btn"        data-tab="import-batches" onclick="Dev.setTab('import-batches')"><span class="tab-ic">📦</span> دفعات الاستيراد</button>
         <button class="tab-btn"        data-tab="permissions" onclick="Dev.setTab('permissions')"><span class="tab-ic">🔐</span> الصلاحيات</button>
 
-        <div class="nav-group-title">التقييمات والاختبارات</div>
-        <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')"><span class="tab-ic">📝</span> الأسئلة</button>
-        <button class="tab-btn"        data-tab="test-mgmt" onclick="Dev.setTab('test-mgmt')"><span class="tab-ic">🧪</span> إدارة الاختبارات</button>
+        <div class="nav-group-title">📝 مركز التقييمات وبنك الأسئلة</div>
+        <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')"><span class="tab-ic">📝</span> بنك الأسئلة</button>
+        <button class="tab-btn"        data-tab="test-mgmt" onclick="Dev.setTab('test-mgmt')"><span class="tab-ic">🧪</span> نتائج الاختبارات</button>
         <button class="tab-btn"        data-tab="diff"      onclick="Dev.setTab('diff')"><span class="tab-ic">🔍</span> مقارنة الإجابات</button>
 
-        <div class="nav-group-title">التواصل والرسائل</div>
-        <button class="tab-btn"        data-tab="broadcasts" onclick="Dev.setTab('broadcasts')"><span class="tab-ic">📢</span> الرسائل الجماعية</button>
+        <div class="nav-group-title">💬 مركز المراسلات والتحليلات</div>
+        <button class="tab-btn"        data-tab="broadcasts" onclick="Dev.setTab('broadcasts')"><span class="tab-ic">📢</span> مركز المراسلات وواتساب</button>
         <button class="tab-btn"        data-tab="wa-stats"  onclick="Dev.setTab('wa-stats')"><span class="tab-ic">📲</span> إحصائيات واتساب</button>
         <button class="tab-btn"        data-tab="wa-issue"  onclick="Dev.setTab('wa-issue')"><span class="tab-ic">📨</span> إشعار مشكلة</button>
-
-        <div class="nav-group-title">التحليلات والمتابعة</div>
-        <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')"><span class="tab-ic">📋</span> سجل النشاط</button>
+        <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')"><span class="tab-ic">📋</span> سجل النشاط وسلوك الطلاب</button>
         <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')"><span class="tab-ic">🧠</span> تحليل السلوك</button>
-        <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')"><span class="tab-ic">🎫</span> الدعم الفني</button>
-        <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')"><span class="tab-ic">🧰</span> الأدوات</button>
+        <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')"><span class="tab-ic">🎫</span> تذاكر الدعم الفني</button>
+
+        <div class="nav-group-title">🧰 أدوات النظام ومنطقة الخطر</div>
+        <button class="tab-btn"        data-tab="danger"    onclick="Dev.setTab('danger')"><span class="tab-ic">🧰</span> أدوات النظام</button>
       </nav>
       <div class="sidebar-foot">LearnGate v2.0</div>
     </aside>
@@ -2811,13 +2813,13 @@ ${note}
     const ta = document.getElementById('bc-edit-' + id);
     if (!ta) return;
     const message = ta.value.trim();
-    if (!message) { Dev.showToast('النص لا يمكن أن يكون فارغاً', 'error'); return; }
+    if (!message) { showToast('النص لا يمكن أن يكون فارغاً', true); return; }
     try {
       await apiDev(`/broadcasts/${id}`, { method: 'PATCH', body: JSON.stringify({ message }) });
-      Dev.showToast('تم تعديل الرسالة ✅', 'success');
+      showToast('تم تعديل الرسالة ✅');
       Dev.loadBroadcasts();
     } catch(e) {
-      Dev.showToast('تعذّر التعديل: ' + e.message, 'error');
+      showToast('تعذّر التعديل: ' + e.message, true);
     }
   },
 
@@ -2892,13 +2894,13 @@ ${note}
   },
 
   async deleteBroadcast(id, school) {
-    if (!confirm('حذف هذه الرسالة؟')) return;
+    if (!await confirmDialog('حذف هذه الرسالة الجماعية؟', { title: 'حذف رسالة', okText: 'حذف', danger: true })) return;
     try {
       await apiDev(`/broadcasts/${id}`, { method: 'DELETE' });
-      Dev.showToast('تم الحذف', 'success');
+      showToast('تم الحذف');
       Dev.loadBroadcasts();
     } catch(e) {
-      Dev.showToast('تعذّر الحذف: ' + e.message, 'error');
+      showToast('تعذّر الحذف: ' + e.message, true);
     }
   },
 

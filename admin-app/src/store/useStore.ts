@@ -72,6 +72,7 @@ interface StoreState {
   // can_manage_access_requests — the endpoint 401s and the catch swallows it.
   pendingAccessRequestsCount: number;
   setPendingAccessRequestsCount: (n: number) => void;
+  _pendingAccessRequestsInitialized: boolean;
   loadPendingAccessRequestsCount: () => Promise<void>;
 
   // messages
@@ -203,10 +204,24 @@ export const useStore = create<StoreState>((set, get) => ({
 
   pendingAccessRequestsCount: 0,
   setPendingAccessRequestsCount: (n) => set({ pendingAccessRequestsCount: n }),
+  _pendingAccessRequestsInitialized: false,
   loadPendingAccessRequestsCount: async () => {
     try {
       const res = await api.get<{ stats: { pending: number } }>('/access-requests');
-      set({ pendingAccessRequestsCount: res.stats.pending });
+      const prev = get().pendingAccessRequestsCount;
+      const wasInitialized = get()._pendingAccessRequestsInitialized;
+      // Pop a toast only for a genuine NEW arrival mid-session (poll sees
+      // the count go up after the first real fetch) — never on the very
+      // first load, which would otherwise announce every pre-existing
+      // pending request as "new" the moment an admin logs in.
+      if (wasInitialized && res.stats.pending > prev) {
+        const arrived = res.stats.pending - prev;
+        get().pushToast(
+          'success',
+          arrived === 1 ? 'طلب انضمام جديد وصل الآن' : `${arrived} طلبات انضمام جديدة وصلت الآن`,
+        );
+      }
+      set({ pendingAccessRequestsCount: res.stats.pending, _pendingAccessRequestsInitialized: true });
     } catch {
       /* non-fatal — 401 for a session without the permission, network blip, etc. */
     }

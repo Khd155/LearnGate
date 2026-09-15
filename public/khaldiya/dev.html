@@ -2520,28 +2520,33 @@ const Dev = {
       if (!logs || !logs.length) { el.innerHTML = '<div class="empty">لا توجد سجلات</div>'; return; }
       const levelColors = { success: '#22c55e', info: '#3b82f6', warn: '#f59e0b', error: '#ef4444' };
       const levelIcons  = { success: '✅', info: 'ℹ️', warn: '⚠️', error: '❌' };
-      el.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:10px 16px 0">${logs.length} سجل</div>` +
-        logs.map(l => {
-          const color = levelColors[l.level] || '#94a3b8';
-          const icon  = levelIcons[l.level]  || '•';
-          const time  = new Date(l.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', second:'2-digit' });
-          return `<div class="log-item">
-            <span class="log-ic" style="background:${color}22;color:${color}">${icon}</span>
-            <div class="log-body">
-              <div class="log-msg">${l.message}</div>
-              <div class="log-meta">
-                ${l.user_name ? `<span>👤 ${['admin','director','support'].includes(l.user_role) ? escapeHtml(adminLabel(l.user_name)) : l.user_name}</span>` : ''}
-                ${l.school    ? `<span>🏫 ${l.school}</span>` : ''}
-                ${l.ip        ? `<span>🌐 ${l.ip}</span>` : ''}
-                ${l.device === 'mobile'  ? `<span>📱 جوال</span>` : ''}
-                ${l.device === 'tablet'  ? `<span>📱 تابلت</span>` : ''}
-                ${l.device === 'desktop' ? `<span>💻 كمبيوتر</span>` : ''}
-                <span>${time}</span>
-              </div>
-            </div>
-            <span class="log-cat" style="background:${color}22;color:${color}">${l.category||''}</span>
-          </div>`;
-        }).join('');
+      const deviceLabel = { mobile: '📱 جوال', tablet: '📱 تابلت', desktop: '💻 كمبيوتر' };
+      el.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:0 0 10px">${logs.length} سجل</div>
+        <div class="dt-scroll"><table class="data-table dt-frozen-first">
+          <thead><tr><th>المستخدم/الدور</th><th>الحدث</th><th>الجهاز</th><th>عنوان IP</th><th>التوقيت</th></tr></thead>
+          <tbody>${logs.map(l => {
+            const color = levelColors[l.level] || '#94a3b8';
+            const icon  = levelIcons[l.level]  || '•';
+            const time  = new Date(l.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+            const userLabel = l.user_name
+              ? (['admin','director','support'].includes(l.user_role) ? escapeHtml(adminLabel(l.user_name)) : escapeHtml(l.user_name))
+              : '—';
+            return `<tr>
+              <td>
+                <div style="font-weight:600;">${userLabel}</div>
+                ${l.school ? `<div style="font-size:11px;color:var(--muted);">🏫 ${escapeHtml(l.school)}</div>` : ''}
+              </td>
+              <td>
+                <span class="log-ic" style="background:${color}22;color:${color};display:inline-flex;">${icon}</span>
+                <span style="margin-inline-start:6px;">${escapeHtml(l.message)}</span>
+                ${l.category ? `<span class="log-cat" style="background:${color}22;color:${color};margin-inline-start:8px;">${escapeHtml(l.category)}</span>` : ''}
+              </td>
+              <td style="font-size:12px;color:var(--muted);white-space:nowrap;">${deviceLabel[l.device] || '—'}</td>
+              <td style="font-size:12px;color:var(--muted);direction:ltr;text-align:right;">${l.ip ? escapeHtml(l.ip) : '—'}</td>
+              <td style="font-size:12px;color:var(--muted);white-space:nowrap;">${time}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table></div>`;
     } catch (e) {
       el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل السجلات: ${e.message}</div>`;
     }

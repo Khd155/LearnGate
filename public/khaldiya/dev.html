@@ -143,6 +143,15 @@
       border-radius:14px;padding:10px 16px;box-shadow:0 12px 34px -10px rgba(0,0,0,.55)}
     .floating-save-bar span{font-size:12.5px;color:#cbd5e1}
 
+    /* ── Row action menu (⋮) — condenses stacked per-row buttons ── */
+    .row-menu{position:absolute;left:0;top:100%;z-index:30;min-width:200px;margin-top:4px;
+      background:#111c2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;
+      box-shadow:0 12px 30px -10px rgba(0,0,0,.55);overflow:hidden}
+    .row-menu button{display:block;width:100%;text-align:right;padding:9px 14px;font-size:13px;
+      color:#e2e8f0;background:none;border:none;cursor:pointer;white-space:nowrap}
+    .row-menu button:hover{background:var(--surface2)}
+    .row-menu button.row-menu-danger{color:#fca5a5}
+
     /* ── Forms ── */
     .form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:4px}
     .form-group{display:flex;flex-direction:column;gap:6px;flex:1;min-width:160px}
@@ -326,7 +335,6 @@
         <div class="nav-group-title">🏫 المنظومة التعليمية وشؤون الطلاب</div>
         <button class="tab-btn"        data-tab="schools"   onclick="Dev.setTab('schools')"><span class="tab-ic">🏫</span> المدارس والمشرفون</button>
         <button class="tab-btn"        data-tab="students"  onclick="Dev.setTab('students')"><span class="tab-ic">👥</span> سجل الطلاب</button>
-        <button class="tab-btn"        data-tab="import-batches" onclick="Dev.setTab('import-batches')"><span class="tab-ic">📦</span> دفعات الاستيراد</button>
         <button class="tab-btn"        data-tab="permissions" onclick="Dev.setTab('permissions')"><span class="tab-ic">🔐</span> الصلاحيات</button>
 
         <div class="nav-group-title">📝 مركز التقييمات وبنك الأسئلة</div>
@@ -380,6 +388,13 @@
 
     <!-- ── Students ── -->
     <div id="tab-students" class="tab-pane">
+
+      <div class="sp-sub-tabs">
+        <button class="sp-sub-btn active" id="st-sub-btn-list"    onclick="Dev.setStudentsSubTab('list')">📋 سجل الطلاب</button>
+        <button class="sp-sub-btn"        id="st-sub-btn-batches" onclick="Dev.setStudentsSubTab('batches')">📦 دفعات الاستيراد</button>
+      </div>
+
+      <div id="st-sub-list">
 
       <!-- Add Single Student -->
       <div class="section">
@@ -443,18 +458,22 @@
         <div id="bulk-wa-progress" style="display:none;margin-bottom:10px;font-size:13px;color:var(--muted);"></div>
         <div id="students-list"><div class="empty">جارٍ التحميل...</div></div>
       </div>
-    </div>
 
-    <!-- ── Import Batches (smart-import history: re-export / re-send WhatsApp) ── -->
-    <div id="tab-import-batches" class="tab-pane">
-      <div class="section-title" style="margin-bottom:16px;"><span>📦</span> دفعات الاستيراد الذكي</div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-        <select id="ib-school-filter" class="form-select" style="width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadImportBatches()">
-          <option value="">كل المدارس</option>
-        </select>
-        <button class="btn btn-warn btn-sm" onclick="Dev.loadImportBatches()">🔄 تحديث</button>
       </div>
-      <div id="import-batches-list"><div class="empty">اضغط تحديث لعرض الدفعات</div></div>
+
+      <!-- ── Import Batches sub-tab (smart-import history: re-export / re-send WhatsApp) ── -->
+      <div id="st-sub-batches" style="display:none;">
+        <div class="section">
+          <div class="section-title" style="margin-bottom:16px;"><span>📦</span> دفعات الاستيراد الذكي</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+            <select id="ib-school-filter" class="form-select" style="width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadImportBatches()">
+              <option value="">كل المدارس</option>
+            </select>
+            <button class="btn btn-warn btn-sm" onclick="Dev.loadImportBatches()">🔄 تحديث</button>
+          </div>
+          <div id="import-batches-list"><div class="empty">اضغط تحديث لعرض الدفعات</div></div>
+        </div>
+      </div>
     </div>
 
     <!-- ── Schools & Admins ── -->
@@ -1051,7 +1070,18 @@ const Dev = {
     if (tab === 'broadcasts')  { Dev.loadBroadcasts(); return; }
     if (tab === 'wa-stats')    { Dev.loadWaSends(); return; }
     if (tab === 'wa-issue')    { Dev.loadWaIssueStudents(); return; }
-    if (tab === 'import-batches') { Dev.loadImportBatches(); return; }
+    if (tab === 'students')    { Dev.setStudentsSubTab('list'); return; }
+  },
+
+  // Students page sub-tabs: سجل الطلاب / دفعات الاستيراد (merged in place
+  // of the old standalone "دفعات الاستيراد" sidebar item).
+  setStudentsSubTab(sub) {
+    const isList = sub === 'list';
+    document.getElementById('st-sub-list').style.display    = isList ? '' : 'none';
+    document.getElementById('st-sub-batches').style.display  = isList ? 'none' : '';
+    document.getElementById('st-sub-btn-list').classList.toggle('active', isList);
+    document.getElementById('st-sub-btn-batches').classList.toggle('active', !isList);
+    if (isList) Dev.loadStudents(); else Dev.loadImportBatches();
   },
 
   async loadAll() {
@@ -1599,13 +1629,16 @@ const Dev = {
               ${s.phone ? escapeHtml(s.phone) : '<span style="font-size:12px">—</span>'}
             </td>
             <td><span class="badge badge-school">${escapeHtml(s.school) || '—'}</span></td>
-            <td style="white-space:nowrap;">
-              <button class="btn btn-outline btn-sm" title="توليد رابط اختبار لمرة واحدة" onclick="Dev.generateTestAccessLink('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔗 اختبار</button>
+            <td style="white-space:nowrap;position:relative;">
               <button class="btn btn-outline btn-sm" title="إرسال رابط الحساب عبر واتساب" onclick="Dev.sendAccountLinkWhatsApp('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}','${escapeHtml(s.phone || '')}','${escapeHtml(s.school || '')}')">📲 واتساب</button>
-              <button class="btn btn-outline btn-sm" title="إرسال رسالة واتساب حرة (أي نص)" onclick="Dev.sendGeneralWhatsApp('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}','${escapeHtml(s.phone || '')}')">💬 رسالة واتساب</button>
-              <button class="btn btn-outline btn-sm" title="هل فتح الطالب رابط الحساب؟" onclick="Dev.showAccessTokenHistory('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">📋 حالة الرسالة</button>
-              <button class="btn btn-outline btn-sm" title="مسح سجل الاختبارات القصيرة وتقدم الدروس لهذا الطالب" onclick="Dev.resetStudentQuizzes('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔄 إعادة تعيين الاختبارات</button>
-              <button class="btn btn-danger btn-sm" onclick="Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">حذف</button>
+              <button class="btn btn-sm" style="background:var(--surface2);color:#e2e8f0;" title="المزيد" onclick="Dev.toggleRowMenu(event, this)">⋮</button>
+              <div class="row-menu" style="display:none;">
+                <button onclick="Dev.closeRowMenus();Dev.generateTestAccessLink('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔗 توليد رابط اختبار</button>
+                <button onclick="Dev.closeRowMenus();Dev.sendGeneralWhatsApp('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}','${escapeHtml(s.phone || '')}')">💬 رسالة واتساب حرة</button>
+                <button onclick="Dev.closeRowMenus();Dev.showAccessTokenHistory('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">📋 حالة رسالة الحساب</button>
+                <button onclick="Dev.closeRowMenus();Dev.resetStudentQuizzes('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🔄 إعادة تعيين الاختبارات</button>
+                <button class="row-menu-danger" onclick="Dev.closeRowMenus();Dev.deleteStudent('${s.id}','${escapeHtml(s.name).replace(/'/g, "\\'")}')">🗑️ حذف الطالب</button>
+              </div>
             </td>
           </tr>`).join('')}
         </tbody>
@@ -1727,6 +1760,21 @@ const Dev = {
     ]);
     XLSX.utils.book_append_sheet(wb, ws, 'طلاب');
     XLSX.writeFile(wb, 'students-template.xlsx');
+  },
+
+  // Row action menu (⋮) — one open at a time, closes on outside click.
+  toggleRowMenu(evt, btn) {
+    evt.stopPropagation();
+    const menu = btn.nextElementSibling;
+    const wasOpen = menu.style.display === 'block';
+    Dev.closeRowMenus();
+    if (!wasOpen) {
+      menu.style.display = 'block';
+      document.addEventListener('click', Dev.closeRowMenus, { once: true });
+    }
+  },
+  closeRowMenus() {
+    document.querySelectorAll('.row-menu').forEach(m => { m.style.display = 'none'; });
   },
 
   async deleteStudent(id, name) {

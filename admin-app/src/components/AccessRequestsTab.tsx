@@ -92,8 +92,8 @@ function SchoolBadge({ request }: { request: AccessRequest }) {
     <span
       className={
         isKhaldiya
-          ? 'inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400'
-          : 'inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400'
+          ? 'inline-flex items-center whitespace-nowrap rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400'
+          : 'inline-flex items-center whitespace-nowrap rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400'
       }
     >
       {request.school}
@@ -496,10 +496,10 @@ export default function AccessRequestsTab() {
                   <th className="px-5 py-2.5 font-medium">الاسم</th>
                   <th className="px-5 py-2.5 font-medium">الجوال</th>
                   <th className="px-5 py-2.5 font-medium">المرحلة</th>
-                  <th className="px-5 py-2.5 font-medium">المدرسة</th>
+                  <th className="px-5 py-2.5 text-right font-medium">المدرسة</th>
                   <th className="px-5 py-2.5 font-medium">مصدر المعرفة</th>
                   <th className="px-5 py-2.5 font-medium">التاريخ</th>
-                  <th className="px-5 py-2.5 font-medium">الحالة</th>
+                  <th className="min-w-[110px] px-5 py-2.5 font-medium">الحالة</th>
                   <th className="px-5 py-2.5 font-medium">الإجراءات</th>
                 </tr>
               </thead>
@@ -519,18 +519,32 @@ export default function AccessRequestsTab() {
                     <td className="px-5 py-2.5 text-slate-700 dark:text-slate-200">{r.name}</td>
                     <td className="px-5 py-2.5 font-mono text-xs text-slate-500 dark:text-slate-400">{r.phone}</td>
                     <td className="px-5 py-2.5 text-slate-600 dark:text-slate-300">{r.grade_level}</td>
-                    <td className="px-5 py-2.5"><SchoolBadge request={r} /></td>
+                    <td className="px-5 py-2.5 text-right">
+                      <div className="flex items-center justify-start">
+                        <SchoolBadge request={r} />
+                      </div>
+                    </td>
                     <td className="px-5 py-2.5 text-xs text-slate-500 dark:text-slate-400">{SOURCE_LABELS[r.source] || r.source || '—'}</td>
-                    <td className="px-5 py-2.5 text-xs text-slate-400">{new Date(r.created_at).toLocaleString('ar-SA')}</td>
                     <td className="px-5 py-2.5">
+                      {(() => {
+                        const { date, time } = fmtDate(r.created_at);
+                        return (
+                          <div className="flex flex-col whitespace-nowrap text-xs text-slate-500 dark:text-slate-400" dir="rtl">
+                            <span className="font-medium text-slate-700 dark:text-slate-300">{date}</span>
+                            <span className="text-[11px] text-slate-400">{time}</span>
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td className="min-w-[110px] px-5 py-2.5">
                       {r.status === 'pending' && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">قيد المراجعة</span>
+                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/15 dark:text-amber-400">قيد المراجعة</span>
                       )}
                       {r.status === 'approved' && (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">مقبول</span>
+                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-400">مقبول</span>
                       )}
                       {r.status === 'rejected' && (
-                        <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-500/15 dark:text-rose-400" title={r.admin_note || ''}>مرفوض/مؤرشف</span>
+                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/15 dark:text-rose-400" title={r.admin_note || ''}>مرفوض/مؤرشف</span>
                       )}
                     </td>
                     <td className="px-5 py-2.5">

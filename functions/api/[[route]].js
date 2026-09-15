@@ -1995,7 +1995,8 @@ export async function onRequest({ request, env }) {
 
       // GET /api/test-results — student sees own, admin/director sees by school or studentId
       if (method === 'GET') {
-        const claims = await verifyToken(request, env, DB);
+        const isDevKeyTR = authDev(request, env);
+        const claims = isDevKeyTR ? { role: 'dev' } : await verifyToken(request, env, DB);
         if (!claims) return err('غير مصرح', 401, CORS);
 
         if (claims.role === 'student') {

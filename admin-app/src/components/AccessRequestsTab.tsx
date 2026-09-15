@@ -422,12 +422,12 @@ export default function AccessRequestsTab() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-        <div className="relative min-w-[180px] flex-1">
+        <div className="relative w-full max-w-xs">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ابحث بالاسم أو رقم الجوال…"
-            className="w-full rounded-xl border border-slate-200 py-2 pe-3 ps-9 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            className="w-full rounded-xl border border-slate-300 bg-white py-2 pe-3 ps-9 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500"
           />
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400">
             <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />

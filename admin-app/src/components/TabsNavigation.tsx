@@ -17,10 +17,14 @@ const BASE_TABS: TabDef[] = [
 const ACCESS_REQUESTS_TAB: TabDef = { key: 'accessRequests', label: 'طلبات الانضمام', Icon: InboxIcon };
 const ADMIN_TAB: TabDef = { key: 'admin', label: 'الإدارة', Icon: SettingsIcon };
 
+const PENDING_COUNT_POLL_MS = 45000;
+
 export default function TabsNavigation() {
   const tab = useStore((s) => s.tab);
   const setTab = useStore((s) => s.setTab);
   const session = useStore((s) => s.session);
+  const pendingAccessRequestsCount = useStore((s) => s.pendingAccessRequestsCount);
+  const loadPendingAccessRequestsCount = useStore((s) => s.loadPendingAccessRequestsCount);
   const listRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState({ left: 0, width: 0 });
 
@@ -46,6 +50,15 @@ export default function TabsNavigation() {
     }
   }, [tab, TABS.length]);
 
+  useEffect(() => {
+    if (!canManageAccessRequests) return;
+    loadPendingAccessRequestsCount();
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') loadPendingAccessRequestsCount();
+    }, PENDING_COUNT_POLL_MS);
+    return () => clearInterval(id);
+  }, [canManageAccessRequests, loadPendingAccessRequestsCount]);
+
   return (
     <Tabs.Root dir="rtl" value={tab} onValueChange={(v) => setTab(v as TabKey)}>
       <Tabs.List
@@ -67,6 +80,11 @@ export default function TabsNavigation() {
           >
             <t.Icon className="h-4 w-4 shrink-0" />
             <span>{t.label}</span>
+            {t.key === 'accessRequests' && pendingAccessRequestsCount > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white animate-pulse-soft">
+                {pendingAccessRequestsCount > 99 ? '99+' : pendingAccessRequestsCount}
+              </span>
+            )}
           </Tabs.Trigger>
         ))}
         <div

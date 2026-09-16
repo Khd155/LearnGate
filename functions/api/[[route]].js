@@ -3297,6 +3297,14 @@ export async function onRequest({ request, env }) {
       return err('غير موجود', 404, CORS);
     }
 
+    // TEMP: dev-only read for manually verifying a click landed in the table.
+    // Remove after verification.
+    if (resource === 'telemetry' && sub === 'debug-list' && method === 'GET') {
+      if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
+      const { results } = await DB.prepare('SELECT * FROM student_engagement_logs ORDER BY created_at DESC LIMIT 20').all();
+      return ok({ results }, 200, CORS);
+    }
+
     // ── SILENT ENGAGEMENT TELEMETRY (نقرات الروابط الخارجية) ────────────────
     // Fire-and-forget: the click handler on the lesson/practice pages uses
     // navigator.sendBeacon, which cannot set an Authorization header, so the

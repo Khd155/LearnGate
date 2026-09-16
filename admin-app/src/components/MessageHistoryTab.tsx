@@ -16,6 +16,7 @@ const TEMPLATE_LABELS: Record<string, string> = {
   student_account_access_template_1: 'إشعار الحساب وبيانات الدخول',
   student_general_message: 'رسالة عامة',
   student_issue_notification: 'إشعار مشكلة/ملاحظة',
+  student_request_declined: 'إشعار رفض طلب انضمام',
 };
 
 export default function MessageHistoryTab() {

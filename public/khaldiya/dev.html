@@ -828,6 +828,18 @@
 
       <!-- ── Broadcasts ── -->
     <div id="tab-broadcasts" class="tab-pane">
+      <div class="section" style="padding:16px;margin-bottom:20px;">
+        <div class="section-title" style="margin-bottom:10px;"><span>📲</span> إرسال دعوة تسجيل سريعة (طلب انضمام)</div>
+        <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px;">
+          يرسل رابط صفحة طلب الانضمام مباشرة عبر واتساب لأي رقم — دون الحاجة لوجود طلب مسبق منه.
+        </p>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="text" id="inv-phone" class="form-input" placeholder="05xxxxxxxx" style="width:auto;flex:1;min-width:160px;max-width:220px;" dir="ltr">
+          <button class="btn btn-primary btn-sm" id="inv-send-btn" onclick="Dev.sendRegistrationInvite()">إرسال الرابط عبر واتساب 🚀</button>
+        </div>
+        <div id="inv-result" style="margin-top:10px;font-size:13px;"></div>
+      </div>
+
       <div class="section-title" style="margin-bottom:16px;"><span>📢</span> الرسائل الجماعية</div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
         <select id="bc-school-filter" class="form-select" style="width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadBroadcasts()">
@@ -2597,6 +2609,32 @@ const Dev = {
     await apiDev('/dev/logs?confirm=ERASE_ALL_LOGS', { method: 'DELETE' });
     showToast('تم مسح السجلات ✅');
     Dev.loadLogs();
+  },
+
+  // ── Quick registration-invite (مركز المراسلات) ──────────────────────
+  async sendRegistrationInvite() {
+    const phoneEl = document.getElementById('inv-phone');
+    const resultEl = document.getElementById('inv-result');
+    const btn = document.getElementById('inv-send-btn');
+    const phone = (phoneEl?.value || '').trim();
+    if (!/^05\d{8}$/.test(phone)) {
+      if (resultEl) resultEl.innerHTML = '<span style="color:var(--danger)">رقم الجوال غير صالح — الصيغة المطلوبة 05xxxxxxxx</span>';
+      return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال...'; }
+    if (resultEl) resultEl.innerHTML = '';
+    try {
+      await apiDev('/dev/send-registration-invite', { method: 'POST', body: JSON.stringify({ phone }) });
+      if (resultEl) resultEl.innerHTML = '<span style="color:var(--success)">✅ تم إرسال رابط التسجيل عبر واتساب بنجاح</span>';
+      showToast('تم إرسال الدعوة ✅');
+      if (phoneEl) phoneEl.value = '';
+    } catch (e) {
+      const msg = e?.message || 'تعذّر إرسال الدعوة';
+      if (resultEl) resultEl.innerHTML = `<span style="color:var(--danger)">❌ فشل الإرسال: ${escapeHtml(msg)}</span>`;
+      showToast('فشل إرسال الدعوة', true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'إرسال الرابط عبر واتساب 🚀'; }
+    }
   },
 
   // ── Broadcasts Tab ───────────────────────────────────────────────────

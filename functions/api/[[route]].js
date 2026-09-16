@@ -3668,6 +3668,46 @@ export async function onRequest({ request, env }) {
     // ── DEV ENDPOINTS ────────────────────────────────────────────────────────
     if (resource === 'dev') {
 
+      // POST /api/dev/send-registration-invite — dev-panel quick invite card
+      // (مركز المراسلات). Sends the approved "student_request_access_invite"
+      // WhatsApp template (static body + fixed link button, no {{n}}
+      // variables) to an arbitrary phone number — same template/flow as
+      // POST /api/access-requests/invite, just reachable with the dev key
+      // instead of a JWT since dev.html only ever sends X-Dev-Key.
+      if (sub === 'send-registration-invite' && method === 'POST') {
+        if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
+        const body = await request.json();
+        const phoneRaw = String(body.phone || '').trim();
+        if (!/^05\d{8}$/.test(phoneRaw)) return err('رقم الجوال غير صالح — الصيغة المطلوبة 05xxxxxxxx', 400, CORS);
+
+        let waStatus = 'sent', waError = null;
+        try {
+          const res = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+            bot_id: env.SENDPULSE_BOT_ID,
+            phone: normalizeSaudiPhone(phoneRaw),
+            template: { name: 'student_request_access_invite', language: { code: 'ar', policy: 'deterministic' } },
+          });
+          if (res?.success === false || res?.error || res?.errors) { waStatus = 'failed'; waError = JSON.stringify(res); }
+        } catch (e) { waStatus = 'failed'; waError = e.message || 'send failed'; }
+
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_template_logs (
+          id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
+          template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
+        )`).run(); } catch {}
+        const now = new Date().toISOString();
+        await DB.prepare(
+          `INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at)
+           VALUES (?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?)`
+        ).bind(crypto.randomUUID(), phoneRaw, 'student_request_access_invite', JSON.stringify({}), waStatus, waError, now).run();
+
+        if (waStatus !== 'sent') {
+          await logEvent(DB, { level: 'error', category: 'access_request', message: `فشل إرسال دعوة تسجيل عبر واتساب إلى ${phoneRaw}: ${waError}`, user_name: 'Dev', user_role: 'dev' });
+          return err(waError || 'تعذّر إرسال الدعوة عبر واتساب', 502, CORS);
+        }
+        await logEvent(DB, { level: 'success', category: 'access_request', message: `إرسال دعوة تسجيل عبر واتساب إلى ${phoneRaw}`, user_name: 'Dev', user_role: 'dev' });
+        return ok({ ok: true }, 200, CORS);
+      }
+
       // POST /api/dev/logs is reachable by any authenticated user (JWT), not just the dev key —
       // the frontend's serverLog() helper uses a JWT bearer token and must never receive DEV_KEY.
       if (sub === 'logs' && method === 'POST') {

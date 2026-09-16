@@ -3297,13 +3297,6 @@ export async function onRequest({ request, env }) {
       return err('غير موجود', 404, CORS);
     }
 
-    // TEMP: dev-only cleanup for the manual verification test row. Remove after use.
-    if (resource === 'telemetry' && sub === 'debug-cleanup' && method === 'POST') {
-      if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
-      await DB.prepare("DELETE FROM student_engagement_logs WHERE student_id = '1c8c19b6-926b-480c-8724-7ecb3585f8a9'").run();
-      return ok({ ok: true }, 200, CORS);
-    }
-
     // ── SILENT ENGAGEMENT TELEMETRY (نقرات الروابط الخارجية) ────────────────
     // Fire-and-forget: the click handler on the lesson/practice pages uses
     // navigator.sendBeacon, which cannot set an Authorization header, so the
@@ -3378,6 +3371,43 @@ export async function onRequest({ request, env }) {
         ).bind(id, name, phoneRaw, gradeLevel, isOther ? otherSchoolName : schoolChoice, isOther ? 1 : 0, source, note, now).run();
         await logEvent(DB, { level: 'info', category: 'access_request', message: `طلب انضمام جديد: ${name}`, ip });
         return ok({ ok: true, id }, 201, CORS);
+      }
+
+      // POST /api/access-requests/invite — admin/director/dev with
+      // can_manage_access_requests. Sends the approved "student_request_access_invite"
+      // WhatsApp template (static body + a fixed link button, no {{n}} variables)
+      // to an arbitrary phone number, for admins inviting someone who hasn't
+      // submitted a request yet. Not tied to any access_requests row.
+      if (sub === 'invite' && method === 'POST') {
+        const claims = await verifyToken(request, env, DB);
+        if (!canManageAR(claims)) return err('غير مصرح', 401, CORS);
+        const body = await request.json();
+        const phoneRaw = String(body.phone || '').trim();
+        if (!/^05\d{8}$/.test(phoneRaw)) return err('رقم الجوال غير صالح — الصيغة المطلوبة 05xxxxxxxx', 400, CORS);
+
+        let waStatus = 'sent', waError = null;
+        try {
+          const res = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+            bot_id: env.SENDPULSE_BOT_ID,
+            phone: normalizeSaudiPhone(phoneRaw),
+            template: { name: 'student_request_access_invite', language: { code: 'ar', policy: 'deterministic' } },
+          });
+          if (res?.success === false || res?.error || res?.errors) { waStatus = 'failed'; waError = JSON.stringify(res); }
+        } catch (e) { waStatus = 'failed'; waError = e.message || 'send failed'; }
+
+        try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_template_logs (
+          id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
+          template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
+        )`).run(); } catch {}
+        const now = new Date().toISOString();
+        await DB.prepare(
+          `INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at)
+           VALUES (?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?)`
+        ).bind(crypto.randomUUID(), phoneRaw, 'student_request_access_invite', JSON.stringify({}), waStatus, waError, now).run();
+
+        if (waStatus !== 'sent') return err('تعذّر إرسال الدعوة عبر واتساب', 502, CORS);
+        await logEvent(DB, { level: 'success', category: 'access_request', message: `إرسال دعوة تسجيل عبر واتساب إلى ${phoneRaw}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
+        return ok({ ok: true }, 200, CORS);
       }
 
       // GET /api/access-requests — admin/director/dev with can_manage_access_requests.

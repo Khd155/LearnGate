@@ -71,6 +71,66 @@ function DevToggleBanner({ enabled, onChanged }: { enabled: boolean; onChanged: 
   );
 }
 
+// Sends the approved "student_request_access_invite" WhatsApp template to a
+// phone number that hasn't submitted an access request yet — for admins who
+// want to proactively invite someone. Independent of the requests list/table
+// (no access_requests row involved), so it's just a phone-number input.
+function InviteModal({ onClose }: { onClose: () => void }) {
+  const pushToast = useStore((s) => s.pushToast);
+  const [phone, setPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const valid = /^05\d{8}$/.test(phone.trim());
+
+  const submit = async () => {
+    if (!valid) return;
+    setBusy(true);
+    try {
+      await api.post('/access-requests/invite', { phone: phone.trim() });
+      pushToast('success', 'تم إرسال رابط التسجيل عبر واتساب');
+      onClose();
+    } catch (e) {
+      pushToast('error', e instanceof ApiError ? e.message : 'تعذّر إرسال الدعوة');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-base font-extrabold text-slate-800 dark:text-white">دعوة رقم للتسجيل</h3>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          يُرسل رسالة واتساب تحتوي رابط صفحة التسجيل مباشرة إلى الرقم أدناه.
+        </p>
+        <input
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="05xxxxxxxx"
+          dir="ltr"
+          className="mt-3 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+            إلغاء
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!valid || busy}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {busy ? 'جارٍ الإرسال…' : 'إرسال الدعوة'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ label, value, tone }: { label: string; value: number; tone: 'slate' | 'amber' | 'emerald' | 'rose' }) {
   const tones = {
     slate: 'text-slate-700 dark:text-slate-200',
@@ -419,6 +479,7 @@ export default function AccessRequestsTab() {
   const [detailsRequest, setDetailsRequest] = useState<AccessRequest | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 250);
@@ -476,12 +537,29 @@ export default function AccessRequestsTab() {
     <div className="space-y-4">
       {isDev && enabled !== null && <DevToggleBanner enabled={enabled} onChanged={setEnabled} />}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="إجمالي الطلبات" value={stats.total} tone="slate" />
-        <StatCard label="قيد المراجعة" value={stats.pending} tone="amber" />
-        <StatCard label="مقبولة" value={stats.approved} tone="emerald" />
-        <StatCard label="مرفوضة/مؤرشفة" value={stats.rejected} tone="rose" />
+      <div className="flex items-center justify-between gap-3">
+        <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard label="إجمالي الطلبات" value={stats.total} tone="slate" />
+          <StatCard label="قيد المراجعة" value={stats.pending} tone="amber" />
+          <StatCard label="مقبولة" value={stats.approved} tone="emerald" />
+          <StatCard label="مرفوضة/مؤرشفة" value={stats.rejected} tone="rose" />
+        </div>
+        <button
+          type="button"
+          onClick={() => setInviteOpen(true)}
+          className="hidden h-fit shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 sm:block"
+        >
+          دعوة رقم للتسجيل
+        </button>
       </div>
+      <button
+        type="button"
+        onClick={() => setInviteOpen(true)}
+        className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 sm:hidden"
+      >
+        دعوة رقم للتسجيل
+      </button>
+      {inviteOpen && <InviteModal onClose={() => setInviteOpen(false)} />}
 
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
         <div className="relative w-full max-w-xs">

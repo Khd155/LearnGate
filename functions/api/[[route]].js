@@ -3383,36 +3383,44 @@ export async function onRequest({ request, env }) {
           ).bind(adminNote, claims.name || '', now, sub).run();
           await logEvent(DB, { level: 'info', category: 'access_request', message: `رفض/أرشفة طلب انضمام: ${reqRow.name}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
 
-          // Meta-approved rejection notice — same "no message without a
-          // pre-approved template" constraint as the approval WhatsApp send
-          // below. {{2}} is the admin's note when given, otherwise a neutral
-          // fallback line (WhatsApp body params can't be sent empty).
-          let rejWaStatus = 'sent', rejWaError = null;
-          try {
-            const rejComps = sanitizeWaComponents([
-              { type: 'body', parameters: [
-                { type: 'text', text: reqRow.name },
-                { type: 'text', text: adminNote || 'يمكنك التواصل مع إدارة المدرسة لمزيد من التفاصيل.' },
-              ] },
-            ]);
-            const rejRes = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
-              bot_id: env.SENDPULSE_BOT_ID,
-              phone: normalizeSaudiPhone(reqRow.phone),
-              template: { name: 'student_request_declined', language: { code: 'ar', policy: 'deterministic' }, components: rejComps },
-            });
-            if (rejRes?.success === false || rejRes?.error || rejRes?.errors) { rejWaStatus = 'failed'; rejWaError = JSON.stringify(rejRes); }
-          } catch (e) { rejWaStatus = 'failed'; rejWaError = e.message || 'send failed'; }
+          // Notifying the student is opt-out, not silent — the admin UI
+          // shows a checked-by-default "إرسال إشعار واتساب" checkbox and
+          // only sends `notify: false` when the admin explicitly unticks it.
+          const notify = body.notify !== false;
+          let waSent = false;
+          if (notify) {
+            // Meta-approved rejection notice — same "no message without a
+            // pre-approved template" constraint as the approval WhatsApp
+            // send below. {{2}} is the admin's note when given, otherwise a
+            // neutral fallback line (WhatsApp body params can't be empty).
+            let rejWaStatus = 'sent', rejWaError = null;
+            try {
+              const rejComps = sanitizeWaComponents([
+                { type: 'body', parameters: [
+                  { type: 'text', text: reqRow.name },
+                  { type: 'text', text: adminNote || 'يمكنك التواصل مع إدارة المدرسة لمزيد من التفاصيل.' },
+                ] },
+              ]);
+              const rejRes = await spRequest(env, 'POST', '/whatsapp/contacts/sendTemplateByPhone', {
+                bot_id: env.SENDPULSE_BOT_ID,
+                phone: normalizeSaudiPhone(reqRow.phone),
+                template: { name: 'student_request_declined', language: { code: 'ar', policy: 'deterministic' }, components: rejComps },
+              });
+              if (rejRes?.success === false || rejRes?.error || rejRes?.errors) { rejWaStatus = 'failed'; rejWaError = JSON.stringify(rejRes); }
+            } catch (e) { rejWaStatus = 'failed'; rejWaError = e.message || 'send failed'; }
 
-          try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_template_logs (
-            id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
-            template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
-          )`).run(); } catch {}
-          await DB.prepare(
-            `INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at)
-             VALUES (?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?)`
-          ).bind(crypto.randomUUID(), reqRow.name, reqRow.phone, 'student_request_declined', JSON.stringify({}), rejWaStatus, rejWaError, now).run();
+            try { await DB.prepare(`CREATE TABLE IF NOT EXISTS wa_template_logs (
+              id TEXT PRIMARY KEY, batch_id TEXT, student_id TEXT, student_name TEXT, phone TEXT,
+              template_name TEXT, variables TEXT, status TEXT, error_message TEXT, created_at TEXT NOT NULL
+            )`).run(); } catch {}
+            await DB.prepare(
+              `INSERT INTO wa_template_logs (id, batch_id, student_id, student_name, phone, template_name, variables, status, error_message, created_at)
+               VALUES (?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?)`
+            ).bind(crypto.randomUUID(), reqRow.name, reqRow.phone, 'student_request_declined', JSON.stringify({}), rejWaStatus, rejWaError, now).run();
+            waSent = rejWaStatus === 'sent';
+          }
 
-          return ok({ ok: true }, 200, CORS);
+          return ok({ ok: true, notified: notify, waSent }, 200, CORS);
         }
 
         if (action === 'approve') {

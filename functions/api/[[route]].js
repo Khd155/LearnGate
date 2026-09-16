@@ -3297,6 +3297,38 @@ export async function onRequest({ request, env }) {
       return err('غير موجود', 404, CORS);
     }
 
+    // ── SILENT ENGAGEMENT TELEMETRY (نقرات الروابط الخارجية) ────────────────
+    // Fire-and-forget: the click handler on the lesson/practice pages uses
+    // navigator.sendBeacon, which cannot set an Authorization header, so the
+    // student's JWT travels in the JSON body instead of a header here. Any
+    // failure (bad/missing token, bad payload, DB error) still returns 204 —
+    // this must never surface an error to the student or block the resource
+    // link from opening.
+    if (resource === 'telemetry' && sub === 'click' && method === 'POST') {
+      try {
+        const body = await request.json();
+        const payloadClaims = body?.token ? await jwtVerify(body.token, env.JWT_SECRET) : null;
+        const studentId = payloadClaims?.role === 'student' ? payloadClaims.sub : null;
+        const resourceType = body?.resourceType === 'practice_form' ? 'practice_form' : (body?.resourceType === 'video' ? 'video' : null);
+        const resourceIndex = Number.isInteger(body?.resourceIndex) ? body.resourceIndex : parseInt(body?.resourceIndex, 10);
+        const skillKey = typeof body?.skillKey === 'string' ? body.skillKey.slice(0, 50) : '';
+        const targetUrl = typeof body?.targetUrl === 'string' ? body.targetUrl.slice(0, 500) : '';
+
+        if (studentId && resourceType && skillKey && targetUrl && Number.isFinite(resourceIndex)) {
+          await DB.prepare(`CREATE TABLE IF NOT EXISTS student_engagement_logs (
+            id TEXT PRIMARY KEY, student_id TEXT NOT NULL, skill_key TEXT NOT NULL,
+            resource_type TEXT NOT NULL, resource_index INTEGER NOT NULL,
+            target_url TEXT NOT NULL, created_at TEXT NOT NULL
+          )`).run();
+          await DB.prepare(
+            `INSERT INTO student_engagement_logs (id, student_id, skill_key, resource_type, resource_index, target_url, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+          ).bind(crypto.randomUUID(), studentId, skillKey, resourceType, resourceIndex, targetUrl, new Date().toISOString()).run();
+        }
+      } catch {}
+      return new Response(null, { status: 204, headers: CORS });
+    }
+
     // ── ACCESS REQUESTS (طلبات الانضمام) ────────────────────────────────────
     if (resource === 'access-requests') {
       const canManageAR = (claims) => !!claims && (

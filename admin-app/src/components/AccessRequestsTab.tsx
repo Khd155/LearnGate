@@ -183,13 +183,22 @@ function DecisionModal({
   const pushToast = useStore((s) => s.pushToast);
   const [gradeLevel, setGradeLevel] = useState<GradeLevel>((GRADE_LEVELS as readonly string[]).includes(request.grade_level) ? (request.grade_level as GradeLevel) : GRADE_LEVELS[0]);
   const [adminNote, setAdminNote] = useState('');
+  const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     setBusy(true);
     try {
-      await api.patch(`/access-requests/${request.id}`, { action, adminNote, ...(action === 'approve' ? { gradeLevel } : {}) });
-      pushToast('success', action === 'approve' ? 'تم قبول الطلب وإنشاء الحساب وإرسال بيانات الدخول' : 'تم رفض/أرشفة الطلب وإرسال الإشعار عبر واتساب');
+      await api.patch(`/access-requests/${request.id}`, {
+        action, adminNote,
+        ...(action === 'approve' ? { gradeLevel } : { notify }),
+      });
+      pushToast(
+        'success',
+        action === 'approve'
+          ? 'تم قبول الطلب وإنشاء الحساب وإرسال بيانات الدخول'
+          : notify ? 'تم رفض/أرشفة الطلب وإرسال الإشعار عبر واتساب' : 'تم رفض/أرشفة الطلب بدون إرسال إشعار',
+      );
       onDone();
     } catch (e) {
       pushToast('error', e instanceof ApiError ? e.message : 'تعذّر تنفيذ الإجراء');
@@ -227,21 +236,34 @@ function DecisionModal({
           </div>
         )}
 
+        {action === 'reject' && (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/25 dark:bg-amber-500/10">
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={notify}
+                onChange={(e) => setNotify(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-400"
+              />
+              <span className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+                <span className="font-bold">إرسال إشعار واتساب للطالب</span> على {request.phone} بسبب الرفض.
+                {notify ? ' سيصله نص السبب أدناه (أو رسالة عامة إن تُرك فارغاً).' : ' لن تُرسل أي رسالة — سيُرفض الطلب بصمت.'}
+              </span>
+            </label>
+          </div>
+        )}
+
         <div className="mt-4">
           <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
-            {action === 'approve' ? 'ملاحظة داخلية (اختياري)' : 'سبب الرفض (سيُرسل للطالب ضمن رسالة واتساب)'}
+            {action === 'approve' ? 'ملاحظة داخلية (اختياري)' : 'سبب الرفض (اختياري)'}
           </label>
           <textarea
             value={adminNote}
             onChange={(e) => setAdminNote(e.target.value)}
             rows={3}
-            className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            disabled={action === 'reject' && !notify}
+            className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           />
-          {action === 'reject' && (
-            <p className="mt-2 text-xs text-slate-400">
-              سيتم إرسال إشعار رفض عبر واتساب إلى {request.phone} — إذا تركت الحقل فارغاً سيُرسل نص افتراضي عام.
-            </p>
-          )}
         </div>
 
         <div className="mt-5 flex gap-2">
@@ -260,7 +282,7 @@ function DecisionModal({
               action === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
             }`}
           >
-            {busy ? '…' : action === 'approve' ? 'تأكيد القبول والإرسال' : 'تأكيد الرفض'}
+            {busy ? '…' : action === 'approve' ? 'تأكيد القبول والإرسال' : notify ? 'تأكيد الرفض والإرسال' : 'تأكيد الرفض بدون إرسال'}
           </button>
         </div>
       </div>
@@ -280,6 +302,7 @@ function BulkConfirmModal({
   onDone: () => void;
 }) {
   const pushToast = useStore((s) => s.pushToast);
+  const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -295,7 +318,7 @@ function BulkConfirmModal({
           // internal-only label like "رفض جماعي" must never land here; the
           // backend falls back to a neutral default line when it's empty.
           adminNote: '',
-          ...(action === 'approve' ? { gradeLevel: r.grade_level } : {}),
+          ...(action === 'approve' ? { gradeLevel: r.grade_level } : { notify }),
         });
         okCount++;
       } catch {
@@ -306,7 +329,11 @@ function BulkConfirmModal({
     setBusy(false);
     pushToast(
       failCount ? 'error' : 'success',
-      failCount ? `تم ${okCount} وفشل ${failCount}` : action === 'approve' ? `تم قبول ${okCount} طلب وإرسال بيانات الدخول` : `تم رفض/أرشفة ${okCount} طلب`,
+      failCount
+        ? `تم ${okCount} وفشل ${failCount}`
+        : action === 'approve'
+          ? `تم قبول ${okCount} طلب وإرسال بيانات الدخول`
+          : notify ? `تم رفض/أرشفة ${okCount} طلب وإرسال إشعار واتساب لكل طالب` : `تم رفض/أرشفة ${okCount} طلب بدون إرسال إشعار`,
     );
     onDone();
   };
@@ -322,6 +349,24 @@ function BulkConfirmModal({
             ? 'سيتم إنشاء حساب لكل طالب وإرسال بيانات الدخول عبر واتساب دفعة واحدة.'
             : 'سيتم تحويل كل الطلبات المحددة إلى مؤرشفة.'}
         </p>
+
+        {action === 'reject' && (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/25 dark:bg-amber-500/10">
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={notify}
+                onChange={(e) => setNotify(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-400"
+              />
+              <span className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+                <span className="font-bold">إرسال إشعار واتساب</span> لكل طالب من المحددين برسالة رفض عامة.
+                {!notify && ' لن تُرسل أي رسالة — سيُرفض الجميع بصمت.'}
+              </span>
+            </label>
+          </div>
+        )}
+
         {busy && (
           <div className="mt-4">
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">

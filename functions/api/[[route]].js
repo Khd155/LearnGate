@@ -3297,12 +3297,11 @@ export async function onRequest({ request, env }) {
       return err('غير موجود', 404, CORS);
     }
 
-    // TEMP: dev-only read for manually verifying a click landed in the table.
-    // Remove after verification.
-    if (resource === 'telemetry' && sub === 'debug-list' && method === 'GET') {
+    // TEMP: dev-only cleanup for the manual verification test row. Remove after use.
+    if (resource === 'telemetry' && sub === 'debug-cleanup' && method === 'POST') {
       if (!authDev(request, env)) return err('غير مصرح', 401, CORS);
-      const { results } = await DB.prepare('SELECT * FROM student_engagement_logs ORDER BY created_at DESC LIMIT 20').all();
-      return ok({ results }, 200, CORS);
+      await DB.prepare("DELETE FROM student_engagement_logs WHERE student_id = '1c8c19b6-926b-480c-8724-7ecb3585f8a9'").run();
+      return ok({ ok: true }, 200, CORS);
     }
 
     // ── SILENT ENGAGEMENT TELEMETRY (نقرات الروابط الخارجية) ────────────────

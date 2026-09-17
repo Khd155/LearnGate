@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تمهيد وتهيئة المقرر — بوابة دعم التعلم</title>
+<script>if ('scrollRestoration' in history) history.scrollRestoration = 'manual';</script>
+<script>!function(){try{var s=sessionStorage.getItem("lg_session_student")||localStorage.getItem("lg_xsession_student");var d=s?JSON.parse(s):null;if(d&&d.token&&d.role==="student"&&d.expiry&&Date.now()<d.expiry)return;var r=localStorage.getItem("lg_remember_student");var rd=r?JSON.parse(r):null;if(rd&&rd.code&&rd.role==="student"&&rd.expiry&&Date.now()<rd.expiry)return;}catch(e){}window.location.replace("/");}();</script>
+<style>
+  :root {
+    --primary: #3F7CB8;
+    --primary-dk: #2B5F94;
+    --bg: #F5F7FA;
+    --card: #FFFFFF;
+    --text: #1F2937;
+    --muted: #6B7280;
+    --border: #E5E9F0;
+    --green: #1E9E6B;
+    --green-bg: #E7F7EF;
+    --orange: #C2760F;
+    --orange-bg: #FDF1E0;
+    --gray-bg: #EEF1F5;
+    --danger: #D14343;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); }
+  .topbar { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--card); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:20; }
+  .topbar h1 { font-size:15px; margin:0; font-weight:800; }
+  .back-btn { background:none; border:1px solid var(--border); border-radius:10px; padding:6px 14px; font-size:13px; color:var(--text); cursor:pointer; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 20px 16px 60px; }
+  .screen { display:none; }
+  .screen.active { display:block; animation: fade .25s ease; }
+  @keyframes fade { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+  .hero { background:linear-gradient(135deg, var(--primary), var(--primary-dk)); color:#fff; border-radius:var(--radius); padding:24px 20px; margin-bottom:20px; }
+  .hero h2 { margin:0 0 8px; font-size:19px; }
+  .hero p { margin:0; font-size:14px; line-height:1.9; opacity:.95; }
+
+  .section-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:16px; }
+  .section-card h3 { margin:0 0 12px; font-size:15px; }
+
+  .prereq-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .prereq-list li { display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:10px 12px; background:var(--gray-bg); border-radius:10px; flex-wrap:wrap; }
+  .prereq-list b { font-weight:700; }
+  .prereq-list span.src { color:var(--muted); font-size:12px; }
+
+  .primary-btn { background:var(--primary); color:#fff; border:none; border-radius:12px; padding:13px 20px; font-size:14.5px; font-weight:700; cursor:pointer; width:100%; }
+  .primary-btn:hover { background:var(--primary-dk); }
+  .primary-btn:disabled { opacity:.5; cursor:not-allowed; }
+  .ghost-btn { background:none; border:1px solid var(--border); color:var(--text); border-radius:12px; padding:11px 18px; font-size:13.5px; cursor:pointer; }
+
+  /* ── ChapterMapCard ── */
+  .chapter-map { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .chapter-card { border-radius:14px; padding:14px; border:2px solid var(--border); background:var(--gray-bg); cursor:pointer; transition:.15s; position:relative; }
+  .chapter-card:hover { transform:translateY(-2px); }
+  .chapter-card.status-mastered { background:var(--green-bg); border-color:var(--green); }
+  .chapter-card.status-needs_review { background:var(--orange-bg); border-color:var(--orange); }
+  .chapter-card .num { font-size:11px; font-weight:800; color:var(--muted); }
+  .chapter-card .title { font-size:14px; font-weight:800; margin:6px 0 4px; }
+  .chapter-card .layer-pill { display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:99px; background:#fff; color:var(--primary-dk); border:1px solid var(--border); margin-bottom:6px; }
+  .chapter-card .deps { font-size:11px; color:var(--muted); }
+  .chapter-card .status-dot { position:absolute; top:10px; left:10px; width:10px; height:10px; border-radius:50%; background:#C4CAD4; }
+  .chapter-card.status-mastered .status-dot { background:var(--green); }
+  .chapter-card.status-needs_review .status-dot { background:var(--orange); }
+
+  /* ── DiagnosticEngine ── */
+  .q-progress { font-size:12px; color:var(--muted); margin-bottom:10px; }
+  .q-prompt { font-size:16px; font-weight:700; margin-bottom:16px; line-height:1.7; }
+  .option-btn { display:block; width:100%; text-align:right; background:var(--gray-bg); border:2px solid transparent; border-radius:12px; padding:13px 16px; font-size:14px; margin-bottom:10px; cursor:pointer; }
+  .option-btn:hover:not(:disabled) { border-color:var(--primary); }
+  .option-btn:disabled { cursor:default; }
+  .option-btn.correct { background:var(--green-bg); border-color:var(--green); }
+  .option-btn.incorrect { background:#FDECEC; border-color:var(--danger); }
+  .option-feedback { font-size:12.5px; margin-top:6px; padding:8px 10px; border-radius:8px; line-height:1.7; display:none; }
+  .option-btn.correct + .option-feedback, .option-btn.incorrect + .option-feedback { display:block; }
+  .option-feedback.fb-correct { background:var(--green-bg); color:var(--green); }
+  .option-feedback.fb-incorrect { background:#FDECEC; color:var(--danger); }
+
+  /* ── ResultBranchBox ── */
+  .branch-box { text-align:center; padding:24px 16px; }
+  .branch-icon { font-size:40px; margin-bottom:10px; }
+  .branch-title { font-size:17px; font-weight:800; margin-bottom:8px; }
+  .branch-desc { font-size:13.5px; color:var(--muted); line-height:1.8; margin-bottom:18px; }
+  .capsule-item { background:var(--orange-bg); border:1px solid var(--orange); border-radius:12px; padding:12px 14px; margin-bottom:10px; text-align:right; font-size:13px; }
+
+  /* ── ChapterSummaryPanel ── */
+  .summary-grid { display:grid; gap:12px; }
+  .summary-block { background:var(--gray-bg); border-radius:12px; padding:14px; }
+  .summary-block h4 { margin:0 0 8px; font-size:13px; color:var(--primary-dk); }
+  .chip { display:inline-block; background:#fff; border:1px solid var(--border); border-radius:99px; padding:4px 10px; font-size:12px; margin:2px; }
+  .term-item { font-size:13px; margin-bottom:6px; }
+
+  .eval-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:600px) { .eval-grid { grid-template-columns:1fr; } }
+  .eval-card { border-radius:14px; padding:16px; }
+  .eval-card.knowledge { background:#E9F2FA; border:1px solid var(--primary); }
+  .eval-card.higher_order { background:#F3ECFB; border:1px solid #8B5CF6; }
+  .eval-card .eval-level { font-size:11px; font-weight:800; margin-bottom:8px; }
+  .eval-card.knowledge .eval-level { color:var(--primary-dk); }
+  .eval-card.higher_order .eval-level { color:#6D28D9; }
+  .eval-card .eval-prompt { font-size:13.5px; line-height:1.8; }
+  .reveal-btn { margin-top:10px; font-size:12px; background:none; border:none; color:var(--primary-dk); cursor:pointer; text-decoration:underline; padding:0; }
+  .model-answer { margin-top:8px; font-size:12.5px; background:rgba(255,255,255,.7); border-radius:8px; padding:8px 10px; display:none; line-height:1.7; }
+
+  .loading { text-align:center; padding:40px; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="back-btn" onclick="location.href='/'">→ رجوع</button>
+  <h1 id="topbar-title">تمهيد المقرر</h1>
+  <span style="width:60px"></span>
+</div>
+
+<div class="wrap">
+  <div id="loading" class="loading">جارٍ التحميل...</div>
+
+  <!-- Screen 1+2: Intro + Chapter map -->
+  <div id="screen-intro" class="screen">
+    <div class="hero">
+      <h2 id="hero-title"></h2>
+      <p id="hero-intro"></p>
+    </div>
+
+    <div class="section-card">
+      <h3>خارطة المفاهيم — فصول المقرر وعلاقاتها</h3>
+      <div id="chapter-map" class="chapter-map"></div>
+    </div>
+
+    <div id="subject-prereqs-card" class="section-card">
+      <h3>المتطلبات القبلية على مستوى المادة</h3>
+      <ul id="subject-prereqs-list" class="prereq-list"></ul>
+    </div>
+
+    <div id="intro-cta">
+      <button class="primary-btn" onclick="Prereq.startSubjectDiagnostic()">ابدأ تشخيص المتطلبات القبلية →</button>
+    </div>
+  </div>
+
+  <!-- Screen 3/4: Diagnostic engine -->
+  <div id="screen-diagnostic" class="screen">
+    <div class="section-card">
+      <div class="q-progress" id="q-progress"></div>
+      <div class="q-prompt" id="q-prompt"></div>
+      <div id="q-options"></div>
+      <button class="primary-btn" id="q-next-btn" style="display:none;margin-top:8px" onclick="Prereq.nextQuestion()">التالي →</button>
+    </div>
+  </div>
+
+  <!-- Screen: Result branch -->
+  <div id="screen-result" class="screen">
+    <div class="section-card branch-box" id="branch-box"></div>
+  </div>
+
+  <!-- Screen: Chapter summary + evaluation -->
+  <div id="screen-summary" class="screen">
+    <div class="section-card">
+      <h3>ملخص الفصل</h3>
+      <div id="summary-grid" class="summary-grid"></div>
+    </div>
+    <div class="section-card">
+      <h3>أسئلة تقويمية</h3>
+      <div id="eval-grid" class="eval-grid"></div>
+    </div>
+    <button class="ghost-btn" style="width:100%" onclick="Prereq.backToMap()">↩ العودة لخارطة المفاهيم</button>
+  </div>
+</div>
+
+<script>
+const API = '';
+function getStudentSession() {
+  try {
+    const raw = sessionStorage.getItem('lg_session_student') || localStorage.getItem('lg_xsession_student');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function apiFetch(path, opts = {}) {
+  const sess = getStudentSession();
+  return fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...(sess?.token ? { Authorization: 'Bearer ' + sess.token } : {}), ...(opts.headers || {}) },
+  }).then(async (r) => {
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    return d;
+  });
+}
+
+const LAYER_LABELS = { foundational: 'تأسيسي', descriptive: 'وصفي', structural: 'تركيبي', reactive: 'تفاعلي', quantitative: 'كمّي' };
+
+const Prereq = {
+  subjectId: null,
+  overview: null,
+  currentDiagnostic: null, // { scope, chapterId, questions, index, weakLabels }
+
+  async init() {
+    const params = new URLSearchParams(location.search);
+    this.subjectId = params.get('subject') || 'chemistry-1';
+    const sess = getStudentSession();
+    if (!sess) { location.replace('/'); return; }
+    try {
+      this.overview = await apiFetch(`/api/prereq/overview?subject=${encodeURIComponent(this.subjectId)}`);
+    } catch (e) {
+      document.getElementById('loading').textContent = 'تعذّر تحميل بيانات المقرر: ' + e.message;
+      return;
+    }
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('topbar-title').textContent = this.overview.subject.title;
+    document.getElementById('hero-title').textContent = this.overview.subject.title;
+    document.getElementById('hero-intro').textContent = this.overview.subject.intro;
+    this.renderChapterMap();
+    this.renderSubjectPrereqs();
+
+    // Steps 1-3 (intro + map + subject diagnostic) show once per student/subject.
+    if (this.overview.seenIntro) {
+      document.getElementById('intro-cta').innerHTML =
+        '<p style="text-align:center;color:var(--muted);font-size:13px">أنجزت تشخيص المتطلبات القبلية لهذه المادة من قبل — اختر فصلاً من الخارطة أعلاه للمتابعة.</p>';
+    }
+    this.showScreen('screen-intro');
+  },
+
+  renderChapterMap() {
+    const el = document.getElementById('chapter-map');
+    el.innerHTML = this.overview.chapters.map(c => `
+      <div class="chapter-card status-${c.status}" onclick="Prereq.openChapter('${c.chapterId}')">
+        <span class="status-dot"></span>
+        <div class="num">فصل ${c.orderNum}</div>
+        <span class="layer-pill">${LAYER_LABELS[c.layer] || c.layer}</span>
+        <div class="title">${escapeHtml(c.title)}</div>
+        <div class="deps">${c.dependsOn.length ? 'يعتمد على: ' + c.dependsOn.map(depId => {
+          const dep = this.overview.chapters.find(x => x.chapterId === depId);
+          return dep ? 'الفصل ' + dep.orderNum : '';
+        }).filter(Boolean).join(' و ') : 'بداية المقرر'}</div>
+      </div>
+    `).join('');
+  },
+
+  renderSubjectPrereqs() {
+    const list = this.overview.subject.subjectPrereqs || [];
+    const card = document.getElementById('subject-prereqs-card');
+    if (!list.length) { card.style.display = 'none'; return; }
+    document.getElementById('subject-prereqs-list').innerHTML = list.map(p => `
+      <li><b>${escapeHtml(p.label)}</b><span class="src">${escapeHtml(p.source)} — يُستخدم في ${escapeHtml(p.usedIn)}</span></li>
+    `).join('');
+  },
+
+  openChapter(chapterId) {
+    this.startChapterDiagnostic(chapterId);
+  },
+
+  async startSubjectDiagnostic() {
+    await this._loadDiagnostic('subject', null);
+  },
+  async startChapterDiagnostic(chapterId) {
+    await this._loadDiagnostic('chapter', chapterId);
+  },
+
+  async _loadDiagnostic(scope, chapterId) {
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').textContent = 'جارٍ التحميل...';
+    try {
+      const qs = `subject=${encodeURIComponent(this.subjectId)}&scope=${scope}` + (chapterId ? `&chapterId=${encodeURIComponent(chapterId)}` : '');
+      const data = await apiFetch(`/api/prereq/diagnostic?${qs}`);
+      this.currentDiagnostic = { scope, chapterId, questions: data.questions, index: 0, weakLabels: [] };
+      document.getElementById('loading').style.display = 'none';
+      this.showScreen('screen-diagnostic');
+      this.renderQuestion();
+    } catch (e) {
+      document.getElementById('loading').textContent = 'تعذّر تحميل التشخيص: ' + e.message;
+    }
+  },
+
+  renderQuestion() {
+    const d = this.currentDiagnostic;
+    const q = d.questions[d.index];
+    document.getElementById('q-progress').textContent = `سؤال ${d.index + 1} من ${d.questions.length}`;
+    document.getElementById('q-prompt').textContent = q.prompt;
+    document.getElementById('q-next-btn').style.display = 'none';
+    document.getElementById('q-options').innerHTML = q.options.map((o, i) => `
+      <div>
+        <button class="option-btn" onclick="Prereq.answer(${i})">${escapeHtml(o.text)}</button>
+        <div class="option-feedback" id="fb-${i}">${escapeHtml(o.feedback || '')}</div>
+      </div>
+    `).join('');
+  },
+
+  answer(optionIndex) {
+    const d = this.currentDiagnostic;
+    const q = d.questions[d.index];
+    const buttons = document.querySelectorAll('#q-options .option-btn');
+    if (buttons[0].disabled) return; // already answered
+    const chosen = q.options[optionIndex];
+    buttons.forEach((btn, i) => {
+      btn.disabled = true;
+      const opt = q.options[i];
+      if (opt.is_correct) btn.classList.add('correct');
+      else if (i === optionIndex) btn.classList.add('incorrect');
+      const fb = document.getElementById('fb-' + i);
+      if (i === optionIndex || opt.is_correct) {
+        fb.classList.add(opt.is_correct ? 'fb-correct' : 'fb-incorrect');
+      }
+    });
+    if (!chosen.is_correct) d.weakLabels.push(q.prerequisiteLabel);
+    document.getElementById('q-next-btn').style.display = 'block';
+    document.getElementById('q-next-btn').textContent = d.index + 1 < d.questions.length ? 'التالي →' : 'عرض النتيجة →';
+  },
+
+  async nextQuestion() {
+    const d = this.currentDiagnostic;
+    d.index++;
+    if (d.index < d.questions.length) { this.renderQuestion(); return; }
+    await this.submitDiagnostic();
+  },
+
+  async submitDiagnostic() {
+    const d = this.currentDiagnostic;
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').textContent = 'جارٍ حساب النتيجة...';
+    try {
+      const result = await apiFetch('/api/prereq/diagnostic/submit', {
+        method: 'POST',
+        body: JSON.stringify({ subjectId: this.subjectId, scope: d.scope, chapterId: d.chapterId, weakLabels: d.weakLabels }),
+      });
+      document.getElementById('loading').style.display = 'none';
+      this.renderBranch(result, d);
+      this.showScreen('screen-result');
+    } catch (e) {
+      document.getElementById('loading').textContent = 'تعذّر إرسال النتيجة: ' + e.message;
+    }
+  },
+
+  renderBranch(result, d) {
+    const box = document.getElementById('branch-box');
+    const chapterId = d.chapterId;
+    const startLabel = chapterId ? 'ابدأ الفصل' : 'استمر إلى فصول المقرر';
+    const startAction = chapterId ? `Prereq.finishChapterStudy('${chapterId}')` : `Prereq.backToMap()`;
+    if (result.branch === 'direct') {
+      box.innerHTML = `
+        <div class="branch-icon">✅</div>
+        <div class="branch-title">ممتاز — كل متطلباتك جاهزة</div>
+        <div class="branch-desc">أجبت بشكل صحيح على كل أسئلة التشخيص. يمكنك الدخول مباشرة دون أي محتوى علاجي إضافي.</div>
+        <button class="primary-btn" onclick="${startAction}">${startLabel}</button>`;
+    } else if (result.branch === 'capsule') {
+      box.innerHTML = `
+        <div class="branch-icon">💊</div>
+        <div class="branch-title">كبسولة علاجية مصغّرة</div>
+        <div class="branch-desc">وجدنا ${result.weakCount} من ${result.totalCount} متطلبات تحتاج مراجعة سريعة قبل المتابعة:</div>
+        ${result.weakLabels.map(l => `<div class="capsule-item">📌 ${escapeHtml(l)} — راجع هذا المفهوم مع معلمك أو من مصدره الأساسي قبل المتابعة (~5 دقائق).</div>`).join('')}
+        <button class="primary-btn" style="margin-top:8px" onclick="${startAction}">${startLabel}</button>`;
+    } else {
+      box.innerHTML = `
+        <div class="branch-icon">🔔</div>
+        <div class="branch-title">تم تسجيل تنبيه لمعلمك</div>
+        <div class="branch-desc">ضعفك في أغلب المتطلبات القبلية (${result.weakCount} من ${result.totalCount}) — تم إشعار معلمك بذلك تلقائياً، ويمكنك المتابعة اختيارياً.</div>
+        <button class="primary-btn" onclick="${startAction}">${startLabel}</button>`;
+    }
+  },
+
+  async finishChapterStudy(chapterId) {
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').textContent = 'جارٍ التحميل...';
+    try {
+      const data = await apiFetch(`/api/prereq/chapter-summary?chapterId=${encodeURIComponent(chapterId)}`);
+      document.getElementById('loading').style.display = 'none';
+      this.renderSummary(data);
+      this.showScreen('screen-summary');
+    } catch (e) {
+      // No summary content yet for this chapter (only chapter 3 is seeded as
+      // the reference model) — go back to the map rather than dead-end.
+      document.getElementById('loading').style.display = 'none';
+      this.backToMap();
+    }
+  },
+
+  renderSummary(data) {
+    const s = data.summary;
+    document.getElementById('summary-grid').innerHTML = `
+      <div class="summary-block"><h4>المفاهيم الأساسية</h4>${s.keyConcepts.map(c => `<span class="chip">${escapeHtml(c)}</span>`).join('')}</div>
+      <div class="summary-block"><h4>مصطلحات جديدة</h4>${s.newTerms.map(t => `<div class="term-item"><b>${escapeHtml(t.term)}</b> — ${escapeHtml(t.definition)}</div>`).join('')}</div>
+      <div class="summary-block"><h4>القانون الأساسي</h4>${escapeHtml(s.coreRule)}</div>
+      <div class="summary-block"><h4>مثال محلول</h4>${escapeHtml(s.workedExample)}</div>
+      <div class="summary-block"><h4>خطأ شائع</h4>${escapeHtml(s.commonPitfall)}</div>
+    `;
+    document.getElementById('eval-grid').innerHTML = data.evaluationQuestions.map((q, i) => `
+      <div class="eval-card ${q.level}">
+        <div class="eval-level">${q.level === 'knowledge' ? 'معرفي' : 'مهارات تفكير عليا'}</div>
+        <div class="eval-prompt">${escapeHtml(q.prompt)}</div>
+        <button class="reveal-btn" onclick="Prereq.toggleAnswer(${i})">عرض الإجابة النموذجية</button>
+        <div class="model-answer" id="model-answer-${i}">${escapeHtml(q.modelAnswer)}</div>
+      </div>
+    `).join('');
+  },
+
+  toggleAnswer(i) {
+    const el = document.getElementById('model-answer-' + i);
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  },
+
+  async backToMap() {
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').textContent = 'جارٍ التحميل...';
+    try {
+      this.overview = await apiFetch(`/api/prereq/overview?subject=${encodeURIComponent(this.subjectId)}`);
+      document.getElementById('loading').style.display = 'none';
+      this.renderChapterMap();
+      this.showScreen('screen-intro');
+    } catch (e) {
+      document.getElementById('loading').style.display = 'none';
+      this.showScreen('screen-intro');
+    }
+  },
+
+  showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  },
+};
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+Prereq.init();
+</script>
+</body>
+</html>

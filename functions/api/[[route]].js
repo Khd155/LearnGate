@@ -355,6 +355,161 @@ async function ensureAccessRequestsSchema(DB) {
   )`).run(); } catch {}
 }
 
+// ── Prerequisite onboarding engine — schema + reference seed data ─────────
+// Subject-agnostic tables; PREREQ_SUBJECT_META/PREREQ_SEED_DATA below are the
+// only subject-specific content (a stand-in for the CMS the executive plan
+// defers to a later phase — see "خطة عمل تنفيذية: تمهيد وتهيئة واستدعاء
+// المتطلبات القبلية"). Adding another subject/chapter/question is adding a
+// seed entry, never touching the tables or the route handlers.
+const PREREQ_SUBJECT_META = {
+  'chemistry-1': {
+    title: 'الكيمياء 1',
+    intro: 'قبل أن تبدأ الكيمياء 1، هذه جولة سريعة على بنية المقرر وعلاقاته الداخلية، ثم تشخيص قصير لمتطلباتك القبلية — يحدد لك أفضل نقطة انطلاق دون أن يمنعك من أي فصل.',
+    subjectPrereqs: [
+      { label: 'التمييز بين العناصر والمركبات والمخاليط', source: 'علوم، المرحلة المتوسطة', usedIn: 'الفصلان 2 و3' },
+      { label: 'مفهوم الذرة الأولي (بروتون، نيوترون، إلكترون)', source: 'علوم، الصف الثالث متوسط', usedIn: 'الفصل 3' },
+      { label: 'النسبة والتناسب', source: 'رياضيات، المرحلة المتوسطة', usedIn: 'الفصلان 4 و5' },
+      { label: 'الأس العلمي للأعداد الكبيرة والصغيرة جداً', source: 'رياضيات، المرحلة المتوسطة', usedIn: 'الفصل 5 (عدد أفوجادرو)' },
+    ],
+  },
+};
+
+const PREREQ_SEED_DATA = {
+  chapters: [
+    { chapterId: 'chem1-t1-c1', subjectId: 'chemistry-1', term: 1, orderNum: 1, title: 'مقدمة في علم الكيمياء',
+      subtopics: ['قصة مادتين', 'الكيمياء والمادة', 'الطرائق العلمية', 'البحث العلمي'], layer: 'foundational', dependsOn: [],
+      description: 'الفصل الأول من المقرر — يؤسس لفهم ما هي الكيمياء ومنهج البحث العلمي فيها، دون متطلبات سابقة.' },
+    { chapterId: 'chem1-t1-c2', subjectId: 'chemistry-1', term: 1, orderNum: 2, title: 'المادة: الخواص والتغيرات',
+      subtopics: ['خواص المادة', 'تغيرات المادة', 'المخاليط', 'العناصر والمركبات'], layer: 'descriptive', dependsOn: ['chem1-t1-c1'],
+      description: 'يبني على مفاهيم الفصل الأول ليفرّق بين خواص المادة وتغيراتها، وبين العناصر والمركبات والمخاليط.' },
+    { chapterId: 'chem1-t1-c3', subjectId: 'chemistry-1', term: 1, orderNum: 3, title: 'تركيب الذرة',
+      subtopics: ['الأفكار القديمة للمادة', 'تعريف الذرة', 'كيف تختلف الذرات', 'الأنوية غير المستقرة والتحلل الإشعاعي'], layer: 'structural', dependsOn: ['chem1-t1-c2'],
+      description: 'قبل أن تفهم لماذا يتفاعل الصوديوم مع الكلور بعنف بينما لا يتفاعل الأرجون مع شيء تقريباً، عليك أولاً أن تعرف ماذا يوجد داخل الذرة نفسها. هذا الفصل يجيب عن: من أي جسيمات تتكوّن الذرة؟ ولماذا تختلف ذرات العناصر عن بعضها؟ وماذا يحدث حين تكون نواة الذرة غير مستقرة؟' },
+    { chapterId: 'chem1-t1-c4', subjectId: 'chemistry-1', term: 1, orderNum: 4, title: 'التفاعلات الكيميائية',
+      subtopics: ['التفاعلات والمعادلات', 'تصنيف التفاعلات', 'التفاعلات في المحاليل المائية'], layer: 'reactive', dependsOn: ['chem1-t1-c2', 'chem1-t1-c3'],
+      description: 'يعتمد على فهم المادة (الفصل 2) وتركيب الذرة (الفصل 3) معاً لتفسير كيف ولماذا تحدث التفاعلات الكيميائية.' },
+    { chapterId: 'chem1-t1-c5', subjectId: 'chemistry-1', term: 1, orderNum: 5, title: 'المول',
+      subtopics: ['قياس المادة', 'الكتلة والمول', 'مولات المركبات'], layer: 'quantitative', dependsOn: ['chem1-t1-c4'],
+      description: 'يبني على فهم التفاعلات الكيميائية (الفصل 4) لتقديم أداة القياس الكمي الأساسية في الكيمياء.' },
+  ],
+  diagnosticQuestions: [
+    { questionId: 'chem1-diag-subj-1', scope: 'subject', subjectId: 'chemistry-1', chapterId: null, prerequisiteLabel: 'العناصر والمركبات', orderNum: 1,
+      prompt: 'أيّ مما يلي يُعد مركباً لا عنصراً؟', options: [
+        { text: 'الماء (H₂O)', isCorrect: true, feedback: 'صحيح! الماء H₂O مركب لأنه اتحاد كيميائي بين عنصرين (الهيدروجين والأكسجين).' },
+        { text: 'الأكسجين O₂', isCorrect: false, feedback: 'غير دقيق — الأكسجين O₂ عنصر ثنائي الذرة، لا مركب، رغم أن رمزه يحتوي على رقم.' },
+        { text: 'الحديد Fe', isCorrect: false, feedback: 'غير دقيق — الحديد عنصر فلزي نقي، ليس مركباً.' },
+      ] },
+    { questionId: 'chem1-diag-subj-2', scope: 'subject', subjectId: 'chemistry-1', chapterId: null, prerequisiteLabel: 'التركيب الذري الأولي', orderNum: 2,
+      prompt: 'ذرة متعادلة الشحنة عدد بروتوناتها 8. كم عدد إلكتروناتها؟', options: [
+        { text: '8', isCorrect: true, feedback: 'صحيح! في الذرة المتعادلة عدد الإلكترونات = عدد البروتونات.' },
+        { text: '16', isCorrect: false, feedback: 'غير صحيح — هذا مضاعفة غير مبررة لعدد البروتونات، وليس قاعدة التعادل.' },
+        { text: '0', isCorrect: false, feedback: 'غير صحيح — "متعادلة الشحنة" لا تعني بلا إلكترونات، بل تساوي عدد الشحنات الموجبة والسالبة.' },
+      ] },
+    { questionId: 'chem1-diag-subj-3', scope: 'subject', subjectId: 'chemistry-1', chapterId: null, prerequisiteLabel: 'النسبة والتناسب', orderNum: 3,
+      prompt: 'ما نسبة كتلة الأكسجين إلى الهيدروجين في الماء H₂O؟ (الكتلة الذرية: أكسجين 16، هيدروجين 1)', options: [
+        { text: '16 : 2', isCorrect: true, feedback: 'صحيح! ذرتا هيدروجين × كتلة 1 = 2، مقابل ذرة أكسجين واحدة × كتلة 16.' },
+        { text: '16 : 1', isCorrect: false, feedback: 'غير صحيح — نسيت مضاعفة كتلة الهيدروجين بعدد ذرتيه في الجزيء.' },
+        { text: '8 : 1', isCorrect: false, feedback: 'غير صحيح — هذه قسمة خاطئة على عدد الذرات بدل ضربها في كتلها.' },
+      ] },
+
+    { questionId: 'chem1-diag-c3-1', scope: 'chapter', subjectId: 'chemistry-1', chapterId: 'chem1-t1-c3', prerequisiteLabel: 'تعريف العنصر', orderNum: 1,
+      prompt: 'أيّ العبارات التالية تصف العنصر بدقة؟', options: [
+        { text: 'مادة نقية لا يمكن تحليلها كيميائياً إلى مواد أبسط', isCorrect: true, feedback: 'صحيح! هذا هو التعريف الدقيق للعنصر.' },
+        { text: 'اتحاد كيميائي بين مادتين أو أكثر', isCorrect: false, feedback: 'هذا تعريف المركب، وليس العنصر.' },
+        { text: 'خليط متجانس من مادتين أو أكثر', isCorrect: false, feedback: 'هذا تعريف المحلول، وليس العنصر.' },
+      ] },
+    { questionId: 'chem1-diag-c3-2', scope: 'chapter', subjectId: 'chemistry-1', chapterId: 'chem1-t1-c3', prerequisiteLabel: 'الشحنة الكهربائية', orderNum: 2,
+      prompt: 'ذرة الصوديوم متعادلة الشحنة وعدد بروتوناتها 11. كم عدد إلكتروناتها؟', options: [
+        { text: '11', isCorrect: true, feedback: 'صحيح! في الذرة المتعادلة عدد الإلكترونات = عدد البروتونات = 11.' },
+        { text: '12', isCorrect: false, feedback: 'غير صحيح — هذا خلط بين عدد الإلكترونات وعدد النيوترونات.' },
+        { text: '22', isCorrect: false, feedback: 'غير صحيح — هذه مضاعفة غير مبررة لعدد البروتونات.' },
+      ] },
+    { questionId: 'chem1-diag-c3-3', scope: 'chapter', subjectId: 'chemistry-1', chapterId: 'chem1-t1-c3', prerequisiteLabel: 'الأس العلمي', orderNum: 3,
+      prompt: 'أيّ العددين أكبر: 3×10⁻³ أم 3×10⁻⁵ ؟', options: [
+        { text: '3×10⁻³', isCorrect: true, feedback: 'صحيح! كلما كان الأس السالب أقل في قيمته المطلقة، كان العدد أكبر — و3- أكبر من 5-.' },
+        { text: '3×10⁻⁵', isCorrect: false, feedback: 'غير صحيح — هذا تجاهل لأثر الإشارة السالبة على حجم العدد.' },
+        { text: 'العددان متساويان', isCorrect: false, feedback: 'غير صحيح — الأسّان مختلفان (٣- و٥-) فالعددان مختلفان في القيمة.' },
+      ] },
+  ],
+  chapterSummaries: [
+    { chapterId: 'chem1-t1-c3',
+      keyConcepts: ['البروتون', 'النيوترون', 'الإلكترون', 'العدد الذري (Z)', 'العدد الكتلي (A)', 'النظائر'],
+      newTerms: [
+        { term: 'النويدة', definition: 'نوع محدد من الذرات بعدد بروتونات ونيوترونات معين.' },
+        { term: 'الأيون', definition: 'ذرة اكتسبت أو فقدت إلكترونات.' },
+      ],
+      coreRule: 'العدد الكتلي = عدد البروتونات + عدد النيوترونات.',
+      workedExample: 'ذرة الصوديوم — عدد ذري 11، عدد كتلي 23 ← عدد النيوترونات = 23 − 11 = 12.',
+      commonPitfall: 'الخلط بين العدد الذري والعدد الكتلي عند حساب عدد النيوترونات.' },
+  ],
+  evaluationQuestions: [
+    { questionId: 'chem1-eval-c3-1', chapterId: 'chem1-t1-c3', level: 'knowledge',
+      prompt: 'ذرة عدد كتلتها 27 وعدد بروتوناتها 13 (الألومنيوم). احسب عدد النيوترونات فيها.',
+      modelAnswer: 'عدد النيوترونات = العدد الكتلي − عدد البروتونات = 27 − 13 = 14 نيوتروناً.' },
+    { questionId: 'chem1-eval-c3-2', chapterId: 'chem1-t1-c3', level: 'higher_order',
+      prompt: 'نظائر الكربون (الكربون-12 والكربون-14) متماثلة في خواصها الكيميائية لكنها تُستخدم لأغراض مختلفة تماماً. فسّر لماذا تتفق النظائر في الخواص الكيميائية رغم اختلاف كتلتها، واربط ذلك باستخدام الكربون-14 في تحديد عمر المستحاثات.',
+      modelAnswer: 'الخواص الكيميائية يحددها عدد الإلكترونات (وبالتالي عدد البروتونات/العدد الذري)، وهو ثابت بين نظائر العنصر الواحد؛ الاختلاف بينها في عدد النيوترونات فقط يغيّر الكتلة والاستقرار النووي. الكربون-14 غير مستقر (مشع) ويتحلل بمعدل ثابت معروف، فيُستخدم كساعة زمنية لقياس عمر المستحاثات، بينما الكربون-12 مستقر ولا يصلح لذلك.' },
+  ],
+};
+
+let _prereqSchemaEnsured = false;
+async function _ensurePrereqSchema(DB) {
+  if (_prereqSchemaEnsured) return;
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS course_chapters (
+    chapter_id TEXT PRIMARY KEY, subject_id TEXT NOT NULL, term INTEGER NOT NULL, order_num INTEGER NOT NULL,
+    title TEXT NOT NULL, subtopics TEXT NOT NULL DEFAULT '[]', layer TEXT NOT NULL,
+    depends_on TEXT NOT NULL DEFAULT '[]', description TEXT DEFAULT ''
+  )`).run();
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS diagnostic_questions (
+    question_id TEXT PRIMARY KEY, scope TEXT NOT NULL, subject_id TEXT, chapter_id TEXT,
+    prerequisite_label TEXT NOT NULL, prompt TEXT NOT NULL, options TEXT NOT NULL DEFAULT '[]', order_num INTEGER NOT NULL DEFAULT 0
+  )`).run();
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS chapter_summaries (
+    chapter_id TEXT PRIMARY KEY, key_concepts TEXT NOT NULL DEFAULT '[]', new_terms TEXT NOT NULL DEFAULT '[]',
+    core_rule TEXT DEFAULT '', worked_example TEXT DEFAULT '', common_pitfall TEXT DEFAULT ''
+  )`).run();
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS evaluation_questions (
+    question_id TEXT PRIMARY KEY, chapter_id TEXT NOT NULL, level TEXT NOT NULL, prompt TEXT NOT NULL, model_answer TEXT DEFAULT ''
+  )`).run();
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS student_prereq_results (
+    id TEXT PRIMARY KEY, student_id TEXT NOT NULL, subject_id TEXT NOT NULL, chapter_id TEXT, scope TEXT NOT NULL,
+    weak_labels TEXT NOT NULL DEFAULT '[]', weak_count INTEGER NOT NULL DEFAULT 0, total_count INTEGER NOT NULL DEFAULT 0,
+    branch TEXT NOT NULL, created_at TEXT NOT NULL
+  )`).run();
+  try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_prereq_results_student ON student_prereq_results(student_id, subject_id, chapter_id)`).run(); } catch {}
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS student_prereq_progress (
+    student_id TEXT NOT NULL, subject_id TEXT NOT NULL, seen_intro INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL,
+    PRIMARY KEY (student_id, subject_id)
+  )`).run();
+
+  for (const c of PREREQ_SEED_DATA.chapters) {
+    await DB.prepare(
+      `INSERT INTO course_chapters (chapter_id, subject_id, term, order_num, title, subtopics, layer, depends_on, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (chapter_id) DO NOTHING`
+    ).bind(c.chapterId, c.subjectId, c.term, c.orderNum, c.title, JSON.stringify(c.subtopics), c.layer, JSON.stringify(c.dependsOn), c.description).run();
+  }
+  for (const q of PREREQ_SEED_DATA.diagnosticQuestions) {
+    await DB.prepare(
+      `INSERT INTO diagnostic_questions (question_id, scope, subject_id, chapter_id, prerequisite_label, prompt, options, order_num)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (question_id) DO NOTHING`
+    ).bind(q.questionId, q.scope, q.subjectId, q.chapterId, q.prerequisiteLabel, q.prompt,
+      JSON.stringify(q.options.map(o => ({ text: o.text, is_correct: o.isCorrect, feedback: o.feedback }))), q.orderNum).run();
+  }
+  for (const s of PREREQ_SEED_DATA.chapterSummaries) {
+    await DB.prepare(
+      `INSERT INTO chapter_summaries (chapter_id, key_concepts, new_terms, core_rule, worked_example, common_pitfall)
+       VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (chapter_id) DO NOTHING`
+    ).bind(s.chapterId, JSON.stringify(s.keyConcepts), JSON.stringify(s.newTerms), s.coreRule, s.workedExample, s.commonPitfall).run();
+  }
+  for (const e of PREREQ_SEED_DATA.evaluationQuestions) {
+    await DB.prepare(
+      `INSERT INTO evaluation_questions (question_id, chapter_id, level, prompt, model_answer)
+       VALUES (?, ?, ?, ?, ?) ON CONFLICT (question_id) DO NOTHING`
+    ).bind(e.questionId, e.chapterId, e.level, e.prompt, e.modelAnswer).run();
+  }
+  _prereqSchemaEnsured = true;
+}
+
 // Rows minted before expires_at existed carry NULL — fall back to their own
 // created_at + the same TTL rather than backfilling with a date-cast UPDATE
 // over a TEXT column (dialect-fragile, and this is exact either way).
@@ -3471,6 +3626,156 @@ export async function onRequest({ request, env }) {
         }
 
         return err('إجراء غير معروف', 400, CORS);
+      }
+
+      return err('غير موجود', 404, CORS);
+    }
+
+    // ── PREREQUISITE ONBOARDING ENGINE (تمهيد وتهيئة واستدعاء المتطلبات القبلية) ──
+    // Generic, subject-agnostic engine: four data tables (chapters, diagnostic
+    // questions, chapter summaries, evaluation questions) plus two small
+    // per-student state tables (diagnostic results, "seen intro" flag). Adding
+    // a new subject/chapter/question later is a data problem, not a code
+    // change — see PREREQ_SEED_DATA below, the only subject-specific part of
+    // this file (a stand-in for the CMS the executive plan defers to later).
+    if (resource === 'prereq') {
+      await _ensurePrereqSchema(DB);
+
+      // GET /api/prereq/overview?subject=chemistry-1 — intro text, the five
+      // ChapterMapCard entries with live mastery color, and whether the
+      // student already saw the one-time intro/map/subject-diagnostic combo.
+      if (sub === 'overview' && method === 'GET') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims) return err('غير مصرح', 401, CORS);
+        const studentId = claims.role === 'student' ? claims.sub : (url.searchParams.get('studentId') || null);
+        if (!studentId) return err('معرّف الطالب مطلوب', 400, CORS);
+        const subj = (url.searchParams.get('subject') || '').trim();
+        if (!subj) return err('subject مطلوب', 400, CORS);
+        const meta = PREREQ_SUBJECT_META[subj];
+        if (!meta) return err('مادة غير معروفة', 404, CORS);
+
+        const { results: chapters } = await DB.prepare(
+          'SELECT * FROM course_chapters WHERE subject_id = ? ORDER BY term, order_num'
+        ).bind(subj).all();
+        const { results: chapterResults } = await DB.prepare(
+          `SELECT DISTINCT ON (chapter_id) chapter_id, weak_count, total_count, created_at
+           FROM student_prereq_results
+           WHERE student_id = ? AND subject_id = ? AND scope = 'chapter' AND chapter_id IS NOT NULL
+           ORDER BY chapter_id, created_at DESC`
+        ).bind(studentId, subj).all();
+        const masteryByChapter = new Map(chapterResults.map(r => [r.chapter_id, r]));
+        const progress = await DB.prepare(
+          'SELECT seen_intro FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?'
+        ).bind(studentId, subj).first();
+
+        return ok({
+          subject: { id: subj, ...meta },
+          seenIntro: !!progress?.seen_intro,
+          chapters: chapters.map(c => {
+            const r = masteryByChapter.get(c.chapter_id);
+            const status = !r ? 'default' : (r.weak_count === 0 ? 'mastered' : 'needs_review');
+            return {
+              chapterId: c.chapter_id, term: c.term, orderNum: c.order_num, title: c.title,
+              subtopics: JSON.parse(c.subtopics || '[]'), layer: c.layer,
+              dependsOn: JSON.parse(c.depends_on || '[]'), description: c.description, status,
+            };
+          }),
+        }, 200, CORS);
+      }
+
+      // GET /api/prereq/diagnostic?subject=chemistry-1&scope=subject|chapter&chapterId=...
+      if (sub === 'diagnostic' && method === 'GET') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        const subj = (url.searchParams.get('subject') || '').trim();
+        const scope = url.searchParams.get('scope') === 'chapter' ? 'chapter' : 'subject';
+        const chapterId = url.searchParams.get('chapterId') || null;
+        if (!subj) return err('subject مطلوب', 400, CORS);
+        if (scope === 'chapter' && !chapterId) return err('chapterId مطلوب لتشخيص فصل', 400, CORS);
+
+        const { results } = scope === 'subject'
+          ? await DB.prepare('SELECT * FROM diagnostic_questions WHERE scope = ? AND subject_id = ? ORDER BY order_num').bind('subject', subj).all()
+          : await DB.prepare('SELECT * FROM diagnostic_questions WHERE scope = ? AND chapter_id = ? ORDER BY order_num').bind('chapter', chapterId).all();
+
+        const questions = results.map(q => ({
+          questionId: q.question_id, prerequisiteLabel: q.prerequisite_label, prompt: q.prompt,
+          options: JSON.parse(q.options || '[]'),
+        }));
+        return ok({ scope, chapterId, questions }, 200, CORS);
+      }
+
+      // POST /api/prereq/diagnostic/submit — records the result (graded
+      // client-side by DiagnosticEngine for instant per-option feedback) and
+      // computes the branch. weakLabels are re-validated against the real
+      // question set server-side rather than trusted verbatim from the client.
+      if (sub === 'diagnostic' && subsub === 'submit' && method === 'POST') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        const body = await request.json();
+        const subj = String(body.subjectId || '').trim();
+        const scope = body.scope === 'chapter' ? 'chapter' : 'subject';
+        const chapterId = scope === 'chapter' ? String(body.chapterId || '').trim() : null;
+        const weakLabelsIn = Array.isArray(body.weakLabels) ? body.weakLabels.map(String) : [];
+        if (!subj) return err('subjectId مطلوب', 400, CORS);
+        if (scope === 'chapter' && !chapterId) return err('chapterId مطلوب', 400, CORS);
+
+        const { results: qset } = scope === 'subject'
+          ? await DB.prepare('SELECT prerequisite_label FROM diagnostic_questions WHERE scope = ? AND subject_id = ?').bind('subject', subj).all()
+          : await DB.prepare('SELECT prerequisite_label FROM diagnostic_questions WHERE scope = ? AND chapter_id = ?').bind('chapter', chapterId).all();
+        const validLabels = new Set(qset.map(q => q.prerequisite_label));
+        const weakLabels = [...new Set(weakLabelsIn.filter(l => validLabels.has(l)))];
+        const totalCount = validLabels.size || 1;
+        const weakCount = weakLabels.length;
+
+        const branch = weakCount === 0 ? 'direct' : (weakCount >= Math.ceil(totalCount / 2) ? 'alert' : 'capsule');
+
+        const now = new Date().toISOString();
+        await DB.prepare(
+          `INSERT INTO student_prereq_results (id, student_id, subject_id, chapter_id, scope, weak_labels, weak_count, total_count, branch, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(crypto.randomUUID(), claims.sub, subj, chapterId, scope, JSON.stringify(weakLabels), weakCount, totalCount, branch, now).run();
+
+        if (scope === 'subject') {
+          await DB.prepare(
+            `INSERT INTO student_prereq_progress (student_id, subject_id, seen_intro, updated_at) VALUES (?, ?, 1, ?)
+             ON CONFLICT (student_id, subject_id) DO UPDATE SET seen_intro = 1, updated_at = EXCLUDED.updated_at`
+          ).bind(claims.sub, subj, now).run();
+        }
+
+        if (branch === 'alert') {
+          await logEvent(DB, {
+            level: 'warn', category: 'prereq_alert',
+            message: `فجوة تراكمية في المتطلبات القبلية — ${claims.name || claims.sub} — ${subj}${chapterId ? ' / ' + chapterId : ''} — ضعف في: ${weakLabels.join('، ') || '—'}`,
+            user_name: claims.name || '', user_role: 'student', school: claims.school || '', student_id: claims.sub,
+          });
+        }
+
+        return ok({ branch, weakCount, totalCount, weakLabels }, 200, CORS);
+      }
+
+      // GET /api/prereq/chapter-summary?chapterId=... — ChapterSummaryPanel +
+      // EvaluationLevelCard data, shown once a chapter's study is complete.
+      if (sub === 'chapter-summary' && method === 'GET') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims) return err('غير مصرح', 401, CORS);
+        const chapterId = (url.searchParams.get('chapterId') || '').trim();
+        if (!chapterId) return err('chapterId مطلوب', 400, CORS);
+        const summary = await DB.prepare('SELECT * FROM chapter_summaries WHERE chapter_id = ?').bind(chapterId).first();
+        if (!summary) return err('لا يوجد ملخص لهذا الفصل', 404, CORS);
+        const { results: evalQuestions } = await DB.prepare(
+          'SELECT * FROM evaluation_questions WHERE chapter_id = ? ORDER BY level'
+        ).bind(chapterId).all();
+        return ok({
+          summary: {
+            chapterId: summary.chapter_id,
+            keyConcepts: JSON.parse(summary.key_concepts || '[]'),
+            newTerms: JSON.parse(summary.new_terms || '[]'),
+            coreRule: summary.core_rule, workedExample: summary.worked_example, commonPitfall: summary.common_pitfall,
+          },
+          evaluationQuestions: evalQuestions.map(q => ({
+            questionId: q.question_id, level: q.level, prompt: q.prompt, modelAnswer: q.model_answer,
+          })),
+        }, 200, CORS);
       }
 
       return err('غير موجود', 404, CORS);

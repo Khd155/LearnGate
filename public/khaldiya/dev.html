@@ -665,6 +665,18 @@
         </div>
 
         <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:14px 16px;margin-top:16px;color:#1e3a5f;">
+          <p style="margin-bottom:10px;">↺ <strong>إعادة ضبط تشخيص المتطلبات القبلية لطالب</strong> — يمسح نتائج تشخيصه ويرجّع الخارطة لحالتها الأولى (أداة اختبار/دعم، غير متاحة للطالب نفسه)</p>
+          <div class="form-row">
+            <input type="text" id="prereq-reset-code" class="form-input" placeholder="رمز الطالب (10 أرقام)" style="flex:1">
+            <select id="prereq-reset-subject" class="form-select" style="width:auto">
+              <option value="chemistry-1">الكيمياء 1</option>
+            </select>
+            <button class="btn btn-primary" onclick="Dev.resetPrereqProgress()">↺ إعادة الضبط</button>
+          </div>
+          <span id="prereq-reset-result" style="font-size:13px;"></span>
+        </div>
+
+        <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:14px 16px;margin-top:16px;color:#1e3a5f;">
           <p style="margin-bottom:10px;">✅ <strong>اعتماد كل الخطط المعلقة</strong> — تحويل أي خطة بحالة "معلقة" إلى "نشطة" تلقائياً (إصلاح البيانات القديمة)</p>
           <button class="btn btn-primary" onclick="Dev.approvePendingPlans()">✅ اعتماد الكل</button>
           <span id="approve-pending-result" style="margin-right:12px;font-size:13px;color:#1d4ed8;"></span>
@@ -2178,6 +2190,30 @@ const Dev = {
     await apiDev('/dev/questions', { method: 'DELETE' });
     showToast('تم مسح الأسئلة ✅');
     Dev.loadQuestions();
+  },
+
+  // Dev-only — never exposed on the student side. Resolves the student's
+  // code to an id (no code-lookup endpoint exists, so this fetches the full
+  // list once and filters client-side, same pattern as loadWaIssueStudents)
+  // then clears their prereq diagnostic results/progress for the subject.
+  async resetPrereqProgress() {
+    const code = (document.getElementById('prereq-reset-code')?.value || '').trim();
+    const subject = document.getElementById('prereq-reset-subject')?.value || '';
+    const resultEl = document.getElementById('prereq-reset-result');
+    if (!/^\d{10}$/.test(code)) { resultEl.innerHTML = '<span style="color:var(--danger)">رمز الطالب غير صالح</span>'; return; }
+    resultEl.textContent = 'جارٍ البحث عن الطالب...';
+    try {
+      const { students } = await apiDev('/dev/students');
+      const student = (students || []).find(s => s.code === code);
+      if (!student) { resultEl.innerHTML = '<span style="color:var(--danger)">لم يُعثر على طالب بهذا الرمز</span>'; return; }
+      if (!await confirmDialog(`سيتم مسح نتائج تشخيص "${escapeHtml(student.name)}" لهذه المادة وإعادة خارطته لحالتها الأولى. متابعة؟`)) { resultEl.textContent = ''; return; }
+      resultEl.textContent = 'جارٍ إعادة الضبط...';
+      await apiDev(`/prereq/progress?subject=${encodeURIComponent(subject)}&studentId=${encodeURIComponent(student.id)}`, { method: 'DELETE' });
+      resultEl.innerHTML = `<span style="color:var(--success)">✅ تمت إعادة الضبط لـ ${escapeHtml(student.name)}</span>`;
+      showToast('تمت إعادة الضبط ✅');
+    } catch (e) {
+      resultEl.innerHTML = `<span style="color:var(--danger)">فشل: ${escapeHtml(e.message || '')}</span>`;
+    }
   },
 
   // ── Test Management Tab (dev-only) ────────────────────────────────────

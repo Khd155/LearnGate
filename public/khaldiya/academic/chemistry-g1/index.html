@@ -363,19 +363,6 @@ const App = {
     try { this.overview = await apiFetch(`/api/prereq/overview?subject=${SUBJECT_ID}`); this.renderOverview(); } catch (e) {}
   },
 
-  async resetProgress() {
-    if (!confirm('سيتم مسح نتائج تشخيصك السابقة لهذه المادة وإعادة الخارطة لحالتها الأولى. متابعة؟')) return;
-    setLoading(true, 'جارٍ إعادة الضبط...');
-    try {
-      await apiFetch(`/api/prereq/progress?subject=${SUBJECT_ID}`, { method: 'DELETE' });
-      await this.refreshOverview();
-      setLoading(false);
-    } catch (e) {
-      setLoading(false);
-      alert('تعذّر إعادة الضبط: ' + e.message);
-    }
-  },
-
   renderOverview() {
     document.getElementById('hero-title').textContent = `${this.overview.subject.title}: رحلة استكشاف المادة`;
     document.getElementById('hero-intro').textContent = this.overview.subject.intro;
@@ -383,9 +370,7 @@ const App = {
     this.renderSubjectPrereqs();
     const cta = document.getElementById('intro-cta');
     if (this.overview.seenIntro) {
-      cta.innerHTML = `
-        <p style="text-align:center;color:var(--muted);font-size:13px;margin-bottom:8px">أنجزت تشخيص المتطلبات القبلية لهذه المادة من قبل — اختر فصلاً من المسار أعلاه للمتابعة.</p>
-        <button class="ghost-btn" style="display:block;margin:0 auto;" onclick="App.resetProgress()">↺ إعادة ضبط تشخيص المتطلبات القبلية</button>`;
+      cta.innerHTML = '<p style="text-align:center;color:var(--muted);font-size:13px">أنجزت تشخيص المتطلبات القبلية لهذه المادة من قبل — اختر فصلاً من المسار أعلاه للمتابعة.</p>';
     } else {
       cta.innerHTML = '<button class="primary-btn" onclick="App.startSubjectDiagnostic()">🚀 ابدأ رحلة التشخيص واستكشف مستواك الآن</button>';
     }

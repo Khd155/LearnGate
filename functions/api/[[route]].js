@@ -3786,6 +3786,30 @@ export async function onRequest({ request, env }) {
         }, 200, CORS);
       }
 
+      // DELETE /api/prereq/progress?subject=chemistry-1 — clears a student's
+      // diagnostic results + "seen intro" flag for a subject, so the
+      // roadmap/CTA reset to a fresh first-time state. A student may only
+      // reset their own; dev/admin/director may pass ?studentId= for anyone
+      // (testing/support use).
+      if (sub === 'progress' && method === 'DELETE') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims) return err('غير مصرح', 401, CORS);
+        const subj = (url.searchParams.get('subject') || '').trim();
+        if (!subj) return err('subject مطلوب', 400, CORS);
+        let studentId;
+        if (claims.role === 'student') {
+          studentId = claims.sub;
+        } else if (['dev', 'director', 'admin'].includes(claims.role)) {
+          studentId = (url.searchParams.get('studentId') || '').trim();
+          if (!studentId) return err('studentId مطلوب', 400, CORS);
+        } else {
+          return err('غير مصرح', 403, CORS);
+        }
+        await DB.prepare('DELETE FROM student_prereq_results WHERE student_id = ? AND subject_id = ?').bind(studentId, subj).run();
+        await DB.prepare('DELETE FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(studentId, subj).run();
+        return ok({ ok: true }, 200, CORS);
+      }
+
       return err('غير موجود', 404, CORS);
     }
 

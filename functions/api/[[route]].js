@@ -3667,6 +3667,13 @@ export async function onRequest({ request, env }) {
         const progress = await DB.prepare(
           'SELECT seen_intro FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?'
         ).bind(studentId, subj).first();
+        // Which chapters actually have diagnostic questions seeded — the UI
+        // must never open the diagnostic screen for a chapter with zero
+        // questions (empty state, not a crash).
+        const { results: diagChapterRows } = await DB.prepare(
+          "SELECT DISTINCT chapter_id FROM diagnostic_questions WHERE scope = 'chapter' AND chapter_id IS NOT NULL"
+        ).all();
+        const chaptersWithDiagnostic = new Set(diagChapterRows.map(r => r.chapter_id));
 
         return ok({
           subject: { id: subj, ...meta },
@@ -3678,6 +3685,7 @@ export async function onRequest({ request, env }) {
               chapterId: c.chapter_id, term: c.term, orderNum: c.order_num, title: c.title,
               subtopics: JSON.parse(c.subtopics || '[]'), layer: c.layer,
               dependsOn: JSON.parse(c.depends_on || '[]'), description: c.description, status,
+              hasDiagnostic: chaptersWithDiagnostic.has(c.chapter_id),
             };
           }),
         }, 200, CORS);

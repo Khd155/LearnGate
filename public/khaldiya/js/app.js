@@ -2171,7 +2171,7 @@ const App = {
       { icon: '📐', name: 'الرياضيات' },
       { icon: '🔬', name: 'الأحياء', href: slug === 'g10' ? '/academic/biology-g1/' : null },
       { icon: '⚡', name: 'الفيزياء' },
-      { icon: '🧪', name: 'الكيمياء', href: slug === 'g10' ? '/prereq/?subject=chemistry-1' : null },
+      { icon: '🧪', name: 'الكيمياء', href: slug === 'g10' ? '/academic/chemistry-g1/' : null },
       { icon: '🌐', name: 'اللغة الإنجليزية' },
       { icon: '📖', name: 'اللغة العربية' },
     ];

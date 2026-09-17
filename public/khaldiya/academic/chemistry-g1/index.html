@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الكيمياء 1 — بوابة دعم التعلم</title>
+<script>if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; window.scrollTo(0,0);</script>
+<script>!function(){try{var s=sessionStorage.getItem("lg_session_student")||localStorage.getItem("lg_xsession_student");var d=s?JSON.parse(s):null;if(d&&d.token&&d.role==="student"&&d.expiry&&Date.now()<d.expiry)return;var r=localStorage.getItem("lg_remember_student");var rd=r?JSON.parse(r):null;if(rd&&rd.code&&rd.role==="student"&&rd.expiry&&Date.now()<rd.expiry)return;}catch(e){}window.location.replace("/");}();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#3F7CB8;--accent:#4FA877;
+  --bg:#f4f8fb;--surface:#fff;--border:#e2e8f0;
+  --text:#0f172a;--muted:#64748b;
+  --grad:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  --shadow:0 8px 24px -8px rgba(63,124,184,.20),0 2px 6px rgba(15,23,42,.04);
+  --shadow-lg:0 24px 60px -20px rgba(63,124,184,.30);
+  --green:#1E9E6B; --green-bg:#E7F7EF;
+  --orange:#C2760F; --orange-bg:#FDF1E0;
+  --danger:#D14343;
+  --radius:22px;
+}
+*{box-sizing:border-box;}
+html,body{min-height:100vh;margin:0;font-family:'Tajawal','Cairo',sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
+h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
+
+.topbar{background:var(--grad);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);min-height:64px;}
+.topbar-right{display:flex;align-items:center;gap:10px;min-width:0;}
+.topbar-logo{height:32px;opacity:.95;flex-shrink:0;}
+.topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:16.5px;letter-spacing:-0.01em;}
+.topbar-sub{font-size:11.5px;opacity:.85;margin-top:2px;font-weight:500;}
+.tb-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background .18s;flex-shrink:0;white-space:nowrap;}
+.tb-back:hover{background:rgba(255,255,255,.3);}
+.user-chip{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;padding:5px 14px;font-size:12.5px;font-family:inherit;font-weight:700;display:inline-flex;align-items:center;gap:6px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.user-chip .dot{width:7px;height:7px;border-radius:50%;background:#a3e635;flex-shrink:0;}
+
+.wrap{max-width:1024px;margin:0 auto;padding:24px 16px 60px;}
+.view{display:none;}
+.view.active{display:block;animation:fade .25s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+@keyframes dot-pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
+
+.inner-back{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:99px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:16px;font-family:inherit;transition:.15s;}
+.inner-back:hover{background:#f1f5f9;border-color:#cbd5e1;}
+
+.hero{background:var(--grad);color:#fff;border-radius:var(--radius);padding:28px 24px;margin-bottom:20px;position:relative;overflow:hidden;box-shadow:var(--shadow-lg);}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(255,255,255,.15),transparent 70%);pointer-events:none;}
+.hero-top{display:flex;align-items:center;gap:14px;margin-bottom:10px;position:relative;}
+.hero-icon{width:50px;height:50px;border-radius:16px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;border:1px solid rgba(255,255,255,.3);}
+.hero h2{margin:0;font-size:20px;color:#fff;}
+.hero p{margin:0;font-size:13.5px;line-height:1.9;opacity:.95;position:relative;max-width:640px;}
+
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;box-shadow:var(--shadow);cursor:pointer;transition:.2s;position:relative;}
+.feature-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);}
+.feature-card.disabled{cursor:not-allowed;opacity:.6;}
+.feature-card.disabled:hover{transform:none;box-shadow:var(--shadow);}
+.feature-card .f-icon{font-size:28px;margin-bottom:10px;}
+.feature-card .f-title{font-size:15px;font-weight:800;margin-bottom:6px;}
+.feature-card .f-desc{font-size:12.5px;color:var(--muted);line-height:1.7;}
+.feature-badge{position:absolute;top:14px;left:14px;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;}
+.feature-badge.active{background:var(--green-bg);color:var(--green);}
+.feature-badge.soon{background:#f1f5f9;color:var(--muted);}
+
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow);}
+.section-card h3{margin:0 0 14px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;}
+.section-card h3 .dot{width:6px;height:6px;border-radius:50%;background:var(--primary);}
+
+.notice-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:16px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;}
+.notice-card .n-icon{font-size:22px;flex-shrink:0;}
+.notice-card .n-title{font-weight:800;font-size:13.5px;margin-bottom:4px;color:#1D4ED8;}
+.notice-card .n-msg{font-size:12.5px;color:#334155;line-height:1.8;}
+.notice-card button{margin-top:10px;background:#1D4ED8;color:#fff;border:none;border-radius:10px;padding:7px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+
+/* Roadmap */
+.roadmap{display:flex;flex-direction:column;}
+.roadmap-row{display:flex;align-items:stretch;gap:12px;}
+.roadmap-track{width:22px;display:flex;flex-direction:column;align-items:center;flex-shrink:0;}
+.roadmap-node{width:13px;height:13px;border-radius:50%;background:#CBD5E1;border:2px solid #94A3B8;margin-top:20px;flex-shrink:0;z-index:2;}
+.roadmap-node.status-mastered{background:var(--green);border-color:var(--green);}
+.roadmap-node.status-needs_review{background:var(--orange);border-color:var(--orange);animation:dot-pulse 1.8s ease-in-out infinite;}
+.roadmap-line{width:2px;flex:1;background:#E2E8F0;margin-top:2px;min-height:24px;}
+.roadmap-row:last-child .roadmap-line{display:none;}
+.roadmap-card-wrap{flex:1;padding-bottom:12px;}
+
+.chapter-card{position:relative;border-radius:16px;padding:15px 18px;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:.2s;box-shadow:0 4px 14px -8px rgba(15,23,42,.12);}
+.chapter-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+.chapter-card.status-mastered{border-color:#A7E4C7;background:linear-gradient(135deg,var(--green-bg),var(--surface));}
+.chapter-card.status-needs_review{border-color:#F4CC8C;background:linear-gradient(135deg,var(--orange-bg),var(--surface));}
+.chapter-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+.chapter-num{font-size:11px;font-weight:800;color:var(--muted);}
+.chapter-status-icon{font-size:14px;}
+.layer-pill{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;border:1px solid;}
+.layer-foundational{color:#0369A1;border-color:#7DD3FC;background:#E0F2FE;}
+.layer-descriptive{color:#6D28D9;border-color:#C4B5FD;background:#F3E8FF;}
+.layer-structural{color:#1D4ED8;border-color:#93C5FD;background:#DBEAFE;}
+.layer-reactive{color:#B45309;border-color:#FCD34D;background:#FEF3C7;}
+.layer-quantitative{color:#047857;border-color:#6EE7B7;background:#D1FAE5;}
+.soon-pill{display:inline-block;font-size:10px;font-weight:700;color:var(--muted);background:#f1f5f9;border-radius:99px;padding:3px 9px;margin-inline-start:6px;}
+.chapter-card .title{font-size:15px;font-weight:800;margin:4px 0 6px;color:var(--text);}
+.chapter-card .deps{font-size:11.5px;color:var(--muted);}
+.chapter-card .deps b{color:var(--text);font-weight:700;}
+
+/* Prereq grid */
+.prereq-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media (max-width:600px){.prereq-grid{grid-template-columns:1fr;}}
+.prereq-card{border-radius:14px;padding:14px 16px;background:#F8FAFC;border:1px solid var(--border);}
+.prereq-card .p-name{font-size:13.5px;font-weight:700;margin-bottom:8px;line-height:1.6;}
+.prereq-card .p-src{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:99px;background:#DBEAFE;color:#1D4ED8;margin-bottom:8px;}
+.prereq-card .p-used{font-size:11.5px;color:var(--muted);}
+.prereq-card .p-used b{color:var(--accent);font-weight:700;}
+
+.primary-btn{background:var(--grad);color:#fff;border:none;border-radius:14px;padding:15px 20px;font-size:15px;font-weight:800;cursor:pointer;width:100%;box-shadow:var(--shadow);font-family:inherit;}
+.primary-btn:hover{filter:brightness(1.05);}
+.primary-btn:disabled{opacity:.5;cursor:not-allowed;}
+.ghost-btn{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:12px;padding:11px 18px;font-size:13.5px;cursor:pointer;font-family:inherit;}
+
+/* Diagnostic engine */
+.q-progress{font-size:12px;color:var(--muted);margin-bottom:10px;font-weight:700;}
+.q-prompt{font-size:16.5px;font-weight:800;margin-bottom:18px;line-height:1.8;}
+.option-btn{display:block;width:100%;text-align:right;background:#F8FAFC;border:1.5px solid var(--border);border-radius:14px;padding:13px 16px;font-size:14px;margin-bottom:10px;cursor:pointer;font-family:inherit;color:var(--text);transition:.15s;}
+.option-btn:hover:not(:disabled){border-color:var(--primary);}
+.option-btn:disabled{cursor:default;}
+.option-btn.correct{background:var(--green-bg);border-color:var(--green);}
+.option-btn.incorrect{background:#FDECEC;border-color:var(--danger);}
+.option-feedback{font-size:12.5px;margin:-4px 0 11px;padding:9px 13px;border-radius:10px;line-height:1.8;display:none;}
+.option-btn.correct+.option-feedback,.option-btn.incorrect+.option-feedback{display:block;}
+.option-feedback.fb-correct{background:var(--green-bg);color:var(--green);}
+.option-feedback.fb-incorrect{background:#FDECEC;color:var(--danger);}
+
+/* Result */
+.branch-box{text-align:center;padding:26px 16px;}
+.branch-icon{font-size:44px;margin-bottom:12px;}
+.branch-title{font-size:18px;font-weight:800;margin-bottom:8px;}
+.branch-desc{font-size:13.5px;color:var(--muted);line-height:1.9;margin-bottom:18px;}
+.capsule-item{background:var(--orange-bg);border:1px solid #F4CC8C;border-radius:14px;padding:12px 15px;margin-bottom:10px;text-align:right;font-size:13px;color:#8A5A0B;}
+
+/* Summary */
+.summary-grid{display:grid;gap:12px;}
+.summary-block{background:#F8FAFC;border:1px solid var(--border);border-radius:14px;padding:15px;}
+.summary-block h4{margin:0 0 9px;font-size:13px;color:var(--primary);font-weight:800;}
+.chip{display:inline-block;background:#DBEAFE;color:#1D4ED8;border-radius:99px;padding:4px 11px;font-size:12px;margin:3px;font-weight:600;}
+.term-item{font-size:13px;margin-bottom:7px;line-height:1.7;color:var(--text);}
+.eval-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media (max-width:600px){.eval-grid{grid-template-columns:1fr;}}
+.eval-card{border-radius:16px;padding:17px;border:1px solid;}
+.eval-card.knowledge{background:#EFF6FF;border-color:#BFDBFE;}
+.eval-card.higher_order{background:#F5F3FF;border-color:#DDD6FE;}
+.eval-card .eval-level{font-size:11px;font-weight:800;margin-bottom:9px;}
+.eval-card.knowledge .eval-level{color:#1D4ED8;}
+.eval-card.higher_order .eval-level{color:#6D28D9;}
+.eval-card .eval-prompt{font-size:13.5px;line-height:1.85;}
+.reveal-btn{margin-top:11px;font-size:12px;background:none;border:none;color:var(--primary);cursor:pointer;font-weight:700;padding:0;font-family:inherit;}
+.model-answer{margin-top:9px;font-size:12.5px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:11px 13px;display:none;line-height:1.8;color:var(--muted);}
+
+.loading{text-align:center;padding:60px 20px;color:var(--muted);font-size:13px;}
+.spinner{width:32px;height:32px;border-radius:50%;border:3px solid #DBEAFE;border-top-color:var(--primary);margin:0 auto 14px;animation:spin .9s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-right">
+    <img class="topbar-logo" src="/logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">الكيمياء 1 — أول ثانوي</div>
+      <div class="topbar-sub">بوابة دعم التعلم</div>
+    </div>
+    <span class="user-chip" id="user-chip" style="display:none;">
+      <span class="dot"></span>
+      <span id="user-name-label"></span>
+    </span>
+  </div>
+  <button class="tb-back" onclick="window.location.href='/academic/g10'">رجوع</button>
+</div>
+
+<div class="wrap">
+  <div id="loading" class="loading"><div class="spinner"></div>جارٍ التحميل...</div>
+
+  <!-- View: subject landing -->
+  <div class="view active" id="view-subject_lessons">
+    <div class="hero">
+      <div class="hero-top">
+        <div class="hero-icon">🧪</div>
+        <h2>الكيمياء 1 — الفصل الدراسي الأول</h2>
+      </div>
+      <p>مرحباً بك في مادة الكيمياء 1. ابدأ بالتهيئة والمتطلبات القبلية لتحصل على أفضل نقطة انطلاق قبل الدخول في فصول المقرر.</p>
+    </div>
+    <div class="card-grid">
+      <div class="feature-card" onclick="App.openPrereq()">
+        <span class="feature-badge active">متاح</span>
+        <div class="f-icon">🧭</div>
+        <div class="f-title">تمهيد وتهيئة المقرر</div>
+        <div class="f-desc">خارطة فصول المقرر وعلاقاتها، وتشخيص متطلباتك القبلية قبل البدء.</div>
+      </div>
+      <div class="feature-card disabled">
+        <span class="feature-badge soon">قريباً</span>
+        <div class="f-icon">📚</div>
+        <div class="f-title">دروس الفصول</div>
+        <div class="f-desc">شرح تفصيلي لكل فصل بمحتواه الكامل.</div>
+      </div>
+      <div class="feature-card disabled">
+        <span class="feature-badge soon">قريباً</span>
+        <div class="f-icon">✏️</div>
+        <div class="f-title">اختبارات تدريبية</div>
+        <div class="f-desc">تدرّب على أسئلة كل فصل بعد إنهاء دراسته.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View: prereq overview (intro + roadmap) -->
+  <div class="view" id="view-prereq_overview">
+    <button class="inner-back" onclick="App.switchView('subject_lessons')">→ رجوع لصفحة الكيمياء</button>
+
+    <div class="hero">
+      <div class="hero-top">
+        <div class="hero-icon">🧭</div>
+        <h2 id="hero-title"></h2>
+      </div>
+      <p id="hero-intro"></p>
+    </div>
+
+    <div id="chapter-notice" class="notice-card" style="display:none;">
+      <span class="n-icon">ℹ️</span>
+      <div>
+        <div class="n-title" id="notice-title"></div>
+        <div class="n-msg" id="notice-msg"></div>
+        <button onclick="App.dismissNotice()">حسناً</button>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3><span class="dot"></span>مسار الرحلة التعليمية — فصول المقرر وعلاقاتها</h3>
+      <div id="chapter-map" class="roadmap"></div>
+    </div>
+
+    <div id="subject-prereqs-card" class="section-card">
+      <h3><span class="dot"></span>المتطلبات القبلية على مستوى المادة</h3>
+      <div id="subject-prereqs-list" class="prereq-grid"></div>
+    </div>
+
+    <div id="intro-cta">
+      <button class="primary-btn" onclick="App.startSubjectDiagnostic()">🚀 ابدأ رحلة التشخيص واستكشف مستواك الآن</button>
+    </div>
+  </div>
+
+  <!-- View: diagnostic engine -->
+  <div class="view" id="view-prereq_diagnostic">
+    <button class="inner-back" onclick="App.cancelDiagnostic()">→ رجوع لخارطة الفصول</button>
+    <div class="section-card">
+      <div class="q-progress" id="q-progress"></div>
+      <div class="q-prompt" id="q-prompt"></div>
+      <div id="q-options"></div>
+      <button class="primary-btn" id="q-next-btn" style="display:none;margin-top:8px" onclick="App.nextQuestion()">التالي ←</button>
+    </div>
+  </div>
+
+  <!-- View: result branch -->
+  <div class="view" id="view-prereq_result">
+    <div class="section-card branch-box" id="branch-box"></div>
+  </div>
+
+  <!-- View: chapter summary -->
+  <div class="view" id="view-prereq_summary">
+    <button class="inner-back" onclick="App.switchView('prereq_overview'); App.refreshOverview();">→ رجوع لخارطة الفصول</button>
+    <div class="section-card">
+      <h3><span class="dot"></span>ملخص الفصل</h3>
+      <div id="summary-grid" class="summary-grid"></div>
+    </div>
+    <div class="section-card">
+      <h3><span class="dot"></span>أسئلة تقويمية</h3>
+      <div id="eval-grid" class="eval-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+function getStudentSession() {
+  try {
+    const raw = sessionStorage.getItem('lg_session_student') || localStorage.getItem('lg_xsession_student');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function apiFetch(path, opts = {}) {
+  const sess = getStudentSession();
+  return fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...(sess?.token ? { Authorization: 'Bearer ' + sess.token } : {}), ...(opts.headers || {}) },
+  }).then(async (r) => {
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    return d;
+  });
+}
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function setLoading(on, msg) {
+  const el = document.getElementById('loading');
+  el.style.display = on ? 'block' : 'none';
+  if (on) el.innerHTML = '<div class="spinner"></div>' + escapeHtml(msg || 'جارٍ التحميل...');
+}
+
+const LAYER_LABELS = { foundational: 'تأسيسي', descriptive: 'وصفي', structural: 'تركيبي', reactive: 'تفاعلي', quantitative: 'كمّي' };
+const STATUS_ICON = { default: '🎯', mastered: '✅', needs_review: '🟠' };
+const SOURCE_ICON = { 'علوم': '📘', 'رياضيات': '📐' };
+const SUBJECT_ID = 'chemistry-1';
+
+// Single in-memory State Machine driving every screen in this file — no
+// full-page navigation happens after the initial load except the header's
+// "رجوع" button (the one sanctioned exit back to /academic/g10).
+const App = {
+  overview: null,
+  currentDiagnostic: null,
+  initialized: false,
+
+  loadUserChip() {
+    try {
+      const sources = [
+        sessionStorage.getItem('lg_session_student'),
+        localStorage.getItem('lg_xsession_student'),
+        localStorage.getItem('lg_remember_student'),
+      ];
+      for (const src of sources) {
+        if (!src) continue;
+        const d = JSON.parse(src);
+        const name = d.name || d.admin_name;
+        if (name) {
+          document.getElementById('user-name-label').textContent = name;
+          document.getElementById('user-chip').style.display = 'inline-flex';
+          break;
+        }
+      }
+    } catch (e) {}
+  },
+
+  switchView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+
+  async openPrereq() {
+    if (!this.overview) {
+      setLoading(true);
+      try {
+        this.overview = await apiFetch(`/api/prereq/overview?subject=${SUBJECT_ID}`);
+      } catch (e) {
+        setLoading(false);
+        alert('تعذّر تحميل بيانات المقرر: ' + e.message);
+        return;
+      }
+      setLoading(false);
+      this.renderOverview();
+    }
+    this.switchView('prereq_overview');
+  },
+
+  async refreshOverview() {
+    try { this.overview = await apiFetch(`/api/prereq/overview?subject=${SUBJECT_ID}`); this.renderOverview(); } catch (e) {}
+  },
+
+  renderOverview() {
+    document.getElementById('hero-title').textContent = `${this.overview.subject.title}: رحلة استكشاف المادة`;
+    document.getElementById('hero-intro').textContent = this.overview.subject.intro;
+    this.renderChapterMap();
+    this.renderSubjectPrereqs();
+    const cta = document.getElementById('intro-cta');
+    if (this.overview.seenIntro) {
+      cta.innerHTML = '<p style="text-align:center;color:var(--muted);font-size:13px">أنجزت تشخيص المتطلبات القبلية لهذه المادة من قبل — اختر فصلاً من المسار أعلاه للمتابعة.</p>';
+    } else {
+      cta.innerHTML = '<button class="primary-btn" onclick="App.startSubjectDiagnostic()">🚀 ابدأ رحلة التشخيص واستكشف مستواك الآن</button>';
+    }
+  },
+
+  renderChapterMap() {
+    const el = document.getElementById('chapter-map');
+    el.innerHTML = this.overview.chapters.map(c => `
+      <div class="roadmap-row">
+        <div class="roadmap-track">
+          <div class="roadmap-node status-${c.status}"></div>
+          <div class="roadmap-line"></div>
+        </div>
+        <div class="roadmap-card-wrap">
+          <div class="chapter-card" onclick="App.openChapter('${c.chapterId}', ${c.hasDiagnostic}, '${escapeHtml(c.title)}')">
+            <div class="chapter-card-top">
+              <span class="chapter-num">فصل ${c.orderNum}</span>
+              <span class="chapter-status-icon">${STATUS_ICON[c.status] || '🎯'}</span>
+            </div>
+            <span class="layer-pill layer-${c.layer}">${LAYER_LABELS[c.layer] || c.layer}</span>
+            ${!c.hasDiagnostic ? '<span class="soon-pill">تشخيص قريباً</span>' : ''}
+            <div class="title">${escapeHtml(c.title)}</div>
+            <div class="deps">${c.dependsOn.length ? '🔗 يعتمد على: <b>' + c.dependsOn.map(depId => {
+              const dep = this.overview.chapters.find(x => x.chapterId === depId);
+              return dep ? 'الفصل ' + dep.orderNum : '';
+            }).filter(Boolean).join(' و ') + '</b>' : '✨ بداية المقرر'}</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  },
+
+  renderSubjectPrereqs() {
+    const list = this.overview.subject.subjectPrereqs || [];
+    const card = document.getElementById('subject-prereqs-card');
+    if (!list.length) { card.style.display = 'none'; return; }
+    document.getElementById('subject-prereqs-list').innerHTML = list.map(p => {
+      const icon = Object.keys(SOURCE_ICON).find(k => p.source.includes(k));
+      return `
+      <div class="prereq-card">
+        <div class="p-name">${escapeHtml(p.label)}</div>
+        <span class="p-src">${icon ? SOURCE_ICON[icon] : '📎'} ${escapeHtml(p.source)}</span>
+        <div class="p-used">➜ يخدم <b>${escapeHtml(p.usedIn)}</b></div>
+      </div>`;
+    }).join('');
+  },
+
+  // Defensive gate: a chapter with no seeded diagnostic questions must never
+  // reach the question screen (that was the "سؤال 1 من 0" crash). It shows
+  // an inline notice instead and stays on the roadmap.
+  openChapter(chapterId, hasDiagnostic, title) {
+    if (!hasDiagnostic) {
+      this.showNotice('المتطلبات القبلية مكتملة', `فصل "${title}" لا يتطلب تشخيصاً قبلياً حالياً، يمكنك البدء في دراسة محتواه مباشرة بعد توفره.`);
+      return;
+    }
+    this.startChapterDiagnostic(chapterId);
+  },
+
+  showNotice(title, msg) {
+    document.getElementById('notice-title').textContent = title;
+    document.getElementById('notice-msg').textContent = msg;
+    document.getElementById('chapter-notice').style.display = 'flex';
+    document.getElementById('chapter-notice').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  },
+  dismissNotice() {
+    document.getElementById('chapter-notice').style.display = 'none';
+  },
+
+  async startSubjectDiagnostic() { await this._loadDiagnostic('subject', null); },
+  async startChapterDiagnostic(chapterId) { await this._loadDiagnostic('chapter', chapterId); },
+
+  async _loadDiagnostic(scope, chapterId) {
+    setLoading(true);
+    try {
+      const qs = `subject=${SUBJECT_ID}&scope=${scope}` + (chapterId ? `&chapterId=${encodeURIComponent(chapterId)}` : '');
+      const data = await apiFetch(`/api/prereq/diagnostic?${qs}`);
+      // Defensive async validation — never enter the question screen with an
+      // empty set, no matter what triggered the load.
+      if (!data.questions || data.questions.length === 0) {
+        setLoading(false);
+        this.showNotice('المتطلبات القبلية مكتملة', 'هذا القسم لا يتطلب تشخيصاً قبلياً مسبقاً، يمكنك البدء في دراسة المحتوى مباشرة.');
+        return;
+      }
+      this.currentDiagnostic = { scope, chapterId, questions: data.questions, index: 0, weakLabels: [] };
+      setLoading(false);
+      this.switchView('prereq_diagnostic');
+      this.renderQuestion();
+    } catch (e) {
+      setLoading(false);
+      this.showNotice('تعذّر تحميل التشخيص', e.message || 'حدث خطأ غير متوقع، حاول مرة أخرى.');
+    }
+  },
+
+  cancelDiagnostic() {
+    this.currentDiagnostic = null;
+    this.switchView('prereq_overview');
+  },
+
+  renderQuestion() {
+    const d = this.currentDiagnostic;
+    const q = d.questions[d.index];
+    document.getElementById('q-progress').textContent = `سؤال ${d.index + 1} من ${d.questions.length}`;
+    document.getElementById('q-prompt').textContent = q.prompt;
+    document.getElementById('q-next-btn').style.display = 'none';
+    document.getElementById('q-options').innerHTML = q.options.map((o, i) => `
+      <div>
+        <button class="option-btn" onclick="App.answer(${i})">${escapeHtml(o.text)}</button>
+        <div class="option-feedback" id="fb-${i}">${escapeHtml(o.feedback || '')}</div>
+      </div>
+    `).join('');
+  },
+
+  answer(optionIndex) {
+    const d = this.currentDiagnostic;
+    const q = d.questions[d.index];
+    const buttons = document.querySelectorAll('#q-options .option-btn');
+    if (buttons[0].disabled) return;
+    const chosen = q.options[optionIndex];
+    buttons.forEach((btn, i) => {
+      btn.disabled = true;
+      const opt = q.options[i];
+      if (opt.is_correct) btn.classList.add('correct');
+      else if (i === optionIndex) btn.classList.add('incorrect');
+      const fb = document.getElementById('fb-' + i);
+      if (i === optionIndex || opt.is_correct) fb.classList.add(opt.is_correct ? 'fb-correct' : 'fb-incorrect');
+    });
+    if (!chosen.is_correct) d.weakLabels.push(q.prerequisiteLabel);
+    document.getElementById('q-next-btn').style.display = 'block';
+    document.getElementById('q-next-btn').textContent = d.index + 1 < d.questions.length ? 'التالي ←' : 'عرض النتيجة ←';
+  },
+
+  async nextQuestion() {
+    const d = this.currentDiagnostic;
+    d.index++;
+    if (d.index < d.questions.length) { this.renderQuestion(); return; }
+    await this.submitDiagnostic();
+  },
+
+  async submitDiagnostic() {
+    const d = this.currentDiagnostic;
+    setLoading(true, 'جارٍ حساب النتيجة...');
+    try {
+      const result = await apiFetch('/api/prereq/diagnostic/submit', {
+        method: 'POST',
+        body: JSON.stringify({ subjectId: SUBJECT_ID, scope: d.scope, chapterId: d.chapterId, weakLabels: d.weakLabels }),
+      });
+      setLoading(false);
+      this.renderBranch(result, d);
+      this.switchView('prereq_result');
+    } catch (e) {
+      setLoading(false);
+      this.showNotice('تعذّر إرسال النتيجة', e.message || 'حاول مرة أخرى.');
+      this.switchView('prereq_overview');
+    }
+  },
+
+  renderBranch(result, d) {
+    const box = document.getElementById('branch-box');
+    const chapterId = d.chapterId;
+    const startLabel = chapterId ? 'ابدأ الفصل' : 'استمر إلى فصول المقرر';
+    const startAction = chapterId ? `App.finishChapterStudy('${chapterId}')` : `App.switchView('prereq_overview'); App.refreshOverview();`;
+    if (result.branch === 'direct') {
+      box.innerHTML = `
+        <div class="branch-icon">✅</div>
+        <div class="branch-title">ممتاز — كل متطلباتك جاهزة</div>
+        <div class="branch-desc">أجبت بشكل صحيح على كل أسئلة التشخيص. يمكنك الدخول مباشرة دون أي محتوى علاجي إضافي.</div>
+        <button class="primary-btn" onclick="${startAction}">${startLabel}</button>`;
+    } else if (result.branch === 'capsule') {
+      box.innerHTML = `
+        <div class="branch-icon">💊</div>
+        <div class="branch-title">كبسولة علاجية مصغّرة</div>
+        <div class="branch-desc">وجدنا ${result.weakCount} من ${result.totalCount} متطلبات تحتاج مراجعة سريعة قبل المتابعة:</div>
+        ${result.weakLabels.map(l => `<div class="capsule-item">📌 ${escapeHtml(l)} — راجع هذا المفهوم مع معلمك أو من مصدره الأساسي قبل المتابعة (~5 دقائق).</div>`).join('')}
+        <button class="primary-btn" style="margin-top:8px" onclick="${startAction}">${startLabel}</button>`;
+    } else {
+      box.innerHTML = `
+        <div class="branch-icon">🔔</div>
+        <div class="branch-title">تم تسجيل تنبيه لمعلمك</div>
+        <div class="branch-desc">ضعفك في أغلب المتطلبات القبلية (${result.weakCount} من ${result.totalCount}) — تم إشعار معلمك بذلك تلقائياً، ويمكنك المتابعة اختيارياً.</div>
+        <button class="primary-btn" onclick="${startAction}">${startLabel}</button>`;
+    }
+  },
+
+  async finishChapterStudy(chapterId) {
+    setLoading(true);
+    try {
+      const data = await apiFetch(`/api/prereq/chapter-summary?chapterId=${encodeURIComponent(chapterId)}`);
+      setLoading(false);
+      this.renderSummary(data);
+      this.switchView('prereq_summary');
+    } catch (e) {
+      setLoading(false);
+      this.switchView('prereq_overview');
+      this.refreshOverview();
+    }
+  },
+
+  renderSummary(data) {
+    const s = data.summary;
+    document.getElementById('summary-grid').innerHTML = `
+      <div class="summary-block"><h4>المفاهيم الأساسية</h4>${s.keyConcepts.map(c => `<span class="chip">${escapeHtml(c)}</span>`).join('')}</div>
+      <div class="summary-block"><h4>مصطلحات جديدة</h4>${s.newTerms.map(t => `<div class="term-item"><b>${escapeHtml(t.term)}</b> — ${escapeHtml(t.definition)}</div>`).join('')}</div>
+      <div class="summary-block"><h4>القانون الأساسي</h4><div class="term-item">${escapeHtml(s.coreRule)}</div></div>
+      <div class="summary-block"><h4>مثال محلول</h4><div class="term-item">${escapeHtml(s.workedExample)}</div></div>
+      <div class="summary-block"><h4>خطأ شائع</h4><div class="term-item">${escapeHtml(s.commonPitfall)}</div></div>
+    `;
+    document.getElementById('eval-grid').innerHTML = data.evaluationQuestions.map((q, i) => `
+      <div class="eval-card ${q.level}">
+        <div class="eval-level">${q.level === 'knowledge' ? '🧠 معرفي' : '💡 مهارات تفكير عليا'}</div>
+        <div class="eval-prompt">${escapeHtml(q.prompt)}</div>
+        <button class="reveal-btn" onclick="App.toggleAnswer(${i})">عرض الإجابة النموذجية ↓</button>
+        <div class="model-answer" id="model-answer-${i}">${escapeHtml(q.modelAnswer)}</div>
+      </div>
+    `).join('');
+  },
+
+  toggleAnswer(i) {
+    const el = document.getElementById('model-answer-' + i);
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  },
+};
+
+(function init() {
+  App.loadUserChip();
+  setLoading(false);
+})();
+</script>
+</body>
+</html>

@@ -1431,6 +1431,68 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   .ro-error-card, .ro-step-otp-morphing #ro-otp-group { animation: none !important; transition: none !important; }
 }
 
+/* ── Topbar circular profile button (student home) ──────────────────── */
+.profile-avatar-btn {
+  background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.35);
+  color: #fff; border-radius: 99px; width: 40px; height: 40px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background .18s cubic-bezier(.2,0,0,1), transform .15s cubic-bezier(.2,0,0,1);
+}
+.profile-avatar-btn svg { width: 20px; height: 20px; }
+.profile-avatar-btn:hover { background: rgba(255,255,255,.30); transform: scale(1.06); }
+.profile-avatar-btn:active { transform: scale(.96); }
+.profile-avatar-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* ── Student profile modal — glass, matches the OTP recovery modal's
+   design tokens (--ro-accent etc aren't shared since this box defines its
+   own; kept visually consistent by reusing the same values directly). ── */
+.pf-box {
+  max-width: 420px; position: relative;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: var(--shadow-lg, 0 24px 60px -20px rgba(63,124,184,.3));
+}
+.pf-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.pf-header-title { font-size: 18px; font-weight: 800; color: var(--text); }
+.pf-close {
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: var(--bg-tint); color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background .15s;
+  flex-shrink: 0;
+}
+.pf-close svg { width: 16px; height: 16px; }
+.pf-close:hover { background: var(--border); }
+
+.pf-pending-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(217,119,6,.1); border: 1px solid rgba(217,119,6,.28);
+  color: var(--warn, #d97706); border-radius: 12px; padding: 10px 14px;
+  font-size: 12.5px; font-weight: 700; margin-bottom: 16px; line-height: 1.5;
+}
+.pf-pending-banner svg { width: 20px; height: 20px; flex-shrink: 0; }
+.pf-pending-banner[hidden] { display: none; }
+
+.pf-field-row { display: flex; gap: 10px; }
+.pf-field { flex: 1; text-align: right; }
+.pf-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+.pf-optional { font-weight: 500; opacity: .8; }
+.pf-input {
+  width: 100%; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px; transition: border-color .15s, box-shadow .15s;
+}
+:root[data-theme="light"] .pf-input, :root:not([data-theme="dark"]) .pf-input { background: rgba(0,0,0,.02); border-color: var(--border); }
+.pf-input:focus { outline: none; border-color: #38BDF8; box-shadow: 0 0 0 3px rgba(56,189,248,.15); }
+
+.pf-actions { display: flex; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.pf-full { flex: 1; }
+.pf-save-btn {
+  flex: 2; background: #1e293b; color: #fff; border: none;
+  transition: background .15s, transform .15s;
+}
+.pf-save-btn:hover { background: #0f172a; }
+.pf-save-btn:active { transform: scale(.98); }
+
 /* ── Tabs ────────────────────────────────────────────── */
 .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: #e0eaf8; border-radius: 10px; padding: 4px; }
 .tab-btn {

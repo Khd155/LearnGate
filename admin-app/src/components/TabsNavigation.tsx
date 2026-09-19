@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useStore, type TabKey } from '../store/useStore';
 import { cn } from '../lib/cn';
+import { useProfileRequestsCount } from './ProfileRequestsTab';
 
 const BASE_TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'dashboard', label: 'لوحة المعلومات', icon: '🏠' },
@@ -28,8 +29,17 @@ export default function TabsNavigation() {
     session?.role === 'director' || session?.role === 'dev' || !!session?.permissions?.includes('view_diff');
   const canEditQuestions =
     session?.role === 'director' || session?.role === 'dev' || !!session?.permissions?.includes('edit_questions');
-  const showAdmin = canViewDiff || canEditQuestions;
+  // Any admin/director/dev can review profile change requests (same bar as
+  // editing a student's record directly from the Students tab), so the
+  // "الإدارة" tab must stay reachable for them even without the other two
+  // narrower permission flags.
+  const canReviewProfileRequests = ['admin', 'director', 'dev'].includes(session?.role || '');
+  const showAdmin = canViewDiff || canEditQuestions || canReviewProfileRequests;
   const TABS = [...BASE_TABS, ...(showAdmin ? [ADMIN_TAB] : [])];
+  // Surfaces on the main "الإدارة" tab itself, not just the sub-tab inside
+  // it, so a supervisor sees there's something waiting before they even
+  // open the tab.
+  const pendingProfileRequests = useProfileRequestsCount(canReviewProfileRequests);
 
   useEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`);
@@ -61,6 +71,11 @@ export default function TabsNavigation() {
           >
             <span>{t.icon}</span>
             <span>{t.label}</span>
+            {t.key === 'admin' && pendingProfileRequests > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                {pendingProfileRequests > 99 ? '99+' : pendingProfileRequests}
+              </span>
+            )}
           </Tabs.Trigger>
         ))}
         <div

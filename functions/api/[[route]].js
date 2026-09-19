@@ -1096,6 +1096,186 @@ export async function onRequest({ request, env }) {
       }
     }
 
+    // ── STUDENT PROFILE (self-service; name/phone require admin approval,
+    // email saves immediately) ───────────────────────────────────────────────
+    if (resource === 'student' && sub === 'profile') {
+      const claims = await verifyToken(request, env, DB);
+      if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+      try { await DB.prepare("ALTER TABLE students ADD COLUMN email TEXT DEFAULT ''").run(); } catch {}
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS profile_change_requests (
+        id TEXT PRIMARY KEY, student_id TEXT NOT NULL, field_name TEXT NOT NULL,
+        old_value TEXT, new_value TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'PENDING',
+        reviewed_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      )`).run(); } catch {}
+      try { await DB.prepare('CREATE INDEX IF NOT EXISTS idx_pcr_student ON profile_change_requests(student_id, status)').run(); } catch {}
+      try { await DB.prepare('ALTER TABLE profile_change_requests ADD COLUMN notified_at TEXT').run(); } catch {}
+
+      // GET /api/student/profile — current data + any pending requests
+      if (!subsub && method === 'GET') {
+        const student = await DB.prepare('SELECT id, name, school, phone, email, code FROM students WHERE id = ?').bind(claims.sub).first();
+        if (!student) return err('لم يتم العثور على الحساب', 404, CORS);
+        const { results: pending } = await DB.prepare(
+          "SELECT field_name, new_value, created_at FROM profile_change_requests WHERE student_id = ? AND status = 'PENDING' ORDER BY created_at DESC"
+        ).bind(claims.sub).all();
+        return ok({ student, pendingRequests: pending }, 200, CORS);
+      }
+
+      // GET /api/student/profile/notifications — one-shot delivery of any
+      // approve/reject decision the student hasn't been told about yet
+      // (notified_at IS NULL), marked delivered in the same call so it never
+      // fires twice. Polled on the same cadence as messages/tickets — see
+      // App._checkNotifications in app.js. Approved requests also return the
+      // fresh student row so the UI can update without a second round trip.
+      if (subsub === 'notifications' && method === 'GET') {
+        const { results: resolved } = await DB.prepare(
+          "SELECT id, field_name, status, reject_reason FROM profile_change_requests WHERE student_id = ? AND status != 'PENDING' AND notified_at IS NULL ORDER BY updated_at ASC"
+        ).bind(claims.sub).all();
+        if (resolved.length) {
+          const now = new Date().toISOString();
+          await DB.batch(resolved.map(r => DB.prepare('UPDATE profile_change_requests SET notified_at = ? WHERE id = ?').bind(now, r.id)));
+        }
+        const hasApproval = resolved.some(r => r.status === 'APPROVED');
+        const student = hasApproval
+          ? await DB.prepare('SELECT id, name, school, phone, email, code FROM students WHERE id = ?').bind(claims.sub).first()
+          : null;
+        return ok({ items: resolved.map(r => ({ field_name: r.field_name, status: r.status, reject_reason: r.reject_reason || '' })), student }, 200, CORS);
+      }
+
+      // POST /api/student/profile/request-update — email is applied directly
+      // below; name/phone instead create a PENDING profile_change_requests
+      // row and never touch the students row until an admin approves it.
+      if (subsub === 'request-update' && method === 'POST') {
+        const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
+        if (!await rateLimit(DB, ip, 'profile-request-update', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+        const body = await request.json().catch(() => ({}));
+        const student = await DB.prepare('SELECT id, name, school, phone, email FROM students WHERE id = ?').bind(claims.sub).first();
+        if (!student) return err('لم يتم العثور على الحساب', 404, CORS);
+
+        const result = { email: null, name: null, phone: null };
+
+        if (body.email !== undefined) {
+          const email = String(body.email || '').trim();
+          if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err('صيغة البريد الإلكتروني غير صحيحة', 400, CORS);
+          if (email !== (student.email || '')) {
+            await DB.prepare('UPDATE students SET email = ? WHERE id = ?').bind(email, claims.sub).run();
+            result.email = 'saved';
+          }
+        }
+
+        const now = new Date().toISOString();
+        // Only the most recent pending request per field should ever be
+        // reviewable — the same "invalidate, then insert" idiom used for
+        // OTP codes above, so re-submitting corrects a typo instead of
+        // piling up duplicate pending rows for one field.
+        const upsertPending = async (fieldName, oldValue, newValue) => {
+          await DB.prepare("DELETE FROM profile_change_requests WHERE student_id = ? AND field_name = ? AND status = 'PENDING'")
+            .bind(claims.sub, fieldName).run();
+          await DB.prepare(
+            'INSERT INTO profile_change_requests (id, student_id, field_name, old_value, new_value, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+          ).bind(crypto.randomUUID(), claims.sub, fieldName, oldValue, newValue, 'PENDING', now, now).run();
+        };
+
+        if (body.firstName !== undefined || body.lastName !== undefined) {
+          const firstName = String(body.firstName || '').trim();
+          const lastName = String(body.lastName || '').trim();
+          const newName = [firstName, lastName].filter(Boolean).join(' ');
+          if (!newName) return err('الاسم مطلوب', 400, CORS);
+          if (newName.length > 100) return err('الاسم طويل جداً', 400, CORS);
+          if (newName !== student.name) {
+            await upsertPending('name', student.name, newName);
+            result.name = 'pending';
+          }
+        }
+
+        if (body.phone !== undefined) {
+          const phone = String(body.phone || '').trim();
+          if (phone && !/^05\d{8}$/.test(phone)) return err('رقم الجوال يجب أن يكون بصيغة 05xxxxxxxx', 400, CORS);
+          if (phone !== (student.phone || '')) {
+            await upsertPending('phone', student.phone || '', phone);
+            result.phone = 'pending';
+          }
+        }
+
+        if (result.name === 'pending' || result.phone === 'pending') {
+          await logEvent(DB, { level: 'info', category: 'profile-request', message: `طلب تعديل بيانات جديد — ${student.name}`, user_name: student.name, user_role: 'student', school: student.school || '', ip, student_id: claims.sub });
+          wsNotify({ admins: true, school: student.school || '', event: { type: 'new_profile_request', studentName: student.name, school: student.school || '' } });
+        }
+
+        const { results: pending } = await DB.prepare(
+          "SELECT field_name, new_value, created_at FROM profile_change_requests WHERE student_id = ? AND status = 'PENDING' ORDER BY created_at DESC"
+        ).bind(claims.sub).all();
+        return ok({ ok: true, result, pendingRequests: pending }, 200, CORS);
+      }
+    }
+
+    // ── ADMIN: profile change request review (approve/reject student edits
+    // to name/phone, with a before/after diff) ───────────────────────────────
+    if (resource === 'admin' && sub === 'profile-requests') {
+      const claims = await verifyToken(request, env, DB);
+      if (!claims || !['admin', 'director', 'dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
+      // Same school-scoping rule already used for /api/students etc: a
+      // plain admin/director only sees their own school; dev and a
+      // super-director (school === '*') see everything.
+      const schoolScope = (['admin', 'director'].includes(claims.role) && claims.school && claims.school !== '*') ? claims.school : null;
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS profile_change_requests (
+        id TEXT PRIMARY KEY, student_id TEXT NOT NULL, field_name TEXT NOT NULL,
+        old_value TEXT, new_value TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'PENDING',
+        reviewed_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      )`).run(); } catch {}
+      try { await DB.prepare('ALTER TABLE profile_change_requests ADD COLUMN reject_reason TEXT').run(); } catch {}
+
+      // GET /api/admin/profile-requests?status=PENDING
+      if (!subsub && method === 'GET') {
+        const statusFilter = url.searchParams.get('status') || 'PENDING';
+        let q = `SELECT r.id, r.student_id, r.field_name, r.old_value, r.new_value, r.status, r.reviewed_by, r.reject_reason, r.created_at, r.updated_at,
+                    s.name as student_name, s.school as school
+                  FROM profile_change_requests r JOIN students s ON s.id = r.student_id
+                  WHERE r.status = ?`;
+        const params = [statusFilter];
+        if (schoolScope) { q += ' AND s.school = ?'; params.push(schoolScope); }
+        q += ' ORDER BY r.created_at DESC';
+        const { results } = await DB.prepare(q).bind(...params).all();
+        let countQ = "SELECT COUNT(*) as c FROM profile_change_requests r JOIN students s ON s.id = r.student_id WHERE r.status = 'PENDING'";
+        const countParams = [];
+        if (schoolScope) { countQ += ' AND s.school = ?'; countParams.push(schoolScope); }
+        const countRow = await DB.prepare(countQ).bind(...countParams).first();
+        return ok({ requests: results, pendingCount: Number(countRow?.c || 0) }, 200, CORS);
+      }
+
+      // POST /api/admin/profile-requests/:id/review { action: 'approve'|'reject' }
+      // — approving writes straight to the students row; :id is `subsub`
+      // (parts[2]='profile-requests', parts[3]=id) and 'review' is the
+      // 4th segment, not otherwise pulled out by the shared destructuring.
+      if (subsub && parts[4] === 'review' && method === 'POST') {
+        const { action, reason } = await request.json().catch(() => ({}));
+        if (!['approve', 'reject'].includes(action)) return err('إجراء غير صالح', 400, CORS);
+        const trimmedReason = String(reason || '').trim();
+        if (action === 'reject' && !trimmedReason) return err('يرجى كتابة سبب الرفض', 400, CORS);
+        if (trimmedReason.length > 500) return err('سبب الرفض طويل جداً', 400, CORS);
+        const reqRow = await DB.prepare('SELECT * FROM profile_change_requests WHERE id = ?').bind(subsub).first();
+        if (!reqRow) return err('الطلب غير موجود', 404, CORS);
+        if (reqRow.status !== 'PENDING') return err('تمت مراجعة هذا الطلب مسبقاً', 409, CORS);
+        const student = await DB.prepare('SELECT id, name, school, phone FROM students WHERE id = ?').bind(reqRow.student_id).first();
+        if (!student) return err('لم يتم العثور على الطالب', 404, CORS);
+        if (schoolScope && student.school !== schoolScope) return err('غير مسموح', 403, CORS);
+
+        const now = new Date().toISOString();
+        const newStatus = action === 'approve' ? 'APPROVED' : 'REJECTED';
+        if (action === 'approve') {
+          // Whitelisted column names only — field_name is never interpolated
+          // unless it matches one of these two exact values.
+          const column = reqRow.field_name === 'name' ? 'name' : reqRow.field_name === 'phone' ? 'phone' : null;
+          if (!column) return err('حقل غير مدعوم', 400, CORS);
+          await DB.prepare(`UPDATE students SET ${column} = ? WHERE id = ?`).bind(reqRow.new_value, student.id).run();
+        }
+        await DB.prepare('UPDATE profile_change_requests SET status = ?, reviewed_by = ?, reject_reason = ?, updated_at = ? WHERE id = ?')
+          .bind(newStatus, claims.sub, action === 'reject' ? trimmedReason : null, now, subsub).run();
+        await logEvent(DB, { level: 'success', category: 'profile-request', message: `${action === 'approve' ? 'قبول' : 'رفض'} طلب تعديل (${reqRow.field_name}) — ${student.name}${action === 'reject' ? ' — السبب: ' + trimmedReason : ''}`, user_name: claims.name || '', user_role: claims.role, school: student.school || '', student_id: student.id });
+        wsNotify({ studentId: student.id, event: { type: 'profile_request_reviewed', status: newStatus, field_name: reqRow.field_name } });
+        return ok({ ok: true, status: newStatus }, 200, CORS);
+      }
+    }
+
     // ── SCHOOLS ─────────────────────────────────────────────────────────────
     if (resource === 'schools' && method === 'GET') {
       const { results } = await DB.prepare('SELECT * FROM schools ORDER BY name ASC').all();

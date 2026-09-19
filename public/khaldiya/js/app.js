@@ -1319,6 +1319,76 @@ const App = {
     App.studentLogin();
   },
 
+  // ── Student Profile ──────────────────────────────────────────────────────
+  // Name/phone edits never touch the students row directly — they create a
+  // PENDING profile_change_requests row an admin has to approve first (see
+  // POST /api/student/profile/request-update). Email has no such rule and
+  // saves immediately, same call.
+  async openStudentProfile() {
+    document.getElementById('pf-err').classList.remove('show');
+    document.getElementById('student-profile-modal').classList.add('open');
+    try {
+      const res = await apiFetch('/student/profile');
+      const s = res.student || {};
+      const nameParts = (s.name || '').trim().split(/\s+/).filter(Boolean);
+      document.getElementById('pf-first-name').value = nameParts[0] || '';
+      document.getElementById('pf-last-name').value = nameParts.slice(1).join(' ');
+      document.getElementById('pf-phone').value = s.phone || '';
+      document.getElementById('pf-email').value = s.email || '';
+      document.getElementById('pf-pending-banner').hidden = !(res.pendingRequests?.length);
+    } catch (e) {
+      showToast(e?.message || 'تعذّر تحميل الملف الشخصي');
+    }
+  },
+
+  closeStudentProfile() {
+    document.getElementById('student-profile-modal').classList.remove('open');
+  },
+
+  async saveStudentProfile() {
+    const errEl = document.getElementById('pf-err');
+    errEl.classList.remove('show');
+    const firstName = document.getElementById('pf-first-name').value.trim();
+    const lastName = document.getElementById('pf-last-name').value.trim();
+    const phone = document.getElementById('pf-phone').value.trim();
+    const email = document.getElementById('pf-email').value.trim();
+    if (!firstName) { errEl.textContent = 'الاسم الأول مطلوب'; errEl.classList.add('show'); return; }
+    if (phone && !/^05\d{8}$/.test(phone)) { errEl.textContent = 'رقم الجوال يجب أن يكون بصيغة 05xxxxxxxx'; errEl.classList.add('show'); return; }
+    const btn = document.getElementById('pf-save-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> جارٍ الإرسال…'; }
+    try {
+      const res = await apiFetch('/student/profile/request-update', {
+        method: 'POST', body: JSON.stringify({ firstName, lastName, phone, email }),
+      });
+      App.closeStudentProfile();
+      if (res.result?.name === 'pending' || res.result?.phone === 'pending') {
+        showToast('تم إرسال طلب تعديل البيانات إلى المشرف بنجاح، ستصلك رسالة فور اتخاذ الإجراء.');
+      } else if (res.result?.email === 'saved') {
+        showToast('تم حفظ التغييرات');
+      } else {
+        showToast('لا توجد تغييرات لحفظها');
+      }
+    } catch (e) {
+      errEl.textContent = e?.message || 'تعذّر إرسال الطلب'; errEl.classList.add('show');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = 'إرسال الطلب'; }
+    }
+  },
+
+  // Approving a name/phone request updates the students row server-side —
+  // this reflects that into the already-rendered UI (welcome banner, topbar
+  // chip) without waiting for the student to navigate anywhere.
+  _applyApprovedProfileFields(student) {
+    if (!student || !State.student) return;
+    if (student.name && student.name !== State.student.name) {
+      State.student.name = student.name;
+      App._setTopbarUser(student.name);
+      const shName = document.getElementById('sh-name');
+      if (shName) shName.textContent = student.name;
+    }
+    if (student.phone !== undefined) State.student.phone = student.phone;
+  },
+
   // ── Student Login ────────────────────────────────────────────────────────
   async studentLogin() {
     const code = document.getElementById('sl-code').value.trim();
@@ -6318,6 +6388,12 @@ const App = {
   _notifTimer: null,
   _notifPrev: { studentMsg: 0, ticket: 0, adminMsg: 0 },
   _notifItems: [],   // [{id, type, title, sub, read, action}]
+  // Persists across polls (unlike _notifItems above, which is rebuilt fresh
+  // from live unread counts every cycle) — an approve/reject decision is a
+  // one-time event, not an ongoing count, so it needs to survive being
+  // merged into _notifItems on every subsequent poll until the student
+  // clears it. See App._checkNotifications / App._clearNotifs.
+  _profileNotifItems: [],
 
   // ── Broadcast ──────────────────────────────────────────────────────────
   _broadcastQueue: [],
@@ -6538,12 +6614,18 @@ const App = {
   async _checkNotifications() {
     try {
       if (State.role === 'student' && State.student?.id) {
-        const [msgRes, tkRes] = await Promise.all([
+        const [msgRes, tkRes, profRes] = await Promise.all([
           apiFetch('/messages/unread-student').catch(() => ({ count: 0 })),
           apiFetch(`/tickets/unread?studentId=${State.student.id}`).catch(() => ({ count: 0 })),
+          apiFetch('/student/profile/notifications').catch(() => ({ items: [], student: null })),
         ]);
-        const msgCount = msgRes.count || 0;
-        const tkCount  = tkRes.count  || 0;
+        // Postgres COUNT(*) comes back as a string through this driver, so
+        // `msgRes.count || 0` alone still leaves it a string ("0" is
+        // truthy) — fine on its own, but `msgCount + tkCount + unreadProfile`
+        // below then string-concatenates instead of adding once a real
+        // number (unreadProfile) joins in, e.g. "0"+"0"+2 => "002".
+        const msgCount = Number(msgRes.count) || 0;
+        const tkCount  = Number(tkRes.count)  || 0;
 
         const items = [];
         if (msgCount > 0) items.push({ id:'msg', type:'msg', title:`${msgCount} رسالة جديدة من المشرف`, sub:'اضغط للاطلاع', read: false, action: () => App.goToChat() });
@@ -6560,17 +6642,43 @@ const App = {
           showToast(`🎫 وصلك ${diff > 1 ? diff + ' ردود' : 'رد'} جديد على طلب الدعم`);
           App._ringBell('student');
         }
+
+        // Profile-request outcomes: the endpoint marks each item delivered
+        // server-side the moment it returns it, so every item here is
+        // guaranteed new — no diffing against a previous count needed, and
+        // each one is pushed once into the persistent _profileNotifItems
+        // list (see its declaration) rather than the per-poll `items` above.
+        const FIELD_LABEL = { name: 'الاسم', phone: 'رقم الجوال' };
+        (profRes.items || []).forEach((it, i) => {
+          const approved = it.status === 'APPROVED';
+          App._profileNotifItems.unshift({
+            id: 'profreq_' + Date.now() + '_' + i,
+            type: 'profile',
+            title: approved ? 'تمت الموافقة على طلب التعديل' : 'تم رفض طلب التعديل',
+            sub: approved
+              ? 'تم اعتماد بياناتك وتحديثها بنجاح.'
+              : `لم تتمت الموافقة على تعديل ${FIELD_LABEL[it.field_name] || it.field_name}.${it.reject_reason ? ' السبب: ' + it.reject_reason : ''}`,
+            read: false,
+          });
+          showToast(approved ? 'تمت الموافقة على طلب التعديل — تم اعتماد بياناتك وتحديثها بنجاح.' : 'تم رفض طلب التعديل');
+          App._ringBell('student');
+        });
+        if (profRes.student) App._applyApprovedProfileFields(profRes.student);
+
         App._notifPrev.studentMsg = msgCount;
         App._notifPrev.ticket     = tkCount;
-        App._notifItems = items;
-        App._updateBell('student', msgCount + tkCount);
+        App._notifItems = items.concat(App._profileNotifItems);
+        const unreadProfile = App._profileNotifItems.filter(i => !i.read).length;
+        App._updateBell('student', msgCount + tkCount + unreadProfile);
         App._checkBroadcasts();
 
       } else if (State.role === 'admin' || State.role === 'director') {
         const school = encodeURIComponent(State.school || '');
         const data = await apiFetch(`/messages/unread?school=${school}`).catch(() => ({ counts: [] }));
         const counts = data.counts || [];
-        const total  = counts.reduce((s,c) => s + (c.cnt || 0), 0);
+        // Same string-vs-number pitfall as msgCount/tkCount above — cnt is a
+        // Postgres COUNT(*), so it arrives as a string.
+        const total  = counts.reduce((s,c) => s + (Number(c.cnt) || 0), 0);
 
         const items = counts.map(c => ({
           id: 'msg_' + c.student_id,
@@ -6634,12 +6742,16 @@ const App = {
     if (!panel) return;
     const items = App._notifItems;
     const iconMap = { msg: '💬', ticket: '🎫', plan: '📋', broadcast: '📢' };
-    const clsMap  = { msg: 'msg-icon', ticket: 'ticket-icon', plan: 'plan-icon', broadcast: 'msg-icon' };
+    const clsMap  = { msg: 'msg-icon', ticket: 'ticket-icon', plan: 'plan-icon', broadcast: 'msg-icon', profile: 'plan-icon' };
+    // 'profile' (profile-request approve/reject outcomes) is SVG-only, no
+    // emoji — the rest of this panel's icons predate that constraint and
+    // are out of scope here.
+    const PROFILE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m19.5 12.5 2 2-5.5 5.5H14v-2Z"/></svg>';
     const bodyHtml = items.length
       ? items.map(item => `
         <div class="notif-item ${item.read ? '' : 'unread'}"
              onclick="App._notifClick('${item.id}')">
-          <div class="notif-icon ${clsMap[item.type] || 'msg-icon'}">${iconMap[item.type] || '🔔'}</div>
+          <div class="notif-icon ${clsMap[item.type] || 'msg-icon'}">${item.type === 'profile' ? PROFILE_SVG : (iconMap[item.type] || '🔔')}</div>
           <div class="notif-info">
             <div class="notif-info-title">${escapeHtml(item.title)}</div>
             <div class="notif-info-sub">${escapeHtml(item.sub)}</div>
@@ -6666,6 +6778,7 @@ const App = {
 
   _clearNotifs() {
     App._notifItems = [];
+    App._profileNotifItems = [];
     App._notifPrev  = { studentMsg: 0, ticket: 0, adminMsg: 0 };
     if (State.role === 'student') App._updateBell('student', 0);
     else App._updateBell('admin', 0);

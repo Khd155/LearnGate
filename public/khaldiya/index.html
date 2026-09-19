@@ -1161,6 +1161,56 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
+     MODAL: STUDENT PROFILE — name/phone edits go through an
+     admin-approval queue (profile_change_requests); email saves
+     directly. See App.openStudentProfile()/saveStudentProfile().
+═══════════════════════════════════════════════════════ -->
+<div id="student-profile-modal" class="modal-overlay">
+  <div class="modal-box pf-box">
+    <div class="pf-header">
+      <div class="pf-header-title">الملف الشخصي</div>
+      <button type="button" class="pf-close" onclick="App.closeStudentProfile()" aria-label="إغلاق">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+
+    <div id="pf-pending-banner" class="pf-pending-banner" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      <span>لديك طلب تعديل بيانات قيد المراجعة من قبل المشرف</span>
+    </div>
+
+    <div class="pf-field-row">
+      <div class="pf-field">
+        <label class="pf-label">الاسم الأول</label>
+        <input type="text" id="pf-first-name" class="form-input pf-input" maxlength="60">
+      </div>
+      <div class="pf-field">
+        <label class="pf-label">الاسم الثاني</label>
+        <input type="text" id="pf-last-name" class="form-input pf-input" maxlength="60">
+      </div>
+    </div>
+
+    <div class="pf-field" style="margin-top:14px;">
+      <label class="pf-label">رقم الجوال</label>
+      <input type="tel" id="pf-phone" class="form-input pf-input" placeholder="05xxxxxxxx" inputmode="numeric" maxlength="10"
+             oninput="this.value=this.value.replace(/[^0-9]/g,'')" dir="ltr" style="text-align:right;">
+    </div>
+
+    <div class="pf-field" style="margin-top:14px;">
+      <label class="pf-label">البريد الإلكتروني <span class="pf-optional">(اختياري)</span></label>
+      <input type="email" id="pf-email" class="form-input pf-input" placeholder="example@domain.com" dir="ltr" style="text-align:right;">
+    </div>
+
+    <div id="pf-err" class="ro-err"></div>
+
+    <div class="pf-actions">
+      <button type="button" class="btn pf-save-btn" id="pf-save-btn" onclick="App.saveStudentProfile()">إرسال الطلب</button>
+      <button type="button" class="btn btn-outline pf-full" onclick="App.closeStudentProfile()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
      SCREEN 2b: ADMIN LOGIN
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-admin-login" class="screen">
@@ -1318,6 +1368,9 @@
     <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر">🌙</button>
     <button class="notif-bell-btn" id="notif-bell-student" onclick="App.toggleNotifPanel()" title="الإشعارات">
       🔔<span class="notif-count-badge" id="notif-count-student" style="display:none;"></span>
+    </button>
+    <button class="profile-avatar-btn" id="profile-avatar-btn" onclick="App.openStudentProfile()" title="الملف الشخصي" aria-label="الملف الشخصي">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
     </button>
     <button class="topbar-back" onclick="App.logout()" title="خروج" style="font-size:14px;">خروج</button>
   </div>

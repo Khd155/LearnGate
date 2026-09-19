@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore } from './store/useStore';
-import { configureApi, clearSession } from './lib/api';
+import { configureApi, clearSession, api } from './lib/api';
 import DashboardLayout from './components/DashboardLayout';
 
 const SITE_ROOT = import.meta.env.VITE_SITE_ROOT ?? '/';
@@ -9,6 +9,7 @@ export default function App() {
   const session = useStore((s) => s.session);
   const initSession = useStore((s) => s.initSession);
   const dark = useStore((s) => s.dark);
+  const pushToast = useStore((s) => s.pushToast);
 
   useEffect(() => {
     // A 401 from ANY in-flight request (a background tab's fetch, a stale
@@ -46,6 +47,22 @@ export default function App() {
       return () => clearTimeout(t);
     }
   }, [session]);
+
+  // One-time "you have pending requests" toast right after the dashboard
+  // loads with a valid session — a nudge to check the Admin tab's badge
+  // before they've had a reason to click into it themselves.
+  const pendingToastShown = useRef(false);
+  useEffect(() => {
+    if (!session || pendingToastShown.current) return;
+    if (!['admin', 'director', 'dev'].includes(session.role)) return;
+    pendingToastShown.current = true;
+    api.get<{ pendingCount: number }>('/admin/profile-requests?status=PENDING')
+      .then((r) => {
+        const n = r.pendingCount || 0;
+        if (n > 0) pushToast('success', `لديك ${n} ${n === 1 ? 'طلب تعديل بيانات جديد' : 'طلبات تعديل بيانات جديدة'} غير مقروءة بانتظار المراجعة.`);
+      })
+      .catch(() => {});
+  }, [session, pushToast]);
 
   if (!session) {
     return (

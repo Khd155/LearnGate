@@ -3805,6 +3805,111 @@ export async function onRequest({ request, env }) {
         return ok({ ok: true }, 200, CORS);
       }
 
+      // GET /api/prereq/supervisor-overview?subject=chemistry-1 — dev/admin/
+      // director only. Everything below is computed directly from
+      // student_prereq_results (no separate analytics table) by walking the
+      // rows chronologically once, so "alert" only ever reflects a gap that
+      // hasn't since been resolved by a later attempt.
+      if (sub === 'supervisor-overview' && method === 'GET') {
+        const isDevKeySup = authDev(request, env);
+        const claims = isDevKeySup ? null : await verifyToken(request, env, DB);
+        if (!isDevKeySup && !(claims && ['dev', 'director', 'admin'].includes(claims.role))) return err('غير مصرح', 401, CORS);
+        const subj = (url.searchParams.get('subject') || '').trim();
+        if (!subj) return err('subject مطلوب', 400, CORS);
+        const scopedSchool = (claims?.role === 'admin' && claims.school && claims.school !== '*') ? claims.school : null;
+
+        const { results: rows } = scopedSchool
+          ? await DB.prepare(
+              `SELECT r.*, s.name AS student_name, s.school AS student_school FROM student_prereq_results r
+               JOIN students s ON s.id = r.student_id WHERE r.subject_id = ? AND s.school = ? ORDER BY r.created_at ASC`
+            ).bind(subj, scopedSchool).all()
+          : await DB.prepare(
+              `SELECT r.*, s.name AS student_name, s.school AS student_school FROM student_prereq_results r
+               JOIN students s ON s.id = r.student_id WHERE r.subject_id = ? ORDER BY r.created_at ASC`
+            ).bind(subj).all();
+
+        const { results: chapterRows } = await DB.prepare('SELECT chapter_id, order_num, title FROM course_chapters WHERE subject_id = ?').bind(subj).all();
+        const chapterTitle = new Map(chapterRows.map(c => [c.chapter_id, `الفصل ${c.order_num} — ${c.title}`]));
+
+        // latestByKey: the most recent attempt per (student, scope, chapter) —
+        // this is "their current standing" on that requirement set.
+        const latestByKey = new Map();
+        // resolvedKeys: any key that was ever capsule/alert AND later had a
+        // weak_count===0 attempt — "طواعية" remediation, for مؤشر التفاعل.
+        const everWeak = new Map(); // key -> true once seen with branch !== 'direct'
+        const resolvedKeys = new Set();
+        for (const r of rows) {
+          const key = `${r.student_id}|${r.scope}|${r.chapter_id || ''}`;
+          if (everWeak.get(key) && r.weak_count === 0) resolvedKeys.add(key);
+          if (r.branch !== 'direct') everWeak.set(key, true);
+          latestByKey.set(key, r);
+        }
+
+        // ── 1) Early Alerts — current (unresolved) alert-branch keys ──────
+        const alerts = [...latestByKey.values()]
+          .filter(r => r.branch === 'alert')
+          .map(r => ({
+            studentId: r.student_id, studentName: r.student_name, school: r.student_school,
+            scope: r.scope, chapterId: r.chapter_id,
+            chapterLabel: r.chapter_id ? (chapterTitle.get(r.chapter_id) || r.chapter_id) : 'تشخيص المادة الشامل',
+            weakLabels: JSON.parse(r.weak_labels || '[]'), weakCount: r.weak_count, totalCount: r.total_count,
+            createdAt: r.created_at,
+          }))
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        // ── 2) Top Achievers — chapters mastered + average accuracy, from
+        // each student's latest standing on every key they've attempted ────
+        const byStudent = new Map();
+        for (const r of latestByKey.values()) {
+          if (!byStudent.has(r.student_id)) byStudent.set(r.student_id, { studentId: r.student_id, studentName: r.student_name, school: r.student_school, chaptersMastered: 0, accuracySum: 0, accuracyCount: 0 });
+          const acc = byStudent.get(r.student_id);
+          if (r.scope === 'chapter' && r.weak_count === 0) acc.chaptersMastered++;
+          if (r.total_count > 0) { acc.accuracySum += (r.total_count - r.weak_count) / r.total_count; acc.accuracyCount++; }
+        }
+        const topAchievers = [...byStudent.values()]
+          .map(a => ({ ...a, avgAccuracy: a.accuracyCount ? Math.round((a.accuracySum / a.accuracyCount) * 100) : 0 }))
+          .sort((a, b) => b.chaptersMastered - a.chaptersMastered || b.avgAccuracy - a.avgAccuracy)
+          .slice(0, 10);
+
+        // ── 3) Most Engaged — effort/persistence, deliberately NOT the same
+        // ranking as achievers: total attempts (retries) + how many of their
+        // own capsule/alert gaps they came back and resolved themselves ────
+        const engagementByStudent = new Map();
+        for (const r of rows) {
+          if (!engagementByStudent.has(r.student_id)) engagementByStudent.set(r.student_id, { studentId: r.student_id, studentName: r.student_name, school: r.student_school, attempts: 0 });
+          engagementByStudent.get(r.student_id).attempts++;
+        }
+        const resolvedByStudent = new Map();
+        for (const key of resolvedKeys) {
+          const sid = key.split('|')[0];
+          resolvedByStudent.set(sid, (resolvedByStudent.get(sid) || 0) + 1);
+        }
+        const mostEngaged = [...engagementByStudent.values()]
+          .map(e => ({ ...e, capsulesResolved: resolvedByStudent.get(e.studentId) || 0 }))
+          .filter(e => e.attempts > 1 || e.capsulesResolved > 0)
+          .sort((a, b) => b.capsulesResolved - a.capsulesResolved || b.attempts - a.attempts)
+          .slice(0, 10);
+
+        // ── 4) Gap analysis per requirement — frequency across every latest
+        // standing, ranked by how many students are currently weak on it ──
+        const gapCounts = new Map(); // label -> { count, chapterLabel }
+        let totalLatestEntries = 0;
+        for (const r of latestByKey.values()) {
+          totalLatestEntries++;
+          const labels = JSON.parse(r.weak_labels || '[]');
+          const chapterLabel = r.chapter_id ? (chapterTitle.get(r.chapter_id) || r.chapter_id) : 'تشخيص المادة الشامل';
+          for (const l of labels) {
+            if (!gapCounts.has(l)) gapCounts.set(l, { label: l, chapterLabel, count: 0 });
+            gapCounts.get(l).count++;
+          }
+        }
+        const gapAnalysis = [...gapCounts.values()]
+          .map(g => ({ ...g, percent: totalLatestEntries ? Math.round((g.count / totalLatestEntries) * 100) : 0 }))
+          .sort((a, b) => b.count - a.count);
+
+        return ok({ alerts, topAchievers, mostEngaged, gapAnalysis }, 200, CORS);
+      }
+
       return err('غير موجود', 404, CORS);
     }
 

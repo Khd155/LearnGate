@@ -3867,7 +3867,7 @@ export async function onRequest({ request, env }) {
           if (r.total_count > 0) { acc.accuracySum += (r.total_count - r.weak_count) / r.total_count; acc.accuracyCount++; }
         }
         const topAchievers = [...byStudent.values()]
-          .map(a => ({ ...a, avgAccuracy: a.accuracyCount ? Math.round((a.accuracySum / a.accuracyCount) * 100) : 0 }))
+          .map(({ accuracySum, accuracyCount, ...rest }) => ({ ...rest, avgAccuracy: accuracyCount ? Math.round((accuracySum / accuracyCount) * 100) : 0 }))
           .sort((a, b) => b.chaptersMastered - a.chaptersMastered || b.avgAccuracy - a.avgAccuracy)
           .slice(0, 10);
 

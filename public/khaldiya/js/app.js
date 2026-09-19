@@ -151,6 +151,19 @@ let _authToken = null;
 function _roleNS(role) { return role === 'student' ? 'student' : 'admin'; }
 function _skey(base, role) { return `${base}_${_roleNS(role)}`; }
 function _setActiveRole(role) { try { localStorage.setItem('lg_active_role', _roleNS(role)); } catch(_) {} }
+
+// Read+clear the destination a separate static page stashed (in its own
+// early session-check script) before bouncing an unauthenticated visitor to
+// "/" — lets login send them straight back instead of stranding them on the
+// generic home screen. sessionStorage (not localStorage) so it only survives
+// the single login round-trip, never a later unrelated session.
+function _consumePostLoginRedirect() {
+  try {
+    const r = sessionStorage.getItem('lg_postlogin_redirect');
+    if (r) { sessionStorage.removeItem('lg_postlogin_redirect'); return r; }
+  } catch (_) {}
+  return null;
+}
 function _roleNSOrder() {
   let hint = null;
   try { hint = localStorage.getItem('lg_active_role'); } catch(_) {}
@@ -1457,6 +1470,13 @@ const App = {
       } else {
         try { localStorage.removeItem(_skey('lg_remember', 'student')); } catch(_) {}
       }
+      // A separate static page (e.g. /academic/chemistry-g1/) that requires
+      // an active student session bounces an unauthenticated visitor here
+      // and stashes its own URL first — now that login just succeeded,
+      // send them straight back to it instead of dropping them on the
+      // regular home screen.
+      const _postLoginRedirect = _consumePostLoginRedirect();
+      if (_postLoginRedirect) { window.location.href = _postLoginRedirect; return; }
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();
@@ -1547,6 +1567,10 @@ const App = {
       } else {
         try { localStorage.removeItem(_skey('lg_remember', 'admin')); } catch(_) {}
       }
+      // Student-only destinations stash a redirect for the login flow to
+      // honor (see _consumePostLoginRedirect) — an admin/director login was
+      // never who that page bounced, so just discard it here.
+      _consumePostLoginRedirect();
       startIdleWatch();
       App._notifPrev = { studentMsg: null, ticket: null, adminMsg: null };
       App.startNotifPolling();

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useStore, type TabKey } from '../store/useStore';
 import { cn } from '../lib/cn';
-import { HomeIcon, FlaskIcon, UsersIcon, ChatIcon, MegaphoneIcon, InboxIcon, SettingsIcon } from './Icons';
+import { HomeIcon, FlaskIcon, UsersIcon, ChatIcon, MegaphoneIcon, InboxIcon, SettingsIcon, AtomIcon } from './Icons';
 
 type TabDef = { key: TabKey; label: string; Icon: (p: { className?: string }) => React.ReactElement };
 
@@ -12,6 +12,7 @@ const BASE_TABS: TabDef[] = [
   { key: 'students', label: 'الطلاب', Icon: UsersIcon },
   { key: 'conversations', label: 'المحادثات', Icon: ChatIcon },
   { key: 'broadcast', label: 'مركز المراسلات', Icon: MegaphoneIcon },
+  { key: 'chemistry', label: 'تحليلات الكيمياء', Icon: AtomIcon },
 ];
 
 const ACCESS_REQUESTS_TAB: TabDef = { key: 'accessRequests', label: 'طلبات الانضمام', Icon: InboxIcon };
@@ -75,7 +76,7 @@ export default function TabsNavigation() {
               'flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors',
               tab === t.key
                 ? 'text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
+                : 'text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
             )}
           >
             <t.Icon className="h-4 w-4 shrink-0" />

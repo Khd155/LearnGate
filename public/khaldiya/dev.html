@@ -352,7 +352,6 @@
         <button class="tab-btn"        data-tab="questions" onclick="Dev.setTab('questions')"><span class="tab-ic">📝</span> بنك الأسئلة</button>
         <button class="tab-btn"        data-tab="test-mgmt" onclick="Dev.setTab('test-mgmt')"><span class="tab-ic">🧪</span> نتائج الاختبارات</button>
         <button class="tab-btn"        data-tab="diff"      onclick="Dev.setTab('diff')"><span class="tab-ic">🔍</span> مقارنة الإجابات</button>
-        <button class="tab-btn"        data-tab="chem-analytics" onclick="Dev.setTab('chem-analytics')"><span class="tab-ic">🧪</span> تحليلات الكيمياء</button>
 
         <div class="nav-group-title">💬 مركز المراسلات والتحليلات</div>
         <button class="tab-btn"        data-tab="broadcasts" onclick="Dev.setTab('broadcasts')"><span class="tab-ic">📢</span> مركز المراسلات وواتساب</button>
@@ -787,19 +786,6 @@
       </div>
     </div>
 
-    <!-- ── Chemistry Prereq Supervisor Analytics ── -->
-    <div id="tab-chem-analytics" class="tab-pane">
-      <div class="section-title" style="margin-bottom:16px;"><span>🧪</span> تحليلات الكيمياء — رصد الفجوات والتدخل المبكر</div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-        <button id="chem-sub-alerts-btn"   class="btn btn-primary btn-sm" onclick="Dev.setChemAnalyticsSubTab('alerts')">🔔 التنبيهات</button>
-        <button id="chem-sub-top-btn"      class="btn btn-sm" style="background:var(--surface2);color:var(--muted)" onclick="Dev.setChemAnalyticsSubTab('top')">🏆 الأفضل أداءً</button>
-        <button id="chem-sub-engaged-btn"  class="btn btn-sm" style="background:var(--surface2);color:var(--muted)" onclick="Dev.setChemAnalyticsSubTab('engaged')">🔥 الأكثر تفاعلاً</button>
-        <button id="chem-sub-gaps-btn"     class="btn btn-sm" style="background:var(--surface2);color:var(--muted)" onclick="Dev.setChemAnalyticsSubTab('gaps')">📈 تحليل الفجوات</button>
-        <button class="btn btn-warn btn-sm" style="margin-right:auto" onclick="Dev.loadChemAnalytics()">🔄 تحديث</button>
-      </div>
-      <div id="chem-analytics-body"><div class="empty">جارٍ التحميل...</div></div>
-    </div>
-
     <!-- ── Logs ── -->
     <div id="tab-logs" class="tab-pane">
       <div class="section">
@@ -1113,7 +1099,6 @@ const Dev = {
     if (tab === 'analytics') { Dev.loadAnalytics(); return; }
     if (tab === 'test-mgmt') { Dev.loadTestResults(); Dev.loadAptitudePlans(); return; }
     if (tab === 'diff')        { Dev.loadDiff(); return; }
-    if (tab === 'chem-analytics') { Dev.loadChemAnalytics(); return; }
     if (tab === 'permissions') { Dev.loadPermissions(); return; }
     if (tab === 'broadcasts')  { Dev.loadBroadcasts(); return; }
     if (tab === 'wa-stats')    { Dev.loadWaSends(); return; }
@@ -2385,113 +2370,6 @@ const Dev = {
   _diffType: 'pre',
   _diffSource: 'bio',
 
-  // ── Chemistry Prereq Supervisor Analytics ─────────────────────────────
-  // Placed alongside "نتائج الاختبارات"/"مقارنة الإجابات" (both
-  // assessment-analytics tools already in this group) rather than a
-  // separate teacher dashboard — there isn't one in this app, and admins/
-  // teachers already do all analytics work from this panel.
-  _chemAnalyticsData: null,
-  _chemAnalyticsSubTab: 'alerts',
-
-  setChemAnalyticsSubTab(sub) {
-    Dev._chemAnalyticsSubTab = sub;
-    ['alerts', 'top', 'engaged', 'gaps'].forEach(t => {
-      const btn = document.getElementById(`chem-sub-${t}-btn`);
-      if (!btn) return;
-      if (t === sub) { btn.className = 'btn btn-primary btn-sm'; btn.style = ''; }
-      else { btn.className = 'btn btn-sm'; btn.style = 'background:var(--surface2);color:var(--muted)'; }
-    });
-    Dev.renderChemAnalytics();
-  },
-
-  async loadChemAnalytics() {
-    const el = document.getElementById('chem-analytics-body');
-    el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
-    try {
-      Dev._chemAnalyticsData = await apiDev('/prereq/supervisor-overview?subject=chemistry-1');
-      Dev.renderChemAnalytics();
-    } catch (e) {
-      el.innerHTML = `<div class="empty">تعذّر التحميل: ${escapeHtml(e.message || '')}</div>`;
-    }
-  },
-
-  renderChemAnalytics() {
-    const el = document.getElementById('chem-analytics-body');
-    const d = Dev._chemAnalyticsData;
-    if (!d) return;
-    const sub = Dev._chemAnalyticsSubTab;
-
-    if (sub === 'alerts') {
-      if (!d.alerts.length) { el.innerHTML = '<div class="empty">لا توجد تنبيهات فجوات تراكمية حالياً ✅</div>'; return; }
-      el.innerHTML = d.alerts.map(a => `
-        <div class="section" style="padding:14px 16px;margin-bottom:10px;border-right:3px solid var(--danger);">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
-            <div>
-              <b>${escapeHtml(a.studentName || '—')}</b>
-              <span style="color:var(--muted);font-size:12.5px">— ${escapeHtml(a.school || '')} — ${escapeHtml(a.chapterLabel)}</span>
-            </div>
-            <span style="font-size:12px;color:var(--muted)">${new Date(a.createdAt).toLocaleDateString('ar-SA')}</span>
-          </div>
-          <div style="margin:10px 0 6px;display:flex;gap:6px;flex-wrap:wrap;">
-            ${a.weakLabels.map(l => `<span class="badge" style="background:#fee2e2;color:#b91c1c">${escapeHtml(l)}</span>`).join('')}
-          </div>
-          <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px;">ضعف في ${a.weakCount} من ${a.totalCount} متطلبات</div>
-          <button class="btn btn-sm btn-primary" onclick="Dev.setTab('students'); showToast('ابحث عن الطالب في سجل الطلاب للتواصل')">📞 عرض التفاصيل والتواصل</button>
-        </div>
-      `).join('');
-      return;
-    }
-
-    if (sub === 'top') {
-      if (!d.topAchievers.length) { el.innerHTML = '<div class="empty">لا توجد بيانات كافية بعد</div>'; return; }
-      const medals = ['🥇', '🥈', '🥉'];
-      el.innerHTML = `<table class="data-table"><thead><tr><th></th><th>الطالب</th><th>المدرسة</th><th>فصول متقنة</th><th>متوسط الدقة</th></tr></thead><tbody>
-        ${d.topAchievers.map((a, i) => `<tr>
-          <td style="font-size:18px">${medals[i] || ''}</td>
-          <td><b>${escapeHtml(a.studentName || '—')}</b></td>
-          <td>${escapeHtml(a.school || '')}</td>
-          <td>${a.chaptersMastered}</td>
-          <td>${a.avgAccuracy}%</td>
-        </tr>`).join('')}
-      </tbody></table>`;
-      return;
-    }
-
-    if (sub === 'engaged') {
-      if (!d.mostEngaged.length) { el.innerHTML = '<div class="empty">لا توجد بيانات كافية بعد</div>'; return; }
-      el.innerHTML = `
-        <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:12px 14px;margin-bottom:14px;color:#1e3a5f;font-size:12.5px;">
-          🔥 مؤشر مستقل عن الدرجة — يرصد المثابرة: عدد محاولات التشخيص، وعدد المتطلبات الضعيفة التي عاد الطالب وحلّها طواعية بمحاولة لاحقة.
-        </div>
-        <table class="data-table"><thead><tr><th>الطالب</th><th>المدرسة</th><th>محاولات التشخيص</th><th>فجوات حُلّت طواعية</th></tr></thead><tbody>
-        ${d.mostEngaged.map(e => `<tr>
-          <td><b>${escapeHtml(e.studentName || '—')}</b></td>
-          <td>${escapeHtml(e.school || '')}</td>
-          <td>${e.attempts}</td>
-          <td>${e.capsulesResolved}</td>
-        </tr>`).join('')}
-      </tbody></table>`;
-      return;
-    }
-
-    if (sub === 'gaps') {
-      if (!d.gapAnalysis.length) { el.innerHTML = '<div class="empty">لا توجد بيانات كافية بعد</div>'; return; }
-      const max = Math.max(...d.gapAnalysis.map(g => g.percent), 1);
-      el.innerHTML = d.gapAnalysis.map(g => `
-        <div style="margin-bottom:14px;">
-          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
-            <span><b>${escapeHtml(g.label)}</b> <span style="color:var(--muted);font-size:11.5px">— ${escapeHtml(g.chapterLabel)}</span></span>
-            <span style="font-weight:800;">${g.percent}%</span>
-          </div>
-          <div style="height:10px;border-radius:99px;background:var(--surface2);overflow:hidden;">
-            <div style="height:100%;border-radius:99px;background:${g.percent >= 50 ? 'var(--danger)' : 'var(--warn)'};width:${(g.percent / max) * 100}%"></div>
-          </div>
-        </div>
-      `).join('');
-      return;
-    }
-  },
-
   async loadDiff() {
     const wrap = document.getElementById('diff-table-wrap');
     const countEl = document.getElementById('diff-count');
@@ -3648,7 +3526,7 @@ ${note}
       await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
-        body: JSON.stringify({ targetStudentId: studentId, body, school }),
+        body: JSON.stringify({ studentId, body, school }),
       });
       Dev.loadMsgThread(studentId);
     } catch { showToast('تعذّر الإرسال', true); input.value = body; }

@@ -8,6 +8,7 @@ import TestCenterTab from './TestCenterTab';
 import ConversationsTab from './ConversationsTab';
 import MessagingCenterTab from './MessagingCenterTab';
 import AccessRequestsTab from './AccessRequestsTab';
+import ChemistryAnalyticsTab from './ChemistryAnalyticsTab';
 import AdminTab from './AdminTab';
 import StudentProfilePage from './StudentProfilePage';
 import ToastSystem from './ToastSystem';
@@ -44,6 +45,7 @@ export default function DashboardLayout() {
           {tab === 'conversations' && <ConversationsTab />}
           {tab === 'broadcast' && <MessagingCenterTab />}
           {tab === 'accessRequests' && <AccessRequestsTab />}
+          {tab === 'chemistry' && <ChemistryAnalyticsTab />}
           {tab === 'admin' && <AdminTab />}
           {tab === 'studentProfile' && <StudentProfilePage />}
         </div>

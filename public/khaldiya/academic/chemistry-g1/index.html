@@ -6,309 +6,406 @@
 <title>الكيمياء 1 — بوابة دعم التعلم</title>
 <script>if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; window.scrollTo(0,0);</script>
 <script>!function(){try{var s=sessionStorage.getItem("lg_session_student")||localStorage.getItem("lg_xsession_student");var d=s?JSON.parse(s):null;if(d&&d.token&&d.role==="student"&&d.expiry&&Date.now()<d.expiry)return;var r=localStorage.getItem("lg_remember_student");var rd=r?JSON.parse(r):null;if(rd&&rd.code&&rd.role==="student"&&rd.expiry&&Date.now()<rd.expiry)return;}catch(e){}try{sessionStorage.setItem("lg_postlogin_redirect",location.pathname+location.search);}catch(e){}window.location.replace("/");}();</script>
+<!-- Same opt-in theme contract as js/app.js: light by default, dark only when the student chose it. -->
+<script>!function(){try{var t=localStorage.getItem("theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}}();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
 <style>
+/* ── Tokens ─────────────────────────────────────────────────────────────
+   Light = the platform default (ministry blue→green identity, biology page).
+   Dark  = direction A "Slate Glass". Colours that need an alpha are stored as
+   space-separated RGB triplets so both themes share one set of rules. */
 :root{
-  --primary:#3F7CB8;--accent:#4FA877;
-  --bg:#f4f8fb;--surface:#fff;--border:#e2e8f0;
-  --text:#0f172a;--muted:#64748b;
-  --grad:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
-  --shadow:0 8px 24px -8px rgba(63,124,184,.20),0 2px 6px rgba(15,23,42,.04);
-  --shadow-lg:0 24px 60px -20px rgba(63,124,184,.30);
-  --green:#1E9E6B; --green-bg:#E7F7EF;
-  --orange:#C2760F; --orange-bg:#FDF1E0;
-  --danger:#D14343;
-  --radius:22px;
-  --ease:cubic-bezier(.22,.61,.36,1);
+  color-scheme:light;
+  --bg:#F1F5F9; --surface:#FFFFFF; --surface2:#F8FAFC; --surface3:#EEF3F8;
+  --border:#E2E8F0; --border-strong:#CBD5E1;
+  --text:#0F172A; --muted:#475569; --dim:#566378;
+  --p:38 94 149; --g:12 98 66; --a:146 64 14; --d:197 48 48; --v:109 40 217; --mute:71 85 105;
+  --l-foundational:3 105 161; --l-descriptive:109 40 217; --l-structural:29 78 216; --l-reactive:154 68 6; --l-quantitative:4 120 87;
+  --card-bg:var(--surface);
+  --shadow:0 8px 24px -10px rgba(15,23,42,.14),0 2px 6px rgba(15,23,42,.05);
+  --shadow-lg:0 24px 60px -24px rgba(15,23,42,.28);
+  --page-bg:#F1F5F9;
+  --cta:linear-gradient(135deg,#2B6AA6 0%,#2A7F88 55%,#2F8060 100%);
+  --hero:linear-gradient(rgba(6,30,58,.36),rgba(6,30,58,.36)),linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  --topbar:linear-gradient(rgba(6,30,58,.36),rgba(6,30,58,.36)),linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
+  --topbar-shadow:0 6px 24px -10px rgba(7,54,105,.55);
+  --tabs-bg:var(--surface);
+  --track:#E2E8F0;
+  --r:18px; --r-lg:22px;
 }
-*{box-sizing:border-box;}
-html,body{min-height:100vh;margin:0;font-family:'Tajawal','Cairo',sans-serif;background:var(--bg);color:var(--text);direction:rtl;font-size:16px;font-weight:500;-webkit-font-smoothing:antialiased;}
-h1,h2,h3{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;}
-button{-webkit-tap-highlight-color:transparent;}
-a{text-decoration:none;}
-@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important;}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0B1220; --surface:#121C2E; --surface2:#182539; --surface3:#1F2F48;
+  --border:rgba(148,170,200,.14); --border-strong:rgba(148,170,200,.30);
+  --text:#EAF0F8; --muted:#A9B8CC; --dim:#8B9CB4;
+  --p:111 168 218; --g:111 203 152; --a:240 169 78; --d:242 124 124; --v:176 154 240; --mute:169 184 204;
+  --l-foundational:140 210 246; --l-descriptive:196 172 248; --l-structural:140 178 250; --l-reactive:240 179 90; --l-quantitative:98 214 164;
+  --card-bg:linear-gradient(180deg,#152136,#121C2E);
+  --shadow:inset 0 1px 0 rgba(255,255,255,.05),0 14px 34px -18px rgba(0,0,0,.65);
+  --shadow-lg:0 24px 60px -28px rgba(0,0,0,.8);
+  --page-bg:radial-gradient(900px 520px at 88% -12%,rgba(63,124,184,.26),transparent 62%),radial-gradient(760px 480px at -4% 108%,rgba(79,168,119,.14),transparent 60%),#0B1220;
+  --hero:linear-gradient(135deg,#1C4470 0%,#1C5560 55%,#1D5A44 100%);
+  --topbar:linear-gradient(180deg,#182539,#121C2E);
+  --topbar-shadow:0 10px 30px -18px rgba(0,0,0,.8);
+  --tabs-bg:#0D1526;
+  --track:rgba(148,170,200,.16);
+}
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;min-height:100vh;}
+body{font-family:'Tajawal','Cairo',sans-serif;background:var(--page-bg);background-attachment:fixed;color:var(--text);direction:rtl;font-size:16px;font-weight:500;line-height:1.6;-webkit-font-smoothing:antialiased;}
+h1,h2,h3,h4{font-family:'Cairo','Tajawal',sans-serif;font-weight:800;margin:0;}
+button{font-family:inherit;color:inherit;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+.ic{width:1.2em;height:1.2em;flex-shrink:0;}
+:focus-visible{outline:3px solid rgb(var(--p) / .65);outline-offset:2px;border-radius:8px;}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;}}
 
-/* ── Topbar + progress ── */
-.topbar{background:var(--grad);color:#fff;padding:14px 24px 16px;display:flex;flex-direction:column;gap:10px;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);}
-.topbar-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.topbar-right{display:flex;align-items:center;gap:10px;min-width:0;}
-.topbar-logo{height:32px;opacity:.95;flex-shrink:0;}
-.topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:16.5px;letter-spacing:-0.01em;}
-.topbar-sub{font-size:11.5px;opacity:.85;margin-top:2px;font-weight:500;}
-.tb-back{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background .18s var(--ease),transform .15s var(--ease);flex-shrink:0;white-space:nowrap;}
-.tb-back:hover{background:rgba(255,255,255,.3);}
-.tb-back:active{transform:scale(.96);}
-.user-chip{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;padding:5px 14px;font-size:12.5px;font-family:inherit;font-weight:700;display:inline-flex;align-items:center;gap:6px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.user-chip .dot{width:7px;height:7px;border-radius:50%;background:#a3e635;flex-shrink:0;}
+/* ── Sticky chrome: topbar + tabs ───────────────────────────────────── */
+.chrome{position:sticky;top:0;z-index:100;}
+.topbar{background:var(--topbar);color:#fff;min-height:76px;padding:10px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:var(--topbar-shadow);position:relative;}
+:root[data-theme="dark"] .topbar{color:var(--text);border-bottom:1px solid var(--border);}
+:root[data-theme="dark"] .topbar::after{content:"";position:absolute;inset-inline:0;bottom:-1px;height:2px;background:linear-gradient(90deg,transparent,#3F7CB8 25%,#4A96A0 55%,#4FA877 80%,transparent);opacity:.7;}
+.tb-start{display:flex;align-items:center;gap:12px;min-width:0;}
+.topbar-logo{height:34px;opacity:.95;flex-shrink:0;}
+.topbar-title{font-family:'Cairo',sans-serif;font-weight:800;font-size:17.5px;letter-spacing:-.01em;line-height:1.3;}
+.topbar-sub{font-size:12.5px;font-weight:500;}
+.tb-progress{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;}
+.tbp-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;font-weight:700;}
+.tbp-row b{font-family:'Cairo',sans-serif;font-size:15px;font-weight:800;}
+.bar{height:8px;border-radius:99px;background:rgba(255,255,255,.28);overflow:hidden;}
+:root[data-theme="dark"] .bar{background:var(--track);}
+.bar>i{display:block;height:100%;width:0;border-radius:99px;background:#fff;transition:width .6s ease;}
+:root[data-theme="dark"] .bar>i{background:linear-gradient(90deg,rgb(var(--p)),rgb(var(--g)));box-shadow:0 0 14px rgb(var(--g) / .55);}
+.tbp-sub{font-size:12px;font-weight:500;}
+.tb-end{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.user-chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:99px;background:rgba(6,30,58,.28);border:1.5px solid rgba(255,255,255,.42);font-size:13px;font-weight:700;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+:root[data-theme="dark"] .user-chip{background:rgba(255,255,255,.06);border-color:var(--border);}
+.user-chip .dot{width:8px;height:8px;border-radius:50%;background:#a3e635;flex-shrink:0;box-shadow:0 0 10px #a3e635;}
+.tb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:44px;min-width:44px;padding:0 16px;border-radius:99px;background:rgba(6,30,58,.28);border:1.5px solid rgba(255,255,255,.42);color:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:background .18s;white-space:nowrap;}
+.tb-btn:hover{background:rgba(6,30,58,.42);}
+:root[data-theme="dark"] .tb-btn{background:rgba(255,255,255,.06);border-color:var(--border-strong);}
+:root[data-theme="dark"] .tb-btn:hover{background:rgba(255,255,255,.12);}
+.tb-btn.icon{padding:0;width:44px;}
+.theme-btn .i-sun{display:none;} :root[data-theme="dark"] .theme-btn .i-sun{display:block;} :root[data-theme="dark"] .theme-btn .i-moon{display:none;}
 
-.progress-row{display:flex;align-items:center;gap:10px;}
-.progress-track{flex:1;height:7px;border-radius:99px;background:rgba(255,255,255,.25);overflow:hidden;}
-.progress-fill{height:100%;border-radius:99px;background:#fff;width:0%;transition:width .6s var(--ease);}
-.progress-label{font-size:11.5px;font-weight:800;opacity:.95;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.tabs{display:flex;gap:4px;padding:8px 28px 0;background:var(--tabs-bg);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;box-shadow:0 8px 20px -16px rgba(15,23,42,.25);}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{position:relative;display:inline-flex;align-items:center;gap:9px;height:56px;padding:0 20px;border:0;background:transparent;border-radius:14px 14px 0 0;font-size:15px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:color .15s,background .15s;}
+.tab .ic{color:var(--dim);}
+.tab:hover{color:var(--text);}
+.tab[aria-selected="true"]{color:var(--text);font-weight:800;background:linear-gradient(180deg,transparent,rgb(var(--p) / .12));}
+.tab[aria-selected="true"] .ic{color:rgb(var(--p));}
+.tab[aria-selected="true"]::after{content:"";position:absolute;inset-inline:14px;bottom:0;height:3px;border-radius:3px 3px 0 0;background:linear-gradient(90deg,#3F7CB8,#4A96A0,#4FA877);box-shadow:0 0 14px rgba(74,150,160,.6);}
+.tab[aria-disabled="true"]{color:var(--dim);}
+.tab-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:99px;font-size:11.5px;font-weight:800;color:rgb(var(--a));background:rgb(var(--a) / .13);border:1px solid rgb(var(--a) / .36);}
+.tab-badge.done{color:rgb(var(--g));background:rgb(var(--g) / .13);border-color:rgb(var(--g) / .36);}
+.tab .lock-ic{color:rgb(var(--a));}
+.tab.just-unlocked .lock-ic{animation:pop .7s ease;}
+@keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.5) rotate(-12deg);}100%{transform:scale(1);}}
 
-/* ── Tabs ── */
-.tabs-bar{display:flex;gap:4px;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none;padding-bottom:2px;}
-.tabs-bar::-webkit-scrollbar{display:none;}
-.tab-btn{flex-shrink:0;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);border-radius:12px 12px 0 0;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .2s var(--ease),color .2s var(--ease),transform .15s var(--ease);white-space:nowrap;}
-.tab-btn:hover{background:rgba(255,255,255,.18);}
-.tab-btn:active{transform:translateY(1px);}
-.tab-btn.active{background:var(--bg);color:var(--primary);border-color:transparent;}
-.tab-btn.locked{opacity:.55;cursor:pointer;}
-.tab-btn .lock-ic{font-size:11px;}
+/* ── Layout ─────────────────────────────────────────────────────────── */
+.wrap{max-width:1100px;margin:0 auto;padding:26px 20px 72px;}
+.pane[hidden]{display:none;}
+.pane{animation:fade .25s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.card{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:26px 28px;margin-bottom:20px;}
+.card-h{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.card-h h3{font-size:18px;}
+.card-h .dot{width:8px;height:8px;border-radius:50%;background:rgb(var(--p));box-shadow:0 0 12px rgb(var(--p) / .7);}
+.card-h .end{margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap;}
 
-.wrap{max-width:1024px;margin:0 auto;padding:22px 16px 60px;}
-.view{display:none;}
-.view.active{display:block;animation:fade .35s var(--ease);}
-@keyframes fade{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
-@keyframes dot-pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
-@keyframes pop{0%{transform:scale(.94);opacity:0;}100%{transform:scale(1);opacity:1;}}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:99px;font-size:12px;font-weight:800;white-space:nowrap;color:rgb(var(--c,var(--p)));background:rgb(var(--c,var(--p)) / .13);border:1px solid rgb(var(--c,var(--p)) / .36);}
+.pill.l-foundational{--c:var(--l-foundational);} .pill.l-descriptive{--c:var(--l-descriptive);} .pill.l-structural{--c:var(--l-structural);}
+.pill.l-reactive{--c:var(--l-reactive);} .pill.l-quantitative{--c:var(--l-quantitative);}
+.pill.ok{--c:var(--g);} .pill.warn{--c:var(--a);} .pill.bad{--c:var(--d);} .pill.mute{--c:var(--mute);font-weight:700;}
 
-.inner-back{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:99px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:16px;font-family:inherit;transition:background .15s var(--ease),transform .15s var(--ease);}
-.inner-back:hover{background:#f1f5f9;border-color:#cbd5e1;}
-.inner-back:active{transform:scale(.97);}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 24px;border-radius:calc(var(--r) - 4px);border:1px solid rgba(255,255,255,.16);background:var(--cta);color:#fff;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 16px 34px -16px rgba(43,95,148,.85),inset 0 1px 0 rgba(255,255,255,.22);transition:filter .15s,transform .15s;text-decoration:none;}
+.btn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn.block{width:100%;}
+.btn.ghost{background:var(--surface);color:var(--text);border-color:var(--border-strong);box-shadow:none;}
+.btn.ghost:hover:not(:disabled){background:var(--surface3);}
+.btn.sm{min-height:44px;padding:0 18px;font-size:14px;}
+.back{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;margin-bottom:18px;border-radius:99px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;}
+.back:hover{background:var(--surface3);}
 
-.hero{background:var(--grad);color:#fff;border-radius:var(--radius);padding:28px 24px;margin-bottom:20px;position:relative;overflow:hidden;box-shadow:var(--shadow-lg);}
-.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(255,255,255,.15),transparent 70%);pointer-events:none;}
-.hero-top{display:flex;align-items:center;gap:14px;margin-bottom:10px;position:relative;}
-.hero-icon{width:50px;height:50px;border-radius:16px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;border:1px solid rgba(255,255,255,.3);}
-.hero h2{margin:0;font-size:20px;color:#fff;}
-.hero p{margin:0;font-size:13.5px;line-height:1.9;opacity:.95;position:relative;max-width:640px;}
+/* ── Overview ───────────────────────────────────────────────────────── */
+.hero{position:relative;overflow:hidden;background:var(--hero);color:#fff;border-radius:calc(var(--r-lg) + 4px);padding:32px 34px;border:1px solid rgba(255,255,255,.14);box-shadow:var(--shadow-lg);margin-bottom:20px;}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 70% at 50% 130%,rgba(255,255,255,.16),transparent 70%);pointer-events:none;}
+.hero-mol{position:absolute;inset-inline-end:34px;top:50%;transform:translateY(-50%);opacity:.9;pointer-events:none;}
+.hero-top{position:relative;display:flex;align-items:center;gap:16px;margin-bottom:12px;}
+.hero-icon{width:56px;height:56px;border-radius:18px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);display:grid;place-items:center;font-size:28px;flex-shrink:0;}
+.hero h2{font-size:26px;color:#fff;}
+.hero p{position:relative;margin:0;max-width:620px;font-size:16px;line-height:1.95;color:rgba(255,255,255,.95);}
+.next-step{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:18px 22px;margin-bottom:20px;border-radius:var(--r);background:linear-gradient(135deg,rgb(var(--a) / .12),var(--surface));border:1px solid rgb(var(--a) / .34);box-shadow:var(--shadow);}
+.next-step.ok{background:linear-gradient(135deg,rgb(var(--g) / .11),var(--surface));border-color:rgb(var(--g) / .34);}
+.next-step .ns-ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:rgb(var(--a) / .15);color:rgb(var(--a));font-size:22px;flex-shrink:0;}
+.next-step.ok .ns-ic{background:rgb(var(--g) / .15);color:rgb(var(--g));}
+.next-step .ns-txt{flex:1;min-width:220px;}
+.next-step .ns-t{font-family:'Cairo',sans-serif;font-weight:800;font-size:16px;}
+.next-step .ns-d{font-size:14px;color:var(--muted);}
+.feat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;}
+.feat{position:relative;display:flex;flex-direction:column;gap:14px;padding:26px;text-align:start;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);cursor:pointer;transition:transform .2s,border-color .2s;color:var(--text);}
+.feat:hover:not(.off){transform:translateY(-3px);border-color:rgb(var(--p) / .45);}
+.feat.off{opacity:.75;cursor:not-allowed;}
+.feat .f-tile{width:50px;height:50px;border-radius:16px;display:grid;place-items:center;font-size:25px;color:rgb(var(--c));background:rgb(var(--c) / .14);border:1px solid rgb(var(--c) / .34);}
+.feat .f-badge{position:absolute;top:20px;inset-inline-end:20px;}
+.feat .f-t{font-family:'Cairo',sans-serif;font-weight:800;font-size:19px;}
+.feat .f-d{font-size:14.5px;line-height:1.85;color:var(--muted);}
+.feat .f-go{margin-top:auto;display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:800;color:rgb(var(--p));}
+.feat.off .f-go{color:var(--dim);font-weight:700;}
 
-.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
-.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;box-shadow:var(--shadow);cursor:pointer;transition:transform .25s var(--ease),box-shadow .25s var(--ease);position:relative;}
-.feature-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);}
-.feature-card:active{transform:translateY(-1px) scale(.99);}
-.feature-card.disabled{cursor:not-allowed;opacity:.6;}
-.feature-card.disabled:hover{transform:none;box-shadow:var(--shadow);}
-.feature-card .f-icon{font-size:28px;margin-bottom:10px;}
-.feature-card .f-title{font-size:15px;font-weight:800;margin-bottom:6px;}
-.feature-card .f-desc{font-size:12.5px;color:var(--muted);line-height:1.7;}
-.feature-badge{position:absolute;top:14px;left:14px;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;}
-.feature-badge.active{background:var(--green-bg);color:var(--green);}
-.feature-badge.soon{background:#f1f5f9;color:var(--muted);}
+/* ── Concept map ────────────────────────────────────────────────────── */
+.legend{display:flex;gap:8px;flex-wrap:wrap;}
+.rm{position:relative;padding-inline-start:var(--rail,120px);}
+.rm-svg{position:absolute;inset-inline-start:0;top:0;pointer-events:none;overflow:visible;}
+.rm-list{display:flex;flex-direction:column;gap:18px;}
+.ch{display:flex;flex-direction:column;gap:9px;width:100%;text-align:start;padding:16px 22px;border-radius:calc(var(--r) - 2px);background:var(--card-bg);border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer;transition:transform .18s,border-color .18s;color:var(--text);}
+.ch:hover{transform:translateY(-2px);border-color:var(--border-strong);}
+.ch.mastered{background:linear-gradient(135deg,rgb(var(--g) / .11),var(--surface) 72%);border-color:rgb(var(--g) / .34);}
+.ch.needs_review{background:linear-gradient(135deg,rgb(var(--a) / .11),var(--surface) 72%);border-color:rgb(var(--a) / .36);}
+.ch.multi{background:linear-gradient(135deg,rgb(var(--l-reactive) / .11),var(--surface) 72%);border-color:rgb(var(--l-reactive) / .6);box-shadow:var(--shadow),0 0 0 1px rgb(var(--l-reactive) / .16),0 20px 44px -24px rgb(var(--l-reactive) / .55);}
+.ch-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.ch-num{font-family:'Cairo',sans-serif;font-size:13px;font-weight:800;color:var(--muted);}
+.ch-status{margin-inline-start:auto;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--dim);}
+.ch.mastered .ch-status{color:rgb(var(--g));} .ch.needs_review .ch-status{color:rgb(var(--a));}
+.ch-title{font-family:'Cairo',sans-serif;font-size:20px;font-weight:800;}
+.ch-bot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px;color:var(--muted);}
+.ch-bot .grow{margin-inline-start:auto;}
+.ch-bot .feeds{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:rgb(var(--l-reactive));}
+.dep-chip{padding:1px 10px;border-radius:99px;font-size:12.5px;font-weight:800;color:rgb(var(--c));background:rgb(var(--c) / .13);border:1px solid rgb(var(--c) / .34);}
+/* rail svg (theme-aware through CSS, not baked-in colours) */
+.rl{fill:none;stroke-width:3;stroke-linecap:round;}
+.rl.dim{stroke:rgb(var(--dim-rgb,120 135 160) / .45);stroke-dasharray:2 7;}
+.rl.done{stroke:rgb(var(--g));opacity:.85;}
+.rl.hi{stroke:rgb(var(--l-reactive));stroke-width:3.4;}
+.arc{fill:none;stroke:rgb(var(--l-reactive));stroke-width:2.6;stroke-dasharray:7 6;stroke-linecap:round;}
+.arc-txt{fill:rgb(var(--l-reactive));font-size:12.5px;font-weight:700;font-family:'Tajawal',sans-serif;}
+.arw{fill:rgb(var(--l-reactive));}
+.nd{stroke-width:2.4;}
+.nd.mastered{fill:rgb(var(--g) / .18);stroke:rgb(var(--g));}
+.nd.needs_review{fill:var(--surface);stroke:rgb(var(--a));}
+.nd.default{fill:var(--surface);stroke:rgb(var(--c) / .75);}
+.nd.multi{fill:var(--surface);stroke:rgb(var(--l-reactive));}
+.nd-core{fill:rgb(var(--a));} .nd-core.multi{fill:rgb(var(--l-reactive));}
+.nd-halo{fill:rgb(var(--a) / .14);} .nd-halo.multi{fill:rgb(var(--l-reactive) / .16);}
+.nd-check{fill:none;stroke:rgb(var(--g));stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
+.prereq-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+.prq{display:flex;flex-direction:column;gap:12px;padding:18px 22px;border-radius:calc(var(--r) - 4px);background:var(--surface2);border:1px solid var(--border);}
+.prq .p-n{font-size:15.5px;font-weight:700;line-height:1.7;}
+.prq .p-r{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.prq .p-u{margin-inline-start:auto;font-size:13.5px;color:var(--muted);}
+.prq .p-u b{color:rgb(var(--g));font-weight:800;}
 
-.section-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow);}
-.section-card h3{margin:0 0 14px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;}
-.section-card h3 .dot{width:6px;height:6px;border-radius:50%;background:var(--primary);}
+/* ── Diagnostic engine ──────────────────────────────────────────────── */
+.eng-top{display:flex;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap;}
+.eng-top .cnt{font-size:14px;font-weight:800;color:var(--muted);white-space:nowrap;}
+.segs{flex:1;min-width:120px;display:flex;gap:8px;}
+.segs i{flex:1;height:6px;border-radius:99px;background:var(--track);}
+.segs i.on{background:linear-gradient(90deg,rgb(var(--p)),rgb(var(--g)));box-shadow:0 0 12px rgb(var(--g) / .45);}
+.q-prompt{font-family:'Cairo','Tajawal',sans-serif;font-size:23px;font-weight:800;line-height:1.75;margin-bottom:24px;}
+.opt-wrap{margin-bottom:14px;}
+.opt{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:12px 18px;text-align:start;border-radius:calc(var(--r) - 4px);border:1.5px solid var(--border-strong);background:var(--surface2);color:var(--text);font-size:16.5px;font-weight:700;cursor:pointer;transition:border-color .15s,background .15s,transform .15s,box-shadow .15s;}
+.opt:hover:not(:disabled){border-color:rgb(var(--p));background:rgb(var(--p) / .10);transform:translateY(-1px);}
+.opt .ltr{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex-shrink:0;font-size:15px;font-weight:800;background:var(--surface3);color:var(--muted);}
+.opt .tx{flex:1;}
+.opt .st{font-size:24px;}
+.opt:disabled{cursor:default;}
+.opt.correct{background:rgb(var(--g) / .13);border-color:rgb(var(--g) / .65);box-shadow:0 12px 28px -16px rgb(var(--g) / .7);}
+.opt.correct .ltr{background:rgb(var(--g));color:#fff;} .opt.correct .st{color:rgb(var(--g));}
+.opt.wrong{background:rgb(var(--d) / .12);border-color:rgb(var(--d) / .65);box-shadow:0 12px 28px -16px rgb(var(--d) / .7);}
+.opt.wrong .ltr{background:rgb(var(--d));color:#fff;} .opt.wrong .st{color:rgb(var(--d));}
+:root[data-theme="dark"] .opt.correct .ltr{color:#062514;} :root[data-theme="dark"] .opt.wrong .ltr{color:#2a0707;}
+.opt.dim{opacity:.86;}
+.fb{display:flex;gap:12px;align-items:flex-start;margin:10px 4px 0;padding:14px 18px;border-radius:14px;font-size:14.5px;line-height:1.9;}
+.fb .ic{margin-top:4px;font-size:18px;}
+.fb.ok{background:rgb(var(--g) / .10);color:rgb(var(--g));} .fb.bad{background:rgb(var(--d) / .10);color:rgb(var(--d));}
+.fb span{color:var(--text);}
+.eng-next{margin-top:14px;}
+.branch{text-align:center;padding:14px 4px 4px;}
+.branch .b-ic{width:72px;height:72px;margin:0 auto 14px;border-radius:24px;display:grid;place-items:center;font-size:36px;color:rgb(var(--c));background:rgb(var(--c) / .14);border:1px solid rgb(var(--c) / .36);}
+.branch h3{font-size:22px;margin-bottom:8px;}
+.branch .b-d{font-size:15px;color:var(--muted);line-height:1.9;margin:0 auto 18px;max-width:560px;}
+.capsule{display:flex;gap:10px;align-items:flex-start;text-align:start;margin:0 0 10px;padding:12px 16px;border-radius:14px;background:rgb(var(--a) / .11);border:1px solid rgb(var(--a) / .34);font-size:14px;color:var(--text);}
+.capsule .ic{color:rgb(var(--a));margin-top:3px;}
+.gate-intro{display:flex;gap:20px;align-items:center;flex-wrap:wrap;}
+.gate-intro .gi-ic{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:32px;color:rgb(var(--a));background:rgb(var(--a) / .14);border:1px solid rgb(var(--a) / .36);flex-shrink:0;}
+.gate-intro .gi-t{flex:1;min-width:240px;}
+.gate-intro h3{font-size:21px;margin-bottom:6px;}
+.gate-intro p{margin:0;color:var(--muted);font-size:15px;line-height:1.9;}
+.steps-mini{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
 
-.notice-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:16px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;animation:pop .3s var(--ease);}
-.notice-card .n-icon{font-size:22px;flex-shrink:0;}
-.notice-card .n-title{font-weight:800;font-size:13.5px;margin-bottom:4px;color:#1D4ED8;}
-.notice-card .n-msg{font-size:12.5px;color:#334155;line-height:1.8;}
-.notice-card button{margin-top:10px;background:#1D4ED8;color:#fff;border:none;border-radius:10px;padding:7px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .15s var(--ease);}
-.notice-card button:active{transform:scale(.95);}
-
-.locked-notice{text-align:center;padding:40px 20px;}
-.locked-notice .l-icon{font-size:42px;margin-bottom:12px;}
-.locked-notice h4{margin:0 0 8px;font-size:16px;}
-.locked-notice p{color:var(--muted);font-size:13.5px;line-height:1.8;margin:0 0 18px;}
-
-/* ── Roadmap (خارطة المفاهيم — قراءة فقط) ── */
-.roadmap{display:flex;flex-direction:column;}
-.roadmap-row{display:flex;align-items:stretch;gap:12px;}
-.roadmap-track{width:22px;display:flex;flex-direction:column;align-items:center;flex-shrink:0;}
-.roadmap-node{width:13px;height:13px;border-radius:50%;background:#CBD5E1;border:2px solid #94A3B8;margin-top:20px;flex-shrink:0;z-index:2;transition:background .3s var(--ease),border-color .3s var(--ease);}
-.roadmap-node.status-mastered{background:var(--green);border-color:var(--green);}
-.roadmap-node.status-needs_review{background:var(--orange);border-color:var(--orange);animation:dot-pulse 1.8s ease-in-out infinite;}
-.roadmap-line{width:2px;flex:1;background:#E2E8F0;margin-top:2px;min-height:24px;}
-.roadmap-row:last-child .roadmap-line{display:none;}
-.roadmap-card-wrap{flex:1;padding-bottom:12px;}
-
-.chapter-card{position:relative;border-radius:16px;padding:15px 18px;border:1px solid var(--border);background:var(--surface);transition:transform .2s var(--ease),box-shadow .2s var(--ease);box-shadow:0 4px 14px -8px rgba(15,23,42,.12);}
-.chapter-card.clickable{cursor:pointer;}
-.chapter-card.clickable:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
-.chapter-card.clickable:active{transform:translateY(0) scale(.99);}
-.chapter-card.status-mastered{border-color:#A7E4C7;background:linear-gradient(135deg,var(--green-bg),var(--surface));}
-.chapter-card.status-needs_review{border-color:#F4CC8C;background:linear-gradient(135deg,var(--orange-bg),var(--surface));}
-.chapter-card.locked{opacity:.55;}
-.chapter-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
-.chapter-num{font-size:11px;font-weight:800;color:var(--muted);}
-.chapter-status-icon{font-size:14px;}
-.layer-pill{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;border:1px solid;}
-.layer-foundational{color:#0369A1;border-color:#7DD3FC;background:#E0F2FE;}
-.layer-descriptive{color:#6D28D9;border-color:#C4B5FD;background:#F3E8FF;}
-.layer-structural{color:#1D4ED8;border-color:#93C5FD;background:#DBEAFE;}
-.layer-reactive{color:#B45309;border-color:#FCD34D;background:#FEF3C7;}
-.layer-quantitative{color:#047857;border-color:#6EE7B7;background:#D1FAE5;}
-.soon-pill{display:inline-block;font-size:10px;font-weight:700;color:var(--muted);background:#f1f5f9;border-radius:99px;padding:3px 9px;margin-inline-start:6px;}
-.chapter-card .title{font-size:15px;font-weight:800;margin:4px 0 6px;color:var(--text);}
-.chapter-card .deps{font-size:11.5px;color:var(--muted);}
-.chapter-card .deps b{color:var(--text);font-weight:700;}
-
-/* ── Prereq grid ── */
-.prereq-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-@media (max-width:600px){.prereq-grid{grid-template-columns:1fr;}}
-.prereq-card{border-radius:14px;padding:14px 16px;background:#F8FAFC;border:1px solid var(--border);}
-.prereq-card .p-name{font-size:13.5px;font-weight:700;margin-bottom:8px;line-height:1.6;}
-.prereq-card .p-src{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:99px;background:#DBEAFE;color:#1D4ED8;margin-bottom:8px;}
-.prereq-card .p-used{font-size:11.5px;color:var(--muted);}
-.prereq-card .p-used b{color:var(--accent);font-weight:700;}
-
-.primary-btn{background:var(--grad);color:#fff;border:none;border-radius:14px;padding:15px 20px;font-size:15px;font-weight:800;cursor:pointer;width:100%;box-shadow:var(--shadow);font-family:inherit;transition:transform .15s var(--ease),filter .15s var(--ease);}
-.primary-btn:hover{filter:brightness(1.05);}
-.primary-btn:active{transform:scale(.98);}
-.primary-btn:disabled{opacity:.5;cursor:not-allowed;}
-.ghost-btn{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:12px;padding:11px 18px;font-size:13.5px;cursor:pointer;font-family:inherit;transition:transform .15s var(--ease);}
-.ghost-btn:active{transform:scale(.97);}
-
-/* ── Chapter stepper ── */
-.stepper{display:flex;align-items:center;margin-bottom:20px;overflow-x:auto;padding-bottom:4px;}
-.step-node{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;min-width:76px;}
-.step-circle{width:30px;height:30px;border-radius:50%;background:#E2E8F0;color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;transition:background .3s var(--ease),color .3s var(--ease),transform .3s var(--ease);}
-.step-node.done .step-circle{background:var(--green);color:#fff;}
-.step-node.active .step-circle{background:var(--primary);color:#fff;transform:scale(1.12);}
-.step-label{font-size:10.5px;font-weight:700;color:var(--muted);text-align:center;white-space:nowrap;}
-.step-node.active .step-label{color:var(--primary);}
-.step-node.done .step-label{color:var(--green);}
-.step-connector{flex:1;height:2px;background:#E2E8F0;min-width:20px;margin:0 -2px 20px;transition:background .3s var(--ease);}
-.step-connector.done{background:var(--green);}
-
-/* ── Diagnostic engine ── */
-.q-progress{font-size:12px;color:var(--muted);margin-bottom:10px;font-weight:700;}
-.q-prompt{font-size:16.5px;font-weight:800;margin-bottom:18px;line-height:1.8;}
-.option-btn{display:block;width:100%;text-align:right;background:#F8FAFC;border:1.5px solid var(--border);border-radius:14px;padding:13px 16px;font-size:14px;margin-bottom:10px;cursor:pointer;font-family:inherit;color:var(--text);transition:border-color .15s var(--ease),transform .1s var(--ease);}
-.option-btn:hover:not(:disabled){border-color:var(--primary);}
-.option-btn:active:not(:disabled){transform:scale(.99);}
-.option-btn:disabled{cursor:default;}
-.option-btn.correct{background:var(--green-bg);border-color:var(--green);animation:pop .3s var(--ease);}
-.option-btn.incorrect{background:#FDECEC;border-color:var(--danger);animation:pop .3s var(--ease);}
-.option-feedback{font-size:12.5px;margin:-4px 0 11px;padding:9px 13px;border-radius:10px;line-height:1.8;display:none;}
-.option-btn.correct+.option-feedback,.option-btn.incorrect+.option-feedback{display:block;animation:fade .25s var(--ease);}
-.option-feedback.fb-correct{background:var(--green-bg);color:var(--green);}
-.option-feedback.fb-incorrect{background:#FDECEC;color:var(--danger);}
-
-/* ── Result ── */
-.branch-box{text-align:center;padding:26px 16px;}
-.branch-icon{font-size:44px;margin-bottom:12px;animation:pop .4s var(--ease);}
-.branch-title{font-size:18px;font-weight:800;margin-bottom:8px;}
-.branch-desc{font-size:13.5px;color:var(--muted);line-height:1.9;margin-bottom:18px;}
-.capsule-item{background:var(--orange-bg);border:1px solid #F4CC8C;border-radius:14px;padding:12px 15px;margin-bottom:10px;text-align:right;font-size:13px;color:#8A5A0B;}
-
-/* ── Content placeholder (دراسة المحتوى) ── */
-.content-placeholder{text-align:center;padding:34px 20px;}
-.content-placeholder .cp-icon{font-size:40px;margin-bottom:12px;}
-
-/* ── Summary ── */
-.summary-grid{display:grid;gap:12px;}
-.summary-block{background:#F8FAFC;border:1px solid var(--border);border-radius:14px;padding:15px;}
-.summary-block h4{margin:0 0 9px;font-size:13px;color:var(--primary);font-weight:800;}
-.chip{display:inline-block;background:#DBEAFE;color:#1D4ED8;border-radius:99px;padding:4px 11px;font-size:12px;margin:3px;font-weight:600;}
-.term-item{font-size:13px;margin-bottom:7px;line-height:1.7;color:var(--text);}
-.eval-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-@media (max-width:600px){.eval-grid{grid-template-columns:1fr;}}
-.eval-card{border-radius:16px;padding:17px;border:1px solid;}
-.eval-card.knowledge{background:#EFF6FF;border-color:#BFDBFE;}
-.eval-card.higher_order{background:#F5F3FF;border-color:#DDD6FE;}
-.eval-card .eval-level{font-size:11px;font-weight:800;margin-bottom:9px;}
-.eval-card.knowledge .eval-level{color:#1D4ED8;}
-.eval-card.higher_order .eval-level{color:#6D28D9;}
-.eval-card .eval-prompt{font-size:13.5px;line-height:1.85;}
-.reveal-btn{margin-top:11px;font-size:12px;background:none;border:none;color:var(--primary);cursor:pointer;font-weight:700;padding:0;font-family:inherit;}
-.model-answer{margin-top:9px;font-size:12.5px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:11px 13px;display:none;line-height:1.8;color:var(--muted);}
-
-/* ── My progress (تقدّمي) ── */
-.progress-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px;}
-.progress-stat{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:center;box-shadow:var(--shadow);}
-.progress-stat .p-num{font-size:26px;font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums;}
-.progress-stat .p-label{font-size:11.5px;color:var(--muted);margin-top:4px;}
-.progress-chapter-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:12px;background:#F8FAFC;margin-bottom:8px;}
-.progress-chapter-row .pc-title{font-size:13.5px;font-weight:700;}
-.progress-chapter-row .pc-status{font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;}
-.pc-status.mastered{background:var(--green-bg);color:var(--green);}
-.pc-status.needs_review{background:var(--orange-bg);color:var(--orange);}
-.pc-status.default{background:#f1f5f9;color:var(--muted);}
-
-.loading{text-align:center;padding:60px 20px;color:var(--muted);font-size:13px;}
-.spinner{width:32px;height:32px;border-radius:50%;border:3px solid #DBEAFE;border-top-color:var(--primary);margin:0 auto 14px;animation:spin .9s linear infinite;}
+/* ── Locked / empty states ──────────────────────────────────────────── */
+.locked{text-align:center;padding:34px 20px 30px;}
+.locked .lk{width:84px;height:84px;margin:0 auto 18px;border-radius:28px;display:grid;place-items:center;font-size:40px;color:rgb(var(--a));background:rgb(var(--a) / .13);border:1px solid rgb(var(--a) / .36);}
+.locked h3{font-size:22px;margin-bottom:8px;}
+.locked p{margin:0 auto 22px;max-width:520px;color:var(--muted);line-height:1.9;}
+.state{padding:56px 20px;text-align:center;color:var(--muted);}
+.spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--track);border-top-color:rgb(var(--p));margin:0 auto 14px;animation:spin .9s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Chapters list + stepper ────────────────────────────────────────── */
+.ch-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+.ch-grid .ch{min-height:150px;}
+.stepper{list-style:none;margin:0 0 22px;padding:0;display:flex;gap:0;overflow-x:auto;scrollbar-width:thin;}
+.stepper li{flex:1;min-width:118px;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;}
+.stepper li:not(:last-child)::before{content:"";position:absolute;top:21px;inset-inline-start:calc(50% + 26px);width:calc(100% - 52px);height:3px;border-radius:3px;background:var(--track);}
+.stepper li.done:not(:last-child)::before{background:linear-gradient(90deg,rgb(var(--g)),rgb(var(--g)));}
+.st-btn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 6px;background:none;border:0;cursor:pointer;}
+.st-btn:disabled{cursor:not-allowed;}
+.st-dot{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:20px;background:var(--surface2);border:2px solid var(--border-strong);color:var(--dim);position:relative;z-index:1;transition:.2s;}
+.stepper li.done .st-dot{background:rgb(var(--g) / .16);border-color:rgb(var(--g));color:rgb(var(--g));}
+.stepper li.cur .st-dot{background:var(--cta);border-color:transparent;color:#fff;box-shadow:0 0 0 5px rgb(var(--p) / .2),0 12px 24px -10px rgba(43,95,148,.8);}
+.st-lb{font-size:13px;font-weight:700;color:var(--muted);text-align:center;line-height:1.4;}
+.stepper li.cur .st-lb{color:var(--text);font-weight:800;}
+.step-panel{animation:fade .25s ease;}
+.step-nav{display:flex;justify-content:space-between;gap:12px;margin-top:22px;flex-wrap:wrap;}
+.sub-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+.chip{display:inline-flex;align-items:center;padding:5px 14px;border-radius:99px;font-size:13.5px;font-weight:700;color:rgb(var(--p));background:rgb(var(--p) / .12);border:1px solid rgb(var(--p) / .3);}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+.mini{padding:16px 18px;border-radius:calc(var(--r) - 4px);background:var(--surface2);border:1px solid var(--border);display:flex;gap:12px;align-items:center;}
+.mini .mn{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-family:'Cairo',sans-serif;font-weight:800;background:rgb(var(--p) / .14);color:rgb(var(--p));flex-shrink:0;}
+.mini .mt{font-size:15px;font-weight:700;line-height:1.6;}
+.soon-box{padding:26px;border-radius:var(--r);border:1.5px dashed var(--border-strong);text-align:center;background:var(--surface2);}
+.soon-box .sb-ic{font-size:34px;color:rgb(var(--p));margin-bottom:8px;}
+.soon-list{display:flex;flex-direction:column;gap:8px;margin:16px auto 0;max-width:460px;text-align:start;}
+.soon-list div{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--border);font-size:14.5px;font-weight:600;}
+.soon-list .pill{margin-inline-start:auto;}
+.sum-grid{display:grid;gap:12px;}
+.sum-block{padding:16px 18px;border-radius:calc(var(--r) - 4px);background:var(--surface2);border:1px solid var(--border);}
+.sum-block h4{font-size:14px;color:rgb(var(--p));margin-bottom:10px;}
+.term{font-size:14.5px;line-height:1.8;margin-bottom:6px;}
+.eval-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+.ev{padding:20px;border-radius:var(--r);border:1px solid rgb(var(--c) / .34);background:linear-gradient(135deg,rgb(var(--c) / .10),var(--surface) 78%);}
+.ev.knowledge{--c:var(--p);} .ev.higher_order{--c:var(--v);}
+.ev .ev-l{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:rgb(var(--c));margin-bottom:10px;}
+.ev .ev-p{font-size:15px;line-height:1.9;}
+.reveal{margin-top:12px;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 4px;background:none;border:0;color:rgb(var(--c));font-size:14px;font-weight:800;cursor:pointer;}
+.model{margin-top:6px;padding:12px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--border);font-size:14px;line-height:1.9;color:var(--muted);}
+.model[hidden]{display:none;}
+
+/* ── Progress pane ──────────────────────────────────────────────────── */
+.prog-top{display:flex;align-items:center;gap:26px;flex-wrap:wrap;}
+.ring{--v:0;width:120px;height:120px;border-radius:50%;background:conic-gradient(rgb(var(--g)) calc(var(--v) * 1%),var(--track) 0);display:grid;place-items:center;flex-shrink:0;}
+.ring>div{width:94px;height:94px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-family:'Cairo',sans-serif;font-size:26px;font-weight:800;}
+.prog-top .pt{flex:1;min-width:220px;}
+.prog-top h3{font-size:20px;margin-bottom:6px;}
+.prog-top p{margin:0;color:var(--muted);line-height:1.9;}
+.p-row{display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:1px solid var(--border);flex-wrap:wrap;}
+.p-row:first-child{border-top:0;}
+.p-row .pr-n{font-family:'Cairo',sans-serif;font-weight:800;font-size:16px;flex:1;min-width:180px;}
+.p-row .pr-n small{display:block;font-family:'Tajawal',sans-serif;font-weight:500;font-size:13px;color:var(--muted);}
+
+/* ── Toast ──────────────────────────────────────────────────────────── */
+.toast{position:fixed;inset-inline:0;bottom:22px;margin:0 auto;width:max-content;max-width:calc(100vw - 32px);z-index:300;display:flex;align-items:center;gap:12px;padding:13px 18px;border-radius:16px;background:var(--surface);color:var(--text);border:1px solid var(--border-strong);box-shadow:var(--shadow-lg);font-size:14.5px;font-weight:700;opacity:0;transform:translateY(12px);pointer-events:none;transition:.25s;}
+.toast.show{opacity:1;transform:none;pointer-events:auto;}
+.toast .ic{color:rgb(var(--a));font-size:20px;}
+.toast.ok .ic{color:rgb(var(--g));}
+.toast button{background:none;border:0;color:var(--dim);cursor:pointer;min-width:44px;min-height:44px;font-size:16px;}
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width:900px){
+  .chrome{display:contents;}
+  .tabs{position:sticky;top:0;z-index:100;}
+  .topbar{flex-wrap:wrap;padding:10px 16px;}
+  .tb-progress{order:3;width:100%;}
+  .tabs{padding-inline:12px;}
+  .feat-grid,.mini-grid{grid-template-columns:1fr;}
+  .eval-grid,.ch-grid{grid-template-columns:1fr;}
+}
+@media (max-width:640px){
+  .wrap{padding:18px 12px 64px;}
+  .card{padding:20px 18px;}
+  .hero{padding:24px 20px;} .hero h2{font-size:21px;} .hero-mol{display:none;}
+  .prereq-grid{grid-template-columns:1fr;}
+  .user-chip{display:none!important;}
+  .tab{padding:0 14px;font-size:14px;}
+  .q-prompt{font-size:20px;}
+  .rm{--rail:78px;}
+  .ch{padding:14px 16px;} .ch-title{font-size:18px;}
+  .tb-btn .lbl{display:none;}
+}
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-row">
-    <div class="topbar-right">
+<!-- Icon sprite: one stroke set for every icon (replaces emoji so both themes render identically). -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.7 7.9l3 8M16.3 7.9l-3 8"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-unlock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-6M12 20V5M19 20v-9"/></symbol>
+    <symbol id="i-chevL" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-chevR" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-okc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.5l3 3 6-6.5"/></symbol>
+    <symbol id="i-xc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 9l6 6M15 9l-6 6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17.3v.01"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 21a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5.5 9.5A1.5 1.5 0 0 0 5.8 21h12.4a1.5 1.5 0 0 0 1.3-2.5L14 9V3"/><path d="M7.5 14h9"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+    <symbol id="i-sigma" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5H6l6 7-6 7h12"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-pill" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-35 12 12)"/><path d="M9 9.5l5 5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5M12 7.8v.01"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  </defs>
+</svg>
+
+<div class="chrome">
+  <header class="topbar">
+    <div class="tb-start">
       <img class="topbar-logo" src="/logo-white.png" alt="">
       <div>
         <div class="topbar-title">الكيمياء 1 — أول ثانوي</div>
         <div class="topbar-sub">بوابة دعم التعلم</div>
       </div>
-      <span class="user-chip" id="user-chip" style="display:none;">
-        <span class="dot"></span>
-        <span id="user-name-label"></span>
-      </span>
     </div>
-    <button class="tb-back" onclick="window.location.href='/academic/g10'">رجوع</button>
-  </div>
-  <div class="progress-row">
-    <span class="progress-label" id="progress-label">التقدّم: 0%</span>
-    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-  </div>
-  <div class="tabs-bar" id="tabs-bar"></div>
+    <div class="tb-progress" role="group" aria-label="التقدم التراكمي في المقرر">
+      <div class="tbp-row"><span>التقدّم التراكمي في المقرر</span><b id="tb-pct">0%</b></div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="tb-bar-wrap"><i id="tb-bar"></i></div>
+      <div class="tbp-sub" id="tb-sub">جارٍ التحميل…</div>
+    </div>
+    <div class="tb-end">
+      <span class="user-chip" id="user-chip" style="display:none;"><span class="dot"></span><span id="user-name-label"></span></span>
+      <button type="button" class="tb-btn icon theme-btn" id="theme-btn" data-act="theme" aria-label="تبديل الوضع الفاتح / الداكن">
+        <svg class="ic i-moon"><use href="#i-moon"/></svg><svg class="ic i-sun"><use href="#i-sun"/></svg>
+      </button>
+      <button type="button" class="tb-btn" aria-label="رجوع إلى المواد الدراسية" onclick="window.location.href='/academic/g10'"><svg class="ic"><use href="#i-chevR"/></svg><span class="lbl">رجوع</span></button>
+    </div>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="أقسام المقرر" id="tabs">
+    <button type="button" class="tab" role="tab" id="tab-overview" data-act="tab" data-tab="overview" aria-controls="pane-overview" aria-selected="true"><svg class="ic"><use href="#i-home"/></svg>نظرة عامة</button>
+    <button type="button" class="tab" role="tab" id="tab-map" data-act="tab" data-tab="map" aria-controls="pane-map" aria-selected="false" tabindex="-1"><svg class="ic"><use href="#i-map"/></svg>خارطة المفاهيم</button>
+    <button type="button" class="tab" role="tab" id="tab-diag" data-act="tab" data-tab="diag" aria-controls="pane-diag" aria-selected="false" tabindex="-1"><svg class="ic"><use href="#i-target"/></svg>تشخيص متطلباتي<span class="tab-badge" id="diag-badge">بوابة</span></button>
+    <button type="button" class="tab" role="tab" id="tab-chapters" data-act="tab" data-tab="chapters" aria-controls="pane-chapters" aria-selected="false" tabindex="-1" aria-disabled="true"><svg class="ic"><use href="#i-book"/></svg>الفصول الدراسية<svg class="ic lock-ic" id="lock-ic"><use href="#i-lock"/></svg><span class="sr-only" id="lock-sr">مقفل</span></button>
+    <button type="button" class="tab" role="tab" id="tab-progress" data-act="tab" data-tab="progress" aria-controls="pane-progress" aria-selected="false" tabindex="-1"><svg class="ic"><use href="#i-chart"/></svg>تقدّمي</button>
+  </nav>
 </div>
 
-<div class="wrap">
-  <div id="loading" class="loading"><div class="spinner"></div>جارٍ التحميل...</div>
+<main class="wrap">
+  <div id="boot" class="state"><div class="spinner"></div>جارٍ تحميل المقرر…</div>
+  <div id="boot-error" class="card" hidden></div>
+  <section class="pane" id="pane-overview" role="tabpanel" aria-labelledby="tab-overview" hidden></section>
+  <section class="pane" id="pane-map" role="tabpanel" aria-labelledby="tab-map" hidden></section>
+  <section class="pane" id="pane-diag" role="tabpanel" aria-labelledby="tab-diag" hidden></section>
+  <section class="pane" id="pane-chapters" role="tabpanel" aria-labelledby="tab-chapters" hidden></section>
+  <section class="pane" id="pane-progress" role="tabpanel" aria-labelledby="tab-progress" hidden></section>
+</main>
 
-  <!-- Tab 1: نظرة عامة -->
-  <div class="view" id="view-overview">
-    <div class="hero">
-      <div class="hero-top">
-        <div class="hero-icon">🧪</div>
-        <h2>لماذا ندرس الكيمياء؟</h2>
-      </div>
-      <p>الكيمياء هي علم يشرح تركيب كل شيء حولك — من الهواء الذي تتنفسه إلى المواد التي تُبنى بها الأجهزة والأدوية. في هذا المقرر ستكتشف كيف تتركّب المادة، وكيف ولماذا تتفاعل موادها ببعضها، وكيف نقيس ذلك كمياً — بدءاً من أساسيات علمية بسيطة، وصولاً لفهم عميق يخدمك في مواد أخرى وفي حياتك العلمية القادمة.</p>
-    </div>
-    <div class="card-grid">
-      <div class="feature-card" onclick="App.goTab('diagnostic')">
-        <span class="feature-badge active">البوابة</span>
-        <div class="f-icon">🎯</div>
-        <div class="f-title">تشخيص متطلباتي</div>
-        <div class="f-desc">3 أسئلة سريعة تحدد جاهزيتك، وتفتح لك فصول المقرر.</div>
-      </div>
-      <div class="feature-card" onclick="App.goTab('map')">
-        <span class="feature-badge active">متاح</span>
-        <div class="f-icon">🗺️</div>
-        <div class="f-title">خارطة المفاهيم</div>
-        <div class="f-desc">تعرّف على فصول المقرر الخمسة وعلاقاتها ببعضها.</div>
-      </div>
-      <div class="feature-card" onclick="App.goTab('progress')">
-        <span class="feature-badge active">متاح</span>
-        <div class="f-icon">📊</div>
-        <div class="f-title">تقدّمي</div>
-        <div class="f-desc">تابع مستوى إتقانك لكل فصل لحظياً.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tab 2: خارطة المفاهيم (قراءة فقط) -->
-  <div class="view" id="view-map">
-    <div class="section-card">
-      <h3><span class="dot"></span>خارطة المفاهيم — فصول المقرر وعلاقات الاعتماد</h3>
-      <div id="chapter-map" class="roadmap"></div>
-    </div>
-    <div id="subject-prereqs-card" class="section-card">
-      <h3><span class="dot"></span>المتطلبات القبلية على مستوى المادة</h3>
-      <div id="subject-prereqs-list" class="prereq-grid"></div>
-    </div>
-  </div>
-
-  <!-- Tab 3: تشخيص متطلباتي -->
-  <div class="view" id="view-diagnostic">
-    <div id="diagnostic-host"></div>
-  </div>
-
-  <!-- Tab 4: الفصول الدراسية -->
-  <div class="view" id="view-chapters">
-    <div id="chapters-host"></div>
-  </div>
-
-  <!-- Tab 5: تقدّمي -->
-  <div class="view" id="view-progress">
-    <div id="progress-host"></div>
-  </div>
-</div>
+<div class="toast" id="toast" role="status" aria-live="polite"><svg class="ic"><use href="#i-info"/></svg><span id="toast-msg"></span><button type="button" data-act="toast-x" aria-label="إغلاق">✕</button></div>
 
 <script>
 const API = '';
@@ -329,504 +426,627 @@ function apiFetch(path, opts = {}) {
     return d;
   });
 }
-function escapeHtml(str) {
-  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-}
-function setLoading(on, msg) {
-  const el = document.getElementById('loading');
-  el.style.display = on ? 'block' : 'none';
-  if (on) el.innerHTML = '<div class="spinner"></div>' + escapeHtml(msg || 'جارٍ التحميل...');
-}
+const esc = (str) => String(str ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const $ = (sel, root = document) => root.querySelector(sel);
+const icon = (name, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 
-const LAYER_LABELS = { foundational: 'تأسيسي', descriptive: 'وصفي', structural: 'تركيبي', reactive: 'تفاعلي', quantitative: 'كمّي' };
-const STATUS_ICON = { default: '⚪', mastered: '✅', needs_review: '🟠' };
-const SOURCE_ICON = { 'علوم': '📘', 'رياضيات': '📐' };
 const SUBJECT_ID = 'chemistry-1';
-
-const TABS = [
-  { id: 'overview',   label: '🏠 نظرة عامة',        alwaysOpen: true },
-  { id: 'map',        label: '🗺️ خارطة المفاهيم',   alwaysOpen: true },
-  { id: 'diagnostic', label: '🎯 تشخيص متطلباتي',    alwaysOpen: true },
-  { id: 'chapters',   label: '📚 الفصول الدراسية',   alwaysOpen: false },
-  { id: 'progress',   label: '📊 تقدّمي',            alwaysOpen: true },
+const LAYER_LABELS = { foundational: 'تأسيسي', descriptive: 'وصفي', structural: 'تركيبي', reactive: 'تفاعلي', quantitative: 'كمّي' };
+const STATUS = {
+  mastered:     { label: 'متقن',          ico: 'check' },
+  needs_review: { label: 'تحتاج مراجعة',  ico: 'alert' },
+  default:      { label: 'لم يبدأ',       ico: 'target' },
+};
+const SOURCE_ICON = { 'علوم': 'flask', 'رياضيات': 'sigma' };
+const LETTERS = ['أ', 'ب', 'ج', 'د', 'هـ'];
+const TABS = ['overview', 'map', 'diag', 'chapters', 'progress'];
+const STEPS = [
+  { key: 'intro',   label: 'تمهيد الفصل',    ico: 'flag' },
+  { key: 'prereq',  label: 'متطلبات قبلية',  ico: 'link' },
+  { key: 'diag',    label: 'تشخيص الفصل',    ico: 'target' },
+  { key: 'content', label: 'المحتوى',        ico: 'book' },
+  { key: 'summary', label: 'ملخص الفصل',     ico: 'doc' },
+  { key: 'eval',    label: 'أسئلة تقويمية',  ico: 'bulb' },
 ];
+const LOCK_MSG = 'الفصول الدراسية مقفلة — أنهِ تشخيص متطلباتك القبلية العام أولاً لتُفتح.';
 
-// Single in-memory State Machine driving every tab/screen in this file — no
-// full-page navigation happens after the initial load except the header's
-// "رجوع" button (the one sanctioned exit back to /academic/g10).
+/* ── Diagnostic engine (used by the subject gate AND the chapter step) ── */
+class Engine {
+  constructor(key, host, questions, onDone) {
+    this.key = key; this.host = host; this.questions = questions; this.onDone = onDone;
+    this.index = 0; this.picked = null; this.weak = [];
+  }
+  render() {
+    const q = this.questions[this.index];
+    const n = this.questions.length;
+    const answered = this.picked !== null;
+    const segs = this.questions.map((_, i) => `<i class="${i <= this.index ? 'on' : ''}"></i>`).join('');
+    const opts = q.options.map((o, i) => {
+      const good = answered && o.is_correct;
+      const bad = answered && this.picked === i && !o.is_correct;
+      const dim = answered && !good && !bad;
+      const cls = good ? 'correct' : bad ? 'wrong' : dim ? 'dim' : '';
+      const stIc = good ? `<span class="st">${icon('okc')}<span class="sr-only">إجابة صحيحة</span></span>` : bad ? `<span class="st">${icon('xc')}<span class="sr-only">إجابة غير دقيقة</span></span>` : '';
+      const fb = (good || bad) && o.feedback
+        ? `<div class="fb ${o.is_correct ? 'ok' : 'bad'}">${icon(o.is_correct ? 'check' : 'info')}<span>${esc(o.feedback)}</span></div>` : '';
+      return `<div class="opt-wrap"><button type="button" class="opt ${cls}" data-act="answer" data-eng="${this.key}" data-i="${i}" ${answered ? 'disabled' : ''}>
+        <span class="ltr">${LETTERS[i] || i + 1}</span><span class="tx">${esc(o.text)}</span>${stIc}</button>${fb}</div>`;
+    }).join('');
+    const last = this.index + 1 >= n;
+    this.host.innerHTML = `
+      <div class="eng-top"><span class="cnt">سؤال ${this.index + 1} من ${n}</span><div class="segs" aria-hidden="true">${segs}</div>
+        <span class="pill">${icon('target')}المتطلب: ${esc(q.prerequisiteLabel)}</span></div>
+      <div class="q-prompt" id="q-${this.key}">${esc(q.prompt)}</div>
+      <div role="group" aria-labelledby="q-${this.key}" aria-live="polite">${opts}</div>
+      ${answered ? `<button type="button" class="btn block eng-next" id="eng-next-${this.key}" data-act="next" data-eng="${this.key}">${last ? 'عرض النتيجة' : 'التالي'} ${icon('chevL')}</button>` : ''}`;
+    if (answered) $(`#eng-next-${this.key}`)?.focus({ preventScroll: true });
+  }
+  answer(i) {
+    if (this.picked !== null) return;
+    const q = this.questions[this.index];
+    this.picked = i;
+    if (!q.options[i].is_correct) this.weak.push(q.prerequisiteLabel);
+    this.render();
+  }
+  next() {
+    this.index++; this.picked = null;
+    if (this.index < this.questions.length) { this.render(); return; }
+    this.onDone([...new Set(this.weak)]);
+  }
+}
+
+function branchHtml(result, cta) {
+  let c = 'g', ico = 'okc', title, desc, extra = '';
+  if (result.branch === 'direct') {
+    title = 'ممتاز — كل متطلباتك جاهزة';
+    desc = 'أجبت بشكل صحيح على كل أسئلة التشخيص. يمكنك الدخول مباشرة دون أي محتوى علاجي إضافي.';
+  } else if (result.branch === 'capsule') {
+    c = 'a'; ico = 'pill'; title = 'كبسولة علاجية مصغّرة';
+    desc = `وجدنا ${result.weakCount} من ${result.totalCount} متطلبات تحتاج مراجعة سريعة قبل المتابعة:`;
+    extra = result.weakLabels.map(l => `<div class="capsule">${icon('flag')}<span><b>${esc(l)}</b> — راجع هذا المفهوم مع معلمك أو من مصدره الأساسي قبل المتابعة (~5 دقائق).</span></div>`).join('');
+  } else {
+    c = 'a'; ico = 'bell'; title = 'تم تسجيل تنبيه لمعلمك';
+    desc = `ضعفك في أغلب المتطلبات القبلية (${result.weakCount} من ${result.totalCount}) — تم إشعار معلمك بذلك تلقائياً، ويمكنك المتابعة اختيارياً.`;
+  }
+  return `<div class="branch"><div class="b-ic" style="--c:var(--${c})">${icon(ico)}</div><h3>${title}</h3><p class="b-d">${desc}</p>${extra}
+    <button type="button" class="btn block" style="margin-top:8px" data-act="${cta.act}">${cta.label} ${icon('chevL')}</button></div>`;
+}
+
 const App = {
   overview: null,
-  currentTab: 'overview',
-  currentDiagnostic: null, // { host, scope, chapterId, questions, index, weakLabels, onDone }
-  chapterFlow: null,       // { chapterId, step } — active chapter-stepper state
+  tab: 'overview',
+  engines: {},
+  subj: { phase: 'intro', result: null },
+  chap: null,          // { id, meta, step, max, questions, phase, result, summary, summaryErr }
+  toastTimer: null,
 
+  /* ── derived state ── */
+  get locked() { return !this.overview?.seenIntro; },
+  stats() {
+    const ch = this.overview?.chapters || [];
+    const mastered = ch.filter(c => c.status === 'mastered').length;
+    const review = ch.filter(c => c.status === 'needs_review').length;
+    return { total: ch.length, mastered, review, pct: ch.length ? Math.round(mastered / ch.length * 100) : 0 };
+  },
+  chapterById(id) { return this.overview.chapters.find(c => c.chapterId === id); },
+
+  /* ── boot ── */
+  async init() {
+    this.loadUserChip();
+    this.bind();
+    await this.loadOverview(true);
+  },
   loadUserChip() {
     try {
-      const sources = [
-        sessionStorage.getItem('lg_session_student'),
-        localStorage.getItem('lg_xsession_student'),
-        localStorage.getItem('lg_remember_student'),
-      ];
-      for (const src of sources) {
+      for (const src of [sessionStorage.getItem('lg_session_student'), localStorage.getItem('lg_xsession_student'), localStorage.getItem('lg_remember_student')]) {
         if (!src) continue;
         const d = JSON.parse(src);
         const name = d.name || d.admin_name;
-        if (name) {
-          document.getElementById('user-name-label').textContent = name;
-          document.getElementById('user-chip').style.display = 'inline-flex';
-          break;
-        }
+        if (name) { $('#user-name-label').textContent = name; $('#user-chip').style.display = 'inline-flex'; break; }
       }
     } catch (e) {}
   },
-
-  renderTabsBar() {
-    const unlocked = this.isChaptersUnlocked();
-    document.getElementById('tabs-bar').innerHTML = TABS.map(t => {
-      const locked = t.id === 'chapters' && !unlocked;
-      return `<button class="tab-btn ${this.currentTab === t.id ? 'active' : ''} ${locked ? 'locked' : ''}" onclick="App.goTab('${t.id}')">${t.label}${locked ? ' <span class="lock-ic">🔒</span>' : ''}</button>`;
-    }).join('');
-  },
-
-  isChaptersUnlocked() {
-    return !!this.overview?.seenIntro;
-  },
-
-  updateProgressBar() {
-    const chapters = this.overview?.chapters || [];
-    const mastered = chapters.filter(c => c.status === 'mastered').length;
-    const pct = chapters.length ? Math.round((mastered / chapters.length) * 100) : 0;
-    document.getElementById('progress-fill').style.width = pct + '%';
-    document.getElementById('progress-label').textContent = `التقدّم: ${pct}%`;
-  },
-
-  goTab(id) {
-    if (id === 'chapters' && !this.isChaptersUnlocked()) {
-      this.goTab('diagnostic');
-      return;
-    }
-    this.currentTab = id;
-    this.chapterFlow = null;
-    this.renderTabsBar();
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById('view-' + id).classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (id === 'diagnostic') this.renderDiagnosticTab();
-    if (id === 'chapters') this.renderChaptersTab();
-    if (id === 'progress') this.renderProgressTab();
-  },
-
-  async init() {
-    this.loadUserChip();
-    this.renderTabsBar();
-    setLoading(true);
+  async loadOverview(first = false) {
     try {
       this.overview = await apiFetch(`/api/prereq/overview?subject=${SUBJECT_ID}`);
     } catch (e) {
-      setLoading(false);
-      document.getElementById('view-overview').classList.add('active');
-      document.getElementById('view-overview').innerHTML = `<div class="notice-card"><span class="n-icon">⚠️</span><div><div class="n-title">تعذّر تحميل بيانات المقرر</div><div class="n-msg">${escapeHtml(e.message)}</div></div></div>`;
-      return;
+      if (first) {
+        $('#boot').hidden = true;
+        const box = $('#boot-error'); box.hidden = false;
+        box.innerHTML = `<div class="state" style="padding:24px">${icon('alert')}<p>تعذّر تحميل بيانات المقرر: ${esc(e.message)}</p><button type="button" class="btn sm" data-act="retry">إعادة المحاولة</button></div>`;
+      } else this.toast('تعذّر تحديث بيانات المقرر: ' + e.message);
+      return false;
     }
-    setLoading(false);
-    this.renderTabsBar();
-    this.updateProgressBar();
-    this.renderChapterMap();
-    this.renderSubjectPrereqs();
-    this.goTab('overview');
+    $('#boot').hidden = true; $('#boot-error').hidden = true;
+    this.subj.phase = this.overview.seenIntro && this.subj.phase === 'intro' ? 'done' : this.subj.phase;
+    this.renderChrome();
+    if (first) {
+      const h = (location.hash || '').replace('#', '');
+      this.switchTab(TABS.includes(h) ? h : 'overview', { silent: true });
+    } else this.renderActive();
+    return true;
   },
 
-  async refreshOverview() {
-    try {
-      this.overview = await apiFetch(`/api/prereq/overview?subject=${SUBJECT_ID}`);
-      this.renderTabsBar();
-      this.updateProgressBar();
-      this.renderChapterMap();
-    } catch (e) {}
-  },
-
-  // ── Tab 2: خارطة المفاهيم (read-only) ──────────────────────────────────
-  renderChapterMap() {
-    const el = document.getElementById('chapter-map');
-    el.innerHTML = this.overview.chapters.map(c => `
-      <div class="roadmap-row">
-        <div class="roadmap-track">
-          <div class="roadmap-node status-${c.status}"></div>
-          <div class="roadmap-line"></div>
-        </div>
-        <div class="roadmap-card-wrap">
-          <div class="chapter-card">
-            <div class="chapter-card-top">
-              <span class="chapter-num">فصل ${c.orderNum}</span>
-              <span class="chapter-status-icon">${STATUS_ICON[c.status] || '⚪'}</span>
-            </div>
-            <span class="layer-pill layer-${c.layer}">${LAYER_LABELS[c.layer] || c.layer}</span>
-            ${!c.hasDiagnostic ? '<span class="soon-pill">تشخيص قريباً</span>' : ''}
-            <div class="title">${escapeHtml(c.title)}</div>
-            <div class="deps">${c.dependsOn.length ? '🔗 يعتمد على: <b>' + c.dependsOn.map(depId => {
-              const dep = this.overview.chapters.find(x => x.chapterId === depId);
-              return dep ? 'الفصل ' + dep.orderNum : '';
-            }).filter(Boolean).join(' و ') + '</b>' : '✨ بداية المقرر'}</div>
-          </div>
-        </div>
-      </div>
-    `).join('');
-  },
-
-  renderSubjectPrereqs() {
-    const list = this.overview.subject.subjectPrereqs || [];
-    const card = document.getElementById('subject-prereqs-card');
-    if (!list.length) { card.style.display = 'none'; return; }
-    document.getElementById('subject-prereqs-list').innerHTML = list.map(p => {
-      const icon = Object.keys(SOURCE_ICON).find(k => p.source.includes(k));
-      return `
-      <div class="prereq-card">
-        <div class="p-name">${escapeHtml(p.label)}</div>
-        <span class="p-src">${icon ? SOURCE_ICON[icon] : '📎'} ${escapeHtml(p.source)}</span>
-        <div class="p-used">➜ يخدم <b>${escapeHtml(p.usedIn)}</b></div>
-      </div>`;
-    }).join('');
-  },
-
-  // ── Tab 3: تشخيص متطلباتي (subject-level gate) ─────────────────────────
-  renderDiagnosticTab() {
-    const host = document.getElementById('diagnostic-host');
-    if (this.overview.seenIntro) {
-      host.innerHTML = `
-        <div class="section-card branch-box">
-          <div class="branch-icon">✅</div>
-          <div class="branch-title">أنجزت تشخيص المتطلبات القبلية للمادة</div>
-          <div class="branch-desc">فُتحت لك الفصول الدراسية بالفعل — تابع من تبويب "📚 الفصول الدراسية".</div>
-          <button class="primary-btn" onclick="App.goTab('chapters')">اذهب إلى الفصول الدراسية</button>
-        </div>`;
-      return;
-    }
-    host.innerHTML = `
-      <div class="hero">
-        <div class="hero-top"><div class="hero-icon">🎯</div><h2>تشخيص متطلباتي</h2></div>
-        <p>هذه بوابة المقرر الإلزامية: 3 أسئلة سريعة بتغذية راجعة فورية لكل خيار، تحدد نقطة انطلاقك المثلى وتفتح لك الفصول الدراسية بمجرد إنهائها.</p>
-      </div>
-      <div class="section-card">
-        <button class="primary-btn" onclick="App.startDiagnostic('diagnostic-host', 'subject', null, App.onSubjectDiagnosticDone)">🚀 ابدأ التشخيص الآن</button>
-      </div>`;
-  },
-
-  onSubjectDiagnosticDone() {
-    App.refreshOverview().then(() => App.renderDiagnosticTab());
-  },
-
-  // ── Tab 4: الفصول الدراسية ──────────────────────────────────────────────
-  renderChaptersTab() {
-    const host = document.getElementById('chapters-host');
-    host.innerHTML = `
-      <div class="section-card">
-        <h3><span class="dot"></span>اختر فصلاً للبدء</h3>
-        <div id="chapters-list" class="roadmap"></div>
-      </div>`;
-    document.getElementById('chapters-list').innerHTML = this.overview.chapters.map(c => `
-      <div class="roadmap-row">
-        <div class="roadmap-track">
-          <div class="roadmap-node status-${c.status}"></div>
-          <div class="roadmap-line"></div>
-        </div>
-        <div class="roadmap-card-wrap">
-          <div class="chapter-card clickable" onclick="App.openChapter('${c.chapterId}', ${c.hasDiagnostic}, '${escapeHtml(c.title)}')">
-            <div class="chapter-card-top">
-              <span class="chapter-num">فصل ${c.orderNum}</span>
-              <span class="chapter-status-icon">${STATUS_ICON[c.status] || '⚪'}</span>
-            </div>
-            <span class="layer-pill layer-${c.layer}">${LAYER_LABELS[c.layer] || c.layer}</span>
-            ${!c.hasDiagnostic ? '<span class="soon-pill">تشخيص قريباً</span>' : ''}
-            <div class="title">${escapeHtml(c.title)}</div>
-            <div class="deps">${c.dependsOn.length ? '🔗 يعتمد على: <b>' + c.dependsOn.map(depId => {
-              const dep = this.overview.chapters.find(x => x.chapterId === depId);
-              return dep ? 'الفصل ' + dep.orderNum : '';
-            }).filter(Boolean).join(' و ') + '</b>' : '✨ بداية المقرر'}</div>
-          </div>
-        </div>
-      </div>
-    `).join('');
-  },
-
-  openChapter(chapterId, hasDiagnostic, title) {
-    if (!hasDiagnostic) {
-      const host = document.getElementById('chapters-host');
-      host.insertAdjacentHTML('afterbegin', `
-        <div class="notice-card">
-          <span class="n-icon">ℹ️</span>
-          <div>
-            <div class="n-title">المتطلبات القبلية مكتملة</div>
-            <div class="n-msg">فصل "${escapeHtml(title)}" لا يتطلب تشخيصاً قبلياً حالياً، يمكنك البدء في دراسة محتواه مباشرة بعد توفره.</div>
-            <button onclick="this.closest('.notice-card').remove()">حسناً</button>
-          </div>
-        </div>`);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-    this.openChapterFlow(chapterId);
-  },
-
-  // ── Chapter Stepper: تمهيد الفصل ⬅ متطلبات قبلية ⬅ تشخيص الفصل ⬅
-  // [دراسة المحتوى] ⬅ ملخص الفصل + أسئلة تقويمية ──────────────────────────
-  CHAPTER_STEPS: ['تمهيد الفصل', 'متطلبات قبلية', 'تشخيص الفصل', 'دراسة المحتوى', 'ملخص وتقويم'],
-
-  openChapterFlow(chapterId) {
-    this.chapterFlow = { chapterId, step: 0 };
-    this.renderChapterFlow();
-  },
-
-  stepperHtml(activeStep) {
-    return `<div class="stepper">${this.CHAPTER_STEPS.map((label, i) => `
-      ${i > 0 ? `<div class="step-connector ${i <= activeStep ? 'done' : ''}"></div>` : ''}
-      <div class="step-node ${i < activeStep ? 'done' : ''} ${i === activeStep ? 'active' : ''}">
-        <div class="step-circle">${i < activeStep ? '✓' : i + 1}</div>
-        <div class="step-label">${label}</div>
-      </div>
-    `).join('')}</div>`;
-  },
-
-  renderChapterFlow() {
-    const flow = this.chapterFlow;
-    const chapter = this.overview.chapters.find(c => c.chapterId === flow.chapterId);
-    const host = document.getElementById('chapters-host');
-    const stepper = this.stepperHtml(flow.step);
-
-    if (flow.step === 0) {
-      host.innerHTML = `
-        <button class="inner-back" onclick="App.renderChaptersTab()">→ رجوع لقائمة الفصول</button>
-        ${stepper}
-        <div class="section-card">
-          <h3><span class="dot"></span>تمهيد الفصل ${chapter.orderNum}: ${escapeHtml(chapter.title)}</h3>
-          <p style="line-height:1.9;font-size:14px;color:var(--text);margin:0">${escapeHtml(chapter.description || '')}</p>
-          <button class="primary-btn" style="margin-top:16px" onclick="App.chapterFlow.step=1; App.renderChapterFlow();">التالي: متطلبات قبلية ←</button>
-        </div>`;
-      return;
-    }
-
-    if (flow.step === 1) {
-      // Prerequisite labels are derived live from that chapter's diagnostic
-      // questions — no separate table needed for "متطلبات قبلية خاصة بالفصل".
-      apiFetch(`/api/prereq/diagnostic?subject=${SUBJECT_ID}&scope=chapter&chapterId=${encodeURIComponent(flow.chapterId)}`).then(data => {
-        const labels = [...new Set((data.questions || []).map(q => q.prerequisiteLabel))];
-        host.innerHTML = `
-          <button class="inner-back" onclick="App.renderChaptersTab()">→ رجوع لقائمة الفصول</button>
-          ${stepper}
-          <div class="section-card">
-            <h3><span class="dot"></span>متطلبات قبلية خاصة بهذا الفصل</h3>
-            <div class="prereq-grid">${labels.map(l => `<div class="prereq-card"><div class="p-name">📌 ${escapeHtml(l)}</div></div>`).join('')}</div>
-            <button class="primary-btn" style="margin-top:16px" onclick="App.chapterFlow.step=2; App.renderChapterFlow();">التالي: تشخيص الفصل ←</button>
-          </div>`;
-      });
-      return;
-    }
-
-    if (flow.step === 2) {
-      host.innerHTML = `<button class="inner-back" onclick="App.renderChaptersTab()">→ رجوع لقائمة الفصول</button>${stepper}<div id="chapter-diag-host"></div>`;
-      this.startDiagnostic('chapter-diag-host', 'chapter', flow.chapterId, () => {
-        flow.step = 3;
-        this.renderChapterFlow();
-      });
-      return;
-    }
-
-    if (flow.step === 3) {
-      host.innerHTML = `
-        <button class="inner-back" onclick="App.renderChaptersTab()">→ رجوع لقائمة الفصول</button>
-        ${stepper}
-        <div class="section-card content-placeholder">
-          <div class="cp-icon">📖</div>
-          <h3 style="margin-bottom:8px">دراسة المحتوى — قريباً</h3>
-          <p style="color:var(--muted);font-size:13.5px;line-height:1.8;margin:0 0 18px">المحتوى التفصيلي لهذا الفصل قيد الإعداد. يمكنك المتابعة الآن لملخص الفصل وأسئلته التقويمية.</p>
-          <button class="primary-btn" onclick="App.chapterFlow.step=4; App.renderChapterFlow();">التالي: ملخص الفصل والتقويم ←</button>
-        </div>`;
-      return;
-    }
-
-    if (flow.step === 4) {
-      setLoading(true);
-      apiFetch(`/api/prereq/chapter-summary?chapterId=${encodeURIComponent(flow.chapterId)}`).then(data => {
-        setLoading(false);
-        host.innerHTML = `
-          <button class="inner-back" onclick="App.renderChaptersTab()">→ رجوع لقائمة الفصول</button>
-          ${stepper}
-          <div class="section-card">
-            <h3><span class="dot"></span>ملخص الفصل</h3>
-            <div id="summary-grid" class="summary-grid"></div>
-          </div>
-          <div class="section-card">
-            <h3><span class="dot"></span>أسئلة تقويمية</h3>
-            <div id="eval-grid" class="eval-grid"></div>
-          </div>`;
-        this.renderSummary(data);
-      }).catch(() => {
-        setLoading(false);
-        this.renderChaptersTab();
-      });
-      return;
-    }
-  },
-
-  renderSummary(data) {
-    const s = data.summary;
-    document.getElementById('summary-grid').innerHTML = `
-      <div class="summary-block"><h4>المفاهيم الأساسية</h4>${s.keyConcepts.map(c => `<span class="chip">${escapeHtml(c)}</span>`).join('')}</div>
-      <div class="summary-block"><h4>مصطلحات جديدة</h4>${s.newTerms.map(t => `<div class="term-item"><b>${escapeHtml(t.term)}</b> — ${escapeHtml(t.definition)}</div>`).join('')}</div>
-      <div class="summary-block"><h4>القانون الأساسي</h4><div class="term-item">${escapeHtml(s.coreRule)}</div></div>
-      <div class="summary-block"><h4>مثال محلول</h4><div class="term-item">${escapeHtml(s.workedExample)}</div></div>
-      <div class="summary-block"><h4>خطأ شائع</h4><div class="term-item">${escapeHtml(s.commonPitfall)}</div></div>
-    `;
-    document.getElementById('eval-grid').innerHTML = data.evaluationQuestions.map((q, i) => `
-      <div class="eval-card ${q.level}">
-        <div class="eval-level">${q.level === 'knowledge' ? '🧠 معرفي' : '💡 مهارات تفكير عليا'}</div>
-        <div class="eval-prompt">${escapeHtml(q.prompt)}</div>
-        <button class="reveal-btn" onclick="App.toggleAnswer(${i})">عرض الإجابة النموذجية ↓</button>
-        <div class="model-answer" id="model-answer-${i}">${escapeHtml(q.modelAnswer)}</div>
-      </div>
-    `).join('');
-  },
-
-  toggleAnswer(i) {
-    const el = document.getElementById('model-answer-' + i);
-    el.style.display = el.style.display === 'block' ? 'none' : 'block';
-  },
-
-  // ── Shared DiagnosticEngine — reused by both تشخيص متطلباتي (subject) and
-  // the chapter stepper's "تشخيص الفصل" step. Renders into `hostId`, calls
-  // `onDone()` after the branch screen's continue button. ────────────────
-  async startDiagnostic(hostId, scope, chapterId, onDone) {
-    const host = document.getElementById(hostId);
-    setLoading(true);
-    try {
-      const qs = `subject=${SUBJECT_ID}&scope=${scope}` + (chapterId ? `&chapterId=${encodeURIComponent(chapterId)}` : '');
-      const data = await apiFetch(`/api/prereq/diagnostic?${qs}`);
-      if (!data.questions || data.questions.length === 0) {
-        setLoading(false);
-        host.innerHTML = `<div class="notice-card"><span class="n-icon">ℹ️</span><div><div class="n-title">المتطلبات القبلية مكتملة</div><div class="n-msg">هذا القسم لا يتطلب تشخيصاً قبلياً مسبقاً، يمكنك المتابعة مباشرة.</div><button id="empty-diag-continue">متابعة</button></div></div>`;
-        document.getElementById('empty-diag-continue').addEventListener('click', onDone);
-        return;
-      }
-      this.currentDiagnostic = { hostId, scope, chapterId, questions: data.questions, index: 0, weakLabels: [], onDone };
-      setLoading(false);
-      this.renderQuestion();
-    } catch (e) {
-      setLoading(false);
-      host.innerHTML = `<div class="notice-card"><span class="n-icon">⚠️</span><div><div class="n-title">تعذّر تحميل التشخيص</div><div class="n-msg">${escapeHtml(e.message || '')}</div></div></div>`;
-    }
-  },
-
-  renderQuestion() {
-    const d = this.currentDiagnostic;
-    const q = d.questions[d.index];
-    const host = document.getElementById(d.hostId);
-    host.innerHTML = `
-      <div class="section-card">
-        <div class="q-progress">سؤال ${d.index + 1} من ${d.questions.length}</div>
-        <div class="q-prompt">${escapeHtml(q.prompt)}</div>
-        <div id="q-options">${q.options.map((o, i) => `
-          <div>
-            <button class="option-btn" onclick="App.answer(${i})">${escapeHtml(o.text)}</button>
-            <div class="option-feedback" id="fb-${i}">${escapeHtml(o.feedback || '')}</div>
-          </div>
-        `).join('')}</div>
-        <button class="primary-btn" id="q-next-btn" style="display:none;margin-top:8px" onclick="App.nextQuestion()">التالي ←</button>
-      </div>`;
-  },
-
-  answer(optionIndex) {
-    const d = this.currentDiagnostic;
-    const q = d.questions[d.index];
-    const host = document.getElementById(d.hostId);
-    const buttons = host.querySelectorAll('#q-options .option-btn');
-    if (buttons[0].disabled) return;
-    const chosen = q.options[optionIndex];
-    buttons.forEach((btn, i) => {
-      btn.disabled = true;
-      const opt = q.options[i];
-      if (opt.is_correct) btn.classList.add('correct');
-      else if (i === optionIndex) btn.classList.add('incorrect');
-      const fb = host.querySelector('#fb-' + i);
-      if (i === optionIndex || opt.is_correct) fb.classList.add(opt.is_correct ? 'fb-correct' : 'fb-incorrect');
+  /* ── events ── */
+  bind() {
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest('[data-act]');
+      if (!el) return;
+      const d = el.dataset;
+      const fn = this.acts[d.act];
+      if (fn) fn.call(this, d, el);
     });
-    if (!chosen.is_correct) d.weakLabels.push(q.prerequisiteLabel);
-    const nextBtn = host.querySelector('#q-next-btn');
-    nextBtn.style.display = 'block';
-    nextBtn.textContent = d.index + 1 < d.questions.length ? 'التالي ←' : 'عرض النتيجة ←';
+    $('#tabs').addEventListener('keydown', (e) => {
+      const keys = { ArrowLeft: 1, ArrowRight: -1, Home: 'first', End: 'last' };
+      if (!(e.key in keys)) return;
+      const tabs = [...document.querySelectorAll('#tabs .tab')];
+      let i = tabs.indexOf(document.activeElement);
+      if (i < 0) return;
+      i = keys[e.key] === 'first' ? 0 : keys[e.key] === 'last' ? tabs.length - 1 : (i + keys[e.key] + tabs.length) % tabs.length;
+      tabs[i].focus(); e.preventDefault();
+    });
+    window.addEventListener('resize', () => this.drawRail());
+    if (window.ResizeObserver) this.ro = new ResizeObserver(() => this.drawRail());
+    this.syncThemeBtn();
+  },
+  acts: {
+    tab(d) { this.switchTab(d.tab); },
+    theme() { this.toggleTheme(); },
+    'toast-x'() { this.hideToast(); },
+    retry() { $('#boot-error').hidden = true; $('#boot').hidden = false; this.loadOverview(true); },
+    go(d) { this.switchTab(d.tab); },
+    'open-chapter'(d) { this.openChapter(d.id); },
+    'start-subject'() { this.startSubject(); },
+    answer(d) { this.engines[d.eng]?.answer(Number(d.i)); },
+    next(d) { this.engines[d.eng]?.next(); },
+    'subj-continue'() { this.switchTab('chapters'); },
+    'chap-back'() { this.chap = null; this.renderChapters(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+    'chap-step'(d) { this.gotoStep(Number(d.step)); },
+    'chap-next'() { this.advance(); },
+    'chap-prev'() { this.gotoStep(this.chap.step - 1); },
+    'chap-retake'() { this.chap.phase = 'ready'; this.chap.result = null; this.renderStep(); },
+    'chap-start-diag'() { this.startChapterDiag(); },
+    'chap-diag-continue'() { this.chap.max = Math.max(this.chap.max, 3); this.gotoStep(3); },
+    'chap-finish'() { this.chap = null; this.switchTab('chapters'); this.refresh(); },
+    reveal(d, el) {
+      const m = document.getElementById('model-' + d.i);
+      m.hidden = !m.hidden;
+      el.setAttribute('aria-expanded', String(!m.hidden));
+      el.querySelector('span').textContent = m.hidden ? 'عرض الإجابة النموذجية' : 'إخفاء الإجابة النموذجية';
+    },
   },
 
-  async nextQuestion() {
-    const d = this.currentDiagnostic;
-    d.index++;
-    if (d.index < d.questions.length) { this.renderQuestion(); return; }
-    await this.submitDiagnostic();
+  /* ── theme ── */
+  toggleTheme() {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('theme', next); } catch (e) {}
+    document.documentElement.setAttribute('data-theme', next);
+    this.syncThemeBtn();
+  },
+  syncThemeBtn() {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    $('#theme-btn').setAttribute('aria-label', dark ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن');
   },
 
-  async submitDiagnostic() {
-    const d = this.currentDiagnostic;
-    const host = document.getElementById(d.hostId);
-    setLoading(true, 'جارٍ حساب النتيجة...');
-    try {
-      const result = await apiFetch('/api/prereq/diagnostic/submit', {
-        method: 'POST',
-        body: JSON.stringify({ subjectId: SUBJECT_ID, scope: d.scope, chapterId: d.chapterId, weakLabels: d.weakLabels }),
-      });
-      setLoading(false);
-      this.renderBranch(host, result, d);
-      await this.refreshOverview();
-    } catch (e) {
-      setLoading(false);
-      host.innerHTML = `<div class="notice-card"><span class="n-icon">⚠️</span><div><div class="n-title">تعذّر إرسال النتيجة</div><div class="n-msg">${escapeHtml(e.message || '')}</div></div></div>`;
-    }
+  /* ── toast / loading ── */
+  toast(msg, kind = '') {
+    const t = $('#toast');
+    t.className = 'toast show ' + kind;
+    $('#toast-msg').textContent = msg;
+    t.querySelector('svg use').setAttribute('href', kind === 'ok' ? '#i-unlock' : '#i-info');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => this.hideToast(), 6500);
+  },
+  hideToast() { $('#toast').classList.remove('show'); },
+  loadingHtml(msg) { return `<div class="state"><div class="spinner"></div>${esc(msg || 'جارٍ التحميل…')}</div>`; },
+
+  /* ── chrome: progress, lock, diag badge ── */
+  renderChrome() {
+    const s = this.stats();
+    $('#tb-pct').textContent = s.pct + '%';
+    $('#tb-bar').style.width = s.pct + '%';
+    $('#tb-bar-wrap').setAttribute('aria-valuenow', String(s.pct));
+    $('#tb-sub').textContent = `أتقنت ${s.mastered} من ${s.total} فصول`;
+    const tab = $('#tab-chapters');
+    const wasLocked = tab.getAttribute('aria-disabled') === 'true';
+    tab.setAttribute('aria-disabled', String(this.locked));
+    $('#lock-ic use').setAttribute('href', this.locked ? '#i-lock' : '#i-unlock');
+    $('#lock-ic').style.display = '';
+    $('#lock-sr').textContent = this.locked ? 'مقفل' : 'مفتوح';
+    if (wasLocked && !this.locked) { tab.classList.add('just-unlocked'); setTimeout(() => tab.classList.remove('just-unlocked'), 900); }
+    const b = $('#diag-badge');
+    b.className = 'tab-badge' + (this.locked ? '' : ' done');
+    b.innerHTML = this.locked ? 'بوابة' : `${icon('check')}مكتمل`;
   },
 
-  renderBranch(host, result, d) {
-    const startLabel = d.chapterId ? 'التالي: دراسة المحتوى ←' : 'إنهاء التشخيص';
-    const onDone = () => d.onDone && d.onDone();
-    let inner;
-    if (result.branch === 'direct') {
-      inner = `
-        <div class="branch-icon">✅</div>
-        <div class="branch-title">ممتاز — كل متطلباتك جاهزة</div>
-        <div class="branch-desc">أجبت بشكل صحيح على كل أسئلة التشخيص. يمكنك المتابعة مباشرة دون أي محتوى علاجي إضافي.</div>
-        <button class="primary-btn" id="branch-continue">${startLabel}</button>`;
-    } else if (result.branch === 'capsule') {
-      inner = `
-        <div class="branch-icon">💊</div>
-        <div class="branch-title">كبسولة علاجية مصغّرة</div>
-        <div class="branch-desc">وجدنا ${result.weakCount} من ${result.totalCount} متطلبات تحتاج مراجعة سريعة قبل المتابعة:</div>
-        ${result.weakLabels.map(l => `<div class="capsule-item">📌 ${escapeHtml(l)} — راجع هذا المفهوم مع معلمك أو من مصدره الأساسي قبل المتابعة (~5 دقائق).</div>`).join('')}
-        <button class="primary-btn" style="margin-top:8px" id="branch-continue">${startLabel}</button>`;
+  switchTab(name, { silent } = {}) {
+    if (!TABS.includes(name)) name = 'overview';
+    this.tab = name;
+    TABS.forEach(t => {
+      const sel = t === name;
+      const btn = $('#tab-' + t);
+      btn.setAttribute('aria-selected', String(sel));
+      btn.tabIndex = sel ? 0 : -1;
+      $('#pane-' + t).hidden = !sel;
+    });
+    try { history.replaceState(null, '', '#' + name); } catch (e) {}
+    this.renderActive();
+    if (!silent) window.scrollTo({ top: 0, behavior: 'smooth' });
+    $('#tab-' + name).scrollIntoView({ inline: 'center', block: 'nearest' });
+  },
+  renderActive() {
+    ({ overview: () => this.renderOverview(), map: () => this.renderMap(), diag: () => this.renderDiag(),
+       chapters: () => this.renderChapters(), progress: () => this.renderProgress() })[this.tab]();
+  },
+  async refresh() { await this.loadOverview(); },
+
+  /* ── 1. overview ── */
+  renderOverview() {
+    const s = this.stats();
+    const review = this.overview.chapters.find(c => c.status === 'needs_review');
+    let next;
+    if (this.locked) {
+      next = { ok: false, ico: 'target', t: 'الخطوة التالية: تشخيص متطلباتك القبلية', d: 'ثلاثة أسئلة قصيرة بتغذية راجعة فورية — تُحدد نقطة انطلاقك وتفتح لك الفصول الدراسية.', btn: 'ابدأ التشخيص', act: 'go', tab: 'diag' };
+    } else if (review) {
+      next = { ok: false, ico: 'alert', t: `فصل «${review.title}» يحتاج مراجعة`, d: 'راجع متطلباته القبلية قبل المتابعة لتبني على أساس متين.', btn: 'فتح الفصل', act: 'open-chapter', id: review.chapterId };
     } else {
-      inner = `
-        <div class="branch-icon">🔔</div>
-        <div class="branch-title">تم تسجيل تنبيه لمعلمك</div>
-        <div class="branch-desc">ضعفك في أغلب المتطلبات القبلية (${result.weakCount} من ${result.totalCount}) — تم إشعار معلمك بذلك تلقائياً، ويمكنك المتابعة اختيارياً.</div>
-        <button class="primary-btn" id="branch-continue">${startLabel}</button>`;
+      next = { ok: true, ico: 'spark', t: 'أنت جاهز للانطلاق', d: s.mastered ? `أتقنت ${s.mastered} من ${s.total} فصول حتى الآن — تابع مسارك.` : 'اختر فصلاً من الفصول الدراسية وابدأ رحلتك.', btn: 'الفصول الدراسية', act: 'go', tab: 'chapters' };
     }
-    host.innerHTML = `<div class="section-card branch-box">${inner}</div>`;
-    document.getElementById('branch-continue').addEventListener('click', onDone);
+    $('#pane-overview').innerHTML = `
+      <div class="hero">
+        <svg class="hero-mol" width="280" height="180" viewBox="0 0 300 190" fill="none" aria-hidden="true">
+          <g stroke="rgba(255,255,255,.3)" stroke-width="2"><path d="M60 96 120 58M120 58 190 84M190 84 244 46M190 84 226 146M120 58 132 20M60 96 84 150"/></g>
+          <g fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.6)" stroke-width="2"><circle cx="60" cy="96" r="20"/><circle cx="120" cy="58" r="26"/><circle cx="190" cy="84" r="22"/><circle cx="244" cy="46" r="13"/><circle cx="226" cy="146" r="16"/><circle cx="132" cy="20" r="10"/><circle cx="84" cy="150" r="12"/></g>
+          <circle cx="120" cy="58" r="8" fill="rgba(255,255,255,.65)"/></svg>
+        <div class="hero-top"><div class="hero-icon">${icon('flask')}</div><h2>الكيمياء 1 — الفصل الدراسي الأول</h2></div>
+        <p>مرحباً بك في مادة الكيمياء 1. ابدأ بالتهيئة والمتطلبات القبلية لتحصل على أفضل نقطة انطلاق قبل الدخول في فصول المقرر.</p>
+      </div>
+      <div class="next-step ${next.ok ? 'ok' : ''}"><div class="ns-ic">${icon(next.ico)}</div>
+        <div class="ns-txt"><div class="ns-t">${esc(next.t)}</div><div class="ns-d">${esc(next.d)}</div></div>
+        <button type="button" class="btn sm" data-act="${next.act}" ${next.tab ? `data-tab="${next.tab}"` : ''} ${next.id ? `data-id="${esc(next.id)}"` : ''}>${esc(next.btn)} ${icon('chevL')}</button></div>
+      <div class="feat-grid">
+        <button type="button" class="feat" style="--c:var(--p)" data-act="go" data-tab="map">
+          <span class="f-badge pill ok">متاح</span><div class="f-tile">${icon('map')}</div>
+          <div class="f-t">تمهيد وتهيئة المقرر</div><div class="f-d">خارطة فصول المقرر وعلاقاتها، وتشخيص متطلباتك القبلية قبل البدء.</div>
+          <div class="f-go">ابدأ الآن ${icon('chevL')}</div></button>
+        <button type="button" class="feat" style="--c:var(--v)" data-act="go" data-tab="chapters">
+          <span class="f-badge pill ${this.locked ? 'warn' : 'ok'}">${this.locked ? icon('lock') + 'مقفل' : 'متاح'}</span><div class="f-tile">${icon('book')}</div>
+          <div class="f-t">الفصول الدراسية</div><div class="f-d">مسار كل فصل خطوة بخطوة: تمهيد، متطلبات، تشخيص، ملخص وأسئلة تقويمية.</div>
+          <div class="f-go">${this.locked ? 'يُفتح بعد التشخيص العام' : 'فتح الفصول'} ${icon('chevL')}</div></button>
+        <div class="feat off" style="--c:var(--g)" aria-disabled="true">
+          <span class="f-badge pill mute">قريباً</span><div class="f-tile">${icon('target')}</div>
+          <div class="f-t">اختبارات تدريبية</div><div class="f-d">تدرّب على أسئلة كل فصل بعد إنهاء دراسته.</div>
+          <div class="f-go">${icon('lock')}قريباً</div></div>
+      </div>`;
   },
 
-  // ── Tab 5: تقدّمي ───────────────────────────────────────────────────────
-  renderProgressTab() {
-    const chapters = this.overview.chapters;
-    const mastered = chapters.filter(c => c.status === 'mastered').length;
-    const needsReview = chapters.filter(c => c.status === 'needs_review').length;
-    const host = document.getElementById('progress-host');
-    host.innerHTML = `
-      <div class="progress-stat-grid">
-        <div class="progress-stat"><div class="p-num">${mastered}/${chapters.length}</div><div class="p-label">فصول متقنة</div></div>
-        <div class="progress-stat"><div class="p-num">${needsReview}</div><div class="p-label">تحتاج مراجعة</div></div>
-        <div class="progress-stat"><div class="p-num">${this.overview.seenIntro ? '✅' : '—'}</div><div class="p-label">تشخيص المادة</div></div>
-      </div>
-      <div class="section-card">
-        <h3><span class="dot"></span>مستوى إتقانك لكل فصل</h3>
-        ${chapters.map(c => `
-          <div class="progress-chapter-row">
-            <span class="pc-title">فصل ${c.orderNum} — ${escapeHtml(c.title)}</span>
-            <span class="pc-status ${c.status}">${c.status === 'mastered' ? 'متقن ✅' : c.status === 'needs_review' ? 'يحتاج مراجعة 🟠' : 'لم يُشخَّص بعد'}</span>
-          </div>
-        `).join('')}
+  /* ── 2. concept map ── */
+  renderMap() {
+    const ch = this.overview.chapters;
+    const layerPills = Object.entries(LAYER_LABELS).map(([k, l]) => `<span class="pill l-${k}">${l}</span>`).join('');
+    const cards = ch.map((c, i) => this.chapterCard(c, i, ch, true)).join('');
+    const prq = (this.overview.subject.subjectPrereqs || []).map(p => {
+      const key = Object.keys(SOURCE_ICON).find(k => p.source.includes(k));
+      const col = key === 'رياضيات' ? 'var(--v)' : 'var(--p)';
+      return `<div class="prq"><div class="p-n">${esc(p.label)}</div><div class="p-r"><span class="pill" style="--c:${col}">${icon(SOURCE_ICON[key] || 'book')}${esc(p.source)}</span><span class="p-u">يخدم <b>${esc(p.usedIn)}</b></span></div></div>`;
+    }).join('');
+    $('#pane-map').innerHTML = `
+      <div class="card"><div class="card-h"><span class="dot"></span><h3>مسار الرحلة التعليمية — فصول المقرر وعلاقاتها</h3><div class="end legend">${layerPills}</div></div>
+        <div class="rm" id="rm"><svg class="rm-svg" id="rm-svg" aria-hidden="true"></svg><div class="rm-list">${cards}</div></div></div>
+      ${prq ? `<div class="card"><div class="card-h"><span class="dot"></span><h3>المتطلبات القبلية على مستوى المادة</h3></div><div class="prereq-grid">${prq}</div></div>` : ''}
+      <button type="button" class="btn block" style="min-height:64px;font-size:17px" data-act="go" data-tab="${this.locked ? 'diag' : 'chapters'}">${icon('target')}${this.locked ? 'ابدأ رحلة التشخيص واستكشف مستواك الآن' : 'تابع إلى الفصول الدراسية'}${icon('chevL')}</button>`;
+    if (this.ro) { this.ro.disconnect(); this.ro.observe($('#rm')); }
+    requestAnimationFrame(() => this.drawRail());
+  },
+  chapterCard(c, i, all, mapMode) {
+    const st = STATUS[c.status] || STATUS.default;
+    const multi = c.dependsOn.length > 1;
+    const idx = (id) => all.findIndex(x => x.chapterId === id);
+    const deps = c.dependsOn.length
+      ? `${icon('link')} يعتمد على ${c.dependsOn.map(d => { const j = idx(d); return j < 0 ? '' : `<span class="dep-chip" style="--c:var(--l-${all[j].layer})">الفصل ${all[j].orderNum}</span>`; }).join('')}`
+      : `${icon('spark')} بداية المقرر`;
+    const feeds = all.filter(x => x.dependsOn.length > 1 && x.dependsOn.includes(c.chapterId));
+    const tag = feeds.length
+      ? `<span class="feeds">${icon('flag')}يُبنى عليه الفصل ${feeds.map(f => f.orderNum).join(' و ')}</span>`
+      : `<span>${c.subtopics.length} مواضيع</span>`;
+    return `<button type="button" class="ch ${c.status} ${multi ? 'multi' : ''}" data-act="open-chapter" data-id="${esc(c.chapterId)}" data-i="${i}">
+      <div class="ch-top"><span class="ch-num">الفصل ${c.orderNum}</span><span class="pill l-${c.layer}">${LAYER_LABELS[c.layer] || esc(c.layer)}</span>${!c.hasDiagnostic ? '<span class="pill mute">تشخيص قريباً</span>' : ''}
+        <span class="ch-status">${icon(st.ico)}${st.label}</span></div>
+      <div class="ch-title">${esc(c.title)}</div>
+      <div class="ch-bot">${deps}<span class="grow">${tag}</span></div></button>`;
+  },
+  // Dependency rail measured from the real card positions, so it stays correct
+  // when card heights change (mobile wrapping, long titles, font swap).
+  drawRail() {
+    const rm = $('#rm'); const svg = $('#rm-svg');
+    if (!rm || !svg || !rm.offsetParent) return;
+    const ch = this.overview.chapters;
+    const cards = [...rm.querySelectorAll('.ch')];
+    if (cards.length !== ch.length) return;
+    const RW = parseFloat(getComputedStyle(rm).paddingInlineStart) || 120;
+    const X = RW - 30;
+    const ys = cards.map(c => c.offsetTop + c.offsetHeight / 2);
+    const H = rm.offsetHeight;
+    const wide = RW >= 100;
+    const parts = [
+      `<defs><filter id="glow" x="-50%" y="-20%" width="200%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+       <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="arw" d="M1 1l8 4-8 4z"/></marker></defs>`,
+    ];
+    ch.forEach((c, i) => {
+      if (i > 0) {
+        const multi = c.dependsOn.length > 1;
+        const cls = multi ? 'hi' : (ch[i - 1].status === 'mastered' ? 'done' : 'dim');
+        parts.push(`<path class="rl ${cls}" d="M${X} ${ys[i - 1]}V${ys[i]}" ${multi ? 'filter="url(#glow)"' : ''}/>`);
+      }
+      // skip-level dependencies (e.g. chapter 4 ← 2) become arcs beside the rail
+      c.dependsOn.forEach((d) => {
+        const j = ch.findIndex(x => x.chapterId === d);
+        if (j < 0 || j === i - 1) return;
+        const bulge = Math.max(X - 26 - (i - j - 1) * 14, 10);
+        parts.push(`<path class="arc" d="M${X - 13} ${ys[j]}C ${bulge} ${ys[j]}, ${bulge} ${ys[i]}, ${X - 15} ${ys[i]}" marker-end="url(#arw)" filter="url(#glow)"/>`);
+        if (wide) {
+          const mid = (ys[j] + ys[i]) / 2;
+          const nums = c.dependsOn.map(x => ch.find(y => y.chapterId === x)?.orderNum).filter(Boolean);
+          parts.push(`<text class="arc-txt" x="16" y="${mid}" transform="rotate(-90 16 ${mid})" text-anchor="middle">الفصل ${c.orderNum} يعتمد على ${nums.join(' و ')}</text>`);
+        }
+      });
+    });
+    ch.forEach((c, i) => {
+      const multi = c.dependsOn.length > 1;
+      const y = ys[i];
+      if (c.status === 'mastered') parts.push(`<circle class="nd mastered" cx="${X}" cy="${y}" r="13"/><path class="nd-check" d="M${X - 5.5} ${y + .5}l3.6 3.6 7-7.4"/>`);
+      else if (c.status === 'needs_review') parts.push(`<circle class="nd-halo" cx="${X}" cy="${y}" r="21"/><circle class="nd needs_review" cx="${X}" cy="${y}" r="13"/><circle class="nd-core" cx="${X}" cy="${y}" r="4.5"/>`);
+      else parts.push(`${multi ? `<circle class="nd-halo multi" cx="${X}" cy="${y}" r="22"/>` : ''}<circle class="nd default ${multi ? 'multi' : ''}" style="--c:var(--l-${c.layer})" cx="${X}" cy="${y}" r="12"/>${multi ? `<circle class="nd-core multi" cx="${X}" cy="${y}" r="4.5"/>` : ''}`);
+    });
+    svg.setAttribute('width', RW); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${RW} ${H}`);
+    svg.innerHTML = parts.join('');
+  },
+
+  /* ── 3. subject diagnostic (the mandatory gate) ── */
+  renderDiag() {
+    const pane = $('#pane-diag');
+    const ph = this.subj.phase;
+    if (ph === 'engine') { /* engine owns the DOM; keep it */ if (!$('#subj-host')) this.subj.phase = 'intro'; else return; }
+    if (this.subj.phase === 'result') {
+      pane.innerHTML = `<div class="card">${branchHtml(this.subj.result, { act: 'subj-continue', label: 'استمر إلى الفصول الدراسية' })}</div>`;
+      return;
+    }
+    if (this.subj.phase === 'loading') { pane.innerHTML = this.loadingHtml(); return; }
+    if (!this.locked) {
+      pane.innerHTML = `<div class="card"><div class="gate-intro"><div class="gi-ic" style="color:rgb(var(--g));background:rgb(var(--g) / .14);border-color:rgb(var(--g) / .36)">${icon('okc')}</div>
+        <div class="gi-t"><h3>أنجزت تشخيص المتطلبات القبلية</h3><p>تم فتح الفصول الدراسية لك. يمكنك مراجعة خارطة المفاهيم أو الانتقال مباشرة إلى فصولك.</p></div>
+        <button type="button" class="btn" data-act="go" data-tab="chapters">الفصول الدراسية ${icon('chevL')}</button></div></div>`;
+      return;
+    }
+    pane.innerHTML = `<div class="card"><div class="gate-intro"><div class="gi-ic">${icon('target')}</div>
+      <div class="gi-t"><h3>بوابة المقرر: تشخيص متطلباتك القبلية</h3>
+        <p>هذه الخطوة إلزامية قبل فتح الفصول الدراسية. ثلاثة أسئلة قصيرة، وتحصل بعد كل خيار على تغذية راجعة فورية تشرح لك الصحيح وسبب اللبس.</p>
+        <div class="steps-mini"><span class="pill">${icon('check')}3 أسئلة</span><span class="pill">${icon('bulb')}تغذية راجعة فورية</span><span class="pill warn">${icon('lock')}تفتح الفصول بعد إنهائه</span></div></div>
+      <button type="button" class="btn" data-act="start-subject">${icon('target')}ابدأ التشخيص</button></div></div>`;
+  },
+  async startSubject() {
+    const pane = $('#pane-diag');
+    pane.innerHTML = this.loadingHtml('جارٍ تحضير الأسئلة…');
+    try {
+      const data = await apiFetch(`/api/prereq/diagnostic?subject=${SUBJECT_ID}&scope=subject`);
+      if (!data.questions?.length) { this.toast('هذا القسم لا يتطلب تشخيصاً قبلياً مسبقاً، يمكنك البدء في دراسة المحتوى مباشرة.'); this.renderDiag(); return; }
+      pane.innerHTML = `<div class="card"><button type="button" class="back" data-act="go" data-tab="map">${icon('chevR')}رجوع لخارطة الفصول</button><div id="subj-host"></div></div>`;
+      this.subj.phase = 'engine';
+      this.engines.subj = new Engine('subj', $('#subj-host'), data.questions, (weak) => this.submitSubject(weak));
+      this.engines.subj.render();
+    } catch (e) {
+      this.subj.phase = 'intro'; this.renderDiag(); this.toast('تعذّر تحميل التشخيص: ' + e.message);
+    }
+  },
+  async submitSubject(weakLabels) {
+    $('#pane-diag').innerHTML = this.loadingHtml('جارٍ حساب النتيجة…');
+    this.subj.phase = 'loading';
+    try {
+      const result = await apiFetch('/api/prereq/diagnostic/submit', { method: 'POST', body: JSON.stringify({ subjectId: SUBJECT_ID, scope: 'subject', weakLabels }) });
+      this.subj.result = result; this.subj.phase = 'result';
+      await this.loadOverview();           // seenIntro is now true → the lock releases live
+      this.tab === 'diag' && this.renderDiag();
+      this.toast('تم فتح الفصول الدراسية', 'ok');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      this.subj.phase = 'intro'; this.renderDiag(); this.toast('تعذّر إرسال النتيجة: ' + e.message);
+    }
+  },
+
+  /* ── 4. chapters (locked until the general diagnostic is done) ── */
+  renderChapters() {
+    const pane = $('#pane-chapters');
+    if (this.locked) {
+      pane.innerHTML = `<div class="card locked"><div class="lk">${icon('lock')}</div><h3>الفصول الدراسية مقفلة</h3>
+        <p>تُفتح الفصول تلقائياً بعد إنهاء تشخيص المتطلبات القبلية العام. يستغرق ثلاثة أسئلة فقط، وتحصل على تغذية راجعة لكل خيار.</p>
+        <button type="button" class="btn" data-act="go" data-tab="diag">${icon('target')}انتقل إلى التشخيص</button></div>`;
+      return;
+    }
+    if (this.chap) { this.renderChapterFlow(); return; }
+    const ch = this.overview.chapters;
+    pane.innerHTML = `<div class="card"><div class="card-h"><span class="dot"></span><h3>الفصول الدراسية</h3><div class="end"><span class="pill ok">${icon('unlock')}مفتوحة</span></div></div>
+      <div class="ch-grid">${ch.map((c, i) => this.chapterCard(c, i, ch, false)).join('')}</div></div>`;
+  },
+  openChapter(id) {
+    const c = this.chapterById(id);
+    if (!c) return;
+    if (this.locked) { this.toast(LOCK_MSG); if (this.tab !== 'diag') this.switchTab('diag'); return; }
+    if (!c.hasDiagnostic) {
+      this.toast(`فصل "${c.title}" لا يتطلب تشخيصاً قبلياً حالياً، يمكنك البدء في دراسة محتواه مباشرة بعد توفره.`);
+      return;
+    }
+    const done = c.status !== 'default';
+    this.chap = { id, meta: c, step: 0, max: done ? 3 : 0, questions: null, phase: done ? 'done' : 'ready', result: null, summary: null };
+    this.switchTab('chapters');
+  },
+  renderChapterFlow() {
+    const ch = this.chap;
+    const items = STEPS.map((s, i) => {
+      const state = i === ch.step ? 'cur' : (i < ch.step || i < ch.max ? 'done' : '');
+      const reach = i <= ch.max;
+      return `<li class="${state}"><button type="button" class="st-btn" data-act="chap-step" data-step="${i}" ${reach ? '' : 'disabled'} ${i === ch.step ? 'aria-current="step"' : ''}>
+        <span class="st-dot">${state === 'done' ? icon('check') : icon(s.ico)}</span><span class="st-lb">${s.label}</span></button></li>`;
+    }).join('');
+    const st = STATUS[ch.meta.status] || STATUS.default;
+    $('#pane-chapters').innerHTML = `
+      <button type="button" class="back" data-act="chap-back">${icon('chevR')}رجوع للفصول الدراسية</button>
+      <div class="card">
+        <div class="card-h"><span class="dot"></span><h3>الفصل ${ch.meta.orderNum}: ${esc(ch.meta.title)}</h3>
+          <div class="end"><span class="pill l-${ch.meta.layer}">${LAYER_LABELS[ch.meta.layer] || ''}</span><span class="pill ${ch.meta.status === 'mastered' ? 'ok' : ch.meta.status === 'needs_review' ? 'warn' : 'mute'}">${icon(st.ico)}${st.label}</span></div></div>
+        <ol class="stepper" aria-label="خطوات الفصل">${items}</ol>
+        <div class="step-panel" id="step-panel"></div>
       </div>`;
+    this.renderStep();
+  },
+  gotoStep(i) {
+    const ch = this.chap;
+    if (i < 0 || i > ch.max || i >= STEPS.length) return;
+    ch.step = i;
+    if (i === 4 || i === 5) this.ensureSummary();
+    this.renderChapterFlow();
+    const sp = $('#step-panel'); if (sp) { sp.tabIndex = -1; sp.focus({ preventScroll: true }); }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+  advance() {
+    const ch = this.chap;
+    const n = Math.min(ch.step + 1, STEPS.length - 1);
+    ch.max = Math.max(ch.max, n);
+    this.gotoStep(n);
+  },
+  async ensureSummary() {
+    const ch = this.chap;
+    if (ch.summary || ch.summaryLoading) return;
+    ch.summaryLoading = true;
+    try {
+      ch.summary = await apiFetch(`/api/prereq/chapter-summary?chapterId=${encodeURIComponent(ch.id)}`);
+      ch.summaryErr = null;
+    } catch (e) { ch.summaryErr = e.message; }
+    ch.summaryLoading = false;
+    if (this.chap === ch && (ch.step === 4 || ch.step === 5)) this.renderStep();
+  },
+  async ensureQuestions() {
+    const ch = this.chap;
+    if (ch.questions) return ch.questions;
+    const data = await apiFetch(`/api/prereq/diagnostic?subject=${SUBJECT_ID}&scope=chapter&chapterId=${encodeURIComponent(ch.id)}`);
+    ch.questions = data.questions || [];
+    return ch.questions;
+  },
+  navBtns({ prev = true, next = true, nextLabel = 'التالي', nextDisabled = false } = {}) {
+    return `<div class="step-nav">${prev ? `<button type="button" class="btn ghost sm" data-act="chap-prev">${icon('chevR')}السابق</button>` : '<span></span>'}
+      ${next ? `<button type="button" class="btn sm" data-act="chap-next" ${nextDisabled ? 'disabled' : ''}>${nextLabel} ${icon('chevL')}</button>` : ''}</div>`;
+  },
+  async renderStep() {
+    const ch = this.chap; const host = $('#step-panel');
+    if (!ch || !host) return;
+    const c = ch.meta;
+    const all = this.overview.chapters;
+    const S = STEPS[ch.step].key;
+    if (S === 'intro') {
+      const deps = c.dependsOn.length
+        ? c.dependsOn.map(d => { const x = all.find(y => y.chapterId === d); return x ? `<span class="dep-chip" style="--c:var(--l-${x.layer})">الفصل ${x.orderNum}: ${esc(x.title)}</span>` : ''; }).join(' ')
+        : '<span class="pill">بداية المقرر</span>';
+      host.innerHTML = `<p style="margin:0 0 18px;font-size:16px;line-height:2">${esc(c.description)}</p>
+        <h4 style="font-size:15px;margin-bottom:8px">مواضيع الفصل</h4><div class="sub-list">${c.subtopics.map(t => `<span class="chip">${esc(t)}</span>`).join('')}</div>
+        <h4 style="font-size:15px;margin:18px 0 8px">يعتمد على</h4><div class="ch-bot" style="gap:10px">${icon('link')}${deps}</div>
+        ${this.navBtns({ prev: false, nextLabel: 'متابعة إلى المتطلبات القبلية' })}`;
+    } else if (S === 'prereq') {
+      host.innerHTML = this.loadingHtml();
+      try {
+        const qs = await this.ensureQuestions();
+        if (this.chap !== ch || STEPS[ch.step].key !== 'prereq') return;
+        host.innerHTML = `<p style="margin:0 0 16px;font-size:16px;line-height:1.95">قبل دخول هذا الفصل سنراجع معك <b>${qs.length}</b> متطلبات قبلية أساسية، يرتكز عليها فهمك للمحتوى:</p>
+          <div class="mini-grid">${qs.map((q, i) => `<div class="mini"><span class="mn">${i + 1}</span><span class="mt">${esc(q.prerequisiteLabel)}</span></div>`).join('')}</div>
+          ${this.navBtns({ nextLabel: 'متابعة إلى تشخيص الفصل' })}`;
+      } catch (e) { host.innerHTML = `<div class="state">${icon('alert')}<p>تعذّر تحميل المتطلبات: ${esc(e.message)}</p></div>${this.navBtns({ next: false })}`; }
+    } else if (S === 'diag') {
+      if (ch.phase === 'ready') {
+        host.innerHTML = `<div class="gate-intro"><div class="gi-ic">${icon('target')}</div><div class="gi-t"><h3>تشخيص الفصل</h3>
+          <p>أسئلة قصيرة تقيس جاهزيتك لهذا الفصل، مع تغذية راجعة فورية لكل خيار. لا يمنعك أي شيء من المتابعة بعدها.</p></div>
+          <button type="button" class="btn" data-act="chap-start-diag">${icon('target')}ابدأ التشخيص</button></div>${this.navBtns({ next: false })}`;
+      } else if (ch.phase === 'loading') {
+        host.innerHTML = this.loadingHtml();
+      } else if (ch.phase === 'engine') {
+        if (!$('#chap-host')) host.innerHTML = '<div id="chap-host"></div>';
+        this.engines.chap.host = $('#chap-host'); this.engines.chap.render();
+      } else if (ch.phase === 'result') {
+        host.innerHTML = branchHtml(ch.result, { act: 'chap-diag-continue', label: 'متابعة إلى المحتوى' });
+      } else {
+        const st = STATUS[c.status];
+        host.innerHTML = `<div class="branch"><div class="b-ic" style="--c:var(--${c.status === 'mastered' ? 'g' : 'a'})">${icon(st.ico)}</div><h3>أنجزت تشخيص هذا الفصل</h3>
+          <p class="b-d">حالتك الحالية في هذا الفصل: <b>${st.label}</b>. يمكنك المتابعة إلى المحتوى أو إعادة التشخيص.</p>
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn" data-act="chap-diag-continue">متابعة إلى المحتوى ${icon('chevL')}</button>
+          <button type="button" class="btn ghost" data-act="chap-retake">إعادة التشخيص</button></div></div>${this.navBtns({ next: false })}`;
+      }
+    } else if (S === 'content') {
+      host.innerHTML = `<div class="soon-box"><div class="sb-ic">${icon('book')}</div><h3 style="font-size:20px;margin-bottom:6px">محتوى الفصل قيد الإعداد</h3>
+        <p style="margin:0;color:var(--muted);line-height:1.9">سيُضاف شرح كل موضوع من مواضيع هذا الفصل هنا. تابع الآن إلى ملخص الفصل والأسئلة التقويمية.</p>
+        <div class="soon-list">${c.subtopics.map(t => `<div>${icon('book')}${esc(t)}<span class="pill mute">قريباً</span></div>`).join('')}</div></div>
+        ${this.navBtns({ nextLabel: 'متابعة إلى ملخص الفصل' })}`;
+    } else if (S === 'summary' || S === 'eval') {
+      if (ch.summaryErr) { host.innerHTML = `<div class="state">${icon('alert')}<p>لا يتوفر ملخص لهذا الفصل بعد (${esc(ch.summaryErr)}).</p></div>${this.navBtns({ next: S === 'summary', nextLabel: 'أسئلة تقويمية' })}`; return; }
+      if (!ch.summary) { host.innerHTML = this.loadingHtml(); this.ensureSummary(); return; }
+      if (S === 'summary') {
+        const s = ch.summary.summary;
+        host.innerHTML = `<div class="sum-grid">
+          <div class="sum-block"><h4>المفاهيم الأساسية</h4>${s.keyConcepts.map(k => `<span class="chip" style="margin:3px">${esc(k)}</span>`).join('')}</div>
+          <div class="sum-block"><h4>مصطلحات جديدة</h4>${s.newTerms.map(t => `<div class="term"><b>${esc(t.term)}</b> — ${esc(t.definition)}</div>`).join('')}</div>
+          <div class="sum-block"><h4>القانون الأساسي</h4><div class="term">${esc(s.coreRule)}</div></div>
+          <div class="sum-block"><h4>مثال محلول</h4><div class="term">${esc(s.workedExample)}</div></div>
+          <div class="sum-block"><h4>خطأ شائع</h4><div class="term">${esc(s.commonPitfall)}</div></div></div>
+          ${this.navBtns({ nextLabel: 'متابعة إلى الأسئلة التقويمية' })}`;
+      } else {
+        host.innerHTML = `<div class="eval-grid">${ch.summary.evaluationQuestions.map((q, i) => `
+          <div class="ev ${esc(q.level)}"><div class="ev-l">${icon(q.level === 'knowledge' ? 'book' : 'bulb')}${q.level === 'knowledge' ? 'معرفي' : 'مهارات تفكير عليا'}</div>
+            <div class="ev-p">${esc(q.prompt)}</div>
+            <button type="button" class="reveal" data-act="reveal" data-i="${i}" aria-expanded="false" aria-controls="model-${i}">${icon('chevL')}<span>عرض الإجابة النموذجية</span></button>
+            <div class="model" id="model-${i}" hidden>${esc(q.modelAnswer)}</div></div>`).join('')}</div>
+          <div class="step-nav"><button type="button" class="btn ghost sm" data-act="chap-prev">${icon('chevR')}السابق</button>
+          <button type="button" class="btn sm" data-act="chap-finish">${icon('check')}أنهيت الفصل — العودة للفصول</button></div>`;
+      }
+    }
+  },
+  async startChapterDiag() {
+    const ch = this.chap;
+    ch.phase = 'loading'; this.renderStep();
+    try {
+      const qs = await this.ensureQuestions();
+      if (!qs.length) { ch.phase = 'ready'; this.renderStep(); this.toast('هذا القسم لا يتطلب تشخيصاً قبلياً مسبقاً، يمكنك المتابعة مباشرة.'); return; }
+      this.engines.chap = new Engine('chap', null, qs, (weak) => this.submitChapter(weak));
+      ch.phase = 'engine'; this.renderStep();
+    } catch (e) { ch.phase = 'ready'; this.renderStep(); this.toast('تعذّر تحميل التشخيص: ' + e.message); }
+  },
+  async submitChapter(weakLabels) {
+    const ch = this.chap;
+    ch.phase = 'loading'; this.renderStep();
+    try {
+      ch.result = await apiFetch('/api/prereq/diagnostic/submit', { method: 'POST', body: JSON.stringify({ subjectId: SUBJECT_ID, scope: 'chapter', chapterId: ch.id, weakLabels }) });
+      ch.phase = 'result';
+      ch.max = Math.max(ch.max, 3);
+      const before = ch.meta.status;
+      await this.loadOverview();                 // progress ring + chapter status update live
+      if (this.chap === ch) { ch.meta = this.chapterById(ch.id) || ch.meta; this.renderChapterFlow(); }
+      if (before !== ch.meta.status) window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) { ch.phase = 'ready'; this.renderStep(); this.toast('تعذّر إرسال النتيجة: ' + e.message); }
+  },
+
+  /* ── 5. my progress ── */
+  renderProgress() {
+    const s = this.stats(); const ch = this.overview.chapters;
+    const rows = ch.map(c => {
+      const st = STATUS[c.status] || STATUS.default;
+      const pc = c.status === 'mastered' ? 'ok' : c.status === 'needs_review' ? 'warn' : 'mute';
+      return `<div class="p-row"><div class="pr-n">الفصل ${c.orderNum}: ${esc(c.title)}<small>${LAYER_LABELS[c.layer] || ''} · ${c.subtopics.length} مواضيع</small></div>
+        <span class="pill ${pc}">${icon(st.ico)}${st.label}</span>
+        <button type="button" class="btn ghost sm" data-act="open-chapter" data-id="${esc(c.chapterId)}">${this.locked ? icon('lock') : ''}فتح</button></div>`;
+    }).join('');
+    $('#pane-progress').innerHTML = `
+      <div class="card"><div class="prog-top"><div class="ring" style="--v:${s.pct}" role="img" aria-label="${s.pct}% من الفصول متقنة"><div>${s.pct}%</div></div>
+        <div class="pt"><h3>تقدّمك التراكمي في الكيمياء 1</h3><p>أتقنت <b>${s.mastered}</b> من <b>${s.total}</b> فصول${s.review ? `، و<b>${s.review}</b> ${s.review === 1 ? 'فصل يحتاج' : 'فصول تحتاج'} مراجعة` : ''}. يرتفع المؤشر كلما أتقنت متطلبات فصل جديد.</p></div></div></div>
+      <div class="card"><div class="card-h"><span class="dot"></span><h3>حالة الفصول</h3></div>
+        <div class="p-row"><div class="pr-n">تشخيص المتطلبات القبلية العام<small>بوابة فتح الفصول الدراسية</small></div>
+          <span class="pill ${this.locked ? 'warn' : 'ok'}">${icon(this.locked ? 'lock' : 'check')}${this.locked ? 'لم يُنجز' : 'مكتمل'}</span>
+          ${this.locked ? `<button type="button" class="btn sm" data-act="go" data-tab="diag">ابدأ</button>` : ''}</div>
+        ${rows}</div>`;
   },
 };
 

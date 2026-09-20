@@ -5,6 +5,18 @@ import postgres from 'postgres';
 
 let _sql = null;
 
+// Pool size. It was hard-wired to 1, which made every concurrent query in a
+// request (Promise.all) and every concurrent request queue behind a single
+// connection. 5 gives real concurrency while staying well under typical
+// managed-Postgres connection limits (this process is one Node instance).
+// Override with PG_POOL_MAX if the database plan allows more (or needs fewer).
+export const DEFAULT_POOL_MAX = 5;
+export function resolvePoolMax(env = {}) {
+  const n = Number.parseInt(env.PG_POOL_MAX, 10);
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_POOL_MAX;
+  return Math.min(n, 20);
+}
+
 function getSqlClient(env) {
   if (_sql) return _sql;
   _sql = postgres({
@@ -14,7 +26,7 @@ function getSqlClient(env) {
     username: env.PG_USERNAME,
     password: env.PG_PASSWORD,
     ssl: env.PG_SSL === 'false' ? false : (env.PG_SSL || 'prefer'),
-    max: 1,
+    max: resolvePoolMax(env),
     onnotice: () => {},
   });
   return _sql;

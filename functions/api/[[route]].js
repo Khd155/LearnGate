@@ -454,8 +454,17 @@ const PREREQ_SEED_DATA = {
 };
 
 let _prereqSchemaEnsured = false;
-async function _ensurePrereqSchema(DB) {
-  if (_prereqSchemaEnsured) return;
+let _prereqSchemaPending = null;
+// Concurrent first requests share ONE in-flight provisioning run (racing two
+// CREATE TABLE IF NOT EXISTS can still collide in Postgres' catalog).
+function _ensurePrereqSchema(DB) {
+  if (_prereqSchemaEnsured) return Promise.resolve();
+  if (!_prereqSchemaPending) {
+    _prereqSchemaPending = _runPrereqSchema(DB).finally(() => { _prereqSchemaPending = null; });
+  }
+  return _prereqSchemaPending;
+}
+async function _runPrereqSchema(DB) {
   await DB.prepare(`CREATE TABLE IF NOT EXISTS course_chapters (
     chapter_id TEXT PRIMARY KEY, subject_id TEXT NOT NULL, term INTEGER NOT NULL, order_num INTEGER NOT NULL,
     title TEXT NOT NULL, subtopics TEXT NOT NULL DEFAULT '[]', layer TEXT NOT NULL,
@@ -483,31 +492,29 @@ async function _ensurePrereqSchema(DB) {
     PRIMARY KEY (student_id, subject_id)
   )`).run();
 
-  for (const c of PREREQ_SEED_DATA.chapters) {
-    await DB.prepare(
+  // Seed rows are independent (ON CONFLICT DO NOTHING), so they go out in
+  // parallel: sequentially this was ~15 DB round trips on the first request
+  // after every deploy/restart, which is what made the first open of the
+  // subject page hang for a couple of seconds.
+  await Promise.all([
+    ...PREREQ_SEED_DATA.chapters.map(c => DB.prepare(
       `INSERT INTO course_chapters (chapter_id, subject_id, term, order_num, title, subtopics, layer, depends_on, description)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (chapter_id) DO NOTHING`
-    ).bind(c.chapterId, c.subjectId, c.term, c.orderNum, c.title, JSON.stringify(c.subtopics), c.layer, JSON.stringify(c.dependsOn), c.description).run();
-  }
-  for (const q of PREREQ_SEED_DATA.diagnosticQuestions) {
-    await DB.prepare(
+    ).bind(c.chapterId, c.subjectId, c.term, c.orderNum, c.title, JSON.stringify(c.subtopics), c.layer, JSON.stringify(c.dependsOn), c.description).run()),
+    ...PREREQ_SEED_DATA.diagnosticQuestions.map(q => DB.prepare(
       `INSERT INTO diagnostic_questions (question_id, scope, subject_id, chapter_id, prerequisite_label, prompt, options, order_num)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (question_id) DO NOTHING`
     ).bind(q.questionId, q.scope, q.subjectId, q.chapterId, q.prerequisiteLabel, q.prompt,
-      JSON.stringify(q.options.map(o => ({ text: o.text, is_correct: o.isCorrect, feedback: o.feedback }))), q.orderNum).run();
-  }
-  for (const s of PREREQ_SEED_DATA.chapterSummaries) {
-    await DB.prepare(
+      JSON.stringify(q.options.map(o => ({ text: o.text, is_correct: o.isCorrect, feedback: o.feedback }))), q.orderNum).run()),
+    ...PREREQ_SEED_DATA.chapterSummaries.map(s => DB.prepare(
       `INSERT INTO chapter_summaries (chapter_id, key_concepts, new_terms, core_rule, worked_example, common_pitfall)
        VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (chapter_id) DO NOTHING`
-    ).bind(s.chapterId, JSON.stringify(s.keyConcepts), JSON.stringify(s.newTerms), s.coreRule, s.workedExample, s.commonPitfall).run();
-  }
-  for (const e of PREREQ_SEED_DATA.evaluationQuestions) {
-    await DB.prepare(
+    ).bind(s.chapterId, JSON.stringify(s.keyConcepts), JSON.stringify(s.newTerms), s.coreRule, s.workedExample, s.commonPitfall).run()),
+    ...PREREQ_SEED_DATA.evaluationQuestions.map(e => DB.prepare(
       `INSERT INTO evaluation_questions (question_id, chapter_id, level, prompt, model_answer)
        VALUES (?, ?, ?, ?, ?) ON CONFLICT (question_id) DO NOTHING`
-    ).bind(e.questionId, e.chapterId, e.level, e.prompt, e.modelAnswer).run();
-  }
+    ).bind(e.questionId, e.chapterId, e.level, e.prompt, e.modelAnswer).run()),
+  ]);
   _prereqSchemaEnsured = true;
 }
 
@@ -3655,25 +3662,24 @@ export async function onRequest({ request, env }) {
         const meta = PREREQ_SUBJECT_META[subj];
         if (!meta) return err('مادة غير معروفة', 404, CORS);
 
-        const { results: chapters } = await DB.prepare(
-          'SELECT * FROM course_chapters WHERE subject_id = ? ORDER BY term, order_num'
-        ).bind(subj).all();
-        const { results: chapterResults } = await DB.prepare(
-          `SELECT DISTINCT ON (chapter_id) chapter_id, weak_count, total_count, created_at
-           FROM student_prereq_results
-           WHERE student_id = ? AND subject_id = ? AND scope = 'chapter' AND chapter_id IS NOT NULL
-           ORDER BY chapter_id, created_at DESC`
-        ).bind(studentId, subj).all();
+        // The four reads are independent, so they go out together: each DB
+        // round trip is the dominant cost of this endpoint, and running them
+        // in sequence made opening the subject page noticeably slower.
+        // (diagChapterRows = which chapters actually have diagnostic questions
+        // seeded — the UI must never open the diagnostic screen for a chapter
+        // with zero questions: empty state, not a crash.)
+        const [{ results: chapters }, { results: chapterResults }, progress, { results: diagChapterRows }] = await Promise.all([
+          DB.prepare('SELECT * FROM course_chapters WHERE subject_id = ? ORDER BY term, order_num').bind(subj).all(),
+          DB.prepare(
+            `SELECT DISTINCT ON (chapter_id) chapter_id, weak_count, total_count, created_at
+             FROM student_prereq_results
+             WHERE student_id = ? AND subject_id = ? AND scope = 'chapter' AND chapter_id IS NOT NULL
+             ORDER BY chapter_id, created_at DESC`
+          ).bind(studentId, subj).all(),
+          DB.prepare('SELECT seen_intro FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(studentId, subj).first(),
+          DB.prepare("SELECT DISTINCT chapter_id FROM diagnostic_questions WHERE scope = 'chapter' AND chapter_id IS NOT NULL").all(),
+        ]);
         const masteryByChapter = new Map(chapterResults.map(r => [r.chapter_id, r]));
-        const progress = await DB.prepare(
-          'SELECT seen_intro FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?'
-        ).bind(studentId, subj).first();
-        // Which chapters actually have diagnostic questions seeded — the UI
-        // must never open the diagnostic screen for a chapter with zero
-        // questions (empty state, not a crash).
-        const { results: diagChapterRows } = await DB.prepare(
-          "SELECT DISTINCT chapter_id FROM diagnostic_questions WHERE scope = 'chapter' AND chapter_id IS NOT NULL"
-        ).all();
         const chaptersWithDiagnostic = new Set(diagChapterRows.map(r => r.chapter_id));
 
         return ok({

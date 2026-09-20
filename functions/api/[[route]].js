@@ -3776,7 +3776,9 @@ export async function onRequest({ request, env }) {
         const chapterId = (url.searchParams.get('chapterId') || '').trim();
         if (!chapterId) return err('chapterId مطلوب', 400, CORS);
         const summary = await DB.prepare('SELECT * FROM chapter_summaries WHERE chapter_id = ?').bind(chapterId).first();
-        if (!summary) return err('لا يوجد ملخص لهذا الفصل', 404, CORS);
+        // A chapter whose summary isn't authored yet is an expected state, not an error:
+        // answering 200 keeps the student's browser console (and network log) clean.
+        if (!summary) return ok({ summary: null, evaluationQuestions: [] }, 200, CORS);
         const { results: evalQuestions } = await DB.prepare(
           'SELECT * FROM evaluation_questions WHERE chapter_id = ? ORDER BY level'
         ).bind(chapterId).all();

@@ -540,7 +540,26 @@ const App = {
   async init() {
     this.loadUserChip();
     this.bind();
+    this.audit();
     await this.loadOverview(true);
+  },
+  // Fire-and-forget audit events for the developer's "student journey" timeline:
+  // the page open (once per browser session) and any script error (max 3 per page).
+  // Failures here must never touch the student's experience, so everything is swallowed.
+  audit() {
+    const send = (level, category, message) => {
+      try { apiFetch('/api/dev/logs', { method: 'POST', body: JSON.stringify({ level, category, message: String(message).slice(0, 400) }) }).catch(() => {}); } catch (e) {}
+    };
+    try {
+      if (!sessionStorage.getItem('lg_chem_open_logged')) {
+        sessionStorage.setItem('lg_chem_open_logged', '1');
+        send('info', 'prereq', 'فتح صفحة مقرر الكيمياء 1');
+      }
+    } catch (e) {}
+    let n = 0;
+    const report = (msg) => { if (n++ < 3) send('error', 'error', 'خطأ في صفحة الكيمياء 1: ' + msg); };
+    window.addEventListener('error', (e) => report(e.message || 'خطأ غير معروف'));
+    window.addEventListener('unhandledrejection', (e) => report((e.reason && e.reason.message) || 'وعد مرفوض'));
   },
   loadUserChip() {
     try {

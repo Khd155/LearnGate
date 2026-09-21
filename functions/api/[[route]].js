@@ -8,6 +8,7 @@ import {
   summarizePlanAttempts, computeCooldownUntil, isRetakeOverride, classifyFollowUp,
 } from '../_lib/journey.js';
 import { buildPrereqAnalytics } from '../_lib/prereq-analytics.js';
+import { buildStudentJourney } from '../_lib/student-journey.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
 const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
@@ -3716,6 +3717,11 @@ export async function onRequest({ request, env }) {
           questionId: q.question_id, prerequisiteLabel: q.prerequisite_label, prompt: q.prompt,
           options: JSON.parse(q.options || '[]'),
         }));
+        await logEvent(DB, {
+          level: 'info', category: 'prereq',
+          message: scope === 'subject' ? 'بدء تشخيص متطلبات المادة' : `بدء تشخيص فصل${chapterId ? ' ' + chapterId : ''}`,
+          user_name: claims.name || '', user_role: 'student', school: claims.school || '', student_id: String(claims.sub || ''),
+        });
         return ok({ scope, chapterId, questions }, 200, CORS);
       }
 
@@ -4004,6 +4010,8 @@ export async function onRequest({ request, env }) {
           school: body.school || logClaims?.school || '',
           ip,
           device,
+          // a student's own client events (page open, JS errors) join their journey timeline
+          student_id: logClaims?.role === 'student' ? String(logClaims.sub || '') : '',
         });
         return ok({ ok: true }, 201, CORS);
       }
@@ -4035,6 +4043,39 @@ export async function onRequest({ request, env }) {
         params.push(limitN, offsetN);
         const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ logs: results, hasMore: results.length === limitN }, 200, CORS);
+      }
+
+      // GET /api/dev/student-journey?studentId=… — one student's audit timeline
+      // (login, page open, diagnostic start/result, gate unlock, alerts, errors,
+      // tickets), assembled by _lib/student-journey.js. Dev key or dev JWT only.
+      if (sub === 'student-journey' && method === 'GET') {
+        const isDevKeyJr = authDev(request, env);
+        if (!isDevKeyJr) {
+          const jrClaims = await verifyToken(request, env, DB);
+          if (!jrClaims || jrClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        const jrStudentId = (url.searchParams.get('studentId') || '').trim();
+        if (!jrStudentId) return err('studentId مطلوب', 400, CORS);
+        const jrStudent = await DB.prepare('SELECT id, code, name, school, phone FROM students WHERE id = ?').bind(jrStudentId).first();
+        if (!jrStudent) return err('طالب غير موجود', 404, CORS);
+        await _ensurePrereqSchema(DB);
+        // a table that does not exist yet (fresh DB) must not fail the whole view
+        const jrSafe = (p, d) => p.catch(() => d);
+        const [jrLogs, jrResults, jrProgress, jrTickets, jrChapters] = await Promise.all([
+          jrSafe(DB.prepare(
+            "SELECT level, category, message, ip, device, created_at FROM logs WHERE student_id = ? OR (user_role = 'student' AND user_name = ? AND (student_id IS NULL OR student_id = '')) ORDER BY created_at DESC LIMIT 300"
+          ).bind(jrStudent.id, jrStudent.name).all(), { results: [] }),
+          jrSafe(DB.prepare(
+            'SELECT scope, chapter_id, weak_labels, weak_count, total_count, branch, created_at FROM student_prereq_results WHERE student_id = ? ORDER BY created_at ASC'
+          ).bind(jrStudent.id).all(), { results: [] }),
+          jrSafe(DB.prepare('SELECT seen_intro, updated_at FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(jrStudent.id, 'chemistry-1').first(), null),
+          jrSafe(DB.prepare('SELECT subject, category, status, created_at FROM tickets WHERE student_id = ? ORDER BY created_at DESC LIMIT 50').bind(jrStudent.id).all(), { results: [] }),
+          jrSafe(DB.prepare('SELECT chapter_id, title FROM course_chapters WHERE subject_id = ?').bind('chemistry-1').all(), { results: [] }),
+        ]);
+        return ok(buildStudentJourney({
+          student: jrStudent, logs: jrLogs.results, results: jrResults.results, progress: jrProgress,
+          tickets: jrTickets.results, chapters: jrChapters.results.map(c => ({ chapterId: c.chapter_id, title: c.title })),
+        }), 200, CORS);
       }
 
       // POST /api/dev/access-tokens { studentId } — dev-only test tool: mints a
@@ -5253,6 +5294,17 @@ export async function onRequest({ request, env }) {
           'SELECT * FROM ticket_replies WHERE ticket_id=? ORDER BY created_at ASC'
         ).bind(sub).all();
         return ok({ ticket, replies }, 200, CORS);
+      }
+
+      // DELETE /api/tickets/:id — developer only: removes the ticket and its replies.
+      if (method === 'DELETE' && sub && !subsub) {
+        if (tkClaims.role !== 'dev') return err('غير مسموح', 403, CORS);
+        const delTicket = await DB.prepare('SELECT id, ticket_num, student_name FROM tickets WHERE id=?').bind(sub).first();
+        if (!delTicket) return err('غير موجود', 404, CORS);
+        await DB.prepare('DELETE FROM ticket_replies WHERE ticket_id=?').bind(sub).run();
+        await DB.prepare('DELETE FROM tickets WHERE id=?').bind(sub).run();
+        await logEvent(DB, { level: 'warn', category: 'ticket', message: `حذف تذكرة ${delTicket.ticket_num || delTicket.id} — ${delTicket.student_name || ''}`, user_name: 'dev', user_role: 'dev' });
+        return ok({ ok: true }, 200, CORS);
       }
 
       // POST /api/tickets — use JWT claims for student identity

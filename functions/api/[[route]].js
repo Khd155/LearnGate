@@ -9,6 +9,7 @@ import {
 } from '../_lib/journey.js';
 import { buildPrereqAnalytics } from '../_lib/prereq-analytics.js';
 import { buildStudentJourney } from '../_lib/student-journey.js';
+import { CHEM_SUBJECT_ID, normalizeExamSubject, summarizeExam, buildExamRoster } from '../_lib/exam-status.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
 const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
@@ -4078,6 +4079,77 @@ export async function onRequest({ request, env }) {
         }), 200, CORS);
       }
 
+      // GET /api/dev/student-exam-status?subject=chem1|bio1|aptitude&studentId=...
+      // One student's status for one subject (card view). Without studentId it returns
+      // the roster of students who have any result for that subject ("عرض الكل").
+      if (sub === 'student-exam-status' && method === 'GET') {
+        const isDevKeyEs = authDev(request, env);
+        if (!isDevKeyEs) {
+          const esClaims = await verifyToken(request, env, DB);
+          if (!esClaims || esClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        const esSubject = normalizeExamSubject(url.searchParams.get('subject'));
+        if (!esSubject) return err('subject غير صالح (chem1 | bio1 | aptitude)', 400, CORS);
+        const esStudentId = (url.searchParams.get('studentId') || '').trim();
+        if (esStudentId) {
+          const esStudent = await DB.prepare('SELECT id, code, name, school, phone FROM students WHERE id = ?').bind(esStudentId).first();
+          if (!esStudent) return err('طالب غير موجود', 404, CORS);
+          let rows;
+          if (esSubject === 'chem1') {
+            await _ensurePrereqSchema(DB);
+            const [res, prog] = await Promise.all([
+              DB.prepare('SELECT scope, chapter_id, weak_labels, weak_count, total_count, branch, created_at FROM student_prereq_results WHERE student_id = ? AND subject_id = ? ORDER BY created_at ASC').bind(esStudentId, CHEM_SUBJECT_ID).all(),
+              DB.prepare('SELECT seen_intro FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(esStudentId, CHEM_SUBJECT_ID).first(),
+            ]);
+            rows = { results: res.results, progress: prog };
+          } else if (esSubject === 'bio1') {
+            rows = { results: await listTestResults(DB, { studentId: esStudentId }) };
+          } else {
+            const { results } = await DB.prepare('SELECT id, status, gaps, created_at FROM plans WHERE student_id = ? ORDER BY created_at ASC').bind(esStudentId).all();
+            rows = { plans: results };
+          }
+          return ok({ student: esStudent, subject: esSubject, status: summarizeExam(esSubject, rows) }, 200, CORS);
+        }
+        const esSchool = (url.searchParams.get('school') || '').trim();
+        let flat;
+        if (esSubject === 'chem1') {
+          await _ensurePrereqSchema(DB);
+          const { results } = await DB.prepare(
+            `SELECT r.student_id, s.name AS student_name, s.school, s.code, r.scope, r.chapter_id, r.weak_labels, r.weak_count, r.total_count, r.branch, r.created_at
+               FROM student_prereq_results r JOIN students s ON s.id = r.student_id
+              WHERE r.subject_id = ?${esSchool ? ' AND s.school = ?' : ''}
+              ORDER BY r.created_at DESC LIMIT 5000`
+          ).bind(...(esSchool ? [CHEM_SUBJECT_ID, esSchool] : [CHEM_SUBJECT_ID])).all();
+          flat = results;
+        } else if (esSubject === 'bio1') {
+          flat = await listTestResults(DB, { school: esSchool || null });
+        } else {
+          const { results } = await DB.prepare(`SELECT id, student_id, student_name, school, status, gaps, created_at FROM plans${esSchool ? ' WHERE school = ?' : ''} ORDER BY created_at DESC LIMIT 5000`).bind(...(esSchool ? [esSchool] : [])).all();
+          flat = results;
+        }
+        return ok({ subject: esSubject, ...buildExamRoster(esSubject, flat) }, 200, CORS);
+      }
+
+      // DELETE /api/dev/chem-diagnostic?studentId=... — resets one student's chemistry-1
+      // diagnostic (every scope: subject + chapters, and the "seen intro" flag) so the
+      // chapters are locked again. Same effect as DELETE /api/prereq/progress for this subject.
+      if (sub === 'chem-diagnostic' && method === 'DELETE') {
+        const isDevKeyCd = authDev(request, env);
+        if (!isDevKeyCd) {
+          const cdClaims = await verifyToken(request, env, DB);
+          if (!cdClaims || cdClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        const cdStudentId = (url.searchParams.get('studentId') || '').trim();
+        if (!cdStudentId) return err('studentId مطلوب', 400, CORS);
+        const cdStudent = await DB.prepare('SELECT id, name, school FROM students WHERE id = ?').bind(cdStudentId).first();
+        if (!cdStudent) return err('طالب غير موجود', 404, CORS);
+        await _ensurePrereqSchema(DB);
+        const cdRes = await DB.prepare('DELETE FROM student_prereq_results WHERE student_id = ? AND subject_id = ?').bind(cdStudentId, CHEM_SUBJECT_ID).run();
+        await DB.prepare('DELETE FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(cdStudentId, CHEM_SUBJECT_ID).run();
+        await logEvent(DB, { level: 'warn', category: 'test-management', message: `تصفير تشخيص الكيمياء 1: ${cdStudent.name}`, user_role: 'dev', school: cdStudent.school || '' });
+        return ok({ ok: true, deleted: cdRes?.meta?.changes || 0 }, 200, CORS);
+      }
+
       // POST /api/dev/access-tokens { studentId } — dev-only test tool: mints a
       // single-use, no-expiry token for the account-access link. Reachable by
       // DEV_KEY or a dev-role JWT, same as /dev/logs.
@@ -4472,14 +4544,26 @@ export async function onRequest({ request, env }) {
       // GET /api/dev/students — all students (optional ?school=X filter)
       if (sub === 'students' && method === 'GET') {
         const filterSchool = url.searchParams.get('school');
+        // ?q= — on-demand search by name or code (used by إدارة الاختبارات so the panel
+        // never has to load every student); ?limit= caps the rows returned.
+        const searchQ = (url.searchParams.get('q') || '').trim().slice(0, 60);
+        const searchLimit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '0', 10) || 0, 0), 200);
         try {
           let q = `SELECT s.id, s.code, s.name, s.school, s.phone, s.created_at,
                      (SELECT COUNT(*) FROM plans p WHERE p.student_id = s.id) AS plan_count,
                      (SELECT status FROM plans p WHERE p.student_id = s.id ORDER BY p.created_at DESC LIMIT 1) AS plan_status
                    FROM students s`;
           const params = [];
-          if (filterSchool) { q += ' WHERE s.school = ?'; params.push(filterSchool); }
+          const where = [];
+          if (filterSchool) { where.push('s.school = ?'); params.push(filterSchool); }
+          if (searchQ) {
+            const like = '%' + searchQ.replace(/[\\%_]/g, m => '\\' + m) + '%';
+            where.push("(s.name LIKE ? ESCAPE '\\' OR s.code LIKE ? ESCAPE '\\')");
+            params.push(like, like);
+          }
+          if (where.length) q += ' WHERE ' + where.join(' AND ');
           q += ' ORDER BY s.school, s.name ASC';
+          if (searchLimit) { q += ' LIMIT ?'; params.push(searchLimit); }
           const { results } = await DB.prepare(q).bind(...params).all();
           return ok({ students: results }, 200, CORS);
         } catch (e) {

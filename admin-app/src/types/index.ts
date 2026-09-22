@@ -155,3 +155,36 @@ export interface AdminStats {
   skillAverages: SkillAverage[];
   statusDistribution: { finished: number; started: number; notStarted: number };
 }
+
+// ── Chemistry-1 prerequisite analytics (GET /api/prereq/supervisor-overview) ──
+export interface ChemAlert {
+  studentId: string;
+  name: string;
+  school: string;
+  code: string;
+  scope: 'subject' | 'chapter';
+  chapterId: string | null;
+  scopeTitle: string;
+  weakLabels: string[];
+  weakCount: number;
+  totalCount: number;
+  severity: 'critical' | 'moderate';
+  createdAt: string;
+  followedUp: boolean;
+}
+export interface ChemTopPerformer { studentId: string; name: string; school: string; score: number; assessed: number }
+export interface ChemEngaged { studentId: string; name: string; school: string; attempts: number; scopes: number; lastAt: string }
+export interface ChemGapGroup {
+  key: string;
+  title: string;
+  assessed: number;
+  alerts: number;
+  gaps: { label: string; count: number; pct: number }[];
+}
+export interface ChemSupervisorOverview {
+  totals: { studentsAssessed: number; attempts: number; openAlerts: number; alerts: number };
+  alerts: ChemAlert[];
+  topPerformers: ChemTopPerformer[];
+  mostEngaged: ChemEngaged[];
+  gapsByChapter: ChemGapGroup[];
+}

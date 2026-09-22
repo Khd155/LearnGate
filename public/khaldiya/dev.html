@@ -310,6 +310,56 @@
       .stat-grid{grid-template-columns:repeat(2,1fr)}
       .school-grid{grid-template-columns:1fr}
     }
+
+    /* ── Student Journey + إدارة الاختبارات (search-first additions) ── */
+    .btn-outline{background:transparent;border:1.5px solid var(--border2);color:#f1f5f9}
+    .btn-outline:hover{background:var(--surface2)}
+    .search-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+    .search-bar .form-input{flex:1;min-width:220px}
+    .pick-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+    .pick-list:empty{display:none}
+    .pick-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:#f1f5f9;cursor:pointer;text-align:right;font-family:inherit;font-size:13.5px;width:100%}
+    .pick-item:hover{border-color:var(--primary)}
+    .pick-item small{color:var(--muted);font-size:12px}
+
+    .jr-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+    .jr-card-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .jr-avatar,.tm-avatar{width:42px;height:42px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0}
+    .jr-meta,.tm-meta{font-size:12.5px;color:var(--muted)}
+    .jr-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+    .jr-filter-btn{padding:6px 14px;border-radius:99px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted);font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+    .jr-filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .jr-timeline{position:relative;padding-inline-start:26px}
+    .jr-timeline::before{content:'';position:absolute;right:9px;top:6px;bottom:6px;width:2px;background:var(--border)}
+    .jr-item{position:relative;padding-bottom:16px}
+    .jr-item:last-child{padding-bottom:0}
+    .jr-dot{position:absolute;right:-1px;top:2px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--surface2);border:2px solid var(--border2)}
+    .jr-item.success .jr-dot{border-color:#22c55e;color:#22c55e}
+    .jr-item.warn .jr-dot{border-color:#f59e0b;color:#f59e0b}
+    .jr-item.error .jr-dot{border-color:#ef4444;color:#ef4444}
+    .jr-item.info .jr-dot{border-color:var(--primary);color:var(--primary)}
+    .jr-item-box{margin-inline-end:30px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+    .jr-item-title{font-size:13.5px;font-weight:700;color:#f1f5f9}
+    .jr-item-detail{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.6}
+    .jr-item-time{font-size:11px;color:var(--muted);margin-top:5px}
+
+    .tm-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+    .tm-card-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .tm-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+    .tm-kv>div{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+    .tm-kv small{display:block;font-size:11.5px;color:var(--muted)}
+    .tm-kv b{font-size:15px;color:#f1f5f9}
+    .tm-ok{color:#4ade80}.tm-warn2{color:#fbbf24}.tm-bad{color:#fca5a5}
+    .tm-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+    .tm-chip{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:99px;padding:3px 10px;font-size:12px}
+    .tm-item{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+    .tm-item>span:first-child{flex:1;color:var(--muted)}
+    .tm-item:last-child{border-bottom:none}
+    .tm-sub{font-size:12.5px;color:var(--muted);margin:12px 0 6px;font-weight:700}
+    .tm-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+    .tm-actions .btn[disabled]{opacity:.5;cursor:not-allowed}
+    .tm-roster-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .tm-table-wrap{overflow-x:auto}
   </style>
 </head>
 <body>
@@ -359,6 +409,7 @@
         <button class="tab-btn"        data-tab="wa-issue"  onclick="Dev.setTab('wa-issue')"><span class="tab-ic">📨</span> إشعار مشكلة</button>
         <button class="tab-btn"        data-tab="logs"      onclick="Dev.setTab('logs')"><span class="tab-ic">📋</span> سجل النشاط وسلوك الطلاب</button>
         <button class="tab-btn"        data-tab="analytics" onclick="Dev.setTab('analytics')"><span class="tab-ic">🧠</span> تحليل السلوك</button>
+        <button class="tab-btn"        data-tab="journey"   onclick="Dev.setTab('journey')"><span class="tab-ic">🧭</span> مسار الطالب</button>
         <button class="tab-btn"        data-tab="support"   onclick="Dev.setTab('support')"><span class="tab-ic">🎫</span> تذاكر الدعم الفني</button>
 
         <div class="nav-group-title">🧰 أدوات النظام ومنطقة الخطر</div>
@@ -684,58 +735,50 @@
     </div>
 
     <!-- ── Test Management (dev-only) ── -->
+
+    <!-- ── Student Journey ── -->
+    <div id="tab-journey" class="tab-pane">
+      <div class="section">
+        <div class="section-title"><span>🧭</span> بحث عن طالب</div>
+        <div class="search-bar">
+          <input type="search" id="jr-search" class="form-input" placeholder="ابحث بالاسم أو رمز الطالب…" oninput="Dev.jrSearchInput()" autocomplete="off">
+        </div>
+        <div id="jr-picks" class="pick-list"></div>
+      </div>
+      <div id="jr-stage"><div class="empty">ابحث عن طالب لعرض مساره الزمني الكامل.</div></div>
+    </div>
+
     <div id="tab-test-mgmt" class="tab-pane">
       <div class="section">
-        <div class="section-title">
-          <span>🧪</span> نتائج اختبار الأحياء
-          <select id="tm-school-filter" class="form-select" style="margin-right:auto;width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadTestResults()">
-            <option value="">كل المدارس</option>
-          </select>
-          <button class="btn btn-warn btn-sm" onclick="Dev.loadTestResults()">🔄 تحديث</button>
+        <div class="section-title"><span>🧪</span> إدارة الاختبارات</div>
+        <div class="form-row" style="margin-bottom:2px">
+          <div class="form-group" style="max-width:320px">
+            <div class="form-label">المادة</div>
+            <select id="tm-subject" class="form-select" onchange="Dev.tmSubjectChanged()"></select>
+          </div>
         </div>
-        <div id="tm-results-list"><div class="empty">جارٍ التحميل...</div></div>
+        <div class="search-bar">
+          <input type="search" id="tm-q" class="form-input" placeholder="🔍 ابحث باسم الطالب أو رقم سجله…" oninput="Dev.tmSearchInput()" autocomplete="off">
+          <button type="button" class="btn btn-outline" onclick="Dev.tmShowAll()">📋 عرض كل الطلاب</button>
+        </div>
+        <div id="tm-picks" class="pick-list"></div>
       </div>
+
+      <div id="tm-stage"><div class="empty">اختر المادة وابحث عن الطالب لإدارة نتائجه وتصفير اختباراته، أو اضغط عرض الكل.</div></div>
 
       <div class="section">
-        <div class="section-title"><span>♻️</span> منح إعادة اختبار (خطة الدراسة)</div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.7;">
-          يرفع تجاوز فترة الانتظار (cooldown) عن آخر خطة دراسية لكل طالب في المدرسة المحددة — نفس آلية "السماح بإعادة الاختبار" المتاحة للمشرف، لكن دفعة واحدة لمدرسة كاملة.
-        </p>
+        <div class="section-title"><span>🏫</span> إجراءات المدرسة المجمّعة</div>
         <div class="form-row">
-          <select id="tm-grant-school" class="form-select" style="flex:1"></select>
-          <button class="btn btn-primary" onclick="Dev.grantRetakeSchool()">♻️ منح المدرسة كاملة</button>
+          <select id="tm-bulk-school" class="form-select" style="flex:1"></select>
         </div>
-      </div>
-
-      <div class="danger-box" style="margin-top:16px">
-        <p>🗑️ <strong>إعادة تعيين اختبارات مدرسة كاملة</strong> — حذف دائم لكل نتائج اختبار الأحياء في المدرسة، لا يمكن التراجع عنه</p>
-        <div class="form-row">
-          <select id="tm-reset-school" class="form-select" style="flex:1"></select>
-          <button class="btn btn-danger" onclick="Dev.resetSchoolTests()">🗑️ إعادة تعيين المدرسة</button>
-        </div>
-      </div>
-
-      <div class="section" style="margin-top:24px">
-        <div class="section-title">
-          <span>🧠</span> اختبار القدرات
-          <select id="ap-school-filter" class="form-select" style="margin-right:auto;width:auto;font-size:13px;padding:6px 12px" onchange="Dev.loadAptitudePlans()">
-            <option value="">كل المدارس</option>
-          </select>
-          <button class="btn btn-warn btn-sm" onclick="Dev.loadAptitudePlans()">🔄 تحديث</button>
-        </div>
-        <div id="ap-plans-list"><div class="empty">جارٍ التحميل...</div></div>
-      </div>
-
-      <div class="danger-box" style="margin-top:16px">
-        <p>🗑️ <strong>إعادة تعيين اختبار القدرات لمدرسة كاملة</strong> — حذف دائم لكل نتائج اختبار القدرات (الخطط) في المدرسة، لا يمكن التراجع عنه</p>
-        <div class="form-row">
-          <select id="ap-reset-school" class="form-select" style="flex:1"></select>
-          <button class="btn btn-danger" onclick="Dev.resetSchoolPlans()">🗑️ إعادة تعيين المدرسة</button>
+        <div class="form-row" style="margin-top:12px">
+          <button class="btn btn-primary" onclick="Dev.tmBulkGrant()">♻️ منح إعادة اختبار الأحياء</button>
+          <button class="btn btn-danger" onclick="Dev.tmBulkResetBio()">🗑️ تصفير أحياء المدرسة</button>
+          <button class="btn btn-danger" onclick="Dev.tmBulkResetAptitude()">🗑️ تصفير قدرات المدرسة</button>
         </div>
       </div>
     </div>
 
-    <!-- ── Diff ── -->
     <div id="tab-diff" class="tab-pane">
       <div class="section">
         <div class="section-title">
@@ -1097,7 +1140,8 @@ const Dev = {
     if (tab === 'logs')      { Dev.loadLogs(); return; }
     if (tab === 'support')   { Dev.setSupportTab('tickets'); return; }
     if (tab === 'analytics') { Dev.loadAnalytics(); return; }
-    if (tab === 'test-mgmt') { Dev.loadTestResults(); Dev.loadAptitudePlans(); return; }
+    if (tab === 'test-mgmt') { Dev.tmInit(); return; }
+    if (tab === 'journey')    { Dev.jrInit(); return; }
     if (tab === 'diff')        { Dev.loadDiff(); return; }
     if (tab === 'permissions') { Dev.loadPermissions(); return; }
     if (tab === 'broadcasts')  { Dev.loadBroadcasts(); return; }
@@ -1614,16 +1658,9 @@ const Dev = {
     // Clear school select
     document.getElementById('clear-school-select').innerHTML = schoolOpts;
 
-    // Test management school selects
-    document.getElementById('tm-school-filter').innerHTML =
-      `<option value="">كل المدارس</option>` + schoolOpts;
-    document.getElementById('tm-grant-school').innerHTML = schoolOpts;
-    document.getElementById('tm-reset-school').innerHTML = schoolOpts;
-
-    // Aptitude-test (اختبار القدرات) school selects
-    document.getElementById('ap-school-filter').innerHTML =
-      `<option value="">كل المدارس</option>` + schoolOpts;
-    document.getElementById('ap-reset-school').innerHTML = schoolOpts;
+    // إدارة الاختبارات (search-first tab) — the one school select it owns
+    Dev._schools = schools.map(s => s.name);
+    Dev.tmFillSchools();
 
     // Broadcasts school filter
     document.getElementById('bc-school-filter').innerHTML =
@@ -2190,154 +2227,6 @@ const Dev = {
     await apiDev('/dev/questions', { method: 'DELETE' });
     showToast('تم مسح الأسئلة ✅');
     Dev.loadQuestions();
-  },
-
-  // ── Test Management Tab (dev-only) ────────────────────────────────────
-  async loadTestResults() {
-    const el = document.getElementById('tm-results-list');
-    el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
-    try {
-      const school = document.getElementById('tm-school-filter')?.value || '';
-      const url = '/dev/test-results' + (school ? '?school=' + encodeURIComponent(school) : '');
-      const { results } = await apiDev(url);
-      if (!results.length) { el.innerHTML = '<div class="empty">لا توجد نتائج اختبار</div>'; return; }
-      const typeLabel = { pre: '📋 قبلي', post: '🏁 بعدي' };
-      el.innerHTML = `
-        <div style="margin-bottom:10px;font-size:13px;color:var(--muted)">${results.length} نتيجة</div>
-        <table class="data-table">
-          <thead><tr><th>الطالب</th><th>المدرسة</th><th>النوع</th><th>الدرجة</th><th>التاريخ</th><th></th></tr></thead>
-          <tbody>${results.map(r => {
-            const time = new Date(r.created_at).toLocaleString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-            const safeName = escapeHtml(r.student_name || '').replace(/'/g, "\\'");
-            return `<tr>
-              <td>${escapeHtml(r.student_name)}</td>
-              <td>${escapeHtml(r.school)}</td>
-              <td>${escapeHtml(typeLabel[r.test_type] || r.test_type)}</td>
-              <td>${r.score}%</td>
-              <td style="font-size:12px;color:var(--muted)">${time}</td>
-              <td style="white-space:nowrap">
-                <button class="btn btn-danger btn-sm" onclick="Dev.deleteTestResult('${r.id}')" title="حذف هذه النتيجة">🗑️</button>
-                <button class="btn btn-warn btn-sm" onclick="Dev.resetStudentTests('${r.student_id}','${safeName}')" title="حذف كل نتائج هذا الطالب">♻️ الطالب</button>
-              </td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table>`;
-    } catch (e) {
-      el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل النتائج: ${e.message}</div>`;
-    }
-  },
-
-  async deleteTestResult(id) {
-    if (!await confirmDialog('حذف هذه النتيجة نهائياً؟', { title: 'حذف نتيجة اختبار', okText: 'حذف' })) return;
-    await apiDev('/dev/test-results/' + id, { method: 'DELETE' });
-    showToast('تم الحذف ✅');
-    Dev.loadTestResults();
-  },
-
-  async resetStudentTests(studentId, studentName) {
-    if (!await confirmDialog(`حذف جميع نتائج اختبارات الطالب "${studentName}" نهائياً؟`, { title: 'إعادة تعيين اختبارات طالب', okText: 'حذف' })) return;
-    await apiDev('/dev/test-results?studentId=' + encodeURIComponent(studentId), { method: 'DELETE' });
-    showToast('تم إعادة التعيين ✅');
-    Dev.loadTestResults();
-  },
-
-  async resetSchoolTests() {
-    const school = document.getElementById('tm-reset-school').value;
-    if (!school) return;
-    if (!await typedConfirmDialog(`حذف جميع نتائج اختبارات الأحياء لمدرسة "${school}" نهائياً — هذا الإجراء لا يمكن التراجع عنه.`, 'تأكيد', { title: 'إعادة تعيين اختبارات مدرسة' })) return;
-    await apiDev('/dev/test-results?school=' + encodeURIComponent(school) + '&confirm=RESET_SCHOOL_TESTS', { method: 'DELETE' });
-    showToast('تم إعادة تعيين اختبارات المدرسة ✅');
-    Dev.loadTestResults();
-  },
-
-  async grantRetakeSchool() {
-    const school = document.getElementById('tm-grant-school').value;
-    if (!school) return;
-    if (!await confirmDialog(`منح إعادة اختبار لجميع طلاب "${school}"؟`, { title: 'منح إعادة اختبار لمدرسة', okText: 'منح' })) return;
-    try {
-      const { updated } = await apiDev('/dev/plans/grant-retake?school=' + encodeURIComponent(school), { method: 'PATCH' });
-      showToast(`تم منح إعادة الاختبار لـ ${updated} خطة ✅`);
-    } catch (e) {
-      showToast('فشل: ' + e.message, true);
-    }
-  },
-
-  // ── Aptitude Test Management (اختبار القدرات, dev-only) ──────────────────
-  async loadAptitudePlans() {
-    const el = document.getElementById('ap-plans-list');
-    el.innerHTML = '<div class="empty">جارٍ التحميل...</div>';
-    try {
-      const school = document.getElementById('ap-school-filter')?.value || '';
-      const url = '/dev/plans' + (school ? '?school=' + encodeURIComponent(school) : '');
-      const { plans } = await apiDev(url);
-      if (!plans.length) { el.innerHTML = '<div class="empty">لا توجد نتائج اختبار قدرات</div>'; return; }
-      const statusLabel = { pending: '🟡 معلّقة', active: '🟢 معتمدة' };
-      el.innerHTML = `
-        <div style="margin-bottom:10px;font-size:13px;color:var(--muted)">${plans.length} نتيجة</div>
-        <table class="data-table">
-          <thead><tr><th>الطالب</th><th>المدرسة</th><th>الحالة</th><th>المعدل العام</th><th>عدد المهارات</th><th>التاريخ</th><th></th></tr></thead>
-          <tbody>${plans.map(p => {
-            const avg = p.gaps.length ? Math.round(p.gaps.reduce((s, g) => s + (g.pct || 0), 0) / p.gaps.length) : 0;
-            const time = new Date(p.created_at).toLocaleString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-            const safeName = escapeHtml(p.student_name || '').replace(/'/g, "\\'");
-            const detail = p.gaps.length
-              ? p.gaps.map(g => {
-                  const color = g.level === 'high' ? '#22c55e' : g.level === 'mid' ? '#f59e0b' : '#ef4444';
-                  return `<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px;">
-                    <span>${escapeHtml(g.skillName || g.skillId || '')}</span>
-                    <span style="color:${color};font-weight:700;">${g.pct}%</span>
-                  </div>`;
-                }).join('')
-              : '<span style="color:var(--muted)">لا توجد تفاصيل</span>';
-            return `<tr style="cursor:pointer" onclick="Dev.toggleAptitudeDetail('${p.id}')">
-                <td>${escapeHtml(p.student_name)}</td>
-                <td>${escapeHtml(p.school)}</td>
-                <td>${statusLabel[p.status] || p.status}</td>
-                <td>${avg}%</td>
-                <td>${p.gaps.length}</td>
-                <td style="font-size:12px;color:var(--muted)">${time}</td>
-                <td style="white-space:nowrap" onclick="event.stopPropagation()">
-                  <button class="btn btn-danger btn-sm" onclick="Dev.deleteAptitudePlan('${p.id}')" title="حذف هذه النتيجة">🗑️</button>
-                  <button class="btn btn-warn btn-sm" onclick="Dev.resetStudentPlans('${p.student_id}','${safeName}')" title="حذف كل نتائج هذا الطالب">♻️ الطالب</button>
-                </td>
-              </tr>
-              <tr id="ap-detail-${p.id}" style="display:none">
-                <td colspan="7" style="background:rgba(255,255,255,.02);padding:10px 14px;">${detail}</td>
-              </tr>`;
-          }).join('')}</tbody>
-        </table>`;
-    } catch (e) {
-      el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل النتائج: ${e.message}</div>`;
-    }
-  },
-
-  toggleAptitudeDetail(id) {
-    const row = document.getElementById('ap-detail-' + id);
-    if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
-  },
-
-  async deleteAptitudePlan(id) {
-    if (!await confirmDialog('حذف نتيجة اختبار القدرات هذه نهائياً؟', { title: 'حذف نتيجة اختبار قدرات', okText: 'حذف' })) return;
-    await apiDev('/dev/plans/' + id, { method: 'DELETE' });
-    showToast('تم الحذف ✅');
-    Dev.loadAptitudePlans();
-  },
-
-  async resetStudentPlans(studentId, studentName) {
-    if (!await confirmDialog(`حذف جميع نتائج اختبار القدرات للطالب "${studentName}" نهائياً؟`, { title: 'إعادة تعيين اختبار قدرات طالب', okText: 'حذف' })) return;
-    await apiDev('/dev/plans?studentId=' + encodeURIComponent(studentId), { method: 'DELETE' });
-    showToast('تم إعادة التعيين ✅');
-    Dev.loadAptitudePlans();
-  },
-
-  async resetSchoolPlans() {
-    const school = document.getElementById('ap-reset-school').value;
-    if (!school) return;
-    if (!await confirmDialog(`حذف جميع نتائج اختبار القدرات لمدرسة "${school}" نهائياً؟`, { title: 'إعادة تعيين اختبار قدرات مدرسة', okText: 'استمرار' })) return;
-    if (!await confirmDialog('هذا الإجراء لا يمكن التراجع عنه. متأكد؟', { title: 'تأكيد أخير', okText: 'حذف نهائي' })) return;
-    await apiDev('/dev/plans?school=' + encodeURIComponent(school) + '&confirm=RESET_SCHOOL_PLANS', { method: 'DELETE' });
-    showToast('تم إعادة تعيين اختبار القدرات للمدرسة ✅');
-    Dev.loadAptitudePlans();
   },
 
   // ── Diff Tab ─────────────────────────────────────────────────────────────
@@ -3534,6 +3423,354 @@ ${note}
     } catch { showToast('تعذّر الإرسال', true); input.value = body; }
   },
 };
+
+/* ══════════════════════════════════════════════════════════════════════
+   Student Journey + إدارة الاختبارات (search-first) — grafted additions.
+   Both are search-first: nothing loads a student list on tab open, only on
+   a ≥2-char debounced search or an explicit "عرض كل الطلاب".
+
+   To add a subject to إدارة الاختبارات (e.g. physics): add one entry to
+   TM_SUBJECTS below and give the server a loader for its key in
+   GET /api/dev/student-exam-status (functions/_lib/exam-status.js).
+   ══════════════════════════════════════════════════════════════════════ */
+const TM_SUBJECTS = {
+  chem1: {
+    icon: '🧪', label: 'كيمياء 1', hint: 'تشخيص المتطلبات وبوابة الفصول',
+    stateLabel: { done: 'مكتمل', partial: 'غير مكتمل', none: 'لم يبدأ' },
+    fields: (st) => [
+      ['حالة التشخيص', st.completed ? 'مكتمل' : (st.seenIntro ? 'غير مكتمل (شاهد المقدمة)' : 'لم يبدأ'), st.completed ? 'ok' : 'warn2'],
+      ['درجة المتطلبات', st.completed && st.score !== null ? st.score + '%' : '—', st.openAlert ? 'bad' : ''],
+      ['بوابة الفصول', st.completed ? '🔓 مفتوحة' : '🔒 مقفلة', st.completed ? 'ok' : 'warn2'],
+      ['محاولات التشخيص', String(st.attempts) + (st.chapterAttempts ? ` (+${st.chapterAttempts} فصل)` : ''), ''],
+    ],
+    extra: (st) => (st.weakLabels && st.weakLabels.length
+      ? `<div class="tm-sub">المتطلبات المتعثَّر فيها${st.openAlert ? ' — <b style="color:#fca5a5">تنبيه مفتوح للمشرف</b>' : ''}</div><div class="tm-chips">${st.weakLabels.map(w => `<span class="tm-chip">${escapeHtml(w)}</span>`).join('')}</div>` : ''),
+    resetLabel: '🗑️ تصفير تشخيص الكيمياء 1',
+    resetNote: 'سيُمسح تشخيص الطالب وتُعاد قفل الفصول له، ليبدأ من جديد.',
+    reset: (s) => apiDev('/dev/chem-diagnostic?studentId=' + encodeURIComponent(s.id), { method: 'DELETE' }),
+    canReset: () => true,
+  },
+  bio1: {
+    icon: '🧬', label: 'أحياء 1', hint: 'الاختبار القبلي / البعدي',
+    stateLabel: { done: 'مكتمل', partial: 'قبلي فقط', none: 'لم يبدأ' },
+    fields: (st) => [
+      ['الاختبار القبلي', st.pre ? st.pre.score + '%' : '—', ''],
+      ['الاختبار البعدي', st.post ? st.post.score + '%' : '—', ''],
+      ['التحسن', st.improvement === null ? '—' : (st.improvement >= 0 ? '+' : '') + st.improvement + '%', st.improvement === null ? '' : st.improvement >= 0 ? 'ok' : 'bad'],
+      ['عدد المحاولات', String(st.attempts), ''],
+    ],
+    extra: (st) => (st.items && st.items.length
+      ? `<div class="tm-sub">المحاولات</div>` + st.items.map(i => `<div class="tm-item"><span>${i.type === 'post' ? '🏁 بعدي' : '📋 قبلي'} — ${escapeHtml(Dev._tmDate(i.at))}</span><b>${i.score}%</b><button type="button" class="btn btn-danger btn-sm" title="حذف هذه المحاولة" onclick="Dev.tmDeleteItem('${escapeHtml(i.id)}')">🗑️</button></div>`).join('') : ''),
+    resetLabel: '🗑️ حذف نتيجة الأحياء',
+    resetNote: 'ستُحذف كل محاولات الأحياء (القبلي والبعدي) لهذا الطالب نهائيًا.',
+    reset: (s) => apiDev('/dev/test-results?studentId=' + encodeURIComponent(s.id), { method: 'DELETE' }),
+    deleteItem: (id) => apiDev('/dev/test-results/' + encodeURIComponent(id), { method: 'DELETE' }),
+    canReset: (st) => st.attempts > 0,
+  },
+  aptitude: {
+    icon: '🧠', label: 'اختبار القدرات', hint: 'خطة التعلم وتحليل المهارات',
+    stateLabel: { done: 'خطة معتمدة', partial: 'خطة معلّقة', none: 'لم يبدأ' },
+    fields: (st) => [
+      ['حالة الخطة', st.planStatus === 'active' ? 'معتمدة' : st.planStatus === 'pending' ? 'معلّقة' : '—', st.planStatus === 'active' ? 'ok' : st.planStatus ? 'warn2' : ''],
+      ['معدل المهارات', st.avg === null ? '—' : st.avg + '%', ''],
+      ['عدد المهارات', String(st.skills), ''],
+      ['عدد الخطط', String(st.attempts), ''],
+    ],
+    extra: (st) => (st.weakest && st.weakest.length
+      ? `<div class="tm-sub">أضعف المهارات</div>` + st.weakest.map(w => `<div class="tm-item"><span>${escapeHtml(w.name)}</span><b>${w.pct}%</b></div>`).join('') : ''),
+    resetLabel: '🗑️ تصفير خطة القدرات',
+    resetNote: 'ستُحذف كل خطط اختبار القدرات ونتائج المهارات لهذا الطالب نهائيًا.',
+    reset: (s) => apiDev('/dev/plans?studentId=' + encodeURIComponent(s.id), { method: 'DELETE' }),
+    deleteItem: (id) => apiDev('/dev/plans/' + encodeURIComponent(id), { method: 'DELETE' }),
+    canReset: (st) => st.attempts > 0,
+  },
+};
+
+Object.assign(Dev, {
+  /* ── إدارة الاختبارات (search-first) ── */
+  _tm: { subject: 'chem1', student: null, mode: 'empty', seq: 0, timer: null, roster: [], allSchool: '' },
+
+  _tmDate(iso) { const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); },
+  _tmCfg() { return TM_SUBJECTS[Dev._tm.subject]; },
+
+  tmInit() {
+    const t = Dev._tm;
+    clearTimeout(t.timer);
+    t.seq++; t.student = null; t.mode = 'empty';
+    const q = document.getElementById('tm-q'); if (q) q.value = '';
+    const sel = document.getElementById('tm-subject');
+    sel.innerHTML = Object.entries(TM_SUBJECTS).map(([k, c]) => `<option value="${k}">${c.icon} ${escapeHtml(c.label)} (${escapeHtml(c.hint)})</option>`).join('');
+    sel.value = t.subject;
+    document.getElementById('tm-picks').innerHTML = '';
+    Dev.tmFillSchools();
+    Dev._tmRenderStage();
+  },
+
+  tmFillSchools() {
+    const sel = document.getElementById('tm-bulk-school'); if (!sel) return;
+    const keep = sel.value;
+    sel.innerHTML = (Dev._schools || []).map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    if (keep) sel.value = keep;
+  },
+
+  tmSubjectChanged() {
+    const t = Dev._tm; t.subject = document.getElementById('tm-subject').value;
+    if (t.mode === 'card' && t.student) Dev._tmLoadCard();
+    else if (t.mode === 'all') Dev.tmShowAll();
+    else Dev._tmRenderStage();
+  },
+
+  tmSearchInput() {
+    const t = Dev._tm; clearTimeout(t.timer);
+    const q = document.getElementById('tm-q').value.trim();
+    const picks = document.getElementById('tm-picks');
+    if (q.length < 2) {
+      t.seq++;
+      picks.innerHTML = q.length === 1 ? '<div class="empty" style="padding:8px 0">اكتب حرفين على الأقل للبحث.</div>' : '';
+      if (!q.length && t.mode !== 'all') { t.mode = 'empty'; t.student = null; Dev._tmRenderStage(); }
+      return;
+    }
+    picks.innerHTML = '<div class="empty" style="padding:8px 0">جارٍ البحث…</div>';
+    t.timer = setTimeout(() => Dev._tmSearch(q), 260);
+  },
+
+  async _tmSearch(q) {
+    const t = Dev._tm; const my = ++t.seq;
+    try {
+      const { students } = await apiDev('/dev/students?limit=15&q=' + encodeURIComponent(q));
+      if (my !== t.seq) return;
+      const picks = document.getElementById('tm-picks');
+      if (!students.length) { picks.innerHTML = '<div class="empty" style="padding:8px 0">لا يوجد طالب مطابق.</div>'; return; }
+      picks.innerHTML = students.map(s => `<button type="button" class="pick-item" onclick="Dev.tmOpen('${escapeHtml(s.id)}','${escapeHtml((s.name || '').replace(/'/g, "\\'"))}','${escapeHtml((s.school || '').replace(/'/g, "\\'"))}','${escapeHtml(s.code || '')}')"><b>${escapeHtml(s.name)}</b><small>${escapeHtml(s.school || '—')} · ${escapeHtml(s.code || '')}</small></button>`).join('');
+    } catch (e) {
+      if (my === t.seq) document.getElementById('tm-picks').innerHTML = `<div class="empty" style="color:#fca5a5;padding:8px 0">تعذّر البحث: ${escapeHtml(e.message)}</div>`;
+    }
+  },
+
+  tmOpen(id, name, school, code) {
+    const t = Dev._tm;
+    t.student = { id, name, school, code };
+    t.mode = 'card';
+    document.getElementById('tm-picks').innerHTML = '';
+    Dev._tmLoadCard();
+  },
+
+  async _tmLoadCard() {
+    const t = Dev._tm; const my = ++t.seq;
+    const stage = document.getElementById('tm-stage');
+    stage.innerHTML = '<div class="tm-card"><div class="empty">جارٍ التحميل…</div></div>';
+    try {
+      const data = await apiDev(`/dev/student-exam-status?subject=${encodeURIComponent(t.subject)}&studentId=${encodeURIComponent(t.student.id)}`);
+      if (my !== t.seq) return;
+      t.status = data.status;
+      if (data.student) t.student = { ...t.student, ...data.student };
+      Dev._tmRenderCard();
+    } catch (e) {
+      if (my === t.seq) stage.innerHTML = `<div class="tm-card"><div class="empty" style="color:#fca5a5">تعذّر تحميل الحالة: ${escapeHtml(e.message)}</div></div>`;
+    }
+  },
+
+  _tmRenderCard() {
+    const t = Dev._tm; const cfg = Dev._tmCfg(); const st = t.status; const s = t.student;
+    document.getElementById('tm-stage').innerHTML = `
+      <div class="tm-card">
+        <div class="tm-card-head">
+          <div class="tm-avatar">${escapeHtml((s.name || '?').trim().charAt(0))}</div>
+          <div style="flex:1"><div style="font-weight:800;font-size:15px;color:#f1f5f9">${escapeHtml(s.name || '')}</div><div class="tm-meta">${escapeHtml(s.school || '—')} · رقم السجل ${escapeHtml(s.code || '—')}</div></div>
+          <span class="badge ${st.state === 'done' ? 'badge-school' : st.state === 'partial' ? 'badge-super' : 'badge-any'}">${escapeHtml(cfg.stateLabel[st.state])}</span>
+        </div>
+        <div style="font-weight:800;font-size:14px;margin-bottom:10px">${cfg.icon} ${escapeHtml(cfg.label)} <span class="tm-meta">— ${escapeHtml(cfg.hint)}</span></div>
+        <div class="tm-kv">${cfg.fields(st).map(([k, v, c]) => `<div><small>${escapeHtml(k)}</small><b class="${c ? 'tm-' + c : ''}">${escapeHtml(v)}</b></div>`).join('')}</div>
+        ${cfg.extra(st)}
+        <div class="tm-actions">
+          <button type="button" class="btn btn-danger" ${cfg.canReset(st) ? '' : 'disabled title="لا توجد بيانات لتصفيرها"'} onclick="Dev.tmReset()">${cfg.resetLabel}</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="Dev._tmLoadCard()">🔄 تحديث</button>
+        </div>
+      </div>`;
+  },
+
+  async tmReset() {
+    const t = Dev._tm; const cfg = Dev._tmCfg(); const s = t.student; if (!s) return;
+    if (!await confirmDialog(`${cfg.resetNote}\n\nالطالب: ${s.name}`, { title: cfg.resetLabel.replace('🗑️ ', ''), okText: 'تصفير' })) return;
+    try { await cfg.reset(s); showToast('تم التصفير ✅'); await Dev._tmLoadCard(); }
+    catch (e) { showToast('فشل التصفير: ' + e.message, true); }
+  },
+
+  async tmDeleteItem(id) {
+    const cfg = Dev._tmCfg(); if (!cfg.deleteItem) return;
+    if (!await confirmDialog('حذف هذا السجل نهائيًا؟', { title: 'حذف', okText: 'حذف' })) return;
+    try { await cfg.deleteItem(id); showToast('تم الحذف ✅'); await Dev._tmLoadCard(); }
+    catch (e) { showToast('فشل الحذف: ' + e.message, true); }
+  },
+
+  async tmShowAll() {
+    const t = Dev._tm; const my = ++t.seq; clearTimeout(t.timer);
+    t.mode = 'all'; t.student = null;
+    document.getElementById('tm-picks').innerHTML = '';
+    const q = document.getElementById('tm-q'); if (q) q.value = '';
+    document.getElementById('tm-stage').innerHTML = '<div class="tm-card"><div class="empty">جارٍ التحميل…</div></div>';
+    try {
+      const data = await apiDev(`/dev/student-exam-status?subject=${encodeURIComponent(t.subject)}` + (t.allSchool ? '&school=' + encodeURIComponent(t.allSchool) : ''));
+      if (my !== t.seq) return;
+      t.roster = data.rows || [];
+      Dev._tmRenderRoster(data);
+    } catch (e) {
+      if (my === t.seq) document.getElementById('tm-stage').innerHTML = `<div class="tm-card"><div class="empty" style="color:#fca5a5">تعذّر التحميل: ${escapeHtml(e.message)}</div></div>`;
+    }
+  },
+
+  tmAllSchool() { Dev._tm.allSchool = document.getElementById('tm-all-school').value; Dev.tmShowAll(); },
+
+  _tmRenderRoster(data) {
+    const t = Dev._tm; const cfg = Dev._tmCfg();
+    const schoolOpts = `<option value="">كل المدارس</option>` + (Dev._schools || []).map(n => `<option value="${escapeHtml(n)}" ${n === t.allSchool ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('');
+    const head = `<div class="tm-roster-head"><b>${cfg.icon} ${escapeHtml(cfg.label)}</b><span class="tm-meta">${data.total} طالب لديهم نتائج${data.truncated ? ` — يُعرض أول ${data.rows.length}` : ''}</span><select id="tm-all-school" class="form-select" style="width:auto;margin-right:auto" onchange="Dev.tmAllSchool()">${schoolOpts}</select></div>`;
+    if (!data.rows.length) { document.getElementById('tm-stage').innerHTML = `<div class="tm-card">${head}<div class="empty">لا توجد نتائج لهذه المادة${t.allSchool ? ' في هذه المدرسة' : ''}.</div></div>`; return; }
+    document.getElementById('tm-stage').innerHTML = `<div class="tm-card">${head}
+      <div class="tm-table-wrap"><table class="data-table">
+        <thead><tr><th>الطالب</th><th>المدرسة</th><th>الحالة</th><th>النتيجة</th><th>التفصيل</th><th>آخر نشاط</th><th></th></tr></thead>
+        <tbody>${data.rows.map((r, i) => `<tr>
+          <td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.school)}</td>
+          <td><span class="badge ${r.state === 'done' ? 'badge-school' : r.state === 'partial' ? 'badge-super' : 'badge-any'}">${escapeHtml(cfg.stateLabel[r.state])}</span></td>
+          <td><b>${escapeHtml(r.headline)}</b></td><td class="tm-meta">${escapeHtml(r.detail)}</td>
+          <td class="tm-meta">${escapeHtml(Dev._tmDate(r.at))}</td>
+          <td><button type="button" class="btn btn-outline btn-sm" onclick="Dev.tmOpenRow(${i})">فتح البطاقة</button></td></tr>`).join('')}</tbody>
+      </table></div></div>`;
+  },
+
+  tmOpenRow(i) {
+    const r = (Dev._tm.roster || [])[i]; if (!r) return;
+    Dev.tmOpen(r.studentId, r.name, r.school, r.code);
+  },
+
+  _tmRenderStage() {
+    const cfg = Dev._tmCfg();
+    document.getElementById('tm-stage').innerHTML = `<div class="empty">اختر المادة وابحث عن الطالب لإدارة نتائجه وتصفير اختباراته، أو اضغط عرض الكل.${cfg ? `<br><small>المادة المختارة: ${cfg.icon} ${escapeHtml(cfg.label)}</small>` : ''}</div>`;
+  },
+
+  _tmBulkSchool() {
+    const school = document.getElementById('tm-bulk-school').value;
+    if (!school) showToast('اختر المدرسة أولًا', true);
+    return school;
+  },
+  async tmBulkGrant() {
+    const school = Dev._tmBulkSchool(); if (!school) return;
+    if (!await confirmDialog(`منح إعادة اختبار لجميع طلاب "${school}"؟`, { title: 'منح إعادة اختبار لمدرسة', okText: 'منح' })) return;
+    try { const { updated } = await apiDev('/dev/plans/grant-retake?school=' + encodeURIComponent(school), { method: 'PATCH' }); showToast(`تم منح إعادة الاختبار لـ ${updated} خطة ✅`); }
+    catch (e) { showToast('فشل: ' + e.message, true); }
+  },
+  async tmBulkResetBio() {
+    const school = Dev._tmBulkSchool(); if (!school) return;
+    if (!await typedConfirmDialog(`حذف جميع نتائج اختبارات الأحياء لمدرسة "${school}" نهائيًا — هذا الإجراء لا يمكن التراجع عنه.`, 'تأكيد', { title: 'تصفير أحياء المدرسة' })) return;
+    try { await apiDev('/dev/test-results?school=' + encodeURIComponent(school) + '&confirm=RESET_SCHOOL_TESTS', { method: 'DELETE' }); showToast('تم تصفير أحياء المدرسة ✅'); }
+    catch (e) { showToast('فشل: ' + e.message, true); }
+  },
+  async tmBulkResetAptitude() {
+    const school = Dev._tmBulkSchool(); if (!school) return;
+    if (!await typedConfirmDialog(`حذف جميع نتائج اختبار القدرات لمدرسة "${school}" نهائيًا — هذا الإجراء لا يمكن التراجع عنه.`, 'تأكيد', { title: 'تصفير قدرات المدرسة' })) return;
+    try { await apiDev('/dev/plans?school=' + encodeURIComponent(school) + '&confirm=RESET_SCHOOL_PLANS', { method: 'DELETE' }); showToast('تم تصفير قدرات المدرسة ✅'); }
+    catch (e) { showToast('فشل: ' + e.message, true); }
+  },
+
+  /* ── مسار الطالب (Student Journey) ── */
+  _jr: { student: null, seq: 0, timer: null, filter: 'all' },
+
+  jrInit() {
+    const t = Dev._jr; clearTimeout(t.timer);
+    t.seq++; t.student = null;
+    const el = document.getElementById('jr-search'); if (el) el.value = '';
+    document.getElementById('jr-picks').innerHTML = '';
+    document.getElementById('jr-stage').innerHTML = '<div class="empty">ابحث عن طالب لعرض مساره الزمني الكامل.</div>';
+  },
+
+  jrSearchInput() {
+    const t = Dev._jr; clearTimeout(t.timer);
+    const q = document.getElementById('jr-search').value.trim();
+    const picks = document.getElementById('jr-picks');
+    if (q.length < 2) { t.seq++; picks.innerHTML = q.length === 1 ? '<div class="empty" style="padding:8px 0">اكتب حرفين على الأقل للبحث.</div>' : ''; return; }
+    picks.innerHTML = '<div class="empty" style="padding:8px 0">جارٍ البحث…</div>';
+    t.timer = setTimeout(() => Dev._jrSearch(q), 260);
+  },
+
+  async _jrSearch(q) {
+    const t = Dev._jr; const my = ++t.seq;
+    try {
+      const { students } = await apiDev('/dev/students?limit=15&q=' + encodeURIComponent(q));
+      if (my !== t.seq) return;
+      const picks = document.getElementById('jr-picks');
+      if (!students.length) { picks.innerHTML = '<div class="empty" style="padding:8px 0">لا يوجد طالب مطابق.</div>'; return; }
+      picks.innerHTML = students.map(s => `<button type="button" class="pick-item" onclick="Dev.jrOpen('${escapeHtml(s.id)}')"><b>${escapeHtml(s.name)}</b><small>${escapeHtml(s.school || '—')} · ${escapeHtml(s.code || '')}</small></button>`).join('');
+    } catch (e) {
+      if (my === t.seq) document.getElementById('jr-picks').innerHTML = `<div class="empty" style="color:#fca5a5;padding:8px 0">تعذّر البحث: ${escapeHtml(e.message)}</div>`;
+    }
+  },
+
+  async jrOpen(studentId) {
+    const t = Dev._jr; const my = ++t.seq;
+    document.getElementById('jr-picks').innerHTML = '';
+    const el = document.getElementById('jr-search'); if (el) el.value = '';
+    document.getElementById('jr-stage').innerHTML = '<div class="empty">جارٍ التحميل…</div>';
+    try {
+      const data = await apiDev('/dev/student-journey?studentId=' + encodeURIComponent(studentId));
+      if (my !== t.seq) return;
+      t.student = data; t.filter = 'all';
+      Dev._jrRender();
+    } catch (e) {
+      if (my === t.seq) document.getElementById('jr-stage').innerHTML = `<div class="empty" style="color:#fca5a5">تعذّر التحميل: ${escapeHtml(e.message)}</div>`;
+    }
+  },
+
+  jrSetFilter(f) { Dev._jr.filter = f; Dev._jrRender(); },
+
+  _jrKindGroup(kind) {
+    if (kind === 'login' || kind === 'login_failed') return 'login';
+    if (['open_page', 'diag_start', 'diag_result', 'unlock'].includes(kind)) return 'diag';
+    if (kind === 'alert') return 'alert';
+    if (kind === 'error' || kind === 'suspicious') return 'error';
+    if (kind === 'ticket') return 'ticket';
+    return 'other';
+  },
+
+  _jrIcon(kind) {
+    return ({ login: '🔓', login_failed: '⛔', open_page: '📖', diag_start: '🧪', diag_result: '📊', unlock: '🔑', alert: '🚨', ticket: '🎫', error: '⚠️', suspicious: '👁️' })[kind] || '•';
+  },
+
+  _jrRender() {
+    const t = Dev._jr; const j = t.student; const st = j.student;
+    if (!st) { document.getElementById('jr-stage').innerHTML = '<div class="empty">لم يُعثر على الطالب.</div>'; return; }
+    const gate = j.gate;
+    const filters = [['all', 'الكل'], ['login', 'دخول'], ['diag', 'تشخيص'], ['alert', 'تنبيه'], ['ticket', 'تذاكر'], ['error', 'أخطاء ومشبوه']];
+    const events = j.events.filter((e) => t.filter === 'all' || Dev._jrKindGroup(e.kind) === t.filter);
+    const head = `
+      <div class="jr-card">
+        <div class="jr-card-head">
+          <div class="jr-avatar">${escapeHtml((st.name || '?').trim().charAt(0))}</div>
+          <div style="flex:1"><div style="font-weight:800;font-size:15px;color:#f1f5f9">${escapeHtml(st.name || '')}</div><div class="jr-meta">${escapeHtml(st.school || '—')} · ${escapeHtml(st.code || '')}</div></div>
+          <span class="badge ${gate.unlockedAt ? 'badge-school' : 'badge-any'}">${gate.unlockedAt ? '🔓 مفتوحة الفصول' : '🔒 لم تُفتح بعد'}</span>
+          ${gate.openAlert ? '<span class="badge" style="background:rgba(239,68,68,.15);color:#fca5a5">🚨 تنبيه مفتوح</span>' : ''}
+          <button type="button" class="btn btn-outline btn-sm" onclick="Dev.jrResetPrereq()">🗑️ تصفير تشخيص الكيمياء 1</button>
+        </div>
+      </div>`;
+    const filterBar = `<div class="jr-filters">${filters.map(([k, l]) => `<button type="button" class="jr-filter-btn ${t.filter === k ? 'active' : ''}" onclick="Dev.jrSetFilter('${k}')">${l}</button>`).join('')}</div>`;
+    const timeline = !events.length ? '<div class="empty">لا توجد أحداث في هذا الفلتر.</div>' : `<div class="jr-timeline">${events.map((e) => {
+      const lvl = e.level === 'success' ? 'success' : e.level === 'warn' ? 'warn' : e.level === 'error' ? 'error' : 'info';
+      const time = new Date(e.at).toLocaleString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      return `<div class="jr-item ${lvl}"><div class="jr-dot">${Dev._jrIcon(e.kind)}</div><div class="jr-item-box"><div class="jr-item-title">${escapeHtml(e.title)}</div>${e.detail ? `<div class="jr-item-detail">${escapeHtml(e.detail)}</div>` : ''}<div class="jr-item-time">${time}</div></div></div>`;
+    }).join('')}</div>`;
+    document.getElementById('jr-stage').innerHTML = head + '<div class="section">' + filterBar + timeline + '</div>';
+  },
+
+  async jrResetPrereq() {
+    const t = Dev._jr; if (!t.student || !t.student.student) return;
+    const st = t.student.student;
+    if (!await confirmDialog(`سيُمسح تشخيص "${escapeHtml(st.name)}" في الكيمياء 1 وتُقفل الفصول له من جديد. متابعة؟`, { title: 'تصفير تشخيص الكيمياء 1', okText: 'تصفير' })) return;
+    try {
+      await apiDev('/dev/chem-diagnostic?studentId=' + encodeURIComponent(st.id), { method: 'DELETE' });
+      showToast('تمت إعادة الضبط ✅');
+      Dev.jrOpen(st.id);
+    } catch (e) { showToast('فشل: ' + e.message, true); }
+  },
+});
 
 function readExcel(file) {
   return new Promise((resolve, reject) => {

@@ -7,6 +7,9 @@ import {
   buildQuizTree, computeJourney, classifyProgress, PROGRESS_BUCKET_LABELS_AR, PROGRESS_BUCKET_ORDER,
   summarizePlanAttempts, computeCooldownUntil, isRetakeOverride, classifyFollowUp,
 } from '../_lib/journey.js';
+import { buildPrereqAnalytics } from '../_lib/prereq-analytics.js';
+import { buildStudentJourney } from '../_lib/student-journey.js';
+import { CHEM_SUBJECT_ID, normalizeExamSubject, summarizeExam, buildExamRoster } from '../_lib/exam-status.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
 const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
@@ -353,6 +356,168 @@ async function ensureAccessRequestsSchema(DB) {
     decided_at TEXT,
     created_at TEXT NOT NULL
   )`).run(); } catch {}
+}
+
+// ── Prerequisite onboarding engine — schema + reference seed data ─────────
+// Subject-agnostic tables; PREREQ_SUBJECT_META/PREREQ_SEED_DATA below are the
+// only subject-specific content (a stand-in for the CMS the executive plan
+// defers to a later phase — see "خطة عمل تنفيذية: تمهيد وتهيئة واستدعاء
+// المتطلبات القبلية"). Adding another subject/chapter/question is adding a
+// seed entry, never touching the tables or the route handlers.
+const PREREQ_SUBJECT_META = {
+  'chemistry-1': {
+    title: 'الكيمياء 1',
+    intro: 'قبل أن تبدأ الكيمياء 1، هذه جولة سريعة على بنية المقرر وعلاقاته الداخلية، ثم تشخيص قصير لمتطلباتك القبلية — يحدد لك أفضل نقطة انطلاق دون أن يمنعك من أي فصل.',
+    subjectPrereqs: [
+      { label: 'التمييز بين العناصر والمركبات والمخاليط', source: 'علوم، المرحلة المتوسطة', usedIn: 'الفصلان 2 و3' },
+      { label: 'مفهوم الذرة الأولي (بروتون، نيوترون، إلكترون)', source: 'علوم، الصف الثالث متوسط', usedIn: 'الفصل 3' },
+      { label: 'النسبة والتناسب', source: 'رياضيات، المرحلة المتوسطة', usedIn: 'الفصلان 4 و5' },
+      { label: 'الأس العلمي للأعداد الكبيرة والصغيرة جداً', source: 'رياضيات، المرحلة المتوسطة', usedIn: 'الفصل 5 (عدد أفوجادرو)' },
+    ],
+  },
+};
+
+const PREREQ_SEED_DATA = {
+  chapters: [
+    { chapterId: 'chem1-t1-c1', subjectId: 'chemistry-1', term: 1, orderNum: 1, title: 'مقدمة في علم الكيمياء',
+      subtopics: ['قصة مادتين', 'الكيمياء والمادة', 'الطرائق العلمية', 'البحث العلمي'], layer: 'foundational', dependsOn: [],
+      description: 'الفصل الأول من المقرر — يؤسس لفهم ما هي الكيمياء ومنهج البحث العلمي فيها، دون متطلبات سابقة.' },
+    { chapterId: 'chem1-t1-c2', subjectId: 'chemistry-1', term: 1, orderNum: 2, title: 'المادة: الخواص والتغيرات',
+      subtopics: ['خواص المادة', 'تغيرات المادة', 'المخاليط', 'العناصر والمركبات'], layer: 'descriptive', dependsOn: ['chem1-t1-c1'],
+      description: 'يبني على مفاهيم الفصل الأول ليفرّق بين خواص المادة وتغيراتها، وبين العناصر والمركبات والمخاليط.' },
+    { chapterId: 'chem1-t1-c3', subjectId: 'chemistry-1', term: 1, orderNum: 3, title: 'تركيب الذرة',
+      subtopics: ['الأفكار القديمة للمادة', 'تعريف الذرة', 'كيف تختلف الذرات', 'الأنوية غير المستقرة والتحلل الإشعاعي'], layer: 'structural', dependsOn: ['chem1-t1-c2'],
+      description: 'قبل أن تفهم لماذا يتفاعل الصوديوم مع الكلور بعنف بينما لا يتفاعل الأرجون مع شيء تقريباً، عليك أولاً أن تعرف ماذا يوجد داخل الذرة نفسها. هذا الفصل يجيب عن: من أي جسيمات تتكوّن الذرة؟ ولماذا تختلف ذرات العناصر عن بعضها؟ وماذا يحدث حين تكون نواة الذرة غير مستقرة؟' },
+    { chapterId: 'chem1-t1-c4', subjectId: 'chemistry-1', term: 1, orderNum: 4, title: 'التفاعلات الكيميائية',
+      subtopics: ['التفاعلات والمعادلات', 'تصنيف التفاعلات', 'التفاعلات في المحاليل المائية'], layer: 'reactive', dependsOn: ['chem1-t1-c2', 'chem1-t1-c3'],
+      description: 'يعتمد على فهم المادة (الفصل 2) وتركيب الذرة (الفصل 3) معاً لتفسير كيف ولماذا تحدث التفاعلات الكيميائية.' },
+    { chapterId: 'chem1-t1-c5', subjectId: 'chemistry-1', term: 1, orderNum: 5, title: 'المول',
+      subtopics: ['قياس المادة', 'الكتلة والمول', 'مولات المركبات'], layer: 'quantitative', dependsOn: ['chem1-t1-c4'],
+      description: 'يبني على فهم التفاعلات الكيميائية (الفصل 4) لتقديم أداة القياس الكمي الأساسية في الكيمياء.' },
+  ],
+  diagnosticQuestions: [
+    { questionId: 'chem1-diag-subj-1', scope: 'subject', subjectId: 'chemistry-1', chapterId: null, prerequisiteLabel: 'العناصر والمركبات', orderNum: 1,
+      prompt: 'أيّ مما يلي يُعد مركباً لا عنصراً؟', options: [
+        { text: 'الماء (H₂O)', isCorrect: true, feedback: 'صحيح! الماء H₂O مركب لأنه اتحاد كيميائي بين عنصرين (الهيدروجين والأكسجين).' },
+        { text: 'الأكسجين O₂', isCorrect: false, feedback: 'غير دقيق — الأكسجين O₂ عنصر ثنائي الذرة، لا مركب، رغم أن رمزه يحتوي على رقم.' },
+        { text: 'الحديد Fe', isCorrect: false, feedback: 'غير دقيق — الحديد عنصر فلزي نقي، ليس مركباً.' },
+      ] },
+    { questionId: 'chem1-diag-subj-2', scope: 'subject', subjectId: 'chemistry-1', chapterId: null, prerequisiteLabel: 'التركيب الذري الأولي', orderNum: 2,
+      prompt: 'ذرة متعادلة الشحنة عدد بروتوناتها 8. كم عدد إلكتروناتها؟', options: [
+        { text: '8', isCorrect: true, feedback: 'صحيح! في الذرة المتعادلة عدد الإلكترونات = عدد البروتونات.' },
+        { text: '16', isCorrect: false, feedback: 'غير صحيح — هذا مضاعفة غير مبررة لعدد البروتونات، وليس قاعدة التعادل.' },
+        { text: '0', isCorrect: false, feedback: 'غير صحيح — "متعادلة الشحنة" لا تعني بلا إلكترونات، بل تساوي عدد الشحنات الموجبة والسالبة.' },
+      ] },
+    { questionId: 'chem1-diag-subj-3', scope: 'subject', subjectId: 'chemistry-1', chapterId: null, prerequisiteLabel: 'النسبة والتناسب', orderNum: 3,
+      prompt: 'ما نسبة كتلة الأكسجين إلى الهيدروجين في الماء H₂O؟ (الكتلة الذرية: أكسجين 16، هيدروجين 1)', options: [
+        { text: '16 : 2', isCorrect: true, feedback: 'صحيح! ذرتا هيدروجين × كتلة 1 = 2، مقابل ذرة أكسجين واحدة × كتلة 16.' },
+        { text: '16 : 1', isCorrect: false, feedback: 'غير صحيح — نسيت مضاعفة كتلة الهيدروجين بعدد ذرتيه في الجزيء.' },
+        { text: '8 : 1', isCorrect: false, feedback: 'غير صحيح — هذه قسمة خاطئة على عدد الذرات بدل ضربها في كتلها.' },
+      ] },
+
+    { questionId: 'chem1-diag-c3-1', scope: 'chapter', subjectId: 'chemistry-1', chapterId: 'chem1-t1-c3', prerequisiteLabel: 'تعريف العنصر', orderNum: 1,
+      prompt: 'أيّ العبارات التالية تصف العنصر بدقة؟', options: [
+        { text: 'مادة نقية لا يمكن تحليلها كيميائياً إلى مواد أبسط', isCorrect: true, feedback: 'صحيح! هذا هو التعريف الدقيق للعنصر.' },
+        { text: 'اتحاد كيميائي بين مادتين أو أكثر', isCorrect: false, feedback: 'هذا تعريف المركب، وليس العنصر.' },
+        { text: 'خليط متجانس من مادتين أو أكثر', isCorrect: false, feedback: 'هذا تعريف المحلول، وليس العنصر.' },
+      ] },
+    { questionId: 'chem1-diag-c3-2', scope: 'chapter', subjectId: 'chemistry-1', chapterId: 'chem1-t1-c3', prerequisiteLabel: 'الشحنة الكهربائية', orderNum: 2,
+      prompt: 'ذرة الصوديوم متعادلة الشحنة وعدد بروتوناتها 11. كم عدد إلكتروناتها؟', options: [
+        { text: '11', isCorrect: true, feedback: 'صحيح! في الذرة المتعادلة عدد الإلكترونات = عدد البروتونات = 11.' },
+        { text: '12', isCorrect: false, feedback: 'غير صحيح — هذا خلط بين عدد الإلكترونات وعدد النيوترونات.' },
+        { text: '22', isCorrect: false, feedback: 'غير صحيح — هذه مضاعفة غير مبررة لعدد البروتونات.' },
+      ] },
+    { questionId: 'chem1-diag-c3-3', scope: 'chapter', subjectId: 'chemistry-1', chapterId: 'chem1-t1-c3', prerequisiteLabel: 'الأس العلمي', orderNum: 3,
+      prompt: 'أيّ العددين أكبر: 3×10⁻³ أم 3×10⁻⁵ ؟', options: [
+        { text: '3×10⁻³', isCorrect: true, feedback: 'صحيح! كلما كان الأس السالب أقل في قيمته المطلقة، كان العدد أكبر — و3- أكبر من 5-.' },
+        { text: '3×10⁻⁵', isCorrect: false, feedback: 'غير صحيح — هذا تجاهل لأثر الإشارة السالبة على حجم العدد.' },
+        { text: 'العددان متساويان', isCorrect: false, feedback: 'غير صحيح — الأسّان مختلفان (٣- و٥-) فالعددان مختلفان في القيمة.' },
+      ] },
+  ],
+  chapterSummaries: [
+    { chapterId: 'chem1-t1-c3',
+      keyConcepts: ['البروتون', 'النيوترون', 'الإلكترون', 'العدد الذري (Z)', 'العدد الكتلي (A)', 'النظائر'],
+      newTerms: [
+        { term: 'النويدة', definition: 'نوع محدد من الذرات بعدد بروتونات ونيوترونات معين.' },
+        { term: 'الأيون', definition: 'ذرة اكتسبت أو فقدت إلكترونات.' },
+      ],
+      coreRule: 'العدد الكتلي = عدد البروتونات + عدد النيوترونات.',
+      workedExample: 'ذرة الصوديوم — عدد ذري 11، عدد كتلي 23 ← عدد النيوترونات = 23 − 11 = 12.',
+      commonPitfall: 'الخلط بين العدد الذري والعدد الكتلي عند حساب عدد النيوترونات.' },
+  ],
+  evaluationQuestions: [
+    { questionId: 'chem1-eval-c3-1', chapterId: 'chem1-t1-c3', level: 'knowledge',
+      prompt: 'ذرة عدد كتلتها 27 وعدد بروتوناتها 13 (الألومنيوم). احسب عدد النيوترونات فيها.',
+      modelAnswer: 'عدد النيوترونات = العدد الكتلي − عدد البروتونات = 27 − 13 = 14 نيوتروناً.' },
+    { questionId: 'chem1-eval-c3-2', chapterId: 'chem1-t1-c3', level: 'higher_order',
+      prompt: 'نظائر الكربون (الكربون-12 والكربون-14) متماثلة في خواصها الكيميائية لكنها تُستخدم لأغراض مختلفة تماماً. فسّر لماذا تتفق النظائر في الخواص الكيميائية رغم اختلاف كتلتها، واربط ذلك باستخدام الكربون-14 في تحديد عمر المستحاثات.',
+      modelAnswer: 'الخواص الكيميائية يحددها عدد الإلكترونات (وبالتالي عدد البروتونات/العدد الذري)، وهو ثابت بين نظائر العنصر الواحد؛ الاختلاف بينها في عدد النيوترونات فقط يغيّر الكتلة والاستقرار النووي. الكربون-14 غير مستقر (مشع) ويتحلل بمعدل ثابت معروف، فيُستخدم كساعة زمنية لقياس عمر المستحاثات، بينما الكربون-12 مستقر ولا يصلح لذلك.' },
+  ],
+};
+
+let _prereqSchemaEnsured = false;
+let _prereqSchemaPending = null;
+// Concurrent first requests share ONE in-flight provisioning run (racing two
+// CREATE TABLE IF NOT EXISTS can still collide in Postgres' catalog).
+function _ensurePrereqSchema(DB) {
+  if (_prereqSchemaEnsured) return Promise.resolve();
+  if (!_prereqSchemaPending) {
+    _prereqSchemaPending = _runPrereqSchema(DB).finally(() => { _prereqSchemaPending = null; });
+  }
+  return _prereqSchemaPending;
+}
+async function _runPrereqSchema(DB) {
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS course_chapters (
+    chapter_id TEXT PRIMARY KEY, subject_id TEXT NOT NULL, term INTEGER NOT NULL, order_num INTEGER NOT NULL,
+    title TEXT NOT NULL, subtopics TEXT NOT NULL DEFAULT '[]', layer TEXT NOT NULL,
+    depends_on TEXT NOT NULL DEFAULT '[]', description TEXT DEFAULT ''
+  )`).run();
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS diagnostic_questions (
+    question_id TEXT PRIMARY KEY, scope TEXT NOT NULL, subject_id TEXT, chapter_id TEXT,
+    prerequisite_label TEXT NOT NULL, prompt TEXT NOT NULL, options TEXT NOT NULL DEFAULT '[]', order_num INTEGER NOT NULL DEFAULT 0
+  )`).run();
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS chapter_summaries (
+    chapter_id TEXT PRIMARY KEY, key_concepts TEXT NOT NULL DEFAULT '[]', new_terms TEXT NOT NULL DEFAULT '[]',
+    core_rule TEXT DEFAULT '', worked_example TEXT DEFAULT '', common_pitfall TEXT DEFAULT ''
+  )`).run();
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS evaluation_questions (
+    question_id TEXT PRIMARY KEY, chapter_id TEXT NOT NULL, level TEXT NOT NULL, prompt TEXT NOT NULL, model_answer TEXT DEFAULT ''
+  )`).run();
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS student_prereq_results (
+    id TEXT PRIMARY KEY, student_id TEXT NOT NULL, subject_id TEXT NOT NULL, chapter_id TEXT, scope TEXT NOT NULL,
+    weak_labels TEXT NOT NULL DEFAULT '[]', weak_count INTEGER NOT NULL DEFAULT 0, total_count INTEGER NOT NULL DEFAULT 0,
+    branch TEXT NOT NULL, created_at TEXT NOT NULL
+  )`).run();
+  try { await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_prereq_results_student ON student_prereq_results(student_id, subject_id, chapter_id)`).run(); } catch {}
+  await DB.prepare(`CREATE TABLE IF NOT EXISTS student_prereq_progress (
+    student_id TEXT NOT NULL, subject_id TEXT NOT NULL, seen_intro INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL,
+    PRIMARY KEY (student_id, subject_id)
+  )`).run();
+
+  // Seed rows are independent (ON CONFLICT DO NOTHING), so they go out in
+  // parallel: sequentially this was ~15 DB round trips on the first request
+  // after every deploy/restart, which is what made the first open of the
+  // subject page hang for a couple of seconds.
+  await Promise.all([
+    ...PREREQ_SEED_DATA.chapters.map(c => DB.prepare(
+      `INSERT INTO course_chapters (chapter_id, subject_id, term, order_num, title, subtopics, layer, depends_on, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (chapter_id) DO NOTHING`
+    ).bind(c.chapterId, c.subjectId, c.term, c.orderNum, c.title, JSON.stringify(c.subtopics), c.layer, JSON.stringify(c.dependsOn), c.description).run()),
+    ...PREREQ_SEED_DATA.diagnosticQuestions.map(q => DB.prepare(
+      `INSERT INTO diagnostic_questions (question_id, scope, subject_id, chapter_id, prerequisite_label, prompt, options, order_num)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (question_id) DO NOTHING`
+    ).bind(q.questionId, q.scope, q.subjectId, q.chapterId, q.prerequisiteLabel, q.prompt,
+      JSON.stringify(q.options.map(o => ({ text: o.text, is_correct: o.isCorrect, feedback: o.feedback }))), q.orderNum).run()),
+    ...PREREQ_SEED_DATA.chapterSummaries.map(s => DB.prepare(
+      `INSERT INTO chapter_summaries (chapter_id, key_concepts, new_terms, core_rule, worked_example, common_pitfall)
+       VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (chapter_id) DO NOTHING`
+    ).bind(s.chapterId, JSON.stringify(s.keyConcepts), JSON.stringify(s.newTerms), s.coreRule, s.workedExample, s.commonPitfall).run()),
+    ...PREREQ_SEED_DATA.evaluationQuestions.map(e => DB.prepare(
+      `INSERT INTO evaluation_questions (question_id, chapter_id, level, prompt, model_answer)
+       VALUES (?, ?, ?, ?, ?) ON CONFLICT (question_id) DO NOTHING`
+    ).bind(e.questionId, e.chapterId, e.level, e.prompt, e.modelAnswer).run()),
+  ]);
+  _prereqSchemaEnsured = true;
 }
 
 // Rows minted before expires_at existed carry NULL — fall back to their own
@@ -3243,10 +3408,10 @@ export async function onRequest({ request, env }) {
         if (!claims || !['admin', 'director', 'dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const ratio = await _getQuizPassRatio();
         const idPrefix = (await _getSetting('student_id_prefix')) || DEFAULT_STUDENT_ID_PREFIX;
-        // Default OFF — nothing relies on this being on already; the public
-        // /request-access intake page should not silently start accepting
-        // submissions the moment this key is first read on a deployment
-        // that never explicitly set it.
+        // Default OFF — unlike whatsapp_dispatch_enabled, nothing relies on
+        // this being on already; the public /request-access intake page
+        // should not silently start accepting submissions the moment this
+        // key is first read on a deployment that never explicitly set it.
         const arEnabledRaw = await _getSetting('access_requests_enabled');
         const arEnabled = arEnabledRaw === 'true';
         // Default ON — every existing WhatsApp send path (single-student
@@ -3553,6 +3718,238 @@ export async function onRequest({ request, env }) {
       return err('غير موجود', 404, CORS);
     }
 
+    // ── PREREQUISITE ONBOARDING ENGINE (تمهيد وتهيئة واستدعاء المتطلبات القبلية) ──
+    // Generic, subject-agnostic engine: four data tables (chapters, diagnostic
+    // questions, chapter summaries, evaluation questions) plus two small
+    // per-student state tables (diagnostic results, "seen intro" flag). Adding
+    // a new subject/chapter/question later is a data problem, not a code
+    // change — see PREREQ_SEED_DATA below, the only subject-specific part of
+    // this file (a stand-in for the CMS the executive plan defers to later).
+    if (resource === 'prereq') {
+      await _ensurePrereqSchema(DB);
+
+      // GET /api/prereq/overview?subject=chemistry-1 — intro text, the five
+      // ChapterMapCard entries with live mastery color, and whether the
+      // student already saw the one-time intro/map/subject-diagnostic combo.
+      if (sub === 'overview' && method === 'GET') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims) return err('غير مصرح', 401, CORS);
+        const studentId = claims.role === 'student' ? claims.sub : (url.searchParams.get('studentId') || null);
+        if (!studentId) return err('معرّف الطالب مطلوب', 400, CORS);
+        const subj = (url.searchParams.get('subject') || '').trim();
+        if (!subj) return err('subject مطلوب', 400, CORS);
+        const meta = PREREQ_SUBJECT_META[subj];
+        if (!meta) return err('مادة غير معروفة', 404, CORS);
+
+        // The four reads are independent, so they go out together: each DB
+        // round trip is the dominant cost of this endpoint, and running them
+        // in sequence made opening the subject page noticeably slower.
+        // (diagChapterRows = which chapters actually have diagnostic questions
+        // seeded — the UI must never open the diagnostic screen for a chapter
+        // with zero questions: empty state, not a crash.)
+        const [{ results: chapters }, { results: chapterResults }, progress, { results: diagChapterRows }] = await Promise.all([
+          DB.prepare('SELECT * FROM course_chapters WHERE subject_id = ? ORDER BY term, order_num').bind(subj).all(),
+          DB.prepare(
+            `SELECT DISTINCT ON (chapter_id) chapter_id, weak_count, total_count, created_at
+             FROM student_prereq_results
+             WHERE student_id = ? AND subject_id = ? AND scope = 'chapter' AND chapter_id IS NOT NULL
+             ORDER BY chapter_id, created_at DESC`
+          ).bind(studentId, subj).all(),
+          DB.prepare('SELECT seen_intro FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(studentId, subj).first(),
+          DB.prepare("SELECT DISTINCT chapter_id FROM diagnostic_questions WHERE scope = 'chapter' AND chapter_id IS NOT NULL").all(),
+        ]);
+        const masteryByChapter = new Map(chapterResults.map(r => [r.chapter_id, r]));
+        const chaptersWithDiagnostic = new Set(diagChapterRows.map(r => r.chapter_id));
+
+        return ok({
+          subject: { id: subj, ...meta },
+          seenIntro: !!progress?.seen_intro,
+          chapters: chapters.map(c => {
+            const r = masteryByChapter.get(c.chapter_id);
+            const status = !r ? 'default' : (r.weak_count === 0 ? 'mastered' : 'needs_review');
+            return {
+              chapterId: c.chapter_id, term: c.term, orderNum: c.order_num, title: c.title,
+              subtopics: JSON.parse(c.subtopics || '[]'), layer: c.layer,
+              dependsOn: JSON.parse(c.depends_on || '[]'), description: c.description, status,
+              hasDiagnostic: chaptersWithDiagnostic.has(c.chapter_id),
+            };
+          }),
+        }, 200, CORS);
+      }
+
+      // GET /api/prereq/diagnostic?subject=chemistry-1&scope=subject|chapter&chapterId=...
+      if (sub === 'diagnostic' && method === 'GET') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        const subj = (url.searchParams.get('subject') || '').trim();
+        const scope = url.searchParams.get('scope') === 'chapter' ? 'chapter' : 'subject';
+        const chapterId = url.searchParams.get('chapterId') || null;
+        if (!subj) return err('subject مطلوب', 400, CORS);
+        if (scope === 'chapter' && !chapterId) return err('chapterId مطلوب لتشخيص فصل', 400, CORS);
+
+        const { results } = scope === 'subject'
+          ? await DB.prepare('SELECT * FROM diagnostic_questions WHERE scope = ? AND subject_id = ? ORDER BY order_num').bind('subject', subj).all()
+          : await DB.prepare('SELECT * FROM diagnostic_questions WHERE scope = ? AND chapter_id = ? ORDER BY order_num').bind('chapter', chapterId).all();
+
+        const questions = results.map(q => ({
+          questionId: q.question_id, prerequisiteLabel: q.prerequisite_label, prompt: q.prompt,
+          options: JSON.parse(q.options || '[]'),
+        }));
+        await logEvent(DB, {
+          level: 'info', category: 'prereq',
+          message: scope === 'subject' ? 'بدء تشخيص متطلبات المادة' : `بدء تشخيص فصل${chapterId ? ' ' + chapterId : ''}`,
+          user_name: claims.name || '', user_role: 'student', school: claims.school || '', student_id: String(claims.sub || ''),
+        });
+        return ok({ scope, chapterId, questions }, 200, CORS);
+      }
+
+      // POST /api/prereq/diagnostic/submit — records the result (graded
+      // client-side by DiagnosticEngine for instant per-option feedback) and
+      // computes the branch. weakLabels are re-validated against the real
+      // question set server-side rather than trusted verbatim from the client.
+      if (sub === 'diagnostic' && subsub === 'submit' && method === 'POST') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
+        const body = await request.json();
+        const subj = String(body.subjectId || '').trim();
+        const scope = body.scope === 'chapter' ? 'chapter' : 'subject';
+        const chapterId = scope === 'chapter' ? String(body.chapterId || '').trim() : null;
+        const weakLabelsIn = Array.isArray(body.weakLabels) ? body.weakLabels.map(String) : [];
+        if (!subj) return err('subjectId مطلوب', 400, CORS);
+        if (scope === 'chapter' && !chapterId) return err('chapterId مطلوب', 400, CORS);
+
+        const { results: qset } = scope === 'subject'
+          ? await DB.prepare('SELECT prerequisite_label FROM diagnostic_questions WHERE scope = ? AND subject_id = ?').bind('subject', subj).all()
+          : await DB.prepare('SELECT prerequisite_label FROM diagnostic_questions WHERE scope = ? AND chapter_id = ?').bind('chapter', chapterId).all();
+        const validLabels = new Set(qset.map(q => q.prerequisite_label));
+        const weakLabels = [...new Set(weakLabelsIn.filter(l => validLabels.has(l)))];
+        const totalCount = validLabels.size || 1;
+        const weakCount = weakLabels.length;
+
+        const branch = weakCount === 0 ? 'direct' : (weakCount >= Math.ceil(totalCount / 2) ? 'alert' : 'capsule');
+
+        const now = new Date().toISOString();
+        await DB.prepare(
+          `INSERT INTO student_prereq_results (id, student_id, subject_id, chapter_id, scope, weak_labels, weak_count, total_count, branch, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(crypto.randomUUID(), claims.sub, subj, chapterId, scope, JSON.stringify(weakLabels), weakCount, totalCount, branch, now).run();
+
+        if (scope === 'subject') {
+          await DB.prepare(
+            `INSERT INTO student_prereq_progress (student_id, subject_id, seen_intro, updated_at) VALUES (?, ?, 1, ?)
+             ON CONFLICT (student_id, subject_id) DO UPDATE SET seen_intro = 1, updated_at = EXCLUDED.updated_at`
+          ).bind(claims.sub, subj, now).run();
+        }
+
+        if (branch === 'alert') {
+          await logEvent(DB, {
+            level: 'warn', category: 'prereq_alert',
+            message: `فجوة تراكمية في المتطلبات القبلية — ${claims.name || claims.sub} — ${subj}${chapterId ? ' / ' + chapterId : ''} — ضعف في: ${weakLabels.join('، ') || '—'}`,
+            user_name: claims.name || '', user_role: 'student', school: claims.school || '', student_id: claims.sub,
+          });
+        }
+
+        return ok({ branch, weakCount, totalCount, weakLabels }, 200, CORS);
+      }
+
+      // GET /api/prereq/chapter-summary?chapterId=... — ChapterSummaryPanel +
+      // EvaluationLevelCard data, shown once a chapter's study is complete.
+      if (sub === 'chapter-summary' && method === 'GET') {
+        const claims = await verifyToken(request, env, DB);
+        if (!claims) return err('غير مصرح', 401, CORS);
+        const chapterId = (url.searchParams.get('chapterId') || '').trim();
+        if (!chapterId) return err('chapterId مطلوب', 400, CORS);
+        const summary = await DB.prepare('SELECT * FROM chapter_summaries WHERE chapter_id = ?').bind(chapterId).first();
+        // A chapter whose summary isn't authored yet is an expected state, not an error:
+        // answering 200 keeps the student's browser console (and network log) clean.
+        if (!summary) return ok({ summary: null, evaluationQuestions: [] }, 200, CORS);
+        const { results: evalQuestions } = await DB.prepare(
+          'SELECT * FROM evaluation_questions WHERE chapter_id = ? ORDER BY level'
+        ).bind(chapterId).all();
+        return ok({
+          summary: {
+            chapterId: summary.chapter_id,
+            keyConcepts: JSON.parse(summary.key_concepts || '[]'),
+            newTerms: JSON.parse(summary.new_terms || '[]'),
+            coreRule: summary.core_rule, workedExample: summary.worked_example, commonPitfall: summary.common_pitfall,
+          },
+          evaluationQuestions: evalQuestions.map(q => ({
+            questionId: q.question_id, level: q.level, prompt: q.prompt, modelAnswer: q.model_answer,
+          })),
+        }, 200, CORS);
+      }
+
+      // GET /api/prereq/supervisor-overview?subject=chemistry-1 — supervisor analytics
+      // (alerts / top performers / most engaged / gaps by chapter), all derived
+      // from student_prereq_results in one pass (see _lib/prereq-analytics.js).
+      // Dev key or a dev/director/admin JWT; any school-scoped session (admin,
+      // or a director bound to one school) only ever sees its own students.
+      if (sub === 'supervisor-overview' && method === 'GET') {
+        const isDevKeyAn = authDev(request, env);
+        const anClaims = isDevKeyAn ? null : await verifyToken(request, env, DB);
+        if (!isDevKeyAn && !(anClaims && ['dev', 'director', 'admin'].includes(anClaims.role))) {
+          return err('غير مصرح', 403, CORS);
+        }
+        const subj = (url.searchParams.get('subject') || '').trim();
+        if (!subj) return err('subject مطلوب', 400, CORS);
+        if (!PREREQ_SUBJECT_META[subj]) return err('مادة غير معروفة', 404, CORS);
+        const scopedSchool = anClaims && anClaims.role !== 'dev' && anClaims.school && anClaims.school !== '*'
+          ? anClaims.school.trim() : '';
+
+        const { results: rows } = scopedSchool
+          ? await DB.prepare(
+              `SELECT r.student_id, s.name, s.school, s.code, r.scope, r.chapter_id, r.weak_labels, r.weak_count, r.total_count, r.branch, r.created_at
+               FROM student_prereq_results r LEFT JOIN students s ON s.id = r.student_id
+               WHERE r.subject_id = ? AND TRIM(s.school) = ? ORDER BY r.created_at DESC`
+            ).bind(subj, scopedSchool).all()
+          : await DB.prepare(
+              `SELECT r.student_id, s.name, s.school, s.code, r.scope, r.chapter_id, r.weak_labels, r.weak_count, r.total_count, r.branch, r.created_at
+               FROM student_prereq_results r LEFT JOIN students s ON s.id = r.student_id
+               WHERE r.subject_id = ? ORDER BY r.created_at DESC`
+            ).bind(subj).all();
+        const { results: chapterRows } = await DB.prepare(
+          'SELECT chapter_id, order_num, title FROM course_chapters WHERE subject_id = ? ORDER BY term, order_num'
+        ).bind(subj).all();
+
+        // "Followed up" = support wrote to the student after the alert. The
+        // messages table is created lazily elsewhere, so tolerate it missing.
+        const lastAdminMessageAt = {};
+        try {
+          const { results: msgRows } = await DB.prepare(
+            "SELECT student_id, MAX(created_at) AS last_at FROM messages WHERE sender_type = 'admin' GROUP BY student_id"
+          ).all();
+          for (const m of msgRows) lastAdminMessageAt[m.student_id] = m.last_at;
+        } catch {}
+
+        return ok(buildPrereqAnalytics({
+          rows,
+          chapters: chapterRows.map(c => ({ chapterId: c.chapter_id, orderNum: c.order_num, title: c.title })),
+          lastAdminMessageAt,
+        }), 200, CORS);
+      }
+
+      // DELETE /api/prereq/progress?subject=chemistry-1&studentId=... — dev
+      // panel-only tool (never exposed to students) that clears a student's
+      // diagnostic results + "seen intro" flag for a subject, resetting the
+      // roadmap/CTA to a fresh first-time state.
+      if (sub === 'progress' && method === 'DELETE') {
+        const isDevKeyReset = authDev(request, env);
+        const resetClaims = isDevKeyReset ? null : await verifyToken(request, env, DB);
+        if (!isDevKeyReset && !(resetClaims && ['dev', 'director', 'admin'].includes(resetClaims.role))) {
+          return err('غير مصرح', 403, CORS);
+        }
+        const subj = (url.searchParams.get('subject') || '').trim();
+        const studentId = (url.searchParams.get('studentId') || '').trim();
+        if (!subj) return err('subject مطلوب', 400, CORS);
+        if (!studentId) return err('studentId مطلوب', 400, CORS);
+        await DB.prepare('DELETE FROM student_prereq_results WHERE student_id = ? AND subject_id = ?').bind(studentId, subj).run();
+        await DB.prepare('DELETE FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(studentId, subj).run();
+        return ok({ ok: true }, 200, CORS);
+      }
+
+      return err('غير موجود', 404, CORS);
+    }
+
     // ── JOURNEY (مسار الإنجاز) ───────────────────────────────────────────────
     // Aggregates the diagnostic (plans), the quiz-skills tree (skill_progress),
     // and the final-mock general-test into ONE server-computed state — the
@@ -3731,6 +4128,8 @@ export async function onRequest({ request, env }) {
           school: body.school || logClaims?.school || '',
           ip,
           device,
+          // a student's own client events (page open, JS errors) join their journey timeline
+          student_id: logClaims?.role === 'student' ? String(logClaims.sub || '') : '',
         });
         return ok({ ok: true }, 201, CORS);
       }
@@ -3762,6 +4161,110 @@ export async function onRequest({ request, env }) {
         params.push(limitN, offsetN);
         const { results } = await DB.prepare(q).bind(...params).all();
         return ok({ logs: results, hasMore: results.length === limitN }, 200, CORS);
+      }
+
+      // GET /api/dev/student-journey?studentId=… — one student's audit timeline
+      // (login, page open, diagnostic start/result, gate unlock, alerts, errors,
+      // tickets), assembled by _lib/student-journey.js. Dev key or dev JWT only.
+      if (sub === 'student-journey' && method === 'GET') {
+        const isDevKeyJr = authDev(request, env);
+        if (!isDevKeyJr) {
+          const jrClaims = await verifyToken(request, env, DB);
+          if (!jrClaims || jrClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        const jrStudentId = (url.searchParams.get('studentId') || '').trim();
+        if (!jrStudentId) return err('studentId مطلوب', 400, CORS);
+        const jrStudent = await DB.prepare('SELECT id, code, name, school, phone FROM students WHERE id = ?').bind(jrStudentId).first();
+        if (!jrStudent) return err('طالب غير موجود', 404, CORS);
+        await _ensurePrereqSchema(DB);
+        // a table that does not exist yet (fresh DB) must not fail the whole view
+        const jrSafe = (p, d) => p.catch(() => d);
+        const [jrLogs, jrResults, jrProgress, jrTickets, jrChapters] = await Promise.all([
+          jrSafe(DB.prepare(
+            "SELECT level, category, message, ip, device, created_at FROM logs WHERE student_id = ? OR (user_role = 'student' AND user_name = ? AND (student_id IS NULL OR student_id = '')) ORDER BY created_at DESC LIMIT 300"
+          ).bind(jrStudent.id, jrStudent.name).all(), { results: [] }),
+          jrSafe(DB.prepare(
+            'SELECT scope, chapter_id, weak_labels, weak_count, total_count, branch, created_at FROM student_prereq_results WHERE student_id = ? ORDER BY created_at ASC'
+          ).bind(jrStudent.id).all(), { results: [] }),
+          jrSafe(DB.prepare('SELECT seen_intro, updated_at FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(jrStudent.id, 'chemistry-1').first(), null),
+          jrSafe(DB.prepare('SELECT subject, category, status, created_at FROM tickets WHERE student_id = ? ORDER BY created_at DESC LIMIT 50').bind(jrStudent.id).all(), { results: [] }),
+          jrSafe(DB.prepare('SELECT chapter_id, title FROM course_chapters WHERE subject_id = ?').bind('chemistry-1').all(), { results: [] }),
+        ]);
+        return ok(buildStudentJourney({
+          student: jrStudent, logs: jrLogs.results, results: jrResults.results, progress: jrProgress,
+          tickets: jrTickets.results, chapters: jrChapters.results.map(c => ({ chapterId: c.chapter_id, title: c.title })),
+        }), 200, CORS);
+      }
+
+      // GET /api/dev/student-exam-status?subject=chem1|bio1|aptitude&studentId=...
+      // One student's status for one subject (card view). Without studentId it returns
+      // the roster of students who have any result for that subject ("عرض الكل").
+      if (sub === 'student-exam-status' && method === 'GET') {
+        const isDevKeyEs = authDev(request, env);
+        if (!isDevKeyEs) {
+          const esClaims = await verifyToken(request, env, DB);
+          if (!esClaims || esClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        const esSubject = normalizeExamSubject(url.searchParams.get('subject'));
+        if (!esSubject) return err('subject غير صالح (chem1 | bio1 | aptitude)', 400, CORS);
+        const esStudentId = (url.searchParams.get('studentId') || '').trim();
+        if (esStudentId) {
+          const esStudent = await DB.prepare('SELECT id, code, name, school, phone FROM students WHERE id = ?').bind(esStudentId).first();
+          if (!esStudent) return err('طالب غير موجود', 404, CORS);
+          let rows;
+          if (esSubject === 'chem1') {
+            await _ensurePrereqSchema(DB);
+            const [res, prog] = await Promise.all([
+              DB.prepare('SELECT scope, chapter_id, weak_labels, weak_count, total_count, branch, created_at FROM student_prereq_results WHERE student_id = ? AND subject_id = ? ORDER BY created_at ASC').bind(esStudentId, CHEM_SUBJECT_ID).all(),
+              DB.prepare('SELECT seen_intro FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(esStudentId, CHEM_SUBJECT_ID).first(),
+            ]);
+            rows = { results: res.results, progress: prog };
+          } else if (esSubject === 'bio1') {
+            rows = { results: await listTestResults(DB, { studentId: esStudentId }) };
+          } else {
+            const { results } = await DB.prepare('SELECT id, status, gaps, created_at FROM plans WHERE student_id = ? ORDER BY created_at ASC').bind(esStudentId).all();
+            rows = { plans: results };
+          }
+          return ok({ student: esStudent, subject: esSubject, status: summarizeExam(esSubject, rows) }, 200, CORS);
+        }
+        const esSchool = (url.searchParams.get('school') || '').trim();
+        let flat;
+        if (esSubject === 'chem1') {
+          await _ensurePrereqSchema(DB);
+          const { results } = await DB.prepare(
+            `SELECT r.student_id, s.name AS student_name, s.school, s.code, r.scope, r.chapter_id, r.weak_labels, r.weak_count, r.total_count, r.branch, r.created_at
+               FROM student_prereq_results r JOIN students s ON s.id = r.student_id
+              WHERE r.subject_id = ?${esSchool ? ' AND s.school = ?' : ''}
+              ORDER BY r.created_at DESC LIMIT 5000`
+          ).bind(...(esSchool ? [CHEM_SUBJECT_ID, esSchool] : [CHEM_SUBJECT_ID])).all();
+          flat = results;
+        } else if (esSubject === 'bio1') {
+          flat = await listTestResults(DB, { school: esSchool || null });
+        } else {
+          const { results } = await DB.prepare(`SELECT id, student_id, student_name, school, status, gaps, created_at FROM plans${esSchool ? ' WHERE school = ?' : ''} ORDER BY created_at DESC LIMIT 5000`).bind(...(esSchool ? [esSchool] : [])).all();
+          flat = results;
+        }
+        return ok({ subject: esSubject, ...buildExamRoster(esSubject, flat) }, 200, CORS);
+      }
+
+      // DELETE /api/dev/chem-diagnostic?studentId=... — resets one student's chemistry-1
+      // diagnostic (every scope: subject + chapters, and the "seen intro" flag) so the
+      // chapters are locked again. Same effect as DELETE /api/prereq/progress for this subject.
+      if (sub === 'chem-diagnostic' && method === 'DELETE') {
+        const isDevKeyCd = authDev(request, env);
+        if (!isDevKeyCd) {
+          const cdClaims = await verifyToken(request, env, DB);
+          if (!cdClaims || cdClaims.role !== 'dev') return err('غير مصرح', 401, CORS);
+        }
+        const cdStudentId = (url.searchParams.get('studentId') || '').trim();
+        if (!cdStudentId) return err('studentId مطلوب', 400, CORS);
+        const cdStudent = await DB.prepare('SELECT id, name, school FROM students WHERE id = ?').bind(cdStudentId).first();
+        if (!cdStudent) return err('طالب غير موجود', 404, CORS);
+        await _ensurePrereqSchema(DB);
+        const cdRes = await DB.prepare('DELETE FROM student_prereq_results WHERE student_id = ? AND subject_id = ?').bind(cdStudentId, CHEM_SUBJECT_ID).run();
+        await DB.prepare('DELETE FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(cdStudentId, CHEM_SUBJECT_ID).run();
+        await logEvent(DB, { level: 'warn', category: 'test-management', message: `تصفير تشخيص الكيمياء 1: ${cdStudent.name}`, user_role: 'dev', school: cdStudent.school || '' });
+        return ok({ ok: true, deleted: cdRes?.meta?.changes || 0 }, 200, CORS);
       }
 
       // POST /api/dev/access-tokens { studentId } — dev-only test tool: mints a
@@ -4158,14 +4661,26 @@ export async function onRequest({ request, env }) {
       // GET /api/dev/students — all students (optional ?school=X filter)
       if (sub === 'students' && method === 'GET') {
         const filterSchool = url.searchParams.get('school');
+        // ?q= — on-demand search by name or code (used by إدارة الاختبارات so the panel
+        // never has to load every student); ?limit= caps the rows returned.
+        const searchQ = (url.searchParams.get('q') || '').trim().slice(0, 60);
+        const searchLimit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '0', 10) || 0, 0), 200);
         try {
           let q = `SELECT s.id, s.code, s.name, s.school, s.phone, s.created_at,
                      (SELECT COUNT(*) FROM plans p WHERE p.student_id = s.id) AS plan_count,
                      (SELECT status FROM plans p WHERE p.student_id = s.id ORDER BY p.created_at DESC LIMIT 1) AS plan_status
                    FROM students s`;
           const params = [];
-          if (filterSchool) { q += ' WHERE s.school = ?'; params.push(filterSchool); }
+          const where = [];
+          if (filterSchool) { where.push('s.school = ?'); params.push(filterSchool); }
+          if (searchQ) {
+            const like = '%' + searchQ.replace(/[\\%_]/g, m => '\\' + m) + '%';
+            where.push("(s.name LIKE ? ESCAPE '\\' OR s.code LIKE ? ESCAPE '\\')");
+            params.push(like, like);
+          }
+          if (where.length) q += ' WHERE ' + where.join(' AND ');
           q += ' ORDER BY s.school, s.name ASC';
+          if (searchLimit) { q += ' LIMIT ?'; params.push(searchLimit); }
           const { results } = await DB.prepare(q).bind(...params).all();
           return ok({ students: results }, 200, CORS);
         } catch (e) {
@@ -4980,6 +5495,17 @@ export async function onRequest({ request, env }) {
           'SELECT * FROM ticket_replies WHERE ticket_id=? ORDER BY created_at ASC'
         ).bind(sub).all();
         return ok({ ticket, replies }, 200, CORS);
+      }
+
+      // DELETE /api/tickets/:id — developer only: removes the ticket and its replies.
+      if (method === 'DELETE' && sub && !subsub) {
+        if (tkClaims.role !== 'dev') return err('غير مسموح', 403, CORS);
+        const delTicket = await DB.prepare('SELECT id, ticket_num, student_name FROM tickets WHERE id=?').bind(sub).first();
+        if (!delTicket) return err('غير موجود', 404, CORS);
+        await DB.prepare('DELETE FROM ticket_replies WHERE ticket_id=?').bind(sub).run();
+        await DB.prepare('DELETE FROM tickets WHERE id=?').bind(sub).run();
+        await logEvent(DB, { level: 'warn', category: 'ticket', message: `حذف تذكرة ${delTicket.ticket_num || delTicket.id} — ${delTicket.student_name || ''}`, user_name: 'dev', user_role: 'dev' });
+        return ok({ ok: true }, 200, CORS);
       }
 
       // POST /api/tickets — use JWT claims for student identity

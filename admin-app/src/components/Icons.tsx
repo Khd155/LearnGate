@@ -200,3 +200,41 @@ export function CheckIcon({ className }: IconProps) {
     </svg>
   );
 }
+export function AtomIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="12" cy="12" r="1.6" />
+      <ellipse cx="12" cy="12" rx="9" ry="3.6" />
+      <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)" />
+      <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)" />
+    </svg>
+  );
+}
+export function BellIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z" /><path d="M10 21a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+export function TrophyIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9.5 17h5" />
+    </svg>
+  );
+}
+export function BoltIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M13 2 4 14h7l-1 8 9-12h-7z" />
+    </svg>
+  );
+}
+export function BarsIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M5 20v-6M12 20V5M19 20v-9" />
+    </svg>
+  );
+}

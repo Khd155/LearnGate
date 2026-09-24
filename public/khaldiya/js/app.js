@@ -2373,6 +2373,12 @@ const App = {
     const sec = State.diagSection || 'both';
     const fullBank = window._fullQuestionBank || window.QUESTION_BANK;
     window.QUESTION_BANK = sec === 'both' ? fullBank.slice() : fullBank.filter(q => q.type === sec);
+    if (!window.QUESTION_BANK.length) {
+      // The bank comes only from the server now — never start a test with nothing to show.
+      showToast('تعذّر تحميل أسئلة الاختبار، تحقق من الاتصال وحاول مرة أخرى');
+      DB.loadQuestions().catch(() => {});
+      return;
+    }
     State.currentQ = 0;
     State.testAnswers = {};
     App.renderQuestion();

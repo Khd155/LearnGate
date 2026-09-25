@@ -856,6 +856,8 @@ function show(id, opts) {
       el.scrollTop = 0;
     });
     _makeCardsAccessible(el);
+    // Saved-school strip on the first sign-in step (see App._syncSavedSchool).
+    if (id === 'screen-school') App._syncSavedSchool();
   }
 
   if (!opts.fromPopstate) {
@@ -1147,6 +1149,9 @@ const App = {
   selectSchool(name) {
     State.school = name;
     App._updateSchoolDisplay(name);
+    // Remembered locally so the next visit can skip straight past this step
+    // (the school card shows a "متابعة / تغيير المدرسة" strip instead).
+    try { localStorage.setItem('lg_last_school', name); } catch (_) {}
     show('screen-identity');
   },
 
@@ -1155,12 +1160,57 @@ const App = {
     // School will be detected automatically from the student/admin code at login.
     State.school = '';
     App._updateSchoolDisplay('');
+    try { localStorage.removeItem('lg_last_school'); } catch (_) {}
     show('screen-identity');
   },
 
+  // "متابعة" on the saved-school strip — same path as clicking that school's card.
+  continueSavedSchool() {
+    let saved = '';
+    try { saved = localStorage.getItem('lg_last_school') || ''; } catch (_) {}
+    if (saved) App.selectSchool(saved); else App._syncSavedSchool();
+  },
+
+  // "تغيير المدرسة" — forget the remembered choice and show the full card list again.
+  forgetSchool() {
+    try { localStorage.removeItem('lg_last_school'); } catch (_) {}
+    App._syncSavedSchool();
+  },
+
+  // Called by show() every time screen-school appears: toggles the saved-school
+  // strip and highlights the matching card. Purely presentational.
+  _syncSavedSchool() {
+    let saved = '';
+    try { saved = localStorage.getItem('lg_last_school') || ''; } catch (_) {}
+    const strip = document.getElementById('lg-saved-school');
+    const nameEl = document.getElementById('lg-saved-school-name');
+    if (nameEl) nameEl.textContent = saved;
+    if (strip) strip.classList.toggle('show', !!saved);
+    document.querySelectorAll('#school-cards .lg-choice[data-school]').forEach(card => {
+      card.classList.toggle('is-selected', !!saved && card.dataset.school === saved);
+    });
+  },
+
+  // Live helper under the login-code field: grouped read-only preview of the
+  // digits typed so far plus an n/10 counter. Never touches the input's value
+  // (it must stay pure digits for the pattern check and the login request).
+  lgCodeInput(inp, prefix) {
+    const digits = (inp.value || '').replace(/\D/g, '');
+    const fmt = document.getElementById(prefix + '-code-fmt');
+    const cnt = document.getElementById(prefix + '-code-cnt');
+    const wrap = document.getElementById(prefix + '-code-wrap');
+    if (fmt) fmt.textContent = digits ? digits.replace(/(\d{2})(\d{0,3})(\d{0,3})(\d{0,2})/, (_, a, b, c, d) => [a, b, c, d].filter(Boolean).join(' ')) : '';
+    const done = digits.length === 10;
+    if (cnt) { cnt.textContent = `${digits.length} / 10`; cnt.classList.toggle('is-complete', done); }
+    if (wrap) wrap.classList.toggle('is-complete', done);
+  },
+
   _updateSchoolDisplay(name) {
-    const idEl = document.getElementById('id-school-name');
-    if (idEl) idEl.textContent = name || 'سيتم تحديد مدرستك تلقائياً';
+    const fallback = 'سيتم تحديد مدرستك تلقائياً';
+    ['id-school-name', 'lg-sl-school', 'lg-al-school'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = name || fallback;
+    });
     ['sh-school-sub', 'ad-school-sub'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = name;

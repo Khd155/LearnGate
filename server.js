@@ -6,6 +6,8 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { onRequest } from './functions/api/[[route]].js';
+import { devKeyMatches } from './functions/_lib/security.js';
+import { bodyLimitFor, readBodyLimited } from './lib/body-limit.js';
 import { recordRequest, recordException, recordSecurityEvent, getStats, getLogs, getSecuritySummary } from './lib/monitoring.js';
 import { setupWebSocket, broadcastToAll, getConnectionCount } from './lib/ws.js';
 
@@ -18,9 +20,10 @@ const PUBLIC_DIR = path.join(__dirname, 'public', 'khaldiya');
 // in-memory state (same globalThis-hook pattern as __wsBroadcastStudent).
 globalThis.__recordSecurityEvent = recordSecurityEvent;
 
+// The dev key is accepted from the X-Dev-Key header only — never from the URL (query strings end up in
+// access logs, browser history and Referer headers) — and compared in constant time.
 function devAuthorized(req) {
-  const key = req.get('X-Dev-Key') || req.query.key || '';
-  return !!process.env.DEV_KEY && key === process.env.DEV_KEY;
+  return devKeyMatches(req.get('X-Dev-Key') || '', process.env.DEV_KEY);
 }
 
 const SECURITY_HEADERS = {
@@ -29,14 +32,9 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.sendpulse.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self';",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.sendpulse.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self';",
 };
 
-async function readRawBody(req) {
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  return Buffer.concat(chunks);
-}
 
 function nodeHeadersToFetchHeaders(nodeHeaders) {
   const headers = new Headers();
@@ -83,12 +81,17 @@ app.use((req, res, next) => {
   const startedAt = Date.now();
   const bytesIn = Number(req.get('content-length')) || 0;
   res.on('finish', () => {
+    // Metrics are best-effort. If the client dropped the connection the socket is already gone and
+    // req.ip throws — an exception inside this listener used to take the whole process down.
+    let ip = 'unknown';
+    try { ip = req.ip || req.socket?.remoteAddress || 'unknown'; } catch { /* socket already destroyed */ }
+    try {
     recordRequest({
       method: req.method,
       path: req.path,
       status: res.statusCode,
       durationMs: Date.now() - startedAt,
-      ip: req.ip || 'unknown',
+      ip,
       bytesIn,
       // Only reflects an explicit Content-Length header (set by res.json()/
       // express.static's file serving); chunked/streamed responses without
@@ -96,11 +99,12 @@ app.use((req, res, next) => {
       // for a rough traffic-volume gauge, not billing-grade accounting.
       bytesOut: Number(res.get('content-length')) || 0,
     });
+    } catch { /* never let metrics take the server down */ }
   });
   next();
 });
 
-// ── Developer monitoring APIs (protected by X-Dev-Key / ?key=) ────────────
+// ── Developer monitoring APIs (protected by the X-Dev-Key header) ────────────
 // Registered before the generic '/api' catch-all below, since that handler
 // responds to every /api/* request itself and would otherwise shadow these.
 app.get('/api/dev/monitoring/stats', (req, res) => {
@@ -136,13 +140,20 @@ app.use('/api', async (req, res) => {
   try {
     const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
     const headers = nodeHeadersToFetchHeaders(req.headers);
-    const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await readRawBody(req);
+    // Cap the body BEFORE buffering it: 2 MB normally, 10 MB for bulk imports from a caller that presents credentials.
+    const hasCredentials = !!(req.get('authorization') || req.get('x-dev-key'));
+    const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await readBodyLimited(req, bodyLimitFor(req.path, hasCredentials));
     const request = new Request(url, { method: req.method, headers, body });
     const response = await onRequest({ request, env: process.env });
     res.status(response.status);
     for (const [k, v] of response.headers) res.setHeader(k, v);
     res.end(Buffer.from(await response.arrayBuffer()));
   } catch (e) {
+    if (e && e.status === 413) {
+      // stop the client from streaming the rest of an oversized upload
+      res.setHeader('Connection', 'close');
+      return res.status(413).json({ error: 'حجم الطلب أكبر من الحد المسموح' });
+    }
     console.error('[server.js API error]', e);
     recordException(e, { path: req.originalUrl, method: req.method });
     res.status(500).json({ error: 'خطأ في الخادم' });

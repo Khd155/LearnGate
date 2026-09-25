@@ -9,6 +9,7 @@ import {
 } from '../_lib/journey.js';
 import { buildPrereqAnalytics } from '../_lib/prereq-analytics.js';
 import { buildStudentJourney } from '../_lib/student-journey.js';
+import { safeEqual, devKeyMatches, secureDigits } from '../_lib/security.js';
 import { CHEM_SUBJECT_ID, normalizeExamSubject, summarizeExam, buildExamRoster } from '../_lib/exam-status.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
@@ -135,7 +136,7 @@ function getDevKey(env) {
 
 function authDev(request, env) {
   const key = request.headers.get('X-Dev-Key') || '';
-  return key === getDevKey(env);
+  return devKeyMatches(key, getDevKey(env));
 }
 
 // ── Core tables self-provisioning ───────────────────────────────────────
@@ -282,7 +283,7 @@ async function getOrAssignSchoolCode(DB, schoolName) {
 async function generateStudentCode(DB, schoolName) {
   const prefix = await getOrAssignSchoolCode(DB, schoolName);
   for (let attempt = 0; attempt < 20; attempt++) {
-    const suffix = String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+    const suffix = secureDigits(8);
     const candidate = prefix + suffix;
     const exists = await DB.prepare('SELECT 1 FROM students WHERE code = ?').bind(candidate).first();
     if (!exists) return candidate;
@@ -297,7 +298,7 @@ async function generateStudentCode(DB, schoolName) {
 // importing, not the auto-incrementing per-school scheme used elsewhere.
 async function generateBatchStudentCode(DB, prefix) {
   for (let attempt = 0; attempt < 20; attempt++) {
-    const suffix = String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+    const suffix = secureDigits(8);
     const candidate = prefix + suffix;
     const exists = await DB.prepare('SELECT 1 FROM students WHERE code = ?').bind(candidate).first();
     if (!exists) return candidate;
@@ -545,7 +546,7 @@ async function generateAdminCode(DB, schoolName) {
     ? await getOrAssignSchoolCode(DB, schoolName)
     : COMPANY_WIDE_CODE_PREFIX;
   for (let attempt = 0; attempt < 20; attempt++) {
-    const suffix = String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+    const suffix = secureDigits(8);
     const candidate = prefix + suffix;
     const exists = await DB.prepare('SELECT 1 FROM admins WHERE code = ?').bind(candidate).first();
     if (!exists) return candidate;
@@ -805,12 +806,12 @@ async function verifyToken(request, env, DB) {
 }
 
 // ── Rate Limiting (D1-based, 1-minute windows) ────────────────────────────
-async function rateLimit(DB, ip, action, maxPerMin) {
+async function rateLimit(DB, ip, action, maxPerMin, windowMs = 60000) {
   try {
     await DB.prepare(`CREATE TABLE IF NOT EXISTS rate_limits (
       key TEXT PRIMARY KEY, count INTEGER DEFAULT 0, win INTEGER DEFAULT 0
     )`).run();
-    const window = Math.floor(Date.now() / 60000);
+    const window = Math.floor(Date.now() / windowMs);
     const key = `${action}:${ip}`;
     const row = await DB.prepare('SELECT count, win FROM rate_limits WHERE key = ?').bind(key).first();
     if (!row || row.win !== window) {
@@ -1199,6 +1200,11 @@ export async function onRequest({ request, env }) {
         if (!await rateLimit(DB, 'phone:' + localPhone, 'recover-otp-request-phone', 5)) {
           return err('طلبات كثيرة على هذا الرقم — أعد المحاولة لاحقًا', 429, CORS);
         }
+        // hard ceiling per phone: a fresh code resets the per-code attempt counter, so without this an
+        // attacker could keep requesting new codes (and spamming the owner's WhatsApp) while guessing
+        if (!await rateLimit(DB, 'phone:' + localPhone, 'recover-otp-request-phone-15m', 3, 15 * 60000)) {
+          return err('تم تجاوز الحد المسموح لطلبات الرمز — أعد المحاولة بعد 15 دقيقة', 429, CORS);
+        }
         const student = await DB.prepare('SELECT id, name, phone FROM students WHERE phone = ?').bind(localPhone).first();
         if (!student) {
           await logEvent(DB, { level: 'warn', category: 'recover-otp', message: `طلب OTP لرقم غير مسجّل — الرقم المُرسَل: "${rawPhone}"`, ip });
@@ -1214,7 +1220,7 @@ export async function onRequest({ request, env }) {
         // most recent request should ever be verifiable.
         await DB.prepare('DELETE FROM otp_codes WHERE phone = ? AND used_at IS NULL').bind(localPhone).run();
 
-        const code = String(Math.floor(1000 + Math.random() * 9000)); // 4 digits, never leading-zero-ambiguous
+        const code = secureDigits(6); // 6 digits from a CSPRNG
         const now = new Date();
         const expiresAt = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
         await DB.prepare(
@@ -1227,7 +1233,7 @@ export async function onRequest({ request, env }) {
         // whole flow (including the "correct code, no account" 404 case
         // below in /verify) can be exercised without a live WhatsApp bot,
         // whether or not this phone matches a student.
-        if (!env.SENDPULSE_ID || !env.SENDPULSE_SECRET) {
+        if (env.ALLOW_DEV_OTP === 'true' && (!env.SENDPULSE_ID || !env.SENDPULSE_SECRET)) {
           await logEvent(DB, { level: 'warn', category: 'recover-otp', message: `[DEV] SendPulse غير مُهيّأ — تم تخطي الإرسال الفعلي، الرمز: ${code} — ${student ? student.name : '(رقم غير مسجّل)'}`, user_name: student?.name || '', user_role: 'student', ip });
           return ok({ ok: true, devCode: code }, 200, CORS);
         }
@@ -1270,8 +1276,11 @@ export async function onRequest({ request, env }) {
         const { phone: rawPhone, code: submittedCode } = await request.json().catch(() => ({}));
         if (!await rateLimit(DB, ip, 'recover-otp-verify', 15)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
         const localPhone = toLocalSaudiPhone(rawPhone || '');
-        if (!/^05\d{8}$/.test(localPhone) || !/^\d{4}$/.test(String(submittedCode || ''))) {
+        if (!/^05\d{8}$/.test(localPhone) || !/^\d{6}$/.test(String(submittedCode || ''))) {
           return err('بيانات غير صالحة', 400, CORS);
+        }
+        if (!await rateLimit(DB, 'phone:' + localPhone, 'recover-otp-verify-phone', 10, 15 * 60000)) {
+          return err('محاولات كثيرة — أعد المحاولة بعد 15 دقيقة', 429, CORS);
         }
         try { await DB.prepare(`CREATE TABLE IF NOT EXISTS otp_codes (
           id TEXT PRIMARY KEY, phone TEXT NOT NULL, code TEXT NOT NULL, student_id TEXT,
@@ -1376,7 +1385,7 @@ export async function onRequest({ request, env }) {
         if (await isLockedOut(DB, ip, 'dev-login')) return err('تم تجميد المحاولات — أعد المحاولة بعد 15 دقيقة', 429, CORS);
         const { key } = await request.json();
         const devKey = env.DEV_KEY;
-        if (!devKey || key !== devKey) {
+        if (!devKeyMatches(key, devKey)) {
           await recordFailedAttempt(DB, ip, 'dev-login');
           return err('غير مصرح', 401, CORS);
         }
@@ -4119,13 +4128,23 @@ export async function onRequest({ request, env }) {
         const body = await request.json();
         const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
         const device = detectDevice(request.headers.get('User-Agent') || '');
+        // Only the developer may write arbitrary log rows. Every other signed-in user
+        // (a student's browser reports its own events here) is limited to a fixed set of
+        // categories and levels, is rate-limited per account, and can never choose the
+        // identity fields — those come from the verified token, not the request body.
+        // (Log text is also rendered in the dev panel, so an open category such as
+        // 'suspicious' let any student plant markup there.)
+        const isDevCaller = isDevKey || logClaims?.role === 'dev';
+        if (!isDevCaller && !await rateLimit(DB, 'u:' + (logClaims?.sub || ip), 'client-log', 30)) return err('طلبات كثيرة', 429, CORS);
+        const CLIENT_LOG_CATEGORIES = new Set(['login', 'logout', 'plan', 'prereq', 'error', 'client']);
+        const CLIENT_LOG_LEVELS = new Set(['info', 'success', 'warn', 'error']);
         await logEvent(DB, {
-          level: body.level || 'info',
-          category: body.category || 'system',
-          message: String(body.message || '').slice(0, 500),
-          user_name: body.user_name || logClaims?.name || '',
-          user_role: body.user_role || logClaims?.role || '',
-          school: body.school || logClaims?.school || '',
+          level: isDevCaller ? (body.level || 'info') : (CLIENT_LOG_LEVELS.has(body.level) ? body.level : 'info'),
+          category: isDevCaller ? (body.category || 'system') : (CLIENT_LOG_CATEGORIES.has(body.category) ? body.category : 'client'),
+          message: String(body.message || '').slice(0, isDevCaller ? 500 : 300),
+          user_name: isDevCaller ? (body.user_name || logClaims?.name || '') : (logClaims?.name || ''),
+          user_role: isDevCaller ? (body.user_role || logClaims?.role || '') : (logClaims?.role || ''),
+          school: isDevCaller ? (body.school || logClaims?.school || '') : (logClaims?.school || ''),
           ip,
           device,
           // a student's own client events (page open, JS errors) join their journey timeline
@@ -5923,6 +5942,11 @@ export async function onRequest({ request, env }) {
         const filterTest = url.searchParams.get('testNum');
         let query = 'SELECT * FROM general_test_results WHERE is_trial = 0';
         const params = [];
+        // Same tenant rule as every sibling endpoint: an admin / school-scoped director only ever sees
+        // their own school (from the token, never the URL); only dev or a '*' director may choose one.
+        if (claims.role !== 'dev' && !claims.school) return err('غير مصرح', 403, CORS);
+        const gtSchool = (claims.role !== 'dev' && claims.school && claims.school !== '*') ? claims.school : (school || null);
+        if (gtSchool) { query += ' AND school = ?'; params.push(gtSchool); }
         if (studentId) { query += ' AND student_id = ?'; params.push(studentId); }
         if (filterTest) { query += ' AND test_num = ?'; params.push(Number(filterTest)); }
         query += ' ORDER BY created_at DESC LIMIT 2000';

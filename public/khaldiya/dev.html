@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="/vendor/xlsx.full.min.js"></script>
   <style>
     /* ══════════════════════════════════════════════════════════════════════
        LearnGate Mission Control v3.0 — Slate Glass (dark)
@@ -1258,7 +1258,7 @@ const Dev = {
       return `<div class="school-card">
         <div class="school-card-head">
           <div class="school-card-icon">🏫</div>
-          <div class="school-card-name">${s.school}</div>
+          <div class="school-card-name">${escapeHtml(s.school)}</div>
         </div>
         <div class="school-card-stats">
           <div class="school-card-stat">الطلاب<strong>${s.students}</strong></div>
@@ -1713,7 +1713,7 @@ const Dev = {
   async populateSchoolSelects() {
     const { schools } = await apiDev('/dev/schools');
     Dev._schools = schools.map(s => s.name);
-    const schoolOpts = schools.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+    const schoolOpts = schools.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
 
     // Admin school select
     document.getElementById('new-admin-school').innerHTML =
@@ -1786,7 +1786,7 @@ const Dev = {
         </tbody>
       </table>`;
     } catch (e) {
-      el.innerHTML = `<div class="empty">❌ خطأ في التحميل: ${e.message}<br><span style="font-size:12px;color:var(--muted)">تأكد من تشغيل Migration v2 في D1 Console</span></div>`;
+      el.innerHTML = `<div class="empty">❌ خطأ في التحميل: ${escapeHtml(e.message)}<br><span style="font-size:12px;color:var(--muted)">تأكد من تشغيل Migration v2 في D1 Console</span></div>`;
     }
   },
 
@@ -1847,7 +1847,7 @@ const Dev = {
         school,
       })).filter(r => /^\d{10}$/.test(r.code) && r.name);
     } catch (e) {
-      resultEl.innerHTML = `<div style="color:#f87171;font-size:13px">❌ ${e.message}</div>`; return;
+      resultEl.innerHTML = `<div style="color:#f87171;font-size:13px">❌ ${escapeHtml(e.message)}</div>`; return;
     }
     if (!parsed.length) {
       resultEl.innerHTML = '<div style="color:#f87171;font-size:13px">⚠️ لم يتم العثور على صفوف صالحة — تأكد أن الأعمدة: "اسم الطالب" و"السجل المدني"</div>'; return;
@@ -1889,7 +1889,7 @@ const Dev = {
       window._bulkParsed = null;
       Dev.loadStudents(); Dev.loadStats();
     } catch (e) {
-      resultEl.innerHTML = `<div style="color:#f87171;font-size:13px">❌ ${e.message}</div>`;
+      resultEl.innerHTML = `<div style="color:#f87171;font-size:13px">❌ ${escapeHtml(e.message)}</div>`;
     }
   },
 
@@ -2204,7 +2204,7 @@ const Dev = {
       sel.innerHTML = '<option value="">كل المدارس</option>' + schools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
       Dev.renderDiff();
     } catch (e) {
-      wrap.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
+      wrap.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${escapeHtml(e.message)}</div>`;
     }
   },
 
@@ -2438,7 +2438,7 @@ const Dev = {
           }).join('')}</tbody>
         </table></div>`;
     } catch (e) {
-      el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل السجلات: ${e.message}</div>`;
+      el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل السجلات: ${escapeHtml(e.message)}</div>`;
     }
   },
 
@@ -2502,7 +2502,7 @@ const Dev = {
         </div>`;
       }).join('');
     } catch(e) {
-      if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
+      if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${escapeHtml(e.message)}</div>`;
     }
   },
 
@@ -2577,7 +2577,7 @@ const Dev = {
         </div>`;
       }).join('');
     } catch(e) {
-      if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
+      if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${escapeHtml(e.message)}</div>`;
     }
   },
 
@@ -2620,7 +2620,7 @@ const Dev = {
         </div>`;
       }).join('');
     } catch(e) {
-      if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${e.message}</div>`;
+      if (el) el.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر التحميل: ${escapeHtml(e.message)}</div>`;
     }
   },
 
@@ -2799,14 +2799,14 @@ ${dataRows}
         const time = new Date(l.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
         return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;">
           <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">
-            <span style="font-weight:600;color:#e2e8f0">${l.user_name || '—'} <span style="color:var(--muted);font-size:11px">🏫 ${l.school || '—'}</span></span>
+            <span style="font-weight:600;color:#e2e8f0">${escapeHtml(l.user_name || '—')} <span style="color:var(--muted);font-size:11px">🏫 ${escapeHtml(l.school || '—')}</span></span>
             <span style="color:var(--muted);font-size:11px">${time}</span>
           </div>
-          <div style="margin-top:4px;color:#f59e0b;font-size:12px">🚨 ${l.message}</div>
+          <div style="margin-top:4px;color:#f59e0b;font-size:12px">🚨 ${escapeHtml(l.message)}</div>
         </div>`;
       }).join('');
     } catch (e) {
-      if (suspEl) suspEl.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل البيانات: ${e.message}</div>`;
+      if (suspEl) suspEl.innerHTML = `<div class="empty" style="color:var(--danger)">تعذّر تحميل البيانات: ${escapeHtml(e.message)}</div>`;
     }
   },
 

@@ -98,7 +98,7 @@ async function _loadXlsx() {
   if (window.XLSX) return;
   await new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.src = '/vendor/xlsx.full.min.js';
     s.onload = resolve; s.onerror = reject;
     document.head.appendChild(s);
   });
@@ -1222,8 +1222,8 @@ const App = {
         const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
         if (!text) return;
         e.preventDefault();
-        text.slice(0, 4).split('').forEach((ch, j) => { if (boxes[j]) { boxes[j].value = ch; pop(boxes[j]); } });
-        (boxes[Math.min(text.length, 4) - 1] || boxes[3]).focus();
+        text.slice(0, boxes.length).split('').forEach((ch, j) => { if (boxes[j]) { boxes[j].value = ch; pop(boxes[j]); } });
+        (boxes[Math.min(text.length, boxes.length) - 1] || boxes[boxes.length - 1]).focus();
       });
     });
   },
@@ -1252,7 +1252,7 @@ const App = {
   // "tap to fill" pill an SMS/WhatsApp autofill suggestion would show.
   recoverOtpAutofill() {
     const code = State._recoverOtp?.devCode;
-    if (!/^\d{4}$/.test(code || '')) return;
+    if (!/^\d{6}$/.test(code || '')) return;
     const boxes = Array.from(document.querySelectorAll('.ro-otp-box'));
     document.getElementById('ro-fill-pill').style.display = 'none';
     code.split('').forEach((digit, i) => {
@@ -1319,7 +1319,7 @@ const App = {
   async recoverOtpVerify() {
     const boxes = Array.from(document.querySelectorAll('.ro-otp-box'));
     const code = boxes.map(b => b.value).join('');
-    if (!/^\d{4}$/.test(code)) { boxes.find(b => !b.value)?.focus(); return; }
+    if (!/^\d{6}$/.test(code)) { boxes.find(b => !b.value)?.focus(); return; }
     const btn = document.getElementById('ro-verify-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> جارٍ التحقق…'; }
     const otpStep = document.getElementById('ro-step-otp');

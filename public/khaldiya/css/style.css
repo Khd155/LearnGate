@@ -3161,3 +3161,6 @@ body:has(.app-screen.active) .modal-overlay .modal-box:not(.ro-box)::before {
   .app-screen::before, .app-screen::after { display: none !important; }
   .app-screen .la-bar, .app-screen .skill-card-prio { display: none !important; }
 }
+/* Journey level heading icon (line SVG instead of an emoji book) */
+.jt-level-icon { display: inline-flex; color: var(--primary); }
+.jt-level-icon svg { width: 16px; height: 16px; }

@@ -35,7 +35,7 @@ function sortBySkillOrder(gaps) {
 // so this array can be declared before App exists — closures aren't called
 // until the student actually taps the button.
 const FAQ_DATA = [
-  { title: '📌 التعريف بالبوابة', items: [
+  { title: 'التعريف بالبوابة', items: [
     { q: 'ما هي بوابة دعم التعلم؟', a: 'بوابة تعليمية موجهة لطلاب الثانوية تساعدهم على اكتساب المهارات اللازمة والاستعداد لاختبار القدرات والاختبار التحصيلي.', action: 'about', label: '🔗 التعرف على البوابة' },
     { q: 'كيف أبدأ استخدام البوابة؟', a: 'سجّل الدخول برقمك، ثم ابدأ بالاختبار التشخيصي — تُبنى خطة الدعم تلقائيًا على نتيجتك.', action: 'diagnostic', label: '🚀 بدء الاختبار التشخيصي' },
     { q: 'هل يوجد فيديو يشرح فكرة البوابة؟', a: 'حاليًا التعريف متاح كنص مفصّل في صفحة "عن البوابة"، وسيُضاف فيديو تعريفي لاحقًا.', action: 'about', label: '🔗 التعرف على البوابة' },
@@ -43,7 +43,7 @@ const FAQ_DATA = [
     { q: 'هل أبدأ بالشروحات أم بالاختبار التشخيصي؟', a: 'ابدأ بالاختبار التشخيصي أولًا؛ لأنه يحدد المهارات التي تحتاج إلى دعم، ثم ينشئ لك خطة دعم تتضمن الشروحات والتدريبات المناسبة.', action: 'diagnostic', label: '🚀 بدء الاختبار التشخيصي' },
     { q: 'هل تكفي البوابة وحدها للاستعداد لاختبار القدرات؟', a: 'البوابة تقدم برنامجًا مركزًا لإتقان المهارات الأساسية، لكنها لا تغني عن الاستفادة من المصادر الأخرى، خاصة لمن يستهدفون الدرجات المرتفعة جدًا.' },
   ]},
-  { title: '🔑 الحساب والدخول', items: [
+  { title: 'الحساب والدخول', items: [
     { q: 'كيف أحصل على رمز الدخول؟', a: 'رمز الدخول يصدره المشرف لكل طالب. إن لم يصلك، تواصل مع الدعم الفني.', action: 'guest-support', label: '📩 تواصل مع الدعم الفني' },
     { q: 'ماذا أفعل إذا نسيت رمز الدخول؟', a: 'تواصل مع الدعم الفني لاستعادته.', action: 'guest-support', label: '📩 تواصل مع الدعم الفني' },
     { q: 'لا أستطيع تسجيل الدخول، ماذا أفعل؟', a: 'تأكد من صحة الرقم، وإن استمرت المشكلة تواصل مع الدعم الفني.', action: 'guest-support', label: '📩 تواصل مع الدعم الفني' },
@@ -51,7 +51,7 @@ const FAQ_DATA = [
     { q: 'هل أستطيع الدخول من الكمبيوتر؟', a: 'نعم، يمكن الدخول من الكمبيوتر.' },
     { q: 'هل يمكن استخدام الحساب في أكثر من جهاز؟', a: 'نعم، مع مراعاة ضوابط الاستخدام.' },
   ]},
-  { title: '🧠 الاختبار التشخيصي', items: [
+  { title: 'الاختبار التشخيصي', items: [
     { q: 'ما الاختبار التشخيصي؟', a: 'اختبار يقيس الحد الأدنى لإتقان المهارات الأساسية، ثم يحدد المهارات التي تحتاج إلى دعم ويقترح لك خطة دعم مناسبة.' },
     { q: 'ماذا أستفيد من نتيجة الاختبار التشخيصي؟', a: 'تحصل على خطة دعم دقيقة تناسب مستواك.', action: 'level-analysis', label: '📊 عرض تحليل مستواك' },
     { q: 'هل يمكن إعادة الاختبار التشخيصي؟', a: 'نعم، بعد فترة مناسبة من التدريب على المهارات المطلوبة.', action: 'diagnostic', label: '🚀 إعادة الاختبار' },
@@ -59,7 +59,7 @@ const FAQ_DATA = [
     { q: 'هل تظهر المهارات التي أحتاجها بعد الاختبار؟', a: 'نعم، تظهر لك خطة دعم كاملة تشمل المهارات والمواد العلمية الخاصة بها.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
     { q: 'ماذا أفعل بعد انتهاء الاختبار؟', a: 'انتقل إلى خطة الدعم، ثم ابدأ بالشروحات، وبعدها التدريبات القصيرة.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
   ]},
-  { title: '🗓️ خطة التدريب', items: [
+  { title: 'خطة التدريب', items: [
     { q: 'كيف أصمم خطة التدريب؟', a: 'البوابة تقترح لك خطة تدريب مناسبة، ويمكنك الاطلاع على طريقة الاستفادة منها.', action: 'training-plan', label: '📅 الجدول الزمني للتدريب' },
     { q: 'هل تختلف خطة التدريب من طالب لآخر؟', a: 'نعم، لأنها تعتمد على نتائج الاختبار التشخيصي لكل طالب.' },
     { q: 'كم ساعة أحتاج يوميًا؟', a: 'يختلف ذلك بحسب مستواك وعدد المهارات التي تحتاج إلى دعم.' },
@@ -67,7 +67,7 @@ const FAQ_DATA = [
     { q: 'هل أستطيع تعديل خطة التدريب؟', a: 'نعم، بإعادة الاختبار التشخيصي أو باختيار المهارات التي ترغب في التركيز عليها.' },
     { q: 'ماذا أفعل إذا أنهيت جميع المهارات؟', a: 'انتقل إلى الاختبارات التقويمية والمحاكية لقياس مدى تقدمك.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
   ]},
-  { title: '🎬 الشروحات والتدريبات', items: [
+  { title: 'الشروحات والتدريبات', items: [
     { q: 'كيف أصل إلى الشروحات؟', a: 'من خلال خطة الدعم، أو مباشرة من الصفحة الرئيسية.', action: 'lessons', label: '📚 فتح الشروحات' },
     { q: 'كم مدة مقاطع الشرح؟', a: 'المقاطع التأسيسية غالبًا من 5 إلى 10 دقائق، وقد يصل بعضها إلى 20 دقيقة، أما المقاطع التدريبية فمن دقيقة إلى دقيقتين تقريبًا.' },
     { q: 'هل يجب مشاهدة جميع المقاطع؟', a: 'يُنصح بمشاهدة 3 إلى 7 مقاطع في كل جولة تدريبية، ثم الانتقال إلى المهارة التالية والعودة لاحقًا لاستكمال بقية المقاطع.' },
@@ -77,7 +77,7 @@ const FAQ_DATA = [
     { q: 'هل أكرر التدريب؟', a: 'نعم، فالتكرار يساعد على إتقان المهارة.' },
     { q: 'كم تدريبًا يكفي لكل مهارة؟', a: 'يختلف ذلك من طالب لآخر بحسب مستوى إتقانه للمهارة.' },
   ]},
-  { title: '🧪 الاختبارات المحاكية', items: [
+  { title: 'الاختبارات المحاكية', items: [
     { q: 'ما الفرق بين الاختبار التشخيصي والاختبار المحاكي؟', a: 'الاختبار التشخيصي يشبه الاختبار المحاكي، لكنه يركز على قياس الحد الأدنى من المهارات لتحديد جوانب القوة والاحتياج، أما الاختبار المحاكي فيقيس مستوى الاستعداد بصورة أشمل.' },
     { q: 'متى أبدأ الاختبارات المحاكية؟', a: 'بعد الانتهاء من دراسة المهارات ومشاهدة المقاطع وأداء التدريبات القصيرة.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
     { q: 'كم اختبارًا محاكيًا أحتاج؟', a: 'يختلف ذلك بحسب مستوى إتقانك والدرجة التي حصلت عليها في الاختبارات السابقة.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
@@ -85,7 +85,7 @@ const FAQ_DATA = [
     { q: 'كيف أستفيد من نتائج الاختبار المحاكي؟', a: 'ركز على المهارات التي ظهر فيها ضعف، ثم ارجع إلى خطة الدعم وأعد التدريب عليها قبل أداء اختبار جديد.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
     { q: 'ما الدرجة التي تدل على جاهزيتي؟', a: 'كلما ارتفعت درجتك دل ذلك على تحسن مستواك، أما الدرجة الكاملة فتدل على إتقان مهارات البوابة، لكنها لا تعني بالضرورة ضمان الحصول على الدرجة نفسها في الاختبار الفعلي.' },
   ]},
-  { title: '🎧 الدعم الفني', items: [
+  { title: 'الدعم الفني', items: [
     { q: 'كيف أتواصل مع المشرف؟', a: 'تواصل مع المشرف مباشرة عبر شاشة الدردشة داخل حسابك، وستصلك ردوده هناك.', action: 'chat', label: '💬 فتح الدردشة مع المشرف' },
     { q: 'كيف أطلب إعادة فتح الاختبار؟', a: 'أرسل طلبك للمشرف عبر الدردشة، وسيعيد فتح الاختبار لك إذا كان الطلب مناسبًا.', action: 'chat', label: '💬 فتح الدردشة مع المشرف' },
     { q: 'واجهت مشكلة تقنية، ماذا أفعل؟', a: 'ارفع طلب دعم فني موضحًا فيه المشكلة بالتفصيل، وسيتواصل معك المشرف لحلها.', action: 'tickets', label: '🎫 فتح نموذج الدعم الفني' },
@@ -906,13 +906,13 @@ function show(id, opts) {
 
 // ── Onboarding Tour (first visit to student home only) ────────────────────
 const ONBOARDING_TOUR_STEPS = [
-  { selector: '#notif-bell-student', title: '🔔 الإشعارات', text: 'هنا تصلك كل إشعاراتك — رسائل المشرف، ردود الدعم الفني، وتنبيهات الاختبارات.' },
-  { selector: '.tb-theme-btn', title: '🌙 المظهر', text: 'بدّل بين الوضع الفاتح والداكن حسب راحتك.' },
+  { selector: '#notif-bell-student', title: 'الإشعارات', text: 'هنا تصلك كل إشعاراتك — رسائل المشرف، ردود الدعم الفني، وتنبيهات الاختبارات.' },
+  { selector: '.tb-theme-btn', title: 'المظهر', text: 'بدّل بين الوضع الفاتح والداكن حسب راحتك.' },
   // #sh-journey (not a sub-element inside it) — it exists synchronously in the
   // DOM even before App.loadJourney()'s async fetch fills it in, so the tour
   // never races the network the way targeting a rendered-in sub-element would.
-  { selector: '#sh-journey', title: '🧭 مسار إنجازك', text: 'هنا رحلتك — تشخيصك، مهاراتك، وخطوتك التالية دائمًا في مكان واحد.' },
-  { selector: '.quick-actions', title: '⚡ إجراءات سريعة', text: 'الشروحات، التواصل مع المشرف، الأسئلة الشائعة، والدعم الفني — كلها من هنا.' },
+  { selector: '#sh-journey', title: 'مسار إنجازك', text: 'هنا رحلتك — تشخيصك، مهاراتك، وخطوتك التالية دائمًا في مكان واحد.' },
+  { selector: '.quick-actions', title: 'إجراءات سريعة', text: 'الشروحات، التواصل مع المشرف، الأسئلة الشائعة، والدعم الفني — كلها من هنا.' },
 ];
 
 function startOnboardingTour() {
@@ -1788,7 +1788,7 @@ const App = {
 
   _journeyLevelShort: { easy: 'سهل', medium: 'متوسط', advanced: 'متقدم' },
   _journeySectionLabel: { verbal: 'اللفظي', quantitative: 'الكمي' },
-  _journeySectionIcon: { verbal: '📘', quantitative: '📗' },
+  _journeySectionIcon: { verbal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>', quantitative: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>' },
 
   renderJourney(j) {
     const el = document.getElementById('sh-journey');
@@ -2063,7 +2063,7 @@ const App = {
     if ((j.needsReview || []).length) {
       review = `
         <div class="journey-review jt-review">
-          <div class="journey-review-head">🔴 يحتاج مراجعة (${j.needsReview.length})</div>
+          <div class="journey-review-head">يحتاج مراجعة (${j.needsReview.length})</div>
           ${j.needsReview.map(r => `
             <button type="button" class="journey-review-row" onclick="App.journeyGo('retry_skill','${r.section}','${r.level}')">
               <span class="jr-name">${escapeHtml(r.skillName)}</span>
@@ -3232,7 +3232,7 @@ const App = {
 
     list.innerHTML = review.map((r, i) => {
       const passageHtml = (r.passage && r.passage !== lastPassage)
-        ? `<div class="qt-passage-box"><div class="qt-passage-label">📖 نص القطعة</div><div class="qt-passage-text">${escapeHtml(r.passage)}</div></div>`
+        ? `<div class="qt-passage-box"><div class="qt-passage-label">نص القطعة</div><div class="qt-passage-text">${escapeHtml(r.passage)}</div></div>`
         : '';
       lastPassage = r.passage || lastPassage;
       const optsHtml = r.opts.map((opt, oi) => {
@@ -3248,7 +3248,7 @@ const App = {
         // Advanced tier, first wrong attempt: hint only, answer withheld server-side.
         feedbackHtml = `
           <div class="qz-rv-hint">
-            <div class="qz-rv-hint-head">💡 تلميح ذكي</div>
+            <div class="qz-rv-hint-head">تلميح ذكي</div>
             <div class="qz-rv-hint-text">${escapeHtml(r.smartHint)}</div>
             <div class="qz-rv-hint-note">أعد محاولة هذه المهارة لكشف الشرح الكامل بعد المحاولة الثانية.</div>
           </div>`;
@@ -3600,10 +3600,10 @@ const App = {
   buildGuideTab(skillId) {
     const g = (typeof SKILL_GUIDES !== 'undefined') ? SKILL_GUIDES[skillId] : null;
     if (!g) return '<p class="tab-empty">المحتوى قريباً.</p>';
-    let html = `<div class="guide-section"><div class="guide-label">📌 ما هذه المهارة؟</div><p class="guide-text">${g.what}</p></div>`;
+    let html = `<div class="guide-section"><div class="guide-label">ما هذه المهارة؟</div><p class="guide-text">${g.what}</p></div>`;
     if (g.warning) html += `<div class="guide-warning"><span>⚠️</span><span>${g.warning}</span></div>`;
     if (g.subskills && g.subskills.length) {
-      html += `<div class="guide-section"><div class="guide-label">🔍 المهارات الفرعية</div>`;
+      html += `<div class="guide-section"><div class="guide-label">المهارات الفرعية</div>`;
       g.subskills.forEach(s => {
         html += `<div class="guide-subskill"><div class="guide-subskill-title">${s.title}</div><div class="guide-subskill-body"><p><strong>التعريف:</strong> ${s.def}</p>`;
         if (s.errors && s.errors.length) html += `<div class="guide-subskill-err">⚠️ خطأ شائع:<ul>${s.errors.map(e=>`<li>${e}</li>`).join('')}</ul></div>`;
@@ -3613,19 +3613,19 @@ const App = {
       });
       html += `</div>`;
     } else {
-      html += `<div class="guide-section"><div class="guide-label">✅ ما الذي تحتاجه لإتقانها؟</div><ul class="guide-list">${g.needs.map(n=>`<li>${n}</li>`).join('')}</ul></div>`;
+      html += `<div class="guide-section"><div class="guide-label">ما الذي تحتاجه لإتقانها؟</div><ul class="guide-list">${g.needs.map(n=>`<li>${n}</li>`).join('')}</ul></div>`;
     }
     if (g.confusions && g.confusions.length) {
-      html += `<div class="guide-section"><div class="guide-label">🔄 العلاقات التي يكثر الخلط بينها</div>`;
+      html += `<div class="guide-section"><div class="guide-label">العلاقات التي يكثر الخلط بينها</div>`;
       g.confusions.forEach(c => { html += `<div class="guide-confusion-item"><div class="guide-confusion-title">${c.label}</div><ul class="guide-list">${c.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`; });
       html += `</div>`;
     }
-    html += `<div class="guide-section"><div class="guide-label">⚠️ أين يخطئ أغلب الطلاب؟</div><ul class="guide-list mistakes">${g.mistakes.map(m=>`<li>${m}</li>`).join('')}</ul></div>`;
+    html += `<div class="guide-section"><div class="guide-label">أين يخطئ أغلب الطلاب؟</div><ul class="guide-list mistakes">${g.mistakes.map(m=>`<li>${m}</li>`).join('')}</ul></div>`;
     if (g.trainingOrder && g.trainingOrder.length) {
-      html += `<div class="guide-section"><div class="guide-label">📋 ترتيب مقترح للتدريب</div><ol class="guide-order">${g.trainingOrder.map(t=>`<li>${t}</li>`).join('')}</ol></div>`;
+      html += `<div class="guide-section"><div class="guide-label">ترتيب مقترح للتدريب</div><ol class="guide-order">${g.trainingOrder.map(t=>`<li>${t}</li>`).join('')}</ol></div>`;
     }
     if (g.mastery && g.mastery.length) {
-      html += `<div class="guide-section guide-mastery-box"><div class="guide-label">🏆 مؤشرات الإتقان</div><ul class="guide-list guide-mastery">${g.mastery.map(m=>`<li>${m}</li>`).join('')}</ul></div>`;
+      html += `<div class="guide-section guide-mastery-box"><div class="guide-label">مؤشرات الإتقان</div><ul class="guide-list guide-mastery">${g.mastery.map(m=>`<li>${m}</li>`).join('')}</ul></div>`;
     }
     html += `<div class="guide-tip"><span>💡</span><span>${g.tip}</span></div>`;
     return html;
@@ -6944,7 +6944,7 @@ const App = {
 
     panel.innerHTML = `
       <div class="notif-panel-header">
-        <div class="notif-panel-title">🔔 الإشعارات</div>
+        <div class="notif-panel-title">الإشعارات</div>
         ${items.length ? `<button class="notif-clear-btn" onclick="App._clearNotifs()">مسح الكل</button>` : ''}
       </div>
       <div class="notif-panel-body">${bodyHtml}</div>`;

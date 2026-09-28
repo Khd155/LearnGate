@@ -967,7 +967,7 @@ function startOnboardingTour() {
       <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">${escapeHtml(step.text)}</div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
         <a href="#" class="tour-skip">تخطي</a>
-        <button type="button" class="btn btn-primary btn-sm tour-next">${isLast ? 'إنهاء ✓' : 'التالي ←'}</button>
+        <button type="button" class="btn btn-primary btn-sm tour-next">${isLast ? 'إنهاء ✓' : 'التالي'}</button>
       </div>`;
     bubble.querySelector('.tour-skip').onclick = (e) => { e.preventDefault(); endTour(); };
     bubble.querySelector('.tour-next').onclick = () => { i++; renderStep(); };
@@ -1459,7 +1459,7 @@ const App = {
       showAlert(errEl, 'الرجاء إدخال رقم الدخول (١٠ أرقام).'); return;
     }
     const _btn = document.getElementById('sl-submit-btn');
-    const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.innerHTML = 'دخول ←'; } };
+    const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.innerHTML = 'دخول'; } };
     if (_btn) { _btn.disabled = true; _btn.innerHTML = '<span class="btn-spinner"></span> جارٍ التحقق…'; }
     // Safety net: if something hangs without ever resolving/rejecting below, don't leave the button stuck forever.
     setTimeout(_restoreBtn, 8000);
@@ -1560,7 +1560,7 @@ const App = {
       showAlert(errEl, 'الرجاء إدخال رقم الدخول (١٠ أرقام).'); return;
     }
     const _btn = document.getElementById('al-submit-btn');
-    const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.innerHTML = 'دخول ←'; } };
+    const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.innerHTML = 'دخول'; } };
     if (_btn) { _btn.disabled = true; _btn.innerHTML = '<span class="btn-spinner"></span> جارٍ التحقق…'; }
     // Safety net: if something hangs without ever resolving/rejecting below, don't leave the button stuck forever.
     setTimeout(_restoreBtn, 8000);
@@ -1820,7 +1820,7 @@ const App = {
     // sits on the left (RTL: DOM-last = visually left).
     const fullLink = `
       <button type="button" class="journey-summary-link" onclick="show('screen-journey-full');App.renderJourneyFull(State._journey)">
-        <span>تابع تقدمك</span><span class="jfl-arrow">←</span>
+        <span>تابع تقدمك</span>
       </button>`;
 
     const summary = `
@@ -1948,7 +1948,7 @@ const App = {
           <div class="jt-cta-title">${escapeHtml(na.label || '')}</div>
           ${na.detail ? `<div class="jt-cta-detail">${escapeHtml(na.detail)}</div>` : ''}
         </div>
-        <span class="jt-cta-arrow">←</span>
+        
       </button>` : (na.type === 'done' ? `
       <div class="jt-cta jt-cta-done"><span class="jt-cta-icon"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg></span><div class="jt-cta-text"><div class="jt-cta-title">${escapeHtml(na.label || '')}</div></div></div>` : '');
 
@@ -2040,7 +2040,7 @@ const App = {
             <div class="jt-node-body jt-node-simple">
               <div class="jt-node-title">${escapeHtml((fm && fm.title) || 'اختبار المحاكاة الشامل')}</div>
               <div class="jt-node-desc">${desc}</div>
-              ${state === 'current' ? `<button type="button" class="jt-node-btn" onclick="App.journeyGo('final_mock','','')">ابدأ الاختبار ←</button>` : ''}
+              ${state === 'current' ? `<button type="button" class="jt-node-btn" onclick="App.journeyGo('final_mock','','')">ابدأ الاختبار</button>` : ''}
             </div>
           </li>`;
       }
@@ -2068,7 +2068,7 @@ const App = {
             <button type="button" class="journey-review-row" onclick="App.journeyGo('retry_skill','${r.section}','${r.level}')">
               <span class="jr-name">${escapeHtml(r.skillName)}</span>
               <span class="jr-score">${r.bestCorrect}/${r.bestTotal}</span>
-              <span class="jr-arrow">←</span>
+              
             </button>`).join('')}
         </div>`;
     }
@@ -5724,7 +5724,7 @@ const App = {
       setTimeout(() => App._checkBroadcasts(), 1500);
     } catch(e) {
       if (errEl) { errEl.textContent = 'تعذّر الحفظ — حاول مرة أخرى'; errEl.style.display = 'block'; }
-      if (btn) { btn.disabled = false; btn.textContent = 'حفظ ومتابعة ←'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'حفظ ومتابعة'; }
     }
   },
 
@@ -5737,7 +5737,7 @@ const App = {
     const err = document.getElementById('req-phone-err');
     if (err) err.style.display = 'none';
     const btn = document.getElementById('req-phone-btn');
-    if (btn) { btn.disabled = false; btn.textContent = 'حفظ ومتابعة ←'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'حفظ ومتابعة'; }
   },
 
   _hidePhoneGate() {
@@ -5889,7 +5889,7 @@ const App = {
     // the visible label gets it, and only when this is an admin conversation.
     const displayName = role === 'مشرف' ? adminLabel(name) : name;
     if (hdr) hdr.innerHTML = `
-      <button class="wachat-back-btn" onclick="App._chatShowSidebar()" style="${window.innerWidth<=640?'':'display:none'}">→</button>
+      <button class="wachat-back-btn" onclick="App._chatShowSidebar()" style="${window.innerWidth<=640?'':'display:none'}">رجوع</button>
       <div class="wachat-contact-avatar" style="width:36px;height:36px;font-size:14px;">${escapeHtml(name.charAt(0))}</div>
       <div>
         <div class="wachat-conv-name">${escapeHtml(displayName)}</div>
@@ -6173,7 +6173,7 @@ const App = {
     } catch (e) {
       showAlert(errEl, e.message || 'فشل الإرسال');
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'إرسال الطلب ←'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'إرسال الطلب'; }
     }
   },
 
@@ -6304,7 +6304,7 @@ const App = {
     } catch (e) {
       showAlert(errEl, e.message || 'فشل الإرسال، حاول مرة أخرى');
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'إرسال الطلب ←'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'إرسال الطلب'; }
     }
   },
 
@@ -6693,7 +6693,7 @@ const App = {
               </div>
             </div>
             <span style="font-size:13px;font-weight:700;color:${barColor};">${pct}%</span>
-            <span style="font-size:11px;color:#94a3b8;">التفاصيل ›</span>
+            <span style="font-size:11px;color:#94a3b8;">التفاصيل</span>
           </div>
           <button onclick="App.deleteBroadcast('${b.id}')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-family:inherit;font-weight:700;cursor:pointer;">حذف</button>
         </div>`;
@@ -7348,7 +7348,7 @@ function _autoLogin(role, code, token, school) {
 // submit button stuck disabled with the loading spinner from a previous attempt.
 window.addEventListener('pageshow', (e) => {
   if (!e.persisted) return;
-  [['sl-submit-btn', 'دخول ←'], ['al-submit-btn', 'دخول ←']].forEach(([id, label]) => {
+  [['sl-submit-btn', 'دخول'], ['al-submit-btn', 'دخول']].forEach(([id, label]) => {
     const btn = document.getElementById(id);
     if (btn) { btn.disabled = false; btn.innerHTML = label; }
   });

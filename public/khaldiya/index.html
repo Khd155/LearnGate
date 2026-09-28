@@ -21,7 +21,7 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="/css/style.css?v=app4">
+  <link rel="stylesheet" href="/css/style.css?v=app5">
   <style>
     .diag-radio { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
     .diag-radio input { display:none; }
@@ -1005,7 +1005,7 @@
       <div style="color:var(--muted);font-size:13.5px;line-height:1.9;margin-bottom:20px;">
         عذراً، هذا الرابط غير صالح أو انتهت صلاحيته. يرجى التواصل مع المشرف للحصول على رابط جديد.
       </div>
-      <button class="btn btn-primary" style="width:100%;" onclick="window.location.href='/'">العودة إلى الصفحة الرئيسية ←</button>
+      <button class="btn btn-primary" style="width:100%;" onclick="window.location.href='/'">العودة إلى الصفحة الرئيسية</button>
     </div>
   </div>
 </div>
@@ -1490,7 +1490,7 @@
         style="width:100%;margin-top:28px;background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
                color:#fff;border:none;border-radius:14px;padding:15px;font-size:15.5px;
                font-weight:800;font-family:inherit;cursor:pointer;">
-        ابدأ الآن ←
+        ابدأ الآن
       </button>
       <button onclick="App.openFaq()"
         style="width:100%;margin-top:12px;background:rgba(255,255,255,.12);color:#fff;
@@ -1650,7 +1650,7 @@
               <input type="checkbox" id="sl-remember">
               <span>تذكرني على هذا الجهاز</span>
             </label>
-            <button id="sl-submit-btn" class="btn btn-primary" type="submit">دخول ←</button>
+            <button id="sl-submit-btn" class="btn btn-primary" type="submit">دخول</button>
             
             <div class="lg-links">
               <span class="lg-linkrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2 19 4"/><path d="m15.5 7.5 3 3L22 6l-3-3"/><circle cx="9" cy="15" r="6"/><path d="m12.5 11.5 3-3"/></svg><span>نسيت رقم الدخول؟ <a href="#" onclick="App.openRecoverOtp();return false;">استعادته عبر واتساب</a></span></span>
@@ -1827,7 +1827,7 @@
               <input type="checkbox" id="al-remember">
               <span>تذكرني على هذا الجهاز</span>
             </label>
-            <button id="al-submit-btn" class="btn btn-primary" type="submit">دخول ←</button>
+            <button id="al-submit-btn" class="btn btn-primary" type="submit">دخول</button>
             <div class="lg-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5"/><path d="M12 7.8v.01"/></svg><span>يتم الدخول بالسجل المدني المسجَّل لدى الإدارة.</span></div>
             <div class="lg-links">
               
@@ -1863,7 +1863,7 @@
         <input type="password" id="sp-login-key" class="form-input" placeholder="أدخل مفتاح الدخول"
                onkeydown="if(event.key==='Enter') App.supportAdminLogin()">
       </div>
-      <button class="btn btn-primary" onclick="App.supportAdminLogin()">دخول ←</button>
+      <button class="btn btn-primary" onclick="App.supportAdminLogin()">دخول</button>
     </div>
   </div>
 </div>
@@ -1926,7 +1926,7 @@
     <p style="font-size:14px;color:#64748b;margin-bottom:24px;line-height:1.6;">نحتاج رقم جوالك لتتمكن من التواصل مع المشرف وتلقي الإشعارات.</p>
     <input id="req-phone-input" type="tel" dir="ltr" maxlength="10" placeholder="05xxxxxxxx" onkeydown="if(event.key==='Enter')App.submitRequiredPhone()" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;font-size:16px;font-family:inherit;text-align:center;outline:none;transition:border-color .2s;box-sizing:border-box;margin-bottom:8px;" onfocus="this.style.borderColor='#3F7CB8'" onblur="this.style.borderColor='#e2e8f0'">
     <div id="req-phone-err" style="display:none;color:#ef4444;font-size:13px;font-weight:600;margin-bottom:8px;"></div>
-    <button id="req-phone-btn" onclick="App.submitRequiredPhone()" style="width:100%;background:linear-gradient(135deg,#3F7CB8,#4FA877);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;margin-top:4px;transition:opacity .2s;" onmouseenter="this.style.opacity='.9'" onmouseleave="this.style.opacity='1'">حفظ ومتابعة ←</button>
+    <button id="req-phone-btn" onclick="App.submitRequiredPhone()" style="width:100%;background:linear-gradient(135deg,#3F7CB8,#4FA877);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;margin-top:4px;transition:opacity .2s;" onmouseenter="this.style.opacity='.9'" onmouseleave="this.style.opacity='1'">حفظ ومتابعة</button>
   </div>
 </div>
 <!-- ═══════════════════════════════════════════════════════
@@ -2399,7 +2399,7 @@
     </div>
 
     <button class="btn btn-primary" onclick="App.startSelfDiag()">
-      ابدأ التشخيص الذاتي ←
+      ابدأ التشخيص الذاتي
     </button>
     <div style="text-align:center;margin-top:14px;">
       <a href="#" class="skip-link" onclick="App.skipSelfDiag(event)">تخطي التقييم الذاتي</a>
@@ -2431,7 +2431,7 @@
     <div id="selfdiag-content"></div>
     <div style="margin-top:24px;">
       <button id="selfdiag-submit" class="btn btn-primary" onclick="App.submitSelfDiag()">
-        انتقل للاختبار التشخيصي ←
+        انتقل للاختبار التشخيصي
       </button>
       <button type="button" class="btn btn-outline" style="margin-top:10px;" onclick="App.skipSelfDiag()">
         تخطي التقييم الذاتي
@@ -2744,14 +2744,14 @@
       style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
              color:#fff;border-radius:8px;padding:5px 14px;font-size:13px;
              font-family:inherit;cursor:pointer;white-space:nowrap;">
-      ← الأقدم
+      الأقدم
     </button>
     <span id="sp-plan-label" style="color:#fff;font-size:13px;font-weight:700;text-align:center;flex:1;"></span>
     <button onclick="App.navPlan(-1)"
       style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
              color:#fff;border-radius:8px;padding:5px 14px;font-size:13px;
              font-family:inherit;cursor:pointer;white-space:nowrap;">
-      الأحدث →
+      الأحدث
     </button>
   </div>
 
@@ -2881,7 +2881,7 @@
 
     <div class="no-print" style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
       <button class="btn btn-outline" style="flex:1;" onclick="show('screen-level-analysis')">
-        ← تحليل المستوى
+        تحليل المستوى
       </button>
       <button class="btn btn-primary" style="flex:1;"
               onclick="show('screen-training-plan')">
@@ -3085,7 +3085,7 @@
 
     <div style="margin-top:28px;">
       <button class="btn btn-primary btn-full" onclick="App.openGeneralTests()">
-        ← العودة إلى قائمة الاختبارات
+        العودة إلى قائمة الاختبارات
       </button>
     </div>
   </div>
@@ -3494,7 +3494,7 @@
         <div id="add-manual-step" style="display:none;" class="card" style="margin-bottom:0;border:2px solid var(--primary);border-radius:16px;padding:16px 18px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
             <div style="display:flex;align-items:center;gap:8px;">
-              <button onclick="App._showAddStep('choice')" style="background:none;border:none;font-size:15px;cursor:pointer;color:var(--muted);">→</button>
+              <button onclick="App._showAddStep('choice')" style="background:none;border:none;font-size:15px;cursor:pointer;color:var(--muted);">رجوع</button>
               <div style="font-weight:800;font-size:14px;color:var(--primary);">إضافة طالب يدوياً</div>
             </div>
             <button onclick="App.toggleAddStudentPanel()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);line-height:1;">✕</button>
@@ -3529,7 +3529,7 @@
         <div id="add-excel-step" style="display:none;" class="card" style="margin-bottom:0;border:2px solid var(--accent);border-radius:16px;padding:16px 18px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
             <div style="display:flex;align-items:center;gap:8px;">
-              <button onclick="App._showAddStep('choice')" style="background:none;border:none;font-size:15px;cursor:pointer;color:var(--muted);">→</button>
+              <button onclick="App._showAddStep('choice')" style="background:none;border:none;font-size:15px;cursor:pointer;color:var(--muted);">رجوع</button>
               <div style="font-weight:800;font-size:14px;color:var(--accent);">استيراد من Excel</div>
             </div>
             <button onclick="App.toggleAddStudentPanel()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);line-height:1;">✕</button>
@@ -3660,7 +3660,7 @@
     </div>
     <div id="sphone-err" class="alert alert-error" style="margin-bottom:8px;text-align:right;"></div>
     <button class="btn btn-primary btn-full" onclick="App.saveStudentPhone()">
-      حفظ ومتابعة ←
+      حفظ ومتابعة
     </button>
     <button onclick="App.closeStudentPhoneModal()"
             style="margin-top:10px;background:none;border:none;color:var(--muted);
@@ -3814,13 +3814,13 @@
       <div id="wachat-conv" style="display:none;flex-direction:column;height:100%;">
         <div class="wachat-conv-header" id="wachat-conv-header">
           <!-- filled by JS: avatar + name -->
-          <button class="wachat-back-btn" id="wachat-back-btn" onclick="App._chatShowSidebar()" style="display:none;">→</button>
+          <button class="wachat-back-btn" id="wachat-back-btn" onclick="App._chatShowSidebar()" style="display:none;">رجوع</button>
         </div>
         <div id="chat-messages" class="chat-messages" style="flex:1;overflow-y:auto;"></div>
         <div class="chat-input-bar">
           <input type="text" id="chat-input" class="chat-input" placeholder="اكتب رسالتك هنا…"
                  onkeydown="if(event.key==='Enter')App.sendChatMsg()">
-          <button class="chat-send-btn" onclick="App.sendChatMsg()">إرسال ←</button>
+          <button class="chat-send-btn" onclick="App.sendChatMsg()">إرسال</button>
         </div>
       </div>
     </div>
@@ -3990,7 +3990,7 @@
 
     <div id="nt-err" class="alert alert-error"></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="App.submitTicket()" style="flex:1;">إرسال الطلب ←</button>
+      <button class="btn btn-primary" onclick="App.submitTicket()" style="flex:1;">إرسال الطلب</button>
       <button class="btn btn-outline" onclick="App.closeNewTicketModal()">إلغاء</button>
     </div>
   </div>
@@ -4020,7 +4020,7 @@
       </div>
       <div id="gs-err1" class="alert alert-error"></div>
       <div class="modal-actions">
-        <button class="btn btn-primary" onclick="App.guestSupportNext()" style="flex:1;">التالي ←</button>
+        <button class="btn btn-primary" onclick="App.guestSupportNext()" style="flex:1;">التالي</button>
         <button class="btn btn-outline" onclick="App.closeGuestSupportModal()">إلغاء</button>
       </div>
     </div>
@@ -4056,7 +4056,7 @@
       </div>
       <div id="gs-err2" class="alert alert-error"></div>
       <div class="modal-actions">
-        <button class="btn btn-primary" onclick="App.submitGuestSupport()" style="flex:1;">إرسال الطلب ←</button>
+        <button class="btn btn-primary" onclick="App.submitGuestSupport()" style="flex:1;">إرسال الطلب</button>
         <button class="btn btn-outline" onclick="App.guestSupportBack()">رجوع</button>
       </div>
     </div>
@@ -4153,7 +4153,7 @@
       <div style="display:flex;gap:10px;margin-bottom:14px;">
         <input type="text" id="sdm-chat-input" class="chat-input" placeholder="رد على الطالب..."
                onkeydown="if(event.key==='Enter')App.sendAdminMsgFromDetail()">
-        <button class="chat-send-btn" onclick="App.sendAdminMsgFromDetail()">إرسال ←</button>
+        <button class="chat-send-btn" onclick="App.sendAdminMsgFromDetail()">إرسال</button>
       </div>
       <button class="btn btn-primary sdm-close" style="margin-bottom:8px;" onclick="App.exportStudentPlanPDF()">تصدير تقرير PDF</button>
       <button class="btn btn-outline sdm-close" onclick="App.closeStudentDetail()">إغلاق</button>
@@ -4297,12 +4297,12 @@
     <div id="schat-messages" class="chat-messages" style="flex:1;overflow-y:auto;padding:16px;"></div>
     <div class="chat-input-bar" style="flex-shrink:0;border-top:1px solid var(--border,#e2e8f0);">
       <input type="text" id="schat-input" class="chat-input" placeholder="اكتب رسالتك هنا…" onkeydown="if(event.key==='Enter')App.sendChatMsg()">
-      <button class="chat-send-btn" onclick="App.sendChatMsg()">إرسال ←</button>
+      <button class="chat-send-btn" onclick="App.sendChatMsg()">إرسال</button>
     </div>
   </div>
 </div>
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
-<script src="/js/app.js?v=app3" defer></script>
+<script src="/js/app.js?v=app5" defer></script>
 </body>
 </html>

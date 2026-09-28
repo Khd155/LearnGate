@@ -13,7 +13,7 @@ function applyTheme(mode) {
 function _syncThemeButtons() {
   // Light is the site-wide default; dark applies only when the user opted in.
   const isDark = localStorage.getItem('theme') === 'dark';
-  document.querySelectorAll('.tb-theme-btn').forEach(btn => { btn.textContent = isDark ? '☀️' : '🌙'; });
+  document.querySelectorAll('.tb-theme-btn').forEach(btn => { btn.setAttribute('aria-label', isDark ? 'الوضع الفاتح' : 'الوضع الداكن'); });
 }
 (function initTheme() {
   const saved = localStorage.getItem('theme');
@@ -36,60 +36,60 @@ function sortBySkillOrder(gaps) {
 // until the student actually taps the button.
 const FAQ_DATA = [
   { title: 'التعريف بالبوابة', items: [
-    { q: 'ما هي بوابة دعم التعلم؟', a: 'بوابة تعليمية موجهة لطلاب الثانوية تساعدهم على اكتساب المهارات اللازمة والاستعداد لاختبار القدرات والاختبار التحصيلي.', action: 'about', label: '🔗 التعرف على البوابة' },
-    { q: 'كيف أبدأ استخدام البوابة؟', a: 'سجّل الدخول برقمك، ثم ابدأ بالاختبار التشخيصي — تُبنى خطة الدعم تلقائيًا على نتيجتك.', action: 'diagnostic', label: '🚀 بدء الاختبار التشخيصي' },
-    { q: 'هل يوجد فيديو يشرح فكرة البوابة؟', a: 'حاليًا التعريف متاح كنص مفصّل في صفحة "عن البوابة"، وسيُضاف فيديو تعريفي لاحقًا.', action: 'about', label: '🔗 التعرف على البوابة' },
-    { q: 'كيف أستفيد من البوابة بأفضل طريقة؟', a: 'اتبع خطة التدريب المقترحة بالترتيب: شروحات، ثم تدريبات قصيرة، ثم اختبارات محاكية لكل مهارة تحتاجها.', action: 'training-plan', label: '📅 الجدول الزمني للتدريب' },
-    { q: 'هل أبدأ بالشروحات أم بالاختبار التشخيصي؟', a: 'ابدأ بالاختبار التشخيصي أولًا؛ لأنه يحدد المهارات التي تحتاج إلى دعم، ثم ينشئ لك خطة دعم تتضمن الشروحات والتدريبات المناسبة.', action: 'diagnostic', label: '🚀 بدء الاختبار التشخيصي' },
+    { q: 'ما هي بوابة دعم التعلم؟', a: 'بوابة تعليمية موجهة لطلاب الثانوية تساعدهم على اكتساب المهارات اللازمة والاستعداد لاختبار القدرات والاختبار التحصيلي.', action: 'about', label: 'التعرف على البوابة' },
+    { q: 'كيف أبدأ استخدام البوابة؟', a: 'سجّل الدخول برقمك، ثم ابدأ بالاختبار التشخيصي — تُبنى خطة الدعم تلقائيًا على نتيجتك.', action: 'diagnostic', label: 'بدء الاختبار التشخيصي' },
+    { q: 'هل يوجد فيديو يشرح فكرة البوابة؟', a: 'حاليًا التعريف متاح كنص مفصّل في صفحة "عن البوابة"، وسيُضاف فيديو تعريفي لاحقًا.', action: 'about', label: 'التعرف على البوابة' },
+    { q: 'كيف أستفيد من البوابة بأفضل طريقة؟', a: 'اتبع خطة التدريب المقترحة بالترتيب: شروحات، ثم تدريبات قصيرة، ثم اختبارات محاكية لكل مهارة تحتاجها.', action: 'training-plan', label: 'الجدول الزمني للتدريب' },
+    { q: 'هل أبدأ بالشروحات أم بالاختبار التشخيصي؟', a: 'ابدأ بالاختبار التشخيصي أولًا؛ لأنه يحدد المهارات التي تحتاج إلى دعم، ثم ينشئ لك خطة دعم تتضمن الشروحات والتدريبات المناسبة.', action: 'diagnostic', label: 'بدء الاختبار التشخيصي' },
     { q: 'هل تكفي البوابة وحدها للاستعداد لاختبار القدرات؟', a: 'البوابة تقدم برنامجًا مركزًا لإتقان المهارات الأساسية، لكنها لا تغني عن الاستفادة من المصادر الأخرى، خاصة لمن يستهدفون الدرجات المرتفعة جدًا.' },
   ]},
   { title: 'الحساب والدخول', items: [
-    { q: 'كيف أحصل على رمز الدخول؟', a: 'رمز الدخول يصدره المشرف لكل طالب. إن لم يصلك، تواصل مع الدعم الفني.', action: 'guest-support', label: '📩 تواصل مع الدعم الفني' },
-    { q: 'ماذا أفعل إذا نسيت رمز الدخول؟', a: 'تواصل مع الدعم الفني لاستعادته.', action: 'guest-support', label: '📩 تواصل مع الدعم الفني' },
-    { q: 'لا أستطيع تسجيل الدخول، ماذا أفعل؟', a: 'تأكد من صحة الرقم، وإن استمرت المشكلة تواصل مع الدعم الفني.', action: 'guest-support', label: '📩 تواصل مع الدعم الفني' },
+    { q: 'كيف أحصل على رمز الدخول؟', a: 'رمز الدخول يصدره المشرف لكل طالب. إن لم يصلك، تواصل مع الدعم الفني.', action: 'guest-support', label: 'تواصل مع الدعم الفني' },
+    { q: 'ماذا أفعل إذا نسيت رمز الدخول؟', a: 'تواصل مع الدعم الفني لاستعادته.', action: 'guest-support', label: 'تواصل مع الدعم الفني' },
+    { q: 'لا أستطيع تسجيل الدخول، ماذا أفعل؟', a: 'تأكد من صحة الرقم، وإن استمرت المشكلة تواصل مع الدعم الفني.', action: 'guest-support', label: 'تواصل مع الدعم الفني' },
     { q: 'هل أستطيع الدخول من الجوال؟', a: 'نعم، يمكن الدخول من الجوال.' },
     { q: 'هل أستطيع الدخول من الكمبيوتر؟', a: 'نعم، يمكن الدخول من الكمبيوتر.' },
     { q: 'هل يمكن استخدام الحساب في أكثر من جهاز؟', a: 'نعم، مع مراعاة ضوابط الاستخدام.' },
   ]},
   { title: 'الاختبار التشخيصي', items: [
     { q: 'ما الاختبار التشخيصي؟', a: 'اختبار يقيس الحد الأدنى لإتقان المهارات الأساسية، ثم يحدد المهارات التي تحتاج إلى دعم ويقترح لك خطة دعم مناسبة.' },
-    { q: 'ماذا أستفيد من نتيجة الاختبار التشخيصي؟', a: 'تحصل على خطة دعم دقيقة تناسب مستواك.', action: 'level-analysis', label: '📊 عرض تحليل مستواك' },
-    { q: 'هل يمكن إعادة الاختبار التشخيصي؟', a: 'نعم، بعد فترة مناسبة من التدريب على المهارات المطلوبة.', action: 'diagnostic', label: '🚀 إعادة الاختبار' },
-    { q: 'متى أعيد الاختبار التشخيصي؟', a: 'في الموعد المحدد داخل البوابة، وإن أنهيت التدريب قبل ذلك فيمكنك طلب إعادة الاختبار من المشرف.', action: 'chat', label: '💬 تواصل مع المشرف' },
-    { q: 'هل تظهر المهارات التي أحتاجها بعد الاختبار؟', a: 'نعم، تظهر لك خطة دعم كاملة تشمل المهارات والمواد العلمية الخاصة بها.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
-    { q: 'ماذا أفعل بعد انتهاء الاختبار؟', a: 'انتقل إلى خطة الدعم، ثم ابدأ بالشروحات، وبعدها التدريبات القصيرة.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
+    { q: 'ماذا أستفيد من نتيجة الاختبار التشخيصي؟', a: 'تحصل على خطة دعم دقيقة تناسب مستواك.', action: 'level-analysis', label: 'عرض تحليل مستواك' },
+    { q: 'هل يمكن إعادة الاختبار التشخيصي؟', a: 'نعم، بعد فترة مناسبة من التدريب على المهارات المطلوبة.', action: 'diagnostic', label: 'إعادة الاختبار' },
+    { q: 'متى أعيد الاختبار التشخيصي؟', a: 'في الموعد المحدد داخل البوابة، وإن أنهيت التدريب قبل ذلك فيمكنك طلب إعادة الاختبار من المشرف.', action: 'chat', label: 'تواصل مع المشرف' },
+    { q: 'هل تظهر المهارات التي أحتاجها بعد الاختبار؟', a: 'نعم، تظهر لك خطة دعم كاملة تشمل المهارات والمواد العلمية الخاصة بها.', action: 'support-plan', label: 'عرض خطة الدعم' },
+    { q: 'ماذا أفعل بعد انتهاء الاختبار؟', a: 'انتقل إلى خطة الدعم، ثم ابدأ بالشروحات، وبعدها التدريبات القصيرة.', action: 'support-plan', label: 'عرض خطة الدعم' },
   ]},
   { title: 'خطة التدريب', items: [
-    { q: 'كيف أصمم خطة التدريب؟', a: 'البوابة تقترح لك خطة تدريب مناسبة، ويمكنك الاطلاع على طريقة الاستفادة منها.', action: 'training-plan', label: '📅 الجدول الزمني للتدريب' },
+    { q: 'كيف أصمم خطة التدريب؟', a: 'البوابة تقترح لك خطة تدريب مناسبة، ويمكنك الاطلاع على طريقة الاستفادة منها.', action: 'training-plan', label: 'الجدول الزمني للتدريب' },
     { q: 'هل تختلف خطة التدريب من طالب لآخر؟', a: 'نعم، لأنها تعتمد على نتائج الاختبار التشخيصي لكل طالب.' },
     { q: 'كم ساعة أحتاج يوميًا؟', a: 'يختلف ذلك بحسب مستواك وعدد المهارات التي تحتاج إلى دعم.' },
-    { q: 'كيف أعرف المهارة التي أبدأ بها؟', a: 'ابدأ بالمهارات التي تقترحها لك خطة الدعم حسب نتائج الاختبار التشخيصي.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
+    { q: 'كيف أعرف المهارة التي أبدأ بها؟', a: 'ابدأ بالمهارات التي تقترحها لك خطة الدعم حسب نتائج الاختبار التشخيصي.', action: 'support-plan', label: 'عرض خطة الدعم' },
     { q: 'هل أستطيع تعديل خطة التدريب؟', a: 'نعم، بإعادة الاختبار التشخيصي أو باختيار المهارات التي ترغب في التركيز عليها.' },
-    { q: 'ماذا أفعل إذا أنهيت جميع المهارات؟', a: 'انتقل إلى الاختبارات التقويمية والمحاكية لقياس مدى تقدمك.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
+    { q: 'ماذا أفعل إذا أنهيت جميع المهارات؟', a: 'انتقل إلى الاختبارات التقويمية والمحاكية لقياس مدى تقدمك.', action: 'general-tests', label: 'الاختبارات المحاكية' },
   ]},
   { title: 'الشروحات والتدريبات', items: [
-    { q: 'كيف أصل إلى الشروحات؟', a: 'من خلال خطة الدعم، أو مباشرة من الصفحة الرئيسية.', action: 'lessons', label: '📚 فتح الشروحات' },
+    { q: 'كيف أصل إلى الشروحات؟', a: 'من خلال خطة الدعم، أو مباشرة من الصفحة الرئيسية.', action: 'lessons', label: 'فتح الشروحات' },
     { q: 'كم مدة مقاطع الشرح؟', a: 'المقاطع التأسيسية غالبًا من 5 إلى 10 دقائق، وقد يصل بعضها إلى 20 دقيقة، أما المقاطع التدريبية فمن دقيقة إلى دقيقتين تقريبًا.' },
     { q: 'هل يجب مشاهدة جميع المقاطع؟', a: 'يُنصح بمشاهدة 3 إلى 7 مقاطع في كل جولة تدريبية، ثم الانتقال إلى المهارة التالية والعودة لاحقًا لاستكمال بقية المقاطع.' },
     { q: 'هل أعيد مشاهدة المقطع أكثر من مرة؟', a: 'نعم، إذا احتجت إلى ذلك حتى تتقن المهارة.' },
-    { q: 'كيف أصل إلى التدريبات القصيرة؟', a: 'من خطة الدعم، ثم اختر المهارة، وبعدها اضغط على أيقونة "التدريبات".', action: 'support-plan', label: '📋 عرض خطة الدعم' },
+    { q: 'كيف أصل إلى التدريبات القصيرة؟', a: 'من خطة الدعم، ثم اختر المهارة، وبعدها اضغط على أيقونة "التدريبات".', action: 'support-plan', label: 'عرض خطة الدعم' },
     { q: 'لماذا أؤدي التدريبات القصيرة؟', a: 'لتنمية المهارة والتدرب على سرعة الإجابة بطريقة مختصرة وغير مملة.' },
     { q: 'هل أكرر التدريب؟', a: 'نعم، فالتكرار يساعد على إتقان المهارة.' },
     { q: 'كم تدريبًا يكفي لكل مهارة؟', a: 'يختلف ذلك من طالب لآخر بحسب مستوى إتقانه للمهارة.' },
   ]},
   { title: 'الاختبارات المحاكية', items: [
     { q: 'ما الفرق بين الاختبار التشخيصي والاختبار المحاكي؟', a: 'الاختبار التشخيصي يشبه الاختبار المحاكي، لكنه يركز على قياس الحد الأدنى من المهارات لتحديد جوانب القوة والاحتياج، أما الاختبار المحاكي فيقيس مستوى الاستعداد بصورة أشمل.' },
-    { q: 'متى أبدأ الاختبارات المحاكية؟', a: 'بعد الانتهاء من دراسة المهارات ومشاهدة المقاطع وأداء التدريبات القصيرة.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
-    { q: 'كم اختبارًا محاكيًا أحتاج؟', a: 'يختلف ذلك بحسب مستوى إتقانك والدرجة التي حصلت عليها في الاختبارات السابقة.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
-    { q: 'هل يمكن إعادة الاختبار المحاكي؟', a: 'نعم، يمكن إعادة الاختبار من خلال صفحة الاختبارات المحاكية.', action: 'general-tests', label: '📝 الاختبارات المحاكية' },
-    { q: 'كيف أستفيد من نتائج الاختبار المحاكي؟', a: 'ركز على المهارات التي ظهر فيها ضعف، ثم ارجع إلى خطة الدعم وأعد التدريب عليها قبل أداء اختبار جديد.', action: 'support-plan', label: '📋 عرض خطة الدعم' },
+    { q: 'متى أبدأ الاختبارات المحاكية؟', a: 'بعد الانتهاء من دراسة المهارات ومشاهدة المقاطع وأداء التدريبات القصيرة.', action: 'general-tests', label: 'الاختبارات المحاكية' },
+    { q: 'كم اختبارًا محاكيًا أحتاج؟', a: 'يختلف ذلك بحسب مستوى إتقانك والدرجة التي حصلت عليها في الاختبارات السابقة.', action: 'general-tests', label: 'الاختبارات المحاكية' },
+    { q: 'هل يمكن إعادة الاختبار المحاكي؟', a: 'نعم، يمكن إعادة الاختبار من خلال صفحة الاختبارات المحاكية.', action: 'general-tests', label: 'الاختبارات المحاكية' },
+    { q: 'كيف أستفيد من نتائج الاختبار المحاكي؟', a: 'ركز على المهارات التي ظهر فيها ضعف، ثم ارجع إلى خطة الدعم وأعد التدريب عليها قبل أداء اختبار جديد.', action: 'support-plan', label: 'عرض خطة الدعم' },
     { q: 'ما الدرجة التي تدل على جاهزيتي؟', a: 'كلما ارتفعت درجتك دل ذلك على تحسن مستواك، أما الدرجة الكاملة فتدل على إتقان مهارات البوابة، لكنها لا تعني بالضرورة ضمان الحصول على الدرجة نفسها في الاختبار الفعلي.' },
   ]},
   { title: 'الدعم الفني', items: [
-    { q: 'كيف أتواصل مع المشرف؟', a: 'تواصل مع المشرف مباشرة عبر شاشة الدردشة داخل حسابك، وستصلك ردوده هناك.', action: 'chat', label: '💬 فتح الدردشة مع المشرف' },
-    { q: 'كيف أطلب إعادة فتح الاختبار؟', a: 'أرسل طلبك للمشرف عبر الدردشة، وسيعيد فتح الاختبار لك إذا كان الطلب مناسبًا.', action: 'chat', label: '💬 فتح الدردشة مع المشرف' },
-    { q: 'واجهت مشكلة تقنية، ماذا أفعل؟', a: 'ارفع طلب دعم فني موضحًا فيه المشكلة بالتفصيل، وسيتواصل معك المشرف لحلها.', action: 'tickets', label: '🎫 فتح نموذج الدعم الفني' },
-    { q: 'كيف أبلغ عن خطأ أو أرسل ملاحظة؟', a: 'يمكنك إرسال ملاحظتك أو الإبلاغ عن أي خطأ عبر نموذج الدعم الفني، وسنأخذها بعين الاعتبار.', action: 'tickets', label: '🎫 فتح نموذج الدعم الفني' },
+    { q: 'كيف أتواصل مع المشرف؟', a: 'تواصل مع المشرف مباشرة عبر شاشة الدردشة داخل حسابك، وستصلك ردوده هناك.', action: 'chat', label: 'فتح الدردشة مع المشرف' },
+    { q: 'كيف أطلب إعادة فتح الاختبار؟', a: 'أرسل طلبك للمشرف عبر الدردشة، وسيعيد فتح الاختبار لك إذا كان الطلب مناسبًا.', action: 'chat', label: 'فتح الدردشة مع المشرف' },
+    { q: 'واجهت مشكلة تقنية، ماذا أفعل؟', a: 'ارفع طلب دعم فني موضحًا فيه المشكلة بالتفصيل، وسيتواصل معك المشرف لحلها.', action: 'tickets', label: 'فتح نموذج الدعم الفني' },
+    { q: 'كيف أبلغ عن خطأ أو أرسل ملاحظة؟', a: 'يمكنك إرسال ملاحظتك أو الإبلاغ عن أي خطأ عبر نموذج الدعم الفني، وسنأخذها بعين الاعتبار.', action: 'tickets', label: 'فتح نموذج الدعم الفني' },
   ]},
 ];
 
@@ -1505,7 +1505,7 @@ const App = {
       // login in this tab (e.g. after a logout), which would be a no-op at
       // best and confusing in the logs at worst.
       _accessLinkToken = '';
-      ActivityLog.success(`🎓 تسجيل دخول طالب: ${student.name} (${code}) — ${student.school || '—'}`);
+      ActivityLog.success(`تسجيل دخول طالب: ${student.name} (${code}) — ${student.school || '—'}`);
       serverLog('success', 'login', `تسجيل دخول طالب: ${student.name}`, { user_name: student.name, user_role: 'student', school: student.school || '' });
       State.student = student;
       State.role = 'student';
@@ -1601,7 +1601,7 @@ const App = {
     }
     try {
       _authToken = token;
-      ActivityLog.success(`👨‍💼 تسجيل دخول مشرف: ${admin.name || code} (${code}) — ${admin.school || '—'} — دور: ${admin.role || 'admin'}`);
+      ActivityLog.success(`تسجيل دخول مشرف: ${admin.name || code} (${code}) — ${admin.school || '—'} — دور: ${admin.role || 'admin'}`);
       serverLog('success', 'login', `تسجيل دخول مشرف: ${admin.name || code}`, { user_name: admin.name || '', user_role: admin.role || 'admin', school: admin.school || '' });
       State.role  = admin.role === 'director' ? 'director' : 'admin';
       State.admin = { ...admin, code };
@@ -1840,7 +1840,7 @@ const App = {
     // /journey page via App.renderJourneyFull.
     const badge = j.badge ? `
       <div class="journey-badge">
-        <span class="journey-badge-icon">🏆</span>
+        <span class="journey-badge-icon"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg></span>
         <div>
           <div class="journey-badge-title">أتممت مسار الإنجاز — ${escapeHtml(j.badge.label)}</div>
           <div class="journey-badge-sub">${j.finalMock && j.finalMock.available && !j.finalMock.attempted
@@ -1910,11 +1910,11 @@ const App = {
       <span class="jt-mchip jt-mchip-${state}"><span class="jt-mchip-icon">${icon}</span>${label}</span>`;
     const milestones = `
       <div class="jt-milestones">
-        ${milestoneChip('🧭', 'التشخيص', j.diagnostic.done ? 'done' : (naType === 'diagnostic' ? 'current' : 'upcoming'))}
-        ${milestoneChip('📘', 'اللفظي', verbalDone ? 'done' : (j.diagnostic.done && !verbalDone ? 'current' : 'upcoming'))}
-        ${milestoneChip('📗', 'الكمي', quantDone ? 'done' : (verbalDone && !quantDone ? 'current' : (verbalDone ? 'upcoming' : 'locked')))}
-        ${milestoneChip('🏁', 'اختبار المحاكاة', j.finalMock && j.finalMock.attempted ? 'done' : (naType === 'final_mock' ? 'current' : (allSkillsDone ? 'upcoming' : 'locked')))}
-        ${milestoneChip('🏆', 'الشارة', j.badge ? 'done' : 'locked')}
+        ${milestoneChip('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/></svg>', 'التشخيص', j.diagnostic.done ? 'done' : (naType === 'diagnostic' ? 'current' : 'upcoming'))}
+        ${milestoneChip('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M9 7h7"/></svg>', 'اللفظي', verbalDone ? 'done' : (j.diagnostic.done && !verbalDone ? 'current' : 'upcoming'))}
+        ${milestoneChip('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M9 7h7"/></svg>', 'الكمي', quantDone ? 'done' : (verbalDone && !quantDone ? 'current' : (verbalDone ? 'upcoming' : 'locked')))}
+        ${milestoneChip('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></svg>', 'اختبار المحاكاة', j.finalMock && j.finalMock.attempted ? 'done' : (naType === 'final_mock' ? 'current' : (allSkillsDone ? 'upcoming' : 'locked')))}
+        ${milestoneChip('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg>', 'الشارة', j.badge ? 'done' : 'locked')}
       </div>`;
 
     const R = 34, C = 2 * Math.PI * R;
@@ -1939,7 +1939,7 @@ const App = {
 
     // ── Primary CTA ─────────────────────────────────────────────────────
     const na = j.nextAction || {};
-    const naIcon = { diagnostic: '🧭', retry_skill: '🔁', start_skill: '🎯', final_mock: '🏁' }[na.type] || '🎯';
+    const naIcon = { diagnostic: '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/></svg>', retry_skill: '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>', start_skill: '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg>', final_mock: '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></svg>' }[na.type] || '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg>';
     const cta = na.type && na.type !== 'done' && na.type !== 'none' ? `
       <button type="button" class="jt-cta" onclick="App.journeyGo('${na.type}','${na.section || ''}','${na.level || ''}')">
         <span class="jt-cta-icon">${naIcon}</span>
@@ -1950,7 +1950,7 @@ const App = {
         </div>
         <span class="jt-cta-arrow">←</span>
       </button>` : (na.type === 'done' ? `
-      <div class="jt-cta jt-cta-done"><span class="jt-cta-icon">🏆</span><div class="jt-cta-text"><div class="jt-cta-title">${escapeHtml(na.label || '')}</div></div></div>` : '');
+      <div class="jt-cta jt-cta-done"><span class="jt-cta-icon"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg></span><div class="jt-cta-text"><div class="jt-cta-title">${escapeHtml(na.label || '')}</div></div></div>` : '');
 
     // ── Path nodes ──────────────────────────────────────────────────────
     const skillRow = (s, section, levelKey, locked) => {
@@ -1959,7 +1959,7 @@ const App = {
       const stateHtml = isCurrent
         ? `<span class="jt-skill-state jt-skill-current">◉ التالية</span>`
         : s.status === 'failed'
-          ? `<span class="jt-skill-state score-low">🔴 مراجعة</span>`
+          ? `<span class="jt-skill-state score-low">مراجعة</span>`
           : `<span class="jt-skill-state ${label.cls}">${label.text}</span>`;
       const goType = s.status === 'failed' ? 'retry_skill' : 'start_skill';
       return `
@@ -1986,7 +1986,7 @@ const App = {
       return 'upcoming';
     };
 
-    const stateIconOf = (state) => ({ done: '✓', current: '●', upcoming: '○', locked: '🔒' })[state] || '○';
+    const stateIconOf = (state) => ({ done: '✓', current: '●', upcoming: '○', locked: '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>' })[state] || '○';
 
     const nodesHtml = nodes.map((n, i) => {
       const state = nodeStateOf(n);
@@ -1995,7 +1995,7 @@ const App = {
       if (n.kind === 'diagnostic') {
         return `
           <li class="jt-node jt-node-${state}">
-            <span class="jt-node-dot" aria-hidden="true">${state === 'done' ? '✓' : '🧭'}</span>
+            <span class="jt-node-dot" aria-hidden="true">${state === 'done' ? '✓' : '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/></svg>'}</span>
             <div class="jt-node-body jt-node-simple">
               <div class="jt-node-title">التشخيص الذاتي</div>
               <div class="jt-node-desc">${j.diagnostic.done ? 'تم إكمال التشخيص' : (state === 'current' ? 'خطوتك الأولى — حدّد نقاط قوتك وضعفك' : 'بانتظار البدء')}</div>
@@ -2020,7 +2020,7 @@ const App = {
                   <span class="jt-level-count">${passedCount}/${lvl.skills.length}</span>
                 </summary>
                 ${lvl.locked
-                  ? `<p class="jt-locked-reason">🔒 تُفتح بعد إكمال المستوى السابق من ${App._journeySectionLabel[section]}</p>`
+                  ? `<p class="jt-locked-reason">تُفتح بعد إكمال المستوى السابق من ${App._journeySectionLabel[section]}</p>`
                   : `<div class="jt-skills">${skillsHtml}</div>`}
               </details>
             </div>
@@ -2036,7 +2036,7 @@ const App = {
             : 'متاح الآن — لم تتم المحاولة بعد';
         return `
           <li class="jt-node jt-node-${state}">
-            <span class="jt-node-dot" aria-hidden="true">${state === 'done' ? '✓' : '🏁'}</span>
+            <span class="jt-node-dot" aria-hidden="true">${state === 'done' ? '✓' : '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></svg>'}</span>
             <div class="jt-node-body jt-node-simple">
               <div class="jt-node-title">${escapeHtml((fm && fm.title) || 'اختبار المحاكاة الشامل')}</div>
               <div class="jt-node-desc">${desc}</div>
@@ -2048,10 +2048,10 @@ const App = {
       // badge
       return `
         <li class="jt-node jt-node-${state}">
-          <span class="jt-node-dot" aria-hidden="true">${j.badge ? '🏆' : '🔒'}</span>
+          <span class="jt-node-dot" aria-hidden="true">${j.badge ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg>' : '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>'}</span>
           <div class="jt-node-body jt-node-simple">
             <div class="jt-node-title">${j.badge ? escapeHtml(j.badge.label) : 'شارة إتمام المسار'}</div>
-            <div class="jt-node-desc">${j.badge ? 'أتممت جميع مهارات المسار 🎉' : 'تُمنح بعد إكمال جميع المهارات'}</div>
+            <div class="jt-node-desc">${j.badge ? 'أتممت جميع مهارات المسار ' : 'تُمنح بعد إكمال جميع المهارات'}</div>
           </div>
         </li>`;
     }).join('');
@@ -2351,8 +2351,8 @@ const App = {
         </tbody>
       </table>`;
     document.getElementById('selfdiag-content').innerHTML =
-      buildSection(verbal, '📚 القسم اللفظي') +
-      buildSection(quant,  '🔢 القسم الكمي');
+      buildSection(verbal, 'القسم اللفظي') +
+      buildSection(quant,  'القسم الكمي');
   },
 
   setDiag(skillId, val) {
@@ -2437,7 +2437,7 @@ const App = {
     show('screen-pretest');
   },
 
-  // Reachable from screen-level-analysis's "🔁 إعادة الاختبار" — this used to
+  // Reachable from screen-level-analysis's "إعادة الاختبار" — this used to
   // jump straight to screen-section-choice with no cooldown check at all,
   // unlike startCapabilities()'s own entry point (the home screen's
   // "الاستعداد لاختبار القدرات" card). A student still inside their
@@ -2483,8 +2483,9 @@ const App = {
       const m = String(Math.floor(remaining / 60)).padStart(2, '0');
       const s = String(remaining % 60).padStart(2, '0');
       if (el) {
-        el.textContent = `⏱ ${m}:${s}`;
+        el.textContent = `${m}:${s}`;
         el.style.color = remaining <= 300 ? '#ef4444' : '#fff';
+        el.classList.toggle('is-low', remaining <= 300);
       }
       if (remaining <= 0) {
         clearInterval(App._testTimer);
@@ -2521,7 +2522,7 @@ const App = {
 
     document.getElementById('test-progress-bar').style.width = pct + '%';
     document.getElementById('test-progress-label').textContent = `السؤال ${State.currentQ + 1} من ${total}`;
-    document.getElementById('test-section-badge').textContent  = isVerbal ? '📚 القسم اللفظي' : '🔢 القسم الكمي';
+    document.getElementById('test-section-badge').textContent  = isVerbal ? 'القسم اللفظي' : 'القسم الكمي';
     document.getElementById('test-section-badge').className    = 'test-section-badge ' + (isVerbal ? 'badge-verbal' : 'badge-quant');
 
     const selected = State.testAnswers[q.id];
@@ -2581,6 +2582,36 @@ const App = {
     }
     if (State.currentQ < QBANK.length - 1) { State.currentQ++; App.renderQuestion(); App._saveTestState(); }
     else App.finishTest();
+  },
+
+  // Early hand-in from the header button: a confirmation first (with a live
+  // answered / unanswered count), then the exact same finishTest() path the
+  // last-question button and the timer use — grading stays server-side.
+  confirmFinishTest() {
+    const QBANK = window.QUESTION_BANK || [];
+    let answered = 0, dk = 0;
+    QBANK.forEach(q => {
+      const a = State.testAnswers[q.id];
+      if (a === 'dk') dk++;
+      else if (a !== undefined) answered++;
+    });
+    document.getElementById('ft-answered').textContent = answered;
+    document.getElementById('ft-total').textContent = QBANK.length;
+    document.getElementById('ft-unanswered').textContent = QBANK.length - answered - dk;
+    const dkEl = document.getElementById('ft-dk');
+    dkEl.style.display = dk ? '' : 'none';
+    dkEl.textContent = dk ? `واخترت «لا أعرف الإجابة» في ${dk} ${dk === 1 ? 'سؤال' : 'أسئلة'}.` : '';
+    document.getElementById('finish-test-modal').classList.add('open');
+    setTimeout(() => document.getElementById('ft-continue')?.focus(), 50);
+  },
+
+  closeFinishTestModal() {
+    document.getElementById('finish-test-modal').classList.remove('open');
+  },
+
+  submitFinishTest() {
+    App.closeFinishTestModal();
+    App.finishTest();
   },
 
   finishTest() {
@@ -2655,7 +2686,7 @@ const App = {
       const m = String(Math.floor(remaining / 60)).padStart(2, '0');
       const s = String(remaining % 60).padStart(2, '0');
       if (el) {
-        el.textContent = `⏱ ${m}:${s}`;
+        el.textContent = `${m}:${s}`;
         el.style.color = remaining <= 300 ? '#ef4444' : '#fff';
       }
       if (remaining <= 0) {
@@ -2818,7 +2849,7 @@ const App = {
       const locked = (verbalLevel?.locked ?? true) && (quantLevel?.locked ?? true);
       return `<div class="skill-card" style="padding:18px;margin-bottom:14px;${locked ? 'opacity:.6;' : ''}">
         <div style="font-weight:800;font-size:14.5px;margin-bottom:14px;">
-          ${lv.label} ${locked ? '🔒' : ''}
+          ${lv.label} ${locked ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>' : ''}
         </div>
         ${skillsHtml}
       </div>`;
@@ -2929,7 +2960,7 @@ const App = {
   openQuizLevels(section) {
     State._quizSection = section;
     document.getElementById('qz-levels-title').textContent =
-      section === 'verbal' ? '📚 مستويات القسم اللفظي' : '🔢 مستويات القسم الكمي';
+      section === 'verbal' ? 'مستويات القسم اللفظي' : 'مستويات القسم الكمي';
     App.renderQuizLevels();
     show('screen-quiz-levels');
   },
@@ -2938,16 +2969,16 @@ const App = {
     const levels = (State._quizTree && State._quizTree[State._quizSection]) || [];
     const LEVEL_META = {
       easy: {
-        label: 'المستوى المبدئي — سهل', icon: '🟢',
+        label: 'المستوى المبدئي — سهل', icon: '<span class="ic-dot ic-dot-green" aria-hidden="true"></span>',
         descOpen: 'نقطة البداية — متاح دائمًا',
       },
       medium: {
-        label: 'المستوى المتوسط', icon: '🟡',
+        label: 'المستوى المتوسط', icon: '<span class="ic-dot ic-dot-amber" aria-hidden="true"></span>',
         descLocked: 'يمكنك الدخول بعد اجتياز المستوى السهل',
         descOpen: 'أتقنت المستوى السهل — ابدأ الآن',
       },
       advanced: {
-        label: 'المستوى المتقدم', icon: '🔴',
+        label: 'المستوى المتقدم', icon: '<span class="ic-dot ic-dot-red" aria-hidden="true"></span>',
         descLocked: 'يمكنك الدخول بعد اجتياز المستوى المتوسط',
         descOpen: 'أتقنت المستوى المتوسط — ابدأ الآن',
       },
@@ -2999,15 +3030,15 @@ const App = {
   // a generic fallback; purely decorative, does not affect status/logic.
   _quizSkillIcon(skillName) {
     const n = String(skillName || '');
-    if (n.includes('استيعاب') || n.includes('قراء')) return '📖';
-    if (n.includes('تناظر')) return '🔗';
-    if (n.includes('خطأ') || n.includes('سياقي')) return '✏️';
-    if (n.includes('مفرد') || n.includes('لغوي')) return '🔤';
-    if (n.includes('هندس')) return '📐';
-    if (n.includes('جبر')) return '➗';
-    if (n.includes('حساب') || n.includes('عدد')) return '🔢';
-    if (n.includes('إحصاء') || n.includes('احتمال')) return '📊';
-    return '🧠';
+    if (n.includes('استيعاب') || n.includes('قراء')) return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg>';
+    if (n.includes('تناظر')) return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
+    if (n.includes('خطأ') || n.includes('سياقي')) return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+    if (n.includes('مفرد') || n.includes('لغوي')) return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg>';
+    if (n.includes('هندس')) return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18L12 4Z"/><path d="M8.5 20a3.5 3.5 0 0 1 3.5-3.5"/></svg>';
+    if (n.includes('جبر')) return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="6" r="1.2"/><circle cx="12" cy="18" r="1.2"/><path d="M5 12h14"/></svg>';
+    if (n.includes('حساب') || n.includes('عدد')) return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>';
+    if (n.includes('إحصاء') || n.includes('احتمال')) return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 16v-4"/><path d="M13 16V8"/><path d="M18 16v-7"/></svg>';
+    return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2A2.5 2.5 0 0 0 7 4.5v.1A3 3 0 0 0 4.5 9a3 3 0 0 0 .6 4.6A3 3 0 0 0 7 19a2.5 2.5 0 0 0 5 .5V4.5A2.5 2.5 0 0 0 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 1 17 4.5v.1A3 3 0 0 1 19.5 9a3 3 0 0 1-.6 4.6A3 3 0 0 1 17 19a2.5 2.5 0 0 1-5 .5"/></svg>';
   },
 
   renderQuizSkills() {
@@ -3171,7 +3202,7 @@ const App = {
       const reviewList = document.getElementById('qt-review-list');
       reviewList.style.display = 'none';
       reviewList.innerHTML = '';
-      reviewToggle.textContent = '🔍 مراجعة الأسئلة والإجابات';
+      reviewToggle.textContent = 'مراجعة الأسئلة والإجابات';
       reviewToggle.style.display = State._quizReview ? '' : 'none';
 
       // Patch the cached tree in-memory so gating/progress reflect this attempt
@@ -3217,7 +3248,7 @@ const App = {
       btn.textContent = 'إخفاء المراجعة ▲';
     } else {
       list.style.display = 'none';
-      btn.textContent = '🔍 مراجعة الأسئلة والإجابات';
+      btn.textContent = 'مراجعة الأسئلة والإجابات';
     }
   },
 
@@ -3239,7 +3270,7 @@ const App = {
         let cls = '';
         if (r.correctIndex !== null && oi === r.correctIndex) cls = ' qz-rv-opt-correct';
         else if (oi === r.selected) cls = ' qz-rv-opt-wrong';
-        const mark = cls === ' qz-rv-opt-correct' ? ' ✅' : (cls === ' qz-rv-opt-wrong' ? ' ❌' : '');
+        const mark = cls === ' qz-rv-opt-correct' ? ' ' : (cls === ' qz-rv-opt-wrong' ? ' ' : '');
         return `<div class="qz-rv-opt${cls}"><span class="qz-rv-opt-letter">${letters[oi]}</span><span>${escapeHtml(opt)}</span><span class="qz-rv-opt-mark">${mark}</span></div>`;
       }).join('');
 
@@ -3255,9 +3286,9 @@ const App = {
       } else if (r.explanation || r.relation || r.goldenRule) {
         feedbackHtml = `
           <div class="qz-rv-fb">
-            ${r.relation ? `<div class="qz-rv-fb-row"><span class="qz-rv-fb-icon">🎯</span><div><b>نوع العلاقة</b><p>${escapeHtml(r.relation)}</p></div></div>` : ''}
-            ${r.explanation ? `<div class="qz-rv-fb-row"><span class="qz-rv-fb-icon">📘</span><div><b>الشرح</b><p>${escapeHtml(r.explanation)}</p></div></div>` : ''}
-            ${r.goldenRule ? `<div class="qz-rv-fb-row qz-rv-golden"><span class="qz-rv-fb-icon">💎</span><div><b>القاعدة الذهبية</b><p>${escapeHtml(r.goldenRule)}</p></div></div>` : ''}
+            ${r.relation ? `<div class="qz-rv-fb-row"><span class="qz-rv-fb-icon"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg></span><div><b>نوع العلاقة</b><p>${escapeHtml(r.relation)}</p></div></div>` : ''}
+            ${r.explanation ? `<div class="qz-rv-fb-row"><span class="qz-rv-fb-icon"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M9 7h7"/></svg></span><div><b>الشرح</b><p>${escapeHtml(r.explanation)}</p></div></div>` : ''}
+            ${r.goldenRule ? `<div class="qz-rv-fb-row qz-rv-golden"><span class="qz-rv-fb-icon"></span><div><b>القاعدة الذهبية</b><p>${escapeHtml(r.goldenRule)}</p></div></div>` : ''}
           </div>`;
       } else {
         feedbackHtml = '';
@@ -3266,7 +3297,7 @@ const App = {
       return `
         ${passageHtml}
         <div class="qz-rv-card">
-          <div class="qz-rv-num">سؤال ${i + 1}${r.isCorrect ? ' — ✅ إجابة صحيحة' : ' — ❌ إجابة خاطئة'}</div>
+          <div class="qz-rv-num">سؤال ${i + 1}${r.isCorrect ? ' — إجابة صحيحة' : ' — إجابة خاطئة'}</div>
           <div class="qz-rv-text">${escapeHtml(r.text)}</div>
           <div class="qz-rv-opts">${optsHtml}</div>
           ${feedbackHtml}
@@ -3342,7 +3373,7 @@ const App = {
       } catch (e) {
         const isNetworkIssue = !e?.status && (String(e?.message || '').startsWith('NETWORK_ERROR') || e?.message === 'TIMEOUT');
         if (isNetworkIssue && attempt < RETRY_DELAYS_MS.length) {
-          ActivityLog.warn(`⏳ إعادة محاولة حفظ الخطة (${attempt + 1}/${RETRY_DELAYS_MS.length}) بعد خطأ شبكة`);
+          ActivityLog.warn(`إعادة محاولة حفظ الخطة (${attempt + 1}/${RETRY_DELAYS_MS.length}) بعد خطأ شبكة`);
           await new Promise(r => setTimeout(r, RETRY_DELAYS_MS[attempt]));
           continue;
         }
@@ -3601,14 +3632,14 @@ const App = {
     const g = (typeof SKILL_GUIDES !== 'undefined') ? SKILL_GUIDES[skillId] : null;
     if (!g) return '<p class="tab-empty">المحتوى قريباً.</p>';
     let html = `<div class="guide-section"><div class="guide-label">ما هذه المهارة؟</div><p class="guide-text">${g.what}</p></div>`;
-    if (g.warning) html += `<div class="guide-warning"><span>⚠️</span><span>${g.warning}</span></div>`;
+    if (g.warning) html += `<div class="guide-warning"><span><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg></span><span>${g.warning}</span></div>`;
     if (g.subskills && g.subskills.length) {
       html += `<div class="guide-section"><div class="guide-label">المهارات الفرعية</div>`;
       g.subskills.forEach(s => {
         html += `<div class="guide-subskill"><div class="guide-subskill-title">${s.title}</div><div class="guide-subskill-body"><p><strong>التعريف:</strong> ${s.def}</p>`;
-        if (s.errors && s.errors.length) html += `<div class="guide-subskill-err">⚠️ خطأ شائع:<ul>${s.errors.map(e=>`<li>${e}</li>`).join('')}</ul></div>`;
-        if (s.practice && s.practice.length) html += `<div class="guide-subskill-practice">✏️ كيف أتدرب؟<ul>${s.practice.map(p=>`<li>${p}</li>`).join('')}</ul></div>`;
-        if (s.when) html += `<div class="guide-subskill-when">🎯 متى أركز؟ ${s.when}</div>`;
+        if (s.errors && s.errors.length) html += `<div class="guide-subskill-err">خطأ شائع:<ul>${s.errors.map(e=>`<li>${e}</li>`).join('')}</ul></div>`;
+        if (s.practice && s.practice.length) html += `<div class="guide-subskill-practice">كيف أتدرب؟<ul>${s.practice.map(p=>`<li>${p}</li>`).join('')}</ul></div>`;
+        if (s.when) html += `<div class="guide-subskill-when">متى أركز؟ ${s.when}</div>`;
         html += `</div></div>`;
       });
       html += `</div>`;
@@ -3627,7 +3658,7 @@ const App = {
     if (g.mastery && g.mastery.length) {
       html += `<div class="guide-section guide-mastery-box"><div class="guide-label">مؤشرات الإتقان</div><ul class="guide-list guide-mastery">${g.mastery.map(m=>`<li>${m}</li>`).join('')}</ul></div>`;
     }
-    html += `<div class="guide-tip"><span>💡</span><span>${g.tip}</span></div>`;
+    html += `<div class="guide-tip"><span><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2Z"/></svg></span><span>${g.tip}</span></div>`;
     return html;
   },
 
@@ -3648,7 +3679,7 @@ const App = {
       </p>
       <div class="videos-btn-wrap">
         <a href="${backUrl}" target="_blank" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
-          🎬 عرض المقاطع التعليمية
+          عرض المقاطع التعليمية
         </a>
         <p style="color:var(--muted);font-size:12px;margin-top:10px;">يفتح في تبويب جديد</p>
       </div>`;
@@ -3665,14 +3696,14 @@ const App = {
         </p>
         <div class="videos-btn-wrap">
           <a href="${pageUrl}" target="_blank" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
-            ✏️ عرض الاختبارات التدريبية
+            عرض الاختبارات التدريبية
           </a>
           <p style="color:var(--muted);font-size:12px;margin-top:10px;">${q.urls.length >= 3 && q.urls.length <= 10 ? q.urls.length + ' اختبارات متاحة' : q.urls.length + ' اختبار متاح'} · يفتح في تبويب جديد</p>
         </div>`;
     }
     return `
       <div class="quiz-soon">
-        <div class="quiz-soon-icon">🕐</div>
+        <div class="quiz-soon-icon"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3 2"/></svg></div>
         <div style="font-weight:700;margin-bottom:6px;">الاختبار التدريبي قريباً</div>
         <div style="font-size:13px;">سيُضاف رابط الاختبار عند توفره من الموجه.</div>
       </div>`;
@@ -3703,14 +3734,14 @@ const App = {
     const listEl = document.getElementById('admin-student-list');
 
     if (State.tab === 'students') {
-      if (!students.length) { listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>لا يوجد طلاب مضافون بعد</p></div>`; return; }
+      if (!students.length) { listEl.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg></div><p>لا يوجد طلاب مضافون بعد</p></div>`; return; }
       // School filter for director — inject into the dedicated #school-filter-bar div in the toolbar
       if (State.admin?.school === '*') {
         const uniqueSchools = [...new Set(students.map(s => s.school).filter(Boolean))].sort();
         const filterBarEl = document.getElementById('school-filter-bar');
         if (filterBarEl && !filterBarEl.querySelector('select') && uniqueSchools.length > 1) {
           filterBarEl.style.cssText = 'margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
-          filterBarEl.innerHTML = `<label style="font-size:13px;font-weight:600;color:var(--text);">🏫 المدرسة:</label>
+          filterBarEl.innerHTML = `<label style="font-size:13px;font-weight:600;color:var(--text);">المدرسة:</label>
             <select id="school-filter-select" onchange="App._filterStudentList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg-card);color:var(--text);">
               <option value="">الكل</option>
               ${uniqueSchools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
@@ -3724,16 +3755,16 @@ const App = {
         const badge = !plan
           ? '<span class="student-badge sbadge-new">لم يبدأ</span>'
           : inCooldown
-            ? `<span class="student-badge sbadge-pending">انتظار ${actualRem}${actualRem === 1 ? ' يوم' : ' أيام'} ⏳</span>`
+            ? `<span class="student-badge sbadge-pending">انتظار ${actualRem}${actualRem === 1 ? ' يوم' : ' أيام'} </span>`
           : plan.retakeOverride
-            ? '<span class="student-badge" style="background:#fff7ed;color:#92400e;">مسموح بالإعادة 🔓</span>'
-          : '<span class="student-badge sbadge-active">أجرى الاختبار ✅</span>';
+            ? '<span class="student-badge" style="background:#fff7ed;color:#92400e;">مسموح بالإعادة </span>'
+          : '<span class="student-badge sbadge-active">أجرى الاختبار </span>';
         const avgScore = plan && plan.gaps.length
           ? Math.round(plan.gaps.reduce((s,g) => s+g.pct, 0) / plan.gaps.length) : null;
         const scoreChip = avgScore !== null
           ? `<span class="gap-score ${avgScore >= 71 ? 'score-high' : avgScore >= 50 ? 'score-mid' : 'score-low'}">${avgScore}%</span>` : '';
         const unlockBtn = inCooldown
-          ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="App.grantRetake('${st.id}')">🔓 سماح</button>`
+          ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="App.grantRetake('${st.id}')">سماح</button>`
           : '';
         const accessDot = plan
           ? '<span title="دخل المنصة" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#16a34a;margin-left:5px;flex-shrink:0;"></span>'
@@ -3742,13 +3773,13 @@ const App = {
           <div class="student-avatar">${escapeHtml(st.name.charAt(0))}</div>
           <div class="student-info" onclick="App.openStudentDetail('${st.id}')" style="cursor:pointer;">
             <div class="student-name" style="display:flex;align-items:center;gap:4px;">${accessDot}${escapeHtml(st.name)}</div>
-            <div class="student-code">رمز: ${escapeHtml(st.code)}${st.school && State.admin?.school === '*' ? ` · <span style="color:var(--primary);font-size:11px">🏫 ${escapeHtml(st.school)}</span>` : ''}</div>
+            <div class="student-code">رمز: ${escapeHtml(st.code)}${st.school && State.admin?.school === '*' ? ` · <span style="color:var(--primary);font-size:11px">${escapeHtml(st.school)}</span>` : ''}</div>
           </div>
-          <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="event.stopPropagation();App.editStudentPhone('${st.id}','${escapeHtml(st.phone || '')}')">${st.phone ? `📱 ${escapeHtml(st.phone)}` : '📱 إضافة جوال'}</button>
+          <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="event.stopPropagation();App.editStudentPhone('${st.id}','${escapeHtml(st.phone || '')}')">${st.phone ? `${escapeHtml(st.phone)}` : 'إضافة جوال'}</button>
           ${badge}
           ${scoreChip}
           ${unlockBtn}
-          ${State.role === 'dev' ? `<button class="btn btn-outline btn-sm" title="توليد رابط دخول تجريبي (اختبار)" onclick="event.stopPropagation();App.generateTestAccessLink('${st.id}')">🔗 اختبار</button>` : ''}
+          ${State.role === 'dev' ? `<button class="btn btn-outline btn-sm" title="توليد رابط دخول تجريبي (اختبار)" onclick="event.stopPropagation();App.generateTestAccessLink('${st.id}')">اختبار</button>` : ''}
           <button class="btn btn-danger btn-sm" onclick="App.deleteStudent('${st.id}')">حذف</button>
         </div>`;
       }).join('');
@@ -3839,8 +3870,8 @@ const App = {
           return `<div style="background:#f8fafc;border-radius:8px;padding:8px 12px;margin-top:6px;display:flex;gap:12px;align-items:center;font-size:12px;flex-wrap:wrap;">
             <span style="font-weight:700;color:${a.score>=70?'#16a34a':a.score>=50?'#d97706':'#dc2626'}">${a.score}%</span>
             <span style="color:#64748b;">اختبار ${a.test_num}</span>
-            <span style="color:#64748b;">📚 ${vRight}/${verbal.length}</span>
-            <span style="color:#64748b;">🔢 ${qRight}/${quant.length}</span>
+            <span style="color:#64748b;">${vRight}/${verbal.length}</span>
+            <span style="color:#64748b;">${qRight}/${quant.length}</span>
             <span style="color:#94a3b8;font-size:11px;">${new Date(a.created_at).toLocaleDateString('ar-SA')}</span>
           </div>`;
         }).join('');
@@ -3895,8 +3926,8 @@ const App = {
         return `<div style="background:#f8fafc;border-radius:8px;padding:8px 12px;margin-top:6px;display:flex;gap:12px;align-items:center;font-size:12px;flex-wrap:wrap;">
           <span style="font-weight:700;color:${a.score>=70?'#16a34a':a.score>=50?'#d97706':'#dc2626'}">${a.score}%</span>
           <span style="color:#64748b;">اختبار ${a.test_num}</span>
-          <span style="color:#64748b;">📚 ${vRight}/${verbal.length}</span>
-          <span style="color:#64748b;">🔢 ${qRight}/${quant.length}</span>
+          <span style="color:#64748b;">${vRight}/${verbal.length}</span>
+          <span style="color:#64748b;">${qRight}/${quant.length}</span>
           <span style="color:#94a3b8;font-size:11px;">${new Date(a.created_at).toLocaleDateString('ar-SA')}</span>
         </div>`;
       }).join('');
@@ -3978,7 +4009,7 @@ const App = {
       XLSX.utils.book_append_sheet(wb, ws, 'الطلاب');
       const stamp = new Date().toISOString().slice(0, 10);
       XLSX.writeFile(wb, `students-export-${stamp}.xlsx`);
-      showToast('تم تصدير القائمة ✅');
+      showToast('تم تصدير القائمة ');
     } catch (e) { alert('تعذّر تصدير القائمة: ' + e.message); }
   },
 
@@ -3987,7 +4018,7 @@ const App = {
     try {
       await DB.deleteNoSchoolStudents();
       App.renderAdminDashboard('students');
-      showToast('تم حذف الطلاب بدون مدرسة ✅');
+      showToast('تم حذف الطلاب بدون مدرسة ');
     } catch (e) { alert('فشل الحذف: ' + e.message); }
   },
 
@@ -3998,7 +4029,7 @@ const App = {
     const students = DB.students();
     const plans    = DB.plans();
     if (!students.length) {
-      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📈</div><p>لا يوجد طلاب بعد</p></div>`;
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></div><p>لا يوجد طلاب بعد</p></div>`;
       return;
     }
 
@@ -4094,7 +4125,7 @@ const App = {
       </div>
       <div class="perf-skill-breakdown" id="perf-skill-breakdown"></div>
       <div class="perf-filter-bar">
-        <input class="perf-search" id="perf-search-input" type="text" placeholder="🔍 ابحث عن طالب…" oninput="App._perfFilter()">
+        <input class="perf-search" id="perf-search-input" type="text" placeholder="ابحث عن طالب…" oninput="App._perfFilter()">
         <button class="perf-filter-btn ${f==='all'?'active':''}"      onclick="App.renderPerformanceTab('all')">الكل</button>
         <button class="perf-filter-btn ${f==='tested'?'active':''}"   onclick="App.renderPerformanceTab('tested')">اختبروا</button>
         <button class="perf-filter-btn ${f==='untested'?'active':''}" onclick="App.renderPerformanceTab('untested')">لم يختبروا</button>
@@ -4168,7 +4199,7 @@ const App = {
 
     const chartHtml = `
       <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 14px 8px;margin-bottom:16px;">
-        <div style="font-size:11.5px;font-weight:800;color:#64748b;margin-bottom:8px;">📈 تطور الأداء عبر المحاولات</div>
+        <div style="font-size:11.5px;font-weight:800;color:#64748b;margin-bottom:8px;">تطور الأداء عبر المحاولات</div>
         <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible;">
           <defs>
             <linearGradient id="pcg" x1="0" y1="0" x2="0" y2="1">
@@ -4189,7 +4220,7 @@ const App = {
       const cls = p.score >= 71 ? 'score-high' : p.score >= 50 ? 'score-mid' : 'score-low';
       const skillRows = sortBySkillOrder(p.gaps).map(g => {
         const gc  = g.pct <= 30 ? 'score-low' : g.pct <= 70 ? 'score-mid' : 'score-high';
-        const cat = g.category === 'verbal' ? '📚' : '🔢';
+        const cat = g.category === 'verbal' ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>' : '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>';
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">
           <span>${cat} ${g.skillName}</span>
           <span class="gap-score ${gc}" style="padding:2px 8px;font-size:11px;">${g.pct}%</span>
@@ -4200,7 +4231,7 @@ const App = {
           <span style="font-weight:700;font-size:14px;">المحاولة ${p.n}</span>
           <span class="gap-score ${cls}">${p.score}%</span>
         </div>
-        <div style="font-size:12px;color:var(--muted,#64748b);margin-bottom:${p.gaps.length ? '10px' : '0'};">📅 ${p.date}</div>
+        <div style="font-size:12px;color:var(--muted,#64748b);margin-bottom:${p.gaps.length ? '10px' : '0'};">${p.date}</div>
         ${p.gaps.length ? `<div style="border-top:1px solid #f1f5f9;padding-top:8px;">${skillRows}</div>` : ''}
       </div>`;
     }).join('');
@@ -4233,7 +4264,7 @@ const App = {
       .sort((a, b) => a.avg - b.avg);
     if (!skills.length) { el.innerHTML = ''; return; }
     el.innerHTML = `
-      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">📊 متوسط الأداء بحسب المهارة</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">متوسط الأداء بحسب المهارة</div>
       ${skills.map(s => {
         const cls = s.avg >= 71 ? '#16a34a' : s.avg >= 50 ? '#d97706' : '#dc2626';
         const width = Math.max(s.avg, 3);
@@ -4323,7 +4354,7 @@ const App = {
         </div>
         <span class="sh-perf-row-stat sh-perf-row-latest" style="color:${color};"><b>${latestSc}%</b> آخر محاولة</span>
       </div>
-      <div class="sh-perf-footer">محاولاتك: ${series.length} · استمر وأنت قادر! 💪</div>
+      <div class="sh-perf-footer">محاولاتك: ${series.length} · استمر وأنت قادر! </div>
     </div>`;
   },
 
@@ -4333,8 +4364,8 @@ const App = {
     const myPlans = DB.studentPlans(State.student.id);
     if (myPlans.length < 2) { el.style.display = 'none'; return; }
 
-    const verbalCard = App._buildPerfCard(myPlans, 'verbal', 'مؤشر أدائك — اللفظي', '📘', '#3F7CB8', 'اللفظي', 'v');
-    const quantCard  = App._buildPerfCard(myPlans, 'quantitative', 'مؤشر أدائك — الكمي', '📗', '#4FA877', 'الكمي', 'q');
+    const verbalCard = App._buildPerfCard(myPlans, 'verbal', 'مؤشر أدائك — اللفظي', '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M9 7h7"/></svg>', '#3F7CB8', 'اللفظي', 'v');
+    const quantCard  = App._buildPerfCard(myPlans, 'quantitative', 'مؤشر أدائك — الكمي', '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M9 7h7"/></svg>', '#4FA877', 'الكمي', 'q');
     if (!verbalCard && !quantCard) { el.style.display = 'none'; return; }
 
     el.style.display = 'block';
@@ -4397,7 +4428,7 @@ const App = {
       const data   = await apiFetch(`/director/admins?school=${school}`);
       const admins = data.admins || [];
       if (!admins.length) {
-        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div><p>لا يوجد مشرفون مضافون بعد</p></div>';
+        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div><p>لا يوجد مشرفون مضافون بعد</p></div>';
         return;
       }
       listEl.innerHTML = admins.map(a => `
@@ -4405,7 +4436,7 @@ const App = {
           <div class="student-avatar">${escapeHtml(a.name.charAt(0))}</div>
           <div class="student-info" style="flex:1;">
             <div class="student-name">${escapeHtml(a.name)}</div>
-            <div class="student-code">رمز: ${escapeHtml(a.code)} · ${a.role === 'director' ? '👑 مدير' : '👤 مشرف'}</div>
+            <div class="student-code">رمز: ${escapeHtml(a.code)} · ${a.role === 'director' ? 'مدير' : 'مشرف'}</div>
           </div>
           ${a.role !== 'director' ? `<button class="btn btn-danger btn-sm" onclick="App.deleteSupervisor('${a.id}')">حذف</button>` : ''}
         </div>`).join('');
@@ -4430,7 +4461,7 @@ const App = {
       });
       document.getElementById('add-sup-name').value = '';
       document.getElementById('add-sup-code').value = '';
-      showToast('تمت إضافة المشرف ✅');
+      showToast('تمت إضافة المشرف ');
       App.loadSupervisors();
     } catch (e) {
       showAlert(errEl, e.message || 'حدث خطأ');
@@ -4508,8 +4539,8 @@ const App = {
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="App.openEditQuestion('${q.id}')">✏️</button>
-          <button class="btn btn-danger btn-sm" onclick="App.deleteQuestion('${q.id}', ${q.qnum})">🗑</button>
+          <button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="App.openEditQuestion('${q.id}')"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+          <button class="btn btn-danger btn-sm" onclick="App.deleteQuestion('${q.id}', ${q.qnum})"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/></svg></button>
         </div>
       </div>`).join('');
   },
@@ -4579,7 +4610,7 @@ const App = {
       dropQ.qnum = dragQnum;
       App._allQuestions.sort((a, b) => a.qnum - b.qnum);
       App.filterQuestions();
-      showToast('تم تحديث الترتيب ✅');
+      showToast('تم تحديث الترتيب ');
     } catch (err) {
       showToast('تعذّر تحديث الترتيب');
     }
@@ -4642,7 +4673,7 @@ const App = {
       if (idx >= 0) App._allQuestions[idx] = { ...App._allQuestions[idx], qnum, type, skill_id, text, opt1, opt2, opt3, opt4, ans };
       App.closeEditQuestion();
       App.filterQuestions();
-      showToast('تم حفظ التعديلات ✅');
+      showToast('تم حفظ التعديلات ');
     } catch (e) {
       showToast('تعذّر الحفظ: ' + (e.message || ''));
     }
@@ -4707,7 +4738,7 @@ const App = {
       if (!rows.length) return '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0;">لا توجد بيانات بعد</div>';
       return rows.map(sk => {
         const col = barColor(sk.avg);
-        const icon = sk.category === 'verbal' ? '📚' : '🔢';
+        const icon = sk.category === 'verbal' ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>' : '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>';
         return `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
           <div style="width:160px;min-width:160px;font-size:12.5px;color:#475569;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${icon} ${escapeHtml(sk.name)}</div>
@@ -4761,7 +4792,7 @@ const App = {
       } catch {}
       supportHTML = `
       <div class="stats-section">
-        <div class="stats-section-title">🎫 الدعم والتواصل</div>
+        <div class="stats-section-title">الدعم والتواصل</div>
         <div class="support-stats-grid">
           <div class="support-stat"><div class="support-stat-val" style="color:#1e40af;">${ticketsOpen}</div><div class="support-stat-lbl">تذاكر مفتوحة</div></div>
           <div class="support-stat"><div class="support-stat-val" style="color:#854d0e;">${ticketsProgress}</div><div class="support-stat-lbl">قيد المعالجة</div></div>
@@ -4784,22 +4815,22 @@ const App = {
     listEl.innerHTML = `
       <!-- Level distribution chart -->
       <div class="stats-section">
-        <div class="stats-section-title">📈 توزيع المستويات</div>
+        <div class="stats-section-title">توزيع المستويات</div>
         ${levelChart(lvlWeak, lvlBelow, lvlMid, lvlHigh, notTested)}
       </div>
 
       <!-- Category averages -->
       ${(verbalAvg !== null || quantAvg !== null) ? `
       <div class="stats-section">
-        <div class="stats-section-title">🗂 متوسط أداء كل نوع</div>
+        <div class="stats-section-title">متوسط أداء كل نوع</div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
           ${verbalAvg !== null ? `<div class="stats-kpi" style="flex:1;min-width:120px;">
             <div class="stats-kpi-val" style="color:${barColor(verbalAvg)};">${verbalAvg}%</div>
-            <div class="stats-kpi-lbl">📚 لفظي</div>
+            <div class="stats-kpi-lbl">لفظي</div>
           </div>` : ''}
           ${quantAvg !== null ? `<div class="stats-kpi" style="flex:1;min-width:120px;">
             <div class="stats-kpi-val" style="color:${barColor(quantAvg)};">${quantAvg}%</div>
-            <div class="stats-kpi-lbl">🔢 كمي</div>
+            <div class="stats-kpi-lbl">كمي</div>
           </div>` : ''}
         </div>
       </div>` : ''}
@@ -4807,12 +4838,12 @@ const App = {
       <!-- Weakest skills alert -->
       ${weakest3.length ? `
       <div class="stats-section">
-        <div class="stats-section-title">⚠️ المهارات الأكثر ضعفاً</div>
+        <div class="stats-section-title">المهارات الأكثر ضعفاً</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           ${weakest3.map((sk, i) => {
             const col = barColor(sk.avg);
-            const icon = sk.category === 'verbal' ? '📚' : '🔢';
-            const medals = ['🥇','🥈','🥉'];
+            const icon = sk.category === 'verbal' ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>' : '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>';
+            const medals = ['<span class="ic-medal">1</span>','<span class="ic-medal">2</span>','<span class="ic-medal">3</span>'];
             return `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1.5px solid var(--border);border-right:4px solid ${col};border-radius:10px;padding:10px 14px;">
               <span style="font-size:18px;">${medals[i]}</span>
               <div style="flex:1;font-size:13px;font-weight:700;color:var(--text);">${icon} ${escapeHtml(sk.name)}</div>
@@ -4824,7 +4855,7 @@ const App = {
 
       <!-- Skills breakdown chart -->
       <div class="stats-section">
-        <div class="stats-section-title">📊 متوسط الأداء بحسب المهارة</div>
+        <div class="stats-section-title">متوسط الأداء بحسب المهارة</div>
         ${skillsChart(skillRows)}
       </div>
 
@@ -4844,11 +4875,11 @@ const App = {
     if (DB.students().find(s => s.code === code)) { showAlert(errEl, 'هذا السجل المدني مسجّل مسبقاً.'); return; }
     try { await DB.addStudent({ name, code, phone }); }
     catch (e) { showAlert(errEl, e.message || 'فشل الحفظ.'); return; }
-    ActivityLog.success(`➕ إضافة طالب: ${name} (${code})`);
+    ActivityLog.success(`إضافة طالب: ${name} (${code})`);
     document.getElementById('add-st-name').value = '';
     document.getElementById('add-st-code').value = '';
     document.getElementById('add-st-phone').value = '';
-    showToast('تمت إضافة الطالب ✅');
+    showToast('تمت إضافة الطالب ');
     App.toggleAddStudentPanel(); // close the panel
     App.renderAdminDashboard('students');
   },
@@ -4878,7 +4909,7 @@ const App = {
     try { await DB.updateStudentPhone(id, trimmed); }
     catch (e) { showAlert(errEl, e.message || 'فشل الحفظ.'); return; }
     App.closeEditPhoneModal();
-    showToast('تم تحديث رقم الجوال ✅');
+    showToast('تم تحديث رقم الجوال ');
     App.renderAdminDashboard('students');
   },
 
@@ -4934,10 +4965,10 @@ const App = {
 
     const bar = document.getElementById('imp-summary-bar');
     bar.innerHTML = `
-      <span style="background:#dcfce7;color:#166534;padding:3px 12px;border-radius:99px;">✅ صالح للإضافة: ${valid}</span>
-      ${errors  ? `<span style="background:#fee2e2;color:#991b1b;padding:3px 12px;border-radius:99px;">❌ خطأ: ${errors}</span>` : ''}
-      ${dups    ? `<span style="background:#fef9c3;color:#854d0e;padding:3px 12px;border-radius:99px;">⚠️ مكرر في الملف: ${dups}</span>` : ''}
-      ${inDB    ? `<span style="background:#f0f4ff;color:#3730a3;padding:3px 12px;border-radius:99px;">🔵 موجود مسبقاً: ${inDB}</span>` : ''}
+      <span style="background:#dcfce7;color:#166534;padding:3px 12px;border-radius:99px;">صالح للإضافة: ${valid}</span>
+      ${errors  ? `<span style="background:#fee2e2;color:#991b1b;padding:3px 12px;border-radius:99px;">خطأ: ${errors}</span>` : ''}
+      ${dups    ? `<span style="background:#fef9c3;color:#854d0e;padding:3px 12px;border-radius:99px;">مكرر في الملف: ${dups}</span>` : ''}
+      ${inDB    ? `<span style="background:#f0f4ff;color:#3730a3;padding:3px 12px;border-radius:99px;">موجود مسبقاً: ${inDB}</span>` : ''}
     `;
 
     const btn = document.getElementById('imp-confirm-btn');
@@ -4949,16 +4980,16 @@ const App = {
     body.innerHTML = rows.map((r, i) => {
       let status = '', rowStyle = '';
       if (!r.validCode || !r.validName || !r.validPhone) {
-        status = `<span style="background:#fee2e2;color:#991b1b;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">❌ خطأ</span>`;
+        status = `<span style="background:#fee2e2;color:#991b1b;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">خطأ</span>`;
         rowStyle = 'background:#fff5f5;';
       } else if (r.dupOf !== undefined) {
-        status = `<span style="background:#fef9c3;color:#854d0e;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">⚠️ مكرر</span>`;
+        status = `<span style="background:#fef9c3;color:#854d0e;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">مكرر</span>`;
         rowStyle = 'background:#fefce8;';
       } else if (r.existsInDB) {
-        status = `<span style="background:#e0e7ff;color:#3730a3;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">🔵 موجود</span>`;
+        status = `<span style="background:#e0e7ff;color:#3730a3;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">موجود</span>`;
         rowStyle = 'background:#f5f7ff;';
       } else {
-        status = `<span style="background:#dcfce7;color:#166534;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">✅ صالح</span>`;
+        status = `<span style="background:#dcfce7;color:#166534;border-radius:99px;padding:2px 8px;font-size:11px;white-space:nowrap;">صالح</span>`;
       }
       const borderBottom = i < rows.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
       return `<tr style="${rowStyle}${borderBottom}">
@@ -5021,7 +5052,7 @@ const App = {
       }
       const res = await DB.bulkAddStudents(toAdd.map(r => ({ code: r.code, name: r.name, phone: r.phone || '', school: r.school || importSchool })));
       App.closeImportPreview();
-      showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'طلاب' : 'طالب'}${res.skipped ? ' (تجاهل ' + res.skipped + ' مكرر)' : ''} ✅`);
+      showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'طلاب' : 'طالب'}${res.skipped ? ' (تجاهل ' + res.skipped + ' مكرر)' : ''} `);
       App.renderAdminDashboard('students');
     } catch (e) {
       errEl.textContent = 'فشلت عملية الإضافة: ' + (e.message || e);
@@ -5052,7 +5083,7 @@ const App = {
       })).filter(q => q.qnum && q.text && ['verbal','quantitative'].includes(q.type) && q.opts.every(o => o) && q.ans >= 0 && q.ans <= 3);
       if (!parsed.length) { alert('لا توجد أسئلة صالحة في الملف.'); return; }
       const res = await DB.appendQuestions(parsed);
-      showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'أسئلة' : 'سؤال'}${res.skipped ? ' (تجاهل ' + res.skipped + ' ' + (res.skipped >= 3 && res.skipped <= 10 ? 'مكررات' : 'مكرر') + ')' : ''} ✅`);
+      showToast(`تمت إضافة ${res.added} ${res.added >= 3 && res.added <= 10 ? 'أسئلة' : 'سؤال'}${res.skipped ? ' (تجاهل ' + res.skipped + ' ' + (res.skipped >= 3 && res.skipped <= 10 ? 'مكررات' : 'مكرر') + ')' : ''} `);
     } catch (e) { alert('فشل الاستيراد: ' + (e.message || e)); }
   },
 
@@ -5061,7 +5092,7 @@ const App = {
     const st = DB.students().find(s => s.id === studentId);
     try { await DB.deleteStudent(studentId); }
     catch (e) { alert('تعذّر الحذف.'); return; }
-    ActivityLog.warn(`🗑 حذف طالب: ${st?.name || studentId}`);
+    ActivityLog.warn(`حذف طالب: ${st?.name || studentId}`);
     App.renderAdminDashboard('students');
     showToast('تم الحذف');
   },
@@ -5099,7 +5130,7 @@ const App = {
     }
     App._aqUpdateSkills(editQ?.skillId);
     modal.dataset.editQnum = editQ?.qnum || '';
-    document.getElementById('aq-modal-title').textContent = editQ ? '✏️ تعديل السؤال' : '➕ إضافة سؤال جديد';
+    document.getElementById('aq-modal-title').textContent = editQ ? 'تعديل السؤال' : 'إضافة سؤال جديد';
     modal.classList.add('open');
   },
 
@@ -5139,9 +5170,9 @@ const App = {
     const q = { qnum, type, skillId, text, opts, ans: Number(ansRadio.value) };
     try {
       const res = await DB.appendQuestions([q]);
-      ActivityLog.success(`➕ إضافة سؤال #${qnum}: "${text.slice(0,40)}..."`);
+      ActivityLog.success(`إضافة سؤال #${qnum}: "${text.slice(0,40)}..."`);
       App.closeAddQuestionModal();
-      showToast(`تمت إضافة السؤال ✅${res.skipped ? ' (مكرر، تجاهل)' : ''}`);
+      showToast(`تمت إضافة السؤال ${res.skipped ? ' (مكرر، تجاهل)' : ''}`);
       App.renderAdminDashboard('questions');
     } catch(e) {
       errEl.textContent = 'فشلت الإضافة: ' + (e.message || e);
@@ -5160,7 +5191,7 @@ const App = {
     document.getElementById('modal-gaps').innerHTML = sortBySkillOrder(plan.gaps).map(g => `
       <div class="gap-item">
         <div class="gap-item-head">
-          <span>${g.category === 'verbal' ? '📚' : '🔢'}</span>
+          <span>${g.category === 'verbal' ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>' : '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>'}</span>
           <span class="gap-skill">${g.skillName}</span>
           <span class="gap-score score-${g.level}">${g.pct}%</span>
         </div>
@@ -5181,7 +5212,7 @@ const App = {
     catch (e) { alert('تعذّر اعتماد الخطة.'); return; }
     App.closeModal();
     App.renderAdminDashboard();
-    showToast('تم اعتماد الخطة ونشرها للطالب ✅');
+    showToast('تم اعتماد الخطة ونشرها للطالب ');
   },
 
   async grantRetake(studentId) {
@@ -5194,7 +5225,7 @@ const App = {
       await DB.approvePlan(latest.id, 'OVERRIDE:' + latest.adminNote);
     } catch (e) { alert('فشلت العملية.'); return; }
     App.renderAdminDashboard('students');
-    showToast('تم السماح للطالب بإعادة الاختبار ✅');
+    showToast('تم السماح للطالب بإعادة الاختبار ');
   },
 
   // ── Student Detail Modal ─────────────────────────────────────────────────
@@ -5214,7 +5245,7 @@ const App = {
     // Access status: if has any plans → has entered; else unknown (show as not entered)
     const accessEl = document.getElementById('sdm-access-status');
     if (allPlans.length > 0) {
-      accessEl.innerHTML = '<span style="color:#16a34a;font-size:13px;font-weight:800;">✅ دخل</span>';
+      accessEl.innerHTML = '<span style="color:#16a34a;font-size:13px;font-weight:800;">دخل</span>';
     } else {
       accessEl.innerHTML = '<span style="color:#64748b;font-size:13px;font-weight:800;">⭕ لم يدخل</span>';
     }
@@ -5235,13 +5266,13 @@ const App = {
       const rem = actualDaysRemaining(latest);
       if (rem > 0 && !latest.retakeOverride) {
         banner.style.cssText = 'background:#fef9c3;color:#854d0e;';
-        banner.textContent   = `⏳ في فترة الانتظار — يفتح الاختبار بعد ${rem} ${rem===1?'يوم':'أيام'}`;
+        banner.textContent   = `في فترة الانتظار — يفتح الاختبار بعد ${rem} ${rem===1?'يوم':'أيام'}`;
       } else if (latest.retakeOverride) {
         banner.style.cssText = 'background:#fff7ed;color:#92400e;';
-        banner.textContent   = '🔓 مسموح له بإعادة الاختبار من قِبَل المشرف';
+        banner.textContent   = 'مسموح له بإعادة الاختبار من قِبَل المشرف';
       } else {
         banner.style.cssText = 'background:#dcfce7;color:#166534;';
-        banner.textContent   = '✅ يمكنه إعادة الاختبار الآن';
+        banner.textContent   = 'يمكنه إعادة الاختبار الآن';
       }
     }
 
@@ -5251,7 +5282,7 @@ const App = {
       skillsBody.innerHTML = sortBySkillOrder(latest.gaps).map(g => {
         const lvl = g.pct <= 30 ? 'ضعيف' : g.pct <= 49 ? 'دون المتوسط' : g.pct <= 70 ? 'متوسط' : 'فوق المتوسط';
         const cls = g.pct <= 49 ? 'score-low' : g.pct <= 70 ? 'score-mid' : 'score-high';
-        const cat = g.category === 'verbal' ? '📚 لفظي' : '🔢 كمي';
+        const cat = g.category === 'verbal' ? 'لفظي' : 'كمي';
         return `<tr>
           <td style="font-weight:700;">${g.skillName}</td>
           <td>${cat}</td>
@@ -5272,7 +5303,7 @@ const App = {
         const date = new Date(p.createdAt).toLocaleDateString('ar-SA', { year:'numeric', month:'short', day:'numeric' });
         const detailRows = p.gaps.map(g => {
           const gcls = g.pct >= 71 ? 'score-high' : g.pct >= 50 ? 'score-mid' : 'score-low';
-          const cat = g.category === 'verbal' ? '📚' : '🔢';
+          const cat = g.category === 'verbal' ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>' : '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>';
           return `<tr style="background:#f8fafc;">
             <td style="padding:5px 8px;font-size:12px;color:#64748b;" colspan="2">${cat} ${escapeHtml(g.skillName)}</td>
             <td style="text-align:center;"><span class="gap-score ${gcls}" style="font-size:11px;padding:2px 8px;">${g.pct}%</span></td>
@@ -5316,14 +5347,14 @@ const App = {
           const wrongRows = ans.filter(d => d.a !== d.corr).map(d =>
             `<tr style="background:#fff8f8;">
               <td style="padding:4px 8px;font-size:12px;color:#64748b;text-align:center;">${d.q}</td>
-              <td style="padding:4px 8px;font-size:12px;color:#64748b;text-align:center;">${d.q<=25?'📚':'🔢'}</td>
+              <td style="padding:4px 8px;font-size:12px;color:#64748b;text-align:center;">${d.q<=25?'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>'}</td>
               <td style="padding:4px 8px;font-size:12px;color:#dc2626;font-weight:700;text-align:center;">${d.a!==null&&d.a!==undefined?labels[d.a]:'—'}</td>
               <td style="padding:4px 8px;font-size:12px;color:#16a34a;font-weight:700;text-align:center;">${labels[d.corr]}</td>
             </tr>`).join('');
           const detailHtml = `<div style="padding:8px 0 4px;">
             <div style="display:flex;gap:12px;margin-bottom:6px;font-size:12px;">
-              <span style="color:#64748b;">📚 لفظي: <b>${vRight}/${verbal.length}</b></span>
-              <span style="color:#64748b;">🔢 كمي: <b>${qRight}/${quant.length}</b></span>
+              <span style="color:#64748b;">لفظي: <b>${vRight}/${verbal.length}</b></span>
+              <span style="color:#64748b;">كمي: <b>${qRight}/${quant.length}</b></span>
             </div>
             ${wrongRows ? `<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:4px;">الأخطاء:</div>
             <table style="width:100%;border-collapse:collapse;">
@@ -5334,7 +5365,7 @@ const App = {
                 <th style="padding:4px 6px;font-size:11px;color:#64748b;">الصحيحة</th>
               </tr></thead>
               <tbody>${wrongRows}</tbody>
-            </table>` : '<div style="color:#16a34a;font-size:12px;">✅ جميع الإجابات صحيحة</div>'}
+            </table>` : '<div style="color:#16a34a;font-size:12px;">جميع الإجابات صحيحة</div>'}
           </div>`;
           return `<div style="background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:12px;margin-bottom:8px;">
             <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="App._toggleGTDetail('gtd-${ri}')">
@@ -5467,14 +5498,14 @@ const App = {
   ${adminNote}
 
   <!-- Skills table -->
-  <div style="font-size:15px;font-weight:800;color:#3F7CB8;margin-bottom:12px;border-right:4px solid #4FA877;padding-right:10px;">📊 تفصيل المهارات — آخر اختبار</div>
+  <div style="font-size:15px;font-weight:800;color:#3F7CB8;margin-bottom:12px;border-right:4px solid #4FA877;padding-right:10px;">تفصيل المهارات — آخر اختبار</div>
   <table style="margin-bottom:24px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
     <thead><tr><th>المهارة</th><th style="text-align:center;">القسم</th><th>الدرجة</th><th style="text-align:center;">المستوى</th></tr></thead>
     <tbody>${skillRows}</tbody>
   </table>
 
   <!-- History -->
-  <div style="font-size:15px;font-weight:800;color:#3F7CB8;margin-bottom:12px;border-right:4px solid #4FA877;padding-right:10px;">📋 سجل المحاولات</div>
+  <div style="font-size:15px;font-weight:800;color:#3F7CB8;margin-bottom:12px;border-right:4px solid #4FA877;padding-right:10px;">سجل المحاولات</div>
   <table style="margin-bottom:32px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
     <thead><tr><th style="text-align:center;">المحاولة</th><th>التاريخ</th><th style="text-align:center;">المتوسط</th></tr></thead>
     <tbody>${histRows}</tbody>
@@ -5569,15 +5600,15 @@ const App = {
     const dateStr = until.toLocaleDateString('ar-SA', { day:'numeric', month:'long' });
     document.getElementById('cd-content').innerHTML = `
       <div class="analysis-intro" style="text-align:center;margin-bottom:24px;">
-        <div style="font-size:36px;margin-bottom:12px;">⏳</div>
+        <div style="font-size:36px;margin-bottom:12px;"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h12M6 22h12"/><path d="M7 2v4a5 5 0 0 0 10 0V2M7 22v-4a5 5 0 0 1 10 0v4"/></svg></div>
         <div id="cd-countdown" style="display:flex;justify-content:center;align-items:flex-end;gap:6px;margin-bottom:10px;direction:ltr;"></div>
         <div style="font-size:13px;color:var(--muted);">يفتح الاختبار في ${dateStr}</div>
       </div>
       <button class="btn btn-outline btn-full" onclick="App.viewStudentPlan()" style="margin-bottom:12px;">
-        📊 عرض آخر خطة دعم
+        عرض آخر خطة دعم
       </button>
       <button class="btn btn-outline btn-full" onclick="App.showHistory()">
-        📋 سجل الاختبارات السابقة
+        سجل الاختبارات السابقة
       </button>`;
     App.startCooldownTimer(until);
   },
@@ -5585,18 +5616,18 @@ const App = {
   renderRetakeOrView(latest, allPlans) {
     document.getElementById('cd-content').innerHTML = `
       <div class="analysis-intro" style="text-align:center;margin-bottom:24px;">
-        <div style="font-size:40px;margin-bottom:8px;">✅</div>
+        <div style="font-size:40px;margin-bottom:8px;"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="m8 12.5 2.7 2.7L16.5 9"/></svg></div>
         <div style="font-size:17px;font-weight:800;margin-bottom:6px;">يمكنك إعادة الاختبار الآن</div>
         <div style="font-size:13.5px;color:var(--muted);">يمكنك البدء بمحاولة جديدة</div>
       </div>
       <button class="btn btn-primary btn-full" onclick="show('screen-intro')" style="margin-bottom:12px;">
-        🚀 ابدأ محاولة جديدة
+        ابدأ محاولة جديدة
       </button>
       <button class="btn btn-outline btn-full" onclick="App.viewStudentPlan()" style="margin-bottom:12px;">
-        📊 عرض آخر خطة دعم
+        عرض آخر خطة دعم
       </button>
       <button class="btn btn-outline btn-full" onclick="App.showHistory()">
-        📋 سجل الاختبارات السابقة
+        سجل الاختبارات السابقة
       </button>`;
   },
 
@@ -5913,7 +5944,7 @@ const App = {
 
     if (readPatch) apiFetch('/messages/read', { method:'PATCH', body: JSON.stringify(readPatch) }).catch(() => {});
 
-    if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>'; App._chatMsgCount = 0; return; }
+    if (!msgs.length) { el.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة </div>'; App._chatMsgCount = 0; return; }
     // Rebuilding innerHTML always resets scrollTop to 0, and this function is
     // called on every poll/WebSocket tick — so without this guard, scrolling
     // up to read older messages while a background refresh lands would snap
@@ -6021,7 +6052,7 @@ const App = {
 
       if (!tickets.length) {
         el.innerHTML = `<div style="padding:40px 20px;text-align:center;">
-          <div style="font-size:44px;margin-bottom:12px;">🎫</div>
+          <div style="font-size:44px;margin-bottom:12px;"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 0 0 4v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4a2 2 0 0 1 0-4V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"/><path d="M14 4v14"/></svg></div>
           <div style="font-weight:700;font-size:15px;">لا توجد طلبات دعم بعد</div>
           <div style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.6;">
             هل تواجه مشكلة أو لديك استفسار؟<br>اضغط الزر أدناه لرفع طلب جديد
@@ -6031,21 +6062,21 @@ const App = {
       }
 
       const catIcons = {
-        'مشكلة تسجيل دخول':'🔐','مشكلة في الاختبار':'📝','خطة التعلم والنتائج':'📋',
-        'خطأ تقني':'⚙️','استفسار عام':'💬','اقتراح أو ملاحظة':'🌟',
-        'تسجيل دخول':'🔐','مشكلة تقنية':'⚙️','حساب وصلاحيات':'👤',
-        'طلب ميزة':'✨','أخرى':'📋',
+        'مشكلة تسجيل دخول':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 9.2-9.2M17 6l3 3"/></svg>','مشكلة في الاختبار':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>','خطة التعلم والنتائج':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg>',
+        'خطأ تقني':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>','استفسار عام':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12Z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>','اقتراح أو ملاحظة':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9Z"/></svg>',
+        'تسجيل دخول':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 9.2-9.2M17 6l3 3"/></svg>','مشكلة تقنية':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>','حساب وصلاحيات':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+        'طلب ميزة':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8Z"/></svg>','أخرى':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg>',
       };
 
       el.innerHTML = tickets.map(t => {
         const statusMap  = { open:['tbadge-open','مفتوح'], in_progress:['tbadge-progress','قيد المعالجة'], resolved:['tbadge-resolved','تم الحل'], rejected:['tbadge-rejected','مرفوض'] };
         const [badgeCls, badgeTxt] = statusMap[t.status] || ['tbadge-open','مفتوح'];
         const date       = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short', year:'numeric' });
-        const catIcon    = catIcons[t.category] || '📋';
+        const catIcon    = catIcons[t.category] || '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg>';
         const unreadBadge = t.unread_count > 0
           ? `<span style="background:#dc2626;color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:2px 8px;">● رد جديد</span>` : '';
         const urgentBadge = t.priority === 'عالية'
-          ? `<span style="font-size:10px;font-weight:700;color:#dc2626;">🚨 عاجل</span>` : '';
+          ? `<span style="font-size:10px;font-weight:700;color:#dc2626;">عاجل</span>` : '';
         return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}','student')"
           style="${t.unread_count > 0 ? 'border-color:var(--primary);background:var(--surface);' : ''}">
           <div class="ticket-card-top">
@@ -6058,7 +6089,7 @@ const App = {
               <div class="ticket-subject" style="margin-bottom:5px;">${escapeHtml(t.subject)}</div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 ${t.category ? `<span style="font-size:11px;color:var(--muted);">${catIcon} ${escapeHtml(t.category)}</span>` : ''}
-                <span style="font-size:11px;color:var(--muted);">🗓 ${date}</span>
+                <span style="font-size:11px;color:var(--muted);">${date}</span>
               </div>
             </div>
             <span class="${badgeCls}" style="flex-shrink:0;margin-top:2px;">${badgeTxt}</span>
@@ -6129,7 +6160,7 @@ const App = {
       if (!/^05\d{8}$/.test(phone)) { showAlert(errEl, 'سجّل رقم جوالك (05XXXXXXXX) قبل رفع طلب الدعم'); return; }
     }
     const btn = document.querySelector('#new-ticket-modal .btn-primary');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ جارٍ الإرسال...'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال...'; }
     try {
       await apiFetch('/tickets', {
         method: 'POST',
@@ -6137,7 +6168,7 @@ const App = {
       });
       if (phone) State.student.phone = phone;
       App.closeNewTicketModal();
-      showToast('✅ تم إرسال طلبك — سنتواصل معك قريباً');
+      showToast('تم إرسال طلبك — سنتواصل معك قريباً');
       App.loadStudentTickets();
     } catch (e) {
       showAlert(errEl, e.message || 'فشل الإرسال');
@@ -6256,7 +6287,7 @@ const App = {
     if (!App._guestCat) { showAlert(errEl, 'اختر نوع المشكلة أولاً'); return; }
     if (!body)          { showAlert(errEl, 'اشرح مشكلتك بالتفصيل'); return; }
     const btn = document.querySelector('#guest-support-modal #gs-step2 .btn-primary');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ جارٍ الإرسال...'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال...'; }
     try {
       const { ticket } = await apiFetch('/tickets/guest', {
         method: 'POST',
@@ -6269,7 +6300,7 @@ const App = {
         }),
       });
       App.closeGuestSupportModal();
-      showToast(`✅ تم إرسال طلبك (${ticket?.ticket_num || ''}) — سنتواصل معك على رقم جوالك قريباً`);
+      showToast(`تم إرسال طلبك (${ticket?.ticket_num || ''}) — سنتواصل معك على رقم جوالك قريباً`);
     } catch (e) {
       showAlert(errEl, e.message || 'فشل الإرسال، حاول مرة أخرى');
     } finally {
@@ -6297,20 +6328,20 @@ const App = {
       document.getElementById('td-status-badge').innerHTML = `<span class="${badgeCls}">${badgeTxt}</span>`;
 
       // Meta chips
-      const prioIcon = ticket.priority === 'عالية' ? '🚨' : ticket.priority === 'منخفضة' ? '🟢' : '🟡';
+      const prioIcon = ticket.priority === 'عالية' ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>' : ticket.priority === 'منخفضة' ? '<span class="ic-dot ic-dot-green" aria-hidden="true"></span>' : '<span class="ic-dot ic-dot-amber" aria-hidden="true"></span>';
       document.getElementById('td-meta-chips').innerHTML = `
         ${ticket.ticket_num ? `<span class="ticket-num-badge">${escapeHtml(ticket.ticket_num)}</span>` : ''}
-        ${String(ticket.student_id || '').startsWith('guest-') ? '<span class="cat-chip" style="background:#fef3c7;color:#92400e;">👤 بدون حساب</span>' : ''}
+        ${String(ticket.student_id || '').startsWith('guest-') ? '<span class="cat-chip" style="background:#fef3c7;color:#92400e;">بدون حساب</span>' : ''}
         ${ticket.category   ? `<span class="cat-chip">${escapeHtml(ticket.category)}</span>` : ''}
         ${ticket.priority   ? `<span style="font-size:11px;">${prioIcon} ${escapeHtml(ticket.priority)}</span>` : ''}
-        ${ticket.phone      ? `<span style="font-size:11px;">📱 ${escapeHtml(ticket.phone)}</span>` : ''}
+        ${ticket.phone      ? `<span style="font-size:11px;">${escapeHtml(ticket.phone)}</span>` : ''}
         <span style="font-size:11px;color:var(--muted);">${escapeHtml(ticket.student_name)} · ${escapeHtml(ticket.school || '')} · ${date}</span>`;
 
       // Chat bubbles
       const thread = document.getElementById('td-thread');
       thread.innerHTML = replies.length ? replies.map(r => {
         const time = new Date(r.created_at).toLocaleString('ar-SA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-        const who  = r.sender_type === 'student' ? escapeHtml(ticket.student_name || 'الطالب') : '🛠 الدعم الفني';
+        const who  = r.sender_type === 'student' ? escapeHtml(ticket.student_name || 'الطالب') : 'الدعم الفني';
         return `<div class="chat-bubble-wrap ${r.sender_type}">
           <div class="chat-bubble">
             <div class="chat-label">${who}</div>
@@ -6345,7 +6376,7 @@ const App = {
 
   _renderStars(val) {
     document.querySelectorAll('#td-stars span').forEach((s, i) => {
-      s.textContent = i < val ? '⭐' : '☆';
+      s.textContent = i < val ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9Z"/></svg>' : '☆';
       s.classList.toggle('lit', i < val);
     });
   },
@@ -6356,7 +6387,7 @@ const App = {
     try {
       await apiFetch(`/tickets/${App._currentTicketId}`, { method:'PATCH', body: JSON.stringify({ rating: val }) });
       document.getElementById('td-rating-area').style.display = 'none';
-      showToast('شكراً على تقييمك ⭐');
+      showToast('شكراً على تقييمك ');
     } catch {}
   },
 
@@ -6386,7 +6417,7 @@ const App = {
     try {
       await apiFetch(`/tickets/${App._currentTicketId}`, { method:'PATCH', body: JSON.stringify({ status:'resolved' }) });
       App.closeTicketDetail();
-      showToast('تم إغلاق التذكرة ✅');
+      showToast('تم إغلاق التذكرة ');
       App.renderSupportTickets();
     } catch { showToast('تعذّر التحديث'); }
   },
@@ -6501,7 +6532,7 @@ const App = {
           <div class="stat-card"><div class="stat-num">${stats.total}</div><div class="stat-label">إجمالي</div></div>
           <div class="stat-card"><div class="stat-num" style="color:#1e40af;">${stats.open || 0}</div><div class="stat-label">جديد</div></div>
           <div class="stat-card"><div class="stat-num" style="color:#92400e;">${stats.inProgress || 0}</div><div class="stat-label">معالجة</div></div>
-          <div class="stat-card urgent"><div class="stat-num">${stats.urgent || 0}</div><div class="stat-label">🚨 عاجل</div></div>`;
+          <div class="stat-card urgent"><div class="stat-num">${stats.urgent || 0}</div><div class="stat-label">عاجل</div></div>`;
       }
 
       App._renderSupportList(tickets);
@@ -6527,12 +6558,12 @@ const App = {
     listEl.innerHTML = tickets.map(t => {
       const [badgeCls, badgeTxt] = statusMap[t.status] || ['tbadge-open','مفتوح'];
       const date = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short' });
-      const prioIcon = t.priority === 'عالية' ? '🚨 ' : t.priority === 'منخفضة' ? '🟢 ' : '🟡 ';
+      const prioIcon = t.priority === 'عالية' ? '' : t.priority === 'منخفضة' ? '' : '';
       return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}','admin')">
         <div class="ticket-card-top">
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
             <span class="ticket-num-badge">${escapeHtml(t.ticket_num || '—')}</span>
-            ${String(t.student_id || '').startsWith('guest-') ? '<span class="cat-chip" style="background:#fef3c7;color:#92400e;">👤 بدون حساب</span>' : ''}
+            ${String(t.student_id || '').startsWith('guest-') ? '<span class="cat-chip" style="background:#fef3c7;color:#92400e;">بدون حساب</span>' : ''}
             <div class="ticket-subject">${escapeHtml(t.subject)}</div>
           </div>
           <span class="${badgeCls}" style="flex-shrink:0;">${badgeTxt}</span>
@@ -6540,7 +6571,7 @@ const App = {
         <div class="ticket-card-footer">
           ${t.category ? `<span class="cat-chip">${escapeHtml(t.category)}</span>` : ''}
           ${t.priority ? `<span style="font-size:11px;">${prioIcon}${escapeHtml(t.priority)}</span>` : ''}
-          ${t.phone ? `<span style="font-size:11px;">📱 ${escapeHtml(t.phone)}</span>` : ''}
+          ${t.phone ? `<span style="font-size:11px;">${escapeHtml(t.phone)}</span>` : ''}
           <span style="font-size:11px;color:var(--muted);margin-right:auto;">${escapeHtml(t.student_name)} · ${escapeHtml(t.school || '')} · ${date}</span>
         </div>
       </div>`;
@@ -6574,7 +6605,7 @@ const App = {
   logout() {
     const who = State.student?.name || State.admin?.name || '—';
     const _exitingRole = State.role || 'student';
-    ActivityLog.warn(`🚪 تسجيل خروج: ${who}`);
+    ActivityLog.warn(`تسجيل خروج: ${who}`);
     serverLog('info', 'logout', `تسجيل خروج: ${who}`, { user_name: who });
     // Revoke the token server-side so it can't be replayed if it leaked —
     // fire-and-forget: logout must complete locally even if this fails
@@ -6626,7 +6657,7 @@ const App = {
       await apiFetch('/broadcasts', { method: 'POST', body: JSON.stringify({ message: msg }) });
       ta.value = '';
       document.getElementById('broadcast-char').textContent = '0';
-      showToast('✅ تم إرسال الرسالة لجميع الطلاب');
+      showToast('تم إرسال الرسالة لجميع الطلاب');
       App.renderBroadcastHistory();
     } catch (e) { showToast('تعذّر الإرسال: ' + (e.message || '')); }
   },
@@ -6648,7 +6679,7 @@ const App = {
         return `
         <div style="border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;background:var(--bg);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="font-size:12.5px;font-weight:700;color:var(--primary);">📢 ${escapeHtml(adminLabel(b.admin_name))}</span>
+            <span style="font-size:12.5px;font-weight:700;color:var(--primary);">${escapeHtml(adminLabel(b.admin_name))}</span>
             <span style="font-size:11px;color:var(--muted);">${new Date(b.created_at).toLocaleString('ar-SA',{dateStyle:'short',timeStyle:'short'})}</span>
           </div>
           <div style="font-size:14px;line-height:1.7;color:var(--text);margin-bottom:12px;white-space:pre-line;">${escapeHtml(b.message)}</div>
@@ -6664,7 +6695,7 @@ const App = {
             <span style="font-size:13px;font-weight:700;color:${barColor};">${pct}%</span>
             <span style="font-size:11px;color:#94a3b8;">التفاصيل ›</span>
           </div>
-          <button onclick="App.deleteBroadcast('${b.id}')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-family:inherit;font-weight:700;cursor:pointer;">🗑 حذف</button>
+          <button onclick="App.deleteBroadcast('${b.id}')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-family:inherit;font-weight:700;cursor:pointer;">حذف</button>
         </div>`;
       }).join('');
     } catch { el.innerHTML = '<div style="color:var(--muted);padding:12px;font-size:13px;">تعذّر تحميل السجل</div>'; }
@@ -6846,12 +6877,12 @@ const App = {
         // Toast on new notifications
         if (msgCount > App._notifPrev.studentMsg && App._notifPrev.studentMsg !== null) {
           const diff = msgCount - App._notifPrev.studentMsg;
-          showToast(`🔔 وصلتك ${diff > 1 ? diff + ' رسائل' : 'رسالة'} جديدة من المشرف`);
+          showToast(`وصلتك ${diff > 1 ? diff + ' رسائل' : 'رسالة'} جديدة من المشرف`);
           App._ringBell('student');
         }
         if (tkCount > App._notifPrev.ticket && App._notifPrev.ticket !== null) {
           const diff = tkCount - App._notifPrev.ticket;
-          showToast(`🎫 وصلك ${diff > 1 ? diff + ' ردود' : 'رد'} جديد على طلب الدعم`);
+          showToast(`وصلك ${diff > 1 ? diff + ' ردود' : 'رد'} جديد على طلب الدعم`);
           App._ringBell('student');
         }
         App._notifPrev.studentMsg = msgCount;
@@ -6877,7 +6908,7 @@ const App = {
 
         if (total > App._notifPrev.adminMsg && App._notifPrev.adminMsg !== null) {
           const diff = total - App._notifPrev.adminMsg;
-          showToast(`🔔 وصلتك ${diff > 1 ? diff + ' رسائل' : 'رسالة'} جديدة من الطلاب`);
+          showToast(`وصلتك ${diff > 1 ? diff + ' رسائل' : 'رسالة'} جديدة من الطلاب`);
           App._ringBell('admin');
         }
         App._notifPrev.adminMsg = total;
@@ -6927,20 +6958,20 @@ const App = {
     const panel = document.getElementById('notif-panel');
     if (!panel) return;
     const items = App._notifItems;
-    const iconMap = { msg: '💬', ticket: '🎫', plan: '📋', broadcast: '📢' };
+    const iconMap = { msg: '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12Z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>', ticket: '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 0 0 4v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4a2 2 0 0 1 0-4V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"/><path d="M14 4v14"/></svg>', plan: '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg>', broadcast: '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10v4a1 1 0 0 0 1 1h3l6 4V5L7 9H4a1 1 0 0 0-1 1Z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg>' };
     const clsMap  = { msg: 'msg-icon', ticket: 'ticket-icon', plan: 'plan-icon', broadcast: 'msg-icon' };
     const bodyHtml = items.length
       ? items.map(item => `
         <div class="notif-item ${item.read ? '' : 'unread'}"
              onclick="App._notifClick('${item.id}')">
-          <div class="notif-icon ${clsMap[item.type] || 'msg-icon'}">${iconMap[item.type] || '🔔'}</div>
+          <div class="notif-icon ${clsMap[item.type] || 'msg-icon'}">${iconMap[item.type] || '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>'}</div>
           <div class="notif-info">
             <div class="notif-info-title">${escapeHtml(item.title)}</div>
             <div class="notif-info-sub">${escapeHtml(item.sub)}</div>
           </div>
           ${!item.read ? '<div class="notif-dot"></div>' : ''}
         </div>`).join('')
-      : `<div class="notif-empty">🎉 لا توجد إشعارات جديدة</div>`;
+      : `<div class="notif-empty">لا توجد إشعارات جديدة</div>`;
 
     panel.innerHTML = `
       <div class="notif-panel-header">
@@ -7542,7 +7573,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // so reading the URL here always came back empty and this guard never held —
   // which is why the landing screen kept stomping the access-token screen.
   if (IS_ACCESS_LINK_FLOW) return;
-  ActivityLog.info(`🌐 تحميل الصفحة — ${new Date().toLocaleString('ar-SA')} — ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
+  ActivityLog.info(`تحميل الصفحة — ${new Date().toLocaleString('ar-SA')} — ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
   const btn = document.getElementById('selfdiag-submit');
   if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
   DB.loadQuestions().catch(() => {});

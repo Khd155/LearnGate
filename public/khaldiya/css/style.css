@@ -2619,3 +2619,545 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
   .lg-card, .lg-body, .lg-saved.show, .lg-shell .alert.show { animation: none; }
   .lg-choice, .lg-step-num, .lg-step-line::after, .lg-form .btn-primary::after { transition: none; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   IN-APP SHELL — post-login student screens (.app-screen)
+   Same visual language as the sign-in shell (.lg-*): the platform canvas with
+   soft brand glows and a masked dot grid, a light glass sticky header, and
+   floating glass cards with a luminous edge. Presentation only: every id,
+   onclick, data-* hook and render function is untouched — the layer keys off
+   the `app-screen` class on each screen plus a few class hooks the renderers
+   already emit (la-row / la-bar / lvl-* / --pct). Print keeps its own rules.
+   ══════════════════════════════════════════════════════════════════════════ */
+.app-screen {
+  --ap-ease: cubic-bezier(.22,1,.36,1);
+  --ap-glass: rgba(255,255,255,.76);
+  --ap-glass-solid: rgba(255,255,255,.92);
+  --ap-glass-border: rgba(255,255,255,.9);
+  --ap-hair: rgba(15,23,42,.08);
+  --ap-bar: rgba(247,250,252,.74);
+  --ap-ring: rgba(63,124,184,.22);
+  --ap-grid: rgba(63,124,184,.075);
+  --ap-tile: rgba(63,124,184,.10);
+  --ap-tile-fg: #2B5F94;
+  --ap-track: rgba(15,23,42,.07);
+  --ap-shadow: 0 1px 0 rgba(255,255,255,.75) inset, 0 20px 44px -30px rgba(63,124,184,.55), 0 6px 16px -12px rgba(15,23,42,.16);
+  --ap-shadow-hi: 0 1px 0 rgba(255,255,255,.75) inset, 0 30px 60px -30px rgba(63,124,184,.62), 0 12px 24px -16px rgba(15,23,42,.22);
+  --ap-good: #1d7f4f;  --ap-good-bg: rgba(79,168,119,.15);  --ap-good-bar: linear-gradient(270deg,#4FA877,#7cc79d);
+  --ap-mid:  #b9530c;  --ap-mid-bg:  rgba(234,138,40,.16);  --ap-mid-bar:  linear-gradient(270deg,#e8871e,#f4b35e);
+  --ap-weak: #b91c23;  --ap-weak-bg: rgba(220,38,38,.12);   --ap-weak-bar: linear-gradient(270deg,#dc3b3b,#f07c7c);
+  position: relative; isolation: isolate;
+  background: var(--bg);
+  overflow-x: clip;
+}
+:root[data-theme="dark"] .app-screen {
+  --ap-glass: rgba(24,35,47,.76);
+  --ap-glass-solid: rgba(26,37,48,.94);
+  --ap-glass-border: rgba(255,255,255,.08);
+  --ap-hair: rgba(255,255,255,.07);
+  --ap-bar: rgba(15,23,32,.74);
+  --ap-ring: rgba(111,168,218,.28);
+  --ap-grid: rgba(255,255,255,.045);
+  --ap-tile: rgba(111,168,218,.13);
+  --ap-tile-fg: #9cc6ea;
+  --ap-track: rgba(255,255,255,.08);
+  --ap-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 22px 44px -28px rgba(0,0,0,.75), 0 4px 12px -8px rgba(0,0,0,.5);
+  --ap-shadow-hi: 0 1px 0 rgba(255,255,255,.06) inset, 0 30px 60px -28px rgba(0,0,0,.85), 0 0 0 1px rgba(111,168,218,.18);
+  --ap-good: #82d8a8;  --ap-good-bg: rgba(111,203,152,.14);
+  --ap-mid:  #f6ad62;  --ap-mid-bg:  rgba(240,169,78,.15);
+  --ap-weak: #f59393;  --ap-weak-bg: rgba(241,101,101,.14);
+}
+/* Canvas: two brand glows + a dot grid that fades out below the fold. */
+.app-screen::before {
+  content: ''; position: absolute; inset: 0 0 auto; height: 620px; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(520px 360px at 88% -60px, rgba(63,124,184,.20), transparent 70%),
+    radial-gradient(480px 340px at 6% 40px, rgba(79,168,119,.16), transparent 70%),
+    radial-gradient(380px 260px at 50% 260px, rgba(124,92,212,.07), transparent 70%);
+}
+.app-screen::after {
+  content: ''; position: absolute; inset: 0 0 auto; height: 560px; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(var(--ap-grid) 1px, transparent 1.2px);
+  background-size: 26px 26px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.6) 45%, transparent 100%);
+          mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.6) 45%, transparent 100%);
+}
+:root[data-theme="dark"] .app-screen::before { opacity: .7; }
+
+/* ── Header: light glass, sticky, brand mark tinted with the hero gradient ── */
+.app-screen .topbar {
+  background: var(--ap-bar);
+  color: var(--text);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+          backdrop-filter: blur(18px) saturate(170%);
+  border-bottom: 1px solid var(--ap-hair);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 12px 32px -26px rgba(15,23,42,.45);
+  padding-inline: max(16px, calc((100% - 1120px) / 2));
+  gap: 10px;
+}
+:root[data-theme="dark"] .app-screen .topbar { box-shadow: 0 12px 32px -22px rgba(0,0,0,.8); }
+/* The white bitmap is hidden and re-drawn through a mask so the mark takes
+   the brand gradient on the light bar (and a pale tint in dark mode). */
+.app-screen .topbar-logo {
+  background: linear-gradient(135deg, #2B5F94 0%, #2F7D86 55%, #2F8A5C 100%);
+  -webkit-mask: url(/logo-white.png) center / contain no-repeat;
+          mask: url(/logo-white.png) center / contain no-repeat;
+  object-position: -9999px 0;
+}
+:root[data-theme="dark"] .app-screen .topbar-logo { background: linear-gradient(135deg,#a9cdef,#9ddcb8); }
+.app-screen .topbar-title { color: var(--text); font-size: 16.5px; }
+.app-screen .topbar-sub { color: var(--muted) !important; opacity: 1; font-weight: 600; }
+
+.app-screen .topbar-back,
+.app-screen .tb-theme-btn,
+.app-screen .notif-bell-btn,
+.app-screen .topbar > button[onclick="window.print()"] {
+  background: var(--surface) !important;
+  border: 1.5px solid var(--border-strong) !important;
+  color: var(--text) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04);
+  transition: transform .2s var(--ap-ease), border-color .2s ease, color .2s ease, box-shadow .2s ease;
+}
+.app-screen .topbar-back { height: 40px; min-height: 40px; padding: 0 14px 0 16px; gap: 7px; font-size: 13.5px !important; }
+.app-screen .topbar-back::before {
+  content: ''; width: 16px; height: 16px; flex-shrink: 0; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.app-screen .topbar-back[onclick^="App.logout"]::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'/%3E%3Cpath d='m8 7-5 5 5 5'/%3E%3Cpath d='M3 12h12'/%3E%3C/svg%3E");
+          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'/%3E%3Cpath d='m8 7-5 5 5 5'/%3E%3Cpath d='M3 12h12'/%3E%3C/svg%3E");
+}
+.app-screen .topbar-back:hover,
+.app-screen .tb-theme-btn:hover,
+.app-screen .notif-bell-btn:hover,
+.app-screen .topbar > button[onclick="window.print()"]:hover {
+  border-color: var(--primary) !important; color: var(--primary-dk) !important;
+  transform: translateY(-1px); box-shadow: var(--shadow-sm);
+}
+:root[data-theme="dark"] .app-screen .topbar-back:hover,
+:root[data-theme="dark"] .app-screen .tb-theme-btn:hover,
+:root[data-theme="dark"] .app-screen .notif-bell-btn:hover { color: var(--primary-lt) !important; }
+.app-screen .topbar-back:focus-visible,
+.app-screen .tb-theme-btn:focus-visible,
+.app-screen .notif-bell-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Theme + bell: the glyph text set by app.js stays in the DOM (font-size 0)
+   and a crisp line icon is drawn in its place. */
+.app-screen .tb-theme-btn,
+.app-screen .notif-bell-btn { width: 40px; height: 40px; font-size: 0 !important; }
+.app-screen .tb-theme-btn::before,
+.app-screen .notif-bell-btn::before {
+  content: ''; width: 18px; height: 18px; background: currentColor;
+  -webkit-mask: var(--ap-ico) center / contain no-repeat; mask: var(--ap-ico) center / contain no-repeat;
+}
+.app-screen .tb-theme-btn { --ap-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z'/%3E%3C/svg%3E"); }
+:root[data-theme="dark"] .app-screen .tb-theme-btn { --ap-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'/%3E%3C/svg%3E"); }
+.app-screen .notif-bell-btn { --ap-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9'/%3E%3Cpath d='M10.3 21a1.9 1.9 0 0 0 3.4 0'/%3E%3C/svg%3E"); }
+.app-screen .notif-count-badge { font-size: 10px; border-color: var(--surface); box-shadow: 0 4px 10px -4px rgba(239,68,68,.7); }
+.app-screen .topbar > button[onclick="window.print()"] { padding: 8px 14px !important; }
+/* Student / school badge */
+.app-screen .tb-chip {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  border-radius: 99px; padding: 5px 12px 5px 10px; box-shadow: 0 1px 2px rgba(15,23,42,.04);
+}
+.app-screen .tb-chip .tb-dot { background: #4FA877; box-shadow: 0 0 0 3px rgba(79,168,119,.18); }
+/* In-bar timers carry white inline styles meant for the old gradient bar. */
+.app-screen #test-timer,
+.app-screen #gt-timer {
+  color: var(--primary-dk) !important; background: var(--ap-tile) !important;
+  border: 1px solid rgba(63,124,184,.25); font-variant-numeric: tabular-nums;
+}
+:root[data-theme="dark"] .app-screen #test-timer,
+:root[data-theme="dark"] .app-screen #gt-timer { color: var(--primary-lt) !important; }
+/* Plan switcher strip under the support-plan header */
+.app-screen #sp-plan-nav { background: var(--ap-bar) !important; border-bottom: 1px solid var(--ap-hair); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.app-screen #sp-plan-nav button { background: var(--surface) !important; border: 1px solid var(--border-strong) !important; color: var(--text) !important; }
+.app-screen #sp-plan-label { color: var(--text) !important; }
+
+/* ── Page column ── */
+.app-screen .page-wrap { position: relative; max-width: 760px; padding: 28px 20px 56px; }
+#screen-student-home .page-wrap, #screen-academic .page-wrap, #screen-academic-subjects .page-wrap,
+#screen-study .page-wrap, #screen-lessons .page-wrap, #screen-support-hub .page-wrap,
+#screen-level-analysis .page-wrap { max-width: 980px; }
+#screen-support-plan .page-wrap, #screen-journey-full .page-wrap { max-width: 860px; }
+
+/* Glass surface shared by every card-like block in the app shell */
+.app-screen .card,
+.app-screen .service-card,
+.app-screen .quick-btn,
+.app-screen .analysis-intro,
+.app-screen .sp-intro-box,
+.app-screen .skill-card,
+.app-screen .section-choice-card,
+.app-screen .journey-summary,
+.app-screen .journey-current-level,
+.app-screen .jt-hero,
+.app-screen .jt-node-simple,
+.app-screen .jt-level {
+  background: var(--ap-glass);
+  border: 1px solid var(--ap-glass-border);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+          backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: var(--ap-shadow);
+}
+.app-screen .card { border-radius: 22px; }
+
+/* ── Welcome banner ── */
+.app-screen .welcome-banner { border-radius: 26px; padding: 28px 30px; box-shadow: 0 30px 60px -30px rgba(63,124,184,.75), 0 10px 20px -14px rgba(15,23,42,.25); }
+.app-screen .welcome-banner::after {
+  background:
+    radial-gradient(rgba(255,255,255,.16) 1px, transparent 1.3px) 0 0 / 22px 22px,
+    radial-gradient(closest-side, rgba(255,255,255,.08), transparent 70%);
+  -webkit-mask-image: linear-gradient(105deg, #000 0%, transparent 70%);
+          mask-image: linear-gradient(105deg, #000 0%, transparent 70%);
+}
+.app-screen .welcome-banner h2 { font-size: 22px; text-wrap: balance; }
+
+/* ── Section titles ── */
+.app-screen .service-section-title { font-size: 16px; margin: 26px 0 14px; }
+.app-screen .service-section-title:first-child { margin-top: 0; }
+.app-screen .section-heading { border-right: none; padding-right: 0; display: flex; align-items: center; gap: 10px; font-size: 16px; margin: 28px 0 14px; color: var(--text); }
+.app-screen .section-heading::before { content: ''; width: 10px; height: 10px; border-radius: 3px; background: var(--grad-hero); transform: rotate(45deg); flex-shrink: 0; box-shadow: 0 0 0 4px var(--ap-ring); }
+
+/* ── Service cards → interactive tile grid ── */
+.app-screen .service-cards {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+.app-screen .service-card {
+  flex-direction: column; align-items: flex-start; gap: 14px;
+  border-radius: 22px; padding: 20px 20px 18px; min-height: 172px;
+  transition: transform .28s var(--ap-ease), box-shadow .28s var(--ap-ease), border-color .2s ease, background .2s ease;
+}
+.app-screen .service-card::before {
+  content: ''; position: absolute; inset: -1px; border-radius: 23px; padding: 1px; pointer-events: none;
+  background: linear-gradient(135deg, rgba(63,124,184,.7), rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(79,168,119,.65));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: 0; transition: opacity .28s ease;
+}
+.app-screen .service-card.active::after { display: none; }
+.app-screen .service-card.active:hover { transform: translateY(-4px); box-shadow: var(--ap-shadow-hi); border-color: transparent; }
+.app-screen .service-card.active:hover::before,
+.app-screen .service-card.active:focus-visible::before { opacity: 1; }
+.app-screen .service-card-icon {
+  width: 52px; height: 52px; border-radius: 16px; font-size: 26px;
+  background: var(--ap-tile) !important; color: var(--ap-tile-fg);
+  box-shadow: inset 0 0 0 1px rgba(63,124,184,.12);
+  transition: transform .3s var(--ap-ease), background .3s ease, color .3s ease, box-shadow .3s ease;
+}
+.app-screen .service-card-icon svg { width: 26px; height: 26px; display: block; }
+.app-screen .service-card.active:hover .service-card-icon {
+  background: var(--grad-hero) !important; color: #fff;
+  transform: translateY(-2px) rotate(-5deg);
+  box-shadow: 0 12px 24px -12px rgba(63,124,184,.9);
+}
+.app-screen .service-card-info { width: 100%; }
+.app-screen .service-card-name { font-size: 15.5px; font-weight: 800; line-height: 1.5; padding-inline-end: 64px; text-wrap: balance; }
+.app-screen .service-card-desc { font-size: 13px; }
+.app-screen .service-badge { position: absolute; top: 18px; inset-inline-end: 18px; font-size: 11px; padding: 3px 10px; border-radius: 99px; }
+.app-screen .badge-active { background: var(--ap-good-bg); color: var(--ap-good); box-shadow: inset 0 0 0 1px rgba(79,168,119,.28); }
+.app-screen .badge-soon { background: var(--ap-track); color: var(--muted); }
+.app-screen .service-card.disabled {
+  animation: none; background: var(--ap-glass); opacity: .78;
+  border: 1px dashed var(--border-strong); box-shadow: none;
+}
+.app-screen .service-card.disabled .service-card-icon { background: var(--ap-track) !important; color: var(--muted); box-shadow: none; }
+:root[data-theme="dark"] .app-screen .service-card.disabled { background: rgba(24,35,47,.5); }
+
+/* Lessons: stations become media cards (thumbnail tile, step badge, play pill) */
+#screen-lessons .service-cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 14px; }
+#screen-lessons .service-card { padding: 10px 10px 16px; gap: 12px; min-height: 0; }
+#screen-lessons .service-card-icon {
+  width: 100%; height: 112px; border-radius: 16px; color: #fff;
+  background:
+    radial-gradient(rgba(255,255,255,.18) 1px, transparent 1.3px) 0 0 / 16px 16px,
+    linear-gradient(135deg, #3F7CB8 0%, #4A96A0 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+}
+#screen-lessons .service-cards-stations.quant .service-card-icon {
+  background:
+    radial-gradient(rgba(255,255,255,.18) 1px, transparent 1.3px) 0 0 / 16px 16px,
+    linear-gradient(135deg, #3d9a6c 0%, #4FA877 55%, #6cbf93 100%) !important;
+}
+#screen-lessons .service-card-icon svg { width: 38px; height: 38px; opacity: .95; filter: drop-shadow(0 6px 10px rgba(0,0,0,.18)); transition: transform .35s var(--ap-ease); }
+#screen-lessons .service-card.active:hover .service-card-icon { transform: none; background-size: 16px 16px, 100% 100%; }
+#screen-lessons .service-card.active:hover .service-card-icon svg { transform: scale(1.12); }
+#screen-lessons .service-cards-stations .service-card-icon::after {
+  top: 10px; inset-inline-start: 10px; width: 24px; height: 24px; font-size: 12px;
+  background: rgba(255,255,255,.92); color: var(--primary-dk); border: none; box-shadow: 0 4px 10px -4px rgba(0,0,0,.35);
+}
+#screen-lessons .service-cards-stations.quant .service-card-icon::after { color: #1d7f4f; }
+#screen-lessons .service-card-info { padding: 0 6px; }
+#screen-lessons .service-card-name { padding-inline-end: 0; font-size: 14.5px; }
+#screen-lessons .service-card-desc { font-size: 12.5px; }
+#screen-lessons .service-badge {
+  top: 88px; inset-inline-end: 20px; display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,.94); color: #0f172a; box-shadow: 0 6px 14px -6px rgba(0,0,0,.4); padding: 4px 11px 4px 9px;
+}
+#screen-lessons .service-badge::before {
+  content: ''; width: 9px; height: 10px; background: currentColor;
+  clip-path: polygon(100% 0, 100% 100%, 0 50%);
+}
+
+/* ── Quick actions ── */
+.app-screen .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.app-screen .quick-btn {
+  justify-content: flex-start; gap: 12px; padding: 12px 14px; border-radius: 18px; text-align: right;
+  font-size: 13.5px; transition: transform .25s var(--ap-ease), box-shadow .25s var(--ap-ease), color .2s ease;
+}
+.app-screen .quick-btn:hover { background: var(--ap-glass-solid); color: var(--primary-dk); transform: translateY(-2px); box-shadow: var(--ap-shadow-hi); border-color: var(--ap-glass-border); }
+:root[data-theme="dark"] .app-screen .quick-btn:hover { color: var(--primary-lt); }
+.app-screen .quick-btn-icon {
+  width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ap-tile); color: var(--ap-tile-fg);
+}
+.app-screen .quick-btn-icon svg { width: 20px; height: 20px; }
+
+/* Section choice (diagnostic) */
+.app-screen .section-choice-card { border-radius: 22px; transition: transform .25s var(--ap-ease), box-shadow .25s var(--ap-ease); }
+.app-screen .section-choice-card:hover { transform: translateY(-3px); box-shadow: var(--ap-shadow-hi); }
+.app-screen .section-choice-card.selected { box-shadow: 0 0 0 2px var(--primary) inset, var(--ap-shadow-hi); }
+.app-screen .scc-icon { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 18px; display: flex; align-items: center; justify-content: center; background: var(--ap-tile); color: var(--ap-tile-fg); }
+.app-screen .scc-icon svg { width: 28px; height: 28px; }
+
+/* ── Intro boxes ── */
+.app-screen .analysis-intro,
+.app-screen .sp-intro-box { border-radius: 20px; padding: 18px 20px; }
+
+/* ── Level badges: green mastered / orange developing / red needs work ── */
+.app-screen .gap-score { border-radius: 99px; padding: 3px 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.app-screen .score-high { background: var(--ap-good-bg); color: var(--ap-good); box-shadow: inset 0 0 0 1px rgba(79,168,119,.28); }
+.app-screen .score-mid  { background: var(--ap-mid-bg);  color: var(--ap-mid);  box-shadow: inset 0 0 0 1px rgba(234,138,40,.3); }
+.app-screen .score-low  { background: var(--ap-weak-bg); color: var(--ap-weak); box-shadow: inset 0 0 0 1px rgba(220,38,38,.24); }
+
+/* Shared progress bar (analysis rows + plan cards) */
+.app-screen .la-bar { display: block; height: 7px; border-radius: 99px; background: var(--ap-track); overflow: hidden; margin-top: 10px; }
+.app-screen .la-bar > span {
+  display: block; height: 100%; width: var(--pct, 0%); border-radius: inherit;
+  background: var(--ap-weak-bar); transform-origin: right center;
+  animation: apBarGrow .9s var(--ap-ease) .1s both;
+}
+.app-screen .la-score-mid .la-bar > span, .app-screen .skill-card.lvl-mid .la-bar > span { background: var(--ap-mid-bar); }
+.app-screen .la-score-high .la-bar > span, .app-screen .skill-card.lvl-high .la-bar > span { background: var(--ap-good-bar); }
+@keyframes apBarGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* ── Level analysis: table rows → skill cards (screen only; print untouched) ── */
+@media screen {
+  .app-screen .table-scroll:has(> .analysis-table) { overflow: visible; box-shadow: none; border-radius: 0; }
+  .app-screen .analysis-table { display: block; background: none; font-size: 13.5px; }
+  .app-screen .analysis-table thead { display: none; }
+  .app-screen .analysis-table tbody {
+    display: grid; gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  }
+  .app-screen .analysis-table tr.la-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 12px 14px;
+    grid-template-areas: "skill score" "level level" "match match";
+    background: var(--ap-glass); border: 1px solid var(--ap-glass-border);
+    -webkit-backdrop-filter: blur(14px) saturate(150%); backdrop-filter: blur(14px) saturate(150%);
+    border-radius: 20px; padding: 16px 18px; box-shadow: var(--ap-shadow);
+    animation: apRise .5s var(--ap-ease) both;
+    transition: transform .25s var(--ap-ease), box-shadow .25s var(--ap-ease);
+  }
+  .app-screen .analysis-table tr.la-row:hover { transform: translateY(-2px); box-shadow: var(--ap-shadow-hi); }
+  .app-screen .analysis-table tr.la-row:nth-child(2) { animation-delay: .04s; }
+  .app-screen .analysis-table tr.la-row:nth-child(3) { animation-delay: .08s; }
+  .app-screen .analysis-table tr.la-row:nth-child(4) { animation-delay: .12s; }
+  .app-screen .analysis-table tr.la-row:nth-child(n+5) { animation-delay: .16s; }
+  .app-screen .analysis-table tr.la-row td { display: block; padding: 0; border: none; line-height: 1.7; }
+  .app-screen .la-skill { grid-area: skill; font-size: 15px; font-weight: 800; color: var(--text); min-width: 0; }
+  .app-screen .la-score { grid-area: score; align-self: start; }
+  .app-screen .la-score .gap-score { font-size: 14px; padding: 4px 12px; }
+  .app-screen .la-level, .app-screen .la-match {
+    font-size: 13px; color: var(--text); font-weight: 600;
+    background: var(--bg-tint); border-radius: 14px; padding: 10px 12px !important;
+  }
+  :root[data-theme="dark"] .app-screen .la-level, :root[data-theme="dark"] .app-screen .la-match { background: rgba(255,255,255,.04); }
+  .app-screen .la-level { grid-area: level; }
+  .app-screen .la-match { grid-area: match; }
+  .app-screen .la-level::before, .app-screen .la-match::before {
+    content: attr(data-label); display: block; font-size: 11px; font-weight: 800; color: var(--muted); margin-bottom: 2px; letter-spacing: .01em;
+  }
+}
+@keyframes apRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ── Support plan: priority accordion ── */
+.app-screen .sp-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 14px 5px 12px; }
+.app-screen .sp-chip::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent); }
+.app-screen .sp-chip-red    { background: var(--ap-weak-bg); color: var(--ap-weak); }
+.app-screen .sp-chip-orange { background: var(--ap-mid-bg);  color: var(--ap-mid); }
+.app-screen .sp-chip-green  { background: var(--ap-good-bg); color: var(--ap-good); }
+.app-screen .skill-card {
+  border-radius: 20px; margin-bottom: 14px; overflow: hidden;
+  transition: box-shadow .3s var(--ap-ease), transform .3s var(--ap-ease), border-color .2s ease;
+}
+.app-screen .skill-card:hover { box-shadow: var(--ap-shadow-hi); }
+.app-screen .skill-card.open { border-color: rgba(63,124,184,.35); box-shadow: var(--ap-shadow-hi), 0 0 0 3px var(--ap-ring); }
+.app-screen .skill-card-header { padding: 16px 18px; gap: 14px; background: none; }
+.app-screen .skill-card-header:hover { background: rgba(63,124,184,.04); }
+.app-screen .skill-card.open .skill-card-header { background: linear-gradient(180deg, rgba(63,124,184,.07), transparent); border-bottom: 1px solid var(--ap-hair); }
+.app-screen .skill-card-rank {
+  width: 30px; height: 30px; font-size: 13px; font-variant-numeric: tabular-nums;
+  background: var(--ap-weak-bg); color: var(--ap-weak); box-shadow: inset 0 0 0 1px currentColor;
+}
+.app-screen .skill-card.lvl-mid .skill-card-rank  { background: var(--ap-mid-bg);  color: var(--ap-mid); }
+.app-screen .skill-card.lvl-high .skill-card-rank { background: var(--ap-good-bg); color: var(--ap-good); }
+.app-screen .skill-card-icon { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--ap-tile); color: var(--ap-tile-fg); }
+.app-screen .skill-card-icon svg { width: 20px; height: 20px; }
+.app-screen .skill-card-name { display: flex; flex-direction: column; min-width: 0; font-size: 14.5px; font-weight: 800; line-height: 1.5; }
+.app-screen .skill-card-prio { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 11.5px; font-weight: 700; color: var(--ap-weak); }
+.app-screen .skill-card-prio::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.app-screen .skill-card.lvl-mid .skill-card-prio  { color: var(--ap-mid); }
+.app-screen .skill-card.lvl-high .skill-card-prio { color: var(--ap-good); }
+.app-screen .skill-card-name .la-bar { max-width: 240px; height: 5px; margin-top: 8px; }
+.app-screen .skill-card-chevron {
+  width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ap-track); color: var(--muted); transition: transform .35s var(--ap-ease), background .2s ease, color .2s ease;
+}
+.app-screen .skill-card-chevron svg { width: 18px; height: 18px; }
+.app-screen .skill-card.open .skill-card-chevron { transform: rotate(180deg); background: var(--grad-hero); color: #fff; }
+.app-screen .skill-card.open .skill-card-body { animation: apReveal .38s var(--ap-ease) both; }
+@keyframes apReveal { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.app-screen .skill-tabs { background: none; border-bottom: none; padding: 14px 14px 0; gap: 6px; }
+.app-screen .skill-tab {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border-radius: 12px; border: 1px solid transparent; margin: 0; padding: 9px 10px;
+  background: var(--ap-track); transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+.app-screen .skill-tab svg { width: 16px; height: 16px; flex-shrink: 0; }
+.app-screen .skill-tab.active { background: var(--surface); border-color: var(--border); color: var(--primary-dk); box-shadow: var(--shadow-sm); }
+:root[data-theme="dark"] .app-screen .skill-tab.active { color: var(--primary-lt); }
+.app-screen .table-scroll:has(> .sp-table) { border-radius: 18px; box-shadow: var(--ap-shadow); }
+
+/* ── Cooldown: countdown as glass tiles ── */
+.app-screen .cd-unit {
+  min-width: 70px; padding: 12px 8px 8px; border-radius: 18px;
+  background: var(--ap-glass-solid); border: 1px solid var(--border);
+  box-shadow: var(--ap-shadow);
+}
+.app-screen .cd-val {
+  font-size: 36px; font-variant-numeric: tabular-nums;
+  background: var(--grad-hero); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.app-screen .cd-lbl { font-size: 11.5px; font-weight: 700; }
+.app-screen .cd-sep { color: var(--border-strong); font-size: 26px; padding-bottom: 30px; }
+
+/* ── Home journey + performance panels ── */
+.app-screen .journey-summary { border-radius: 24px; }
+.app-screen .journey-ring-fill, .app-screen .jt-hero-ring-fill { filter: drop-shadow(0 0 5px rgba(63,124,184,.45)); }
+.app-screen .journey-current-level { border-radius: 20px; }
+.app-screen .jcl-head { background: rgba(63,124,184,.06); border-bottom-color: var(--ap-hair); }
+.app-screen .journey-summary-link, .app-screen .journey-full-link { border-radius: 12px; }
+.app-screen .journey-secondary, .app-screen .journey-tertiary { border-radius: 20px; }
+.app-screen #sh-perf-card > * { border-radius: 22px; }
+
+/* ── Full journey: glowing learning timeline ── */
+.app-screen .jt-hero { border-radius: 26px; padding: 20px 20px 16px; position: relative; overflow: hidden; }
+.app-screen .jt-hero::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(320px 180px at 100% 0%, rgba(63,124,184,.14), transparent 70%), radial-gradient(260px 160px at 0% 100%, rgba(79,168,119,.12), transparent 70%);
+}
+.app-screen .jt-mchip { background: var(--ap-glass-solid); }
+.app-screen .jt-mchip-done { background: var(--ap-good-bg); color: var(--ap-good); border-color: rgba(79,168,119,.4); box-shadow: 0 0 12px -4px rgba(79,168,119,.6); }
+.app-screen .jt-cta {
+  border-radius: 22px; border: 1px solid transparent;
+  background: linear-gradient(var(--ap-glass-solid), var(--ap-glass-solid)) padding-box, var(--grad-hero) border-box;
+  box-shadow: 0 22px 44px -26px rgba(63,124,184,.75);
+}
+.app-screen .jt-cta:hover { transform: translateY(-2px); box-shadow: 0 30px 56px -26px rgba(63,124,184,.85); }
+.app-screen .jt-cta-done { background: linear-gradient(var(--ap-glass-solid), var(--ap-glass-solid)) padding-box, linear-gradient(135deg,#4FA877,#7cc79d) border-box; }
+.app-screen .jt-path::before {
+  width: 3px; border-radius: 3px; inset-inline-start: 16.5px;
+  background: linear-gradient(180deg, #4FA877 0%, #3F7CB8 55%, var(--border) 100%);
+  opacity: .55;
+}
+.app-screen .jt-node-dot { box-shadow: 0 0 0 4px var(--bg); }
+.app-screen .jt-node-done .jt-node-dot {
+  background: linear-gradient(135deg, #4FA877, #3d9a6c); border-color: transparent;
+  box-shadow: 0 0 0 4px var(--bg), 0 0 18px 2px rgba(79,168,119,.55);
+}
+.app-screen .jt-node-current .jt-node-dot { background: var(--grad-hero); border-color: transparent; }
+.app-screen .jt-node-simple, .app-screen .jt-level { border-radius: 18px; transition: transform .25s var(--ap-ease), box-shadow .25s var(--ap-ease); }
+.app-screen .jt-node-simple { padding: 12px 16px; }
+.app-screen .jt-node:not(.jt-node-locked) .jt-node-simple:hover,
+.app-screen .jt-node:not(.jt-node-locked) .jt-level:hover { transform: translateX(-3px); box-shadow: var(--ap-shadow-hi); }
+.app-screen .jt-node-done .jt-node-simple, .app-screen .jt-node-done .jt-level { box-shadow: var(--ap-shadow), inset 0 0 0 1px rgba(79,168,119,.35); }
+.app-screen .jt-node-current .jt-level, .app-screen .jt-node-current .jt-node-simple { border-color: rgba(63,124,184,.5); box-shadow: var(--ap-shadow-hi), 0 0 0 3px var(--ap-ring); }
+.app-screen .jt-node-btn { border-radius: 12px; background: var(--grad-hero); box-shadow: 0 10px 20px -12px rgba(63,124,184,.9); }
+.app-screen .jt-skill-row:hover:not(:disabled) { background: rgba(63,124,184,.06); }
+
+/* ── Glass modal while a student screen is up ── */
+body:has(.app-screen.active) .modal-overlay {
+  background: rgba(15,23,42,.42);
+  -webkit-backdrop-filter: blur(8px) saturate(120%); backdrop-filter: blur(8px) saturate(120%);
+}
+body:has(.app-screen.active) .modal-overlay .modal-box:not(.ro-box) {
+  position: relative; border-radius: 26px;
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 40px 90px -30px rgba(15,23,42,.55), 0 0 0 1px rgba(63,124,184,.08);
+  animation: apModalIn .38s var(--ap-ease) both;
+}
+body:has(.app-screen.active) .modal-overlay .modal-box:not(.ro-box)::before {
+  content: ''; position: absolute; inset: 0 24px auto; height: 2px; border-radius: 2px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(63,124,184,.7), rgba(79,168,119,.7), transparent);
+}
+@keyframes apModalIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* ── Phone ── */
+@media (max-width: 640px) {
+  .app-screen .page-wrap { padding: 20px 16px 44px; }
+  .app-screen .topbar { gap: 8px; padding-inline: 12px; }
+  .app-screen .topbar-title { font-size: 15px; }
+  .app-screen .topbar-back { padding: 0 12px; }
+  .app-screen .tb-chip { display: none !important; }
+  /* PDF export: icon-only on phones so the back button keeps its place */
+  .app-screen .topbar > button[onclick="window.print()"] {
+    width: 40px; height: 40px; padding: 0 !important; font-size: 0 !important;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .app-screen .topbar > button[onclick="window.print()"]::before {
+    content: ''; width: 18px; height: 18px; background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12'/%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3Cpath d='M5 21h14'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12'/%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3Cpath d='M5 21h14'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  .app-screen .topbar-sub { display: none; }
+  .app-screen .welcome-banner { padding: 22px 20px; border-radius: 22px; }
+  .app-screen .welcome-banner h2 { font-size: 19px; }
+  /* Journey summary: ring + stage side by side, the "full journey" link on its own row */
+  .app-screen .journey-summary { flex-wrap: wrap; gap: 14px 16px; padding: 18px; }
+  .app-screen .journey-summary-link { order: 5; flex-basis: 100%; justify-content: center; padding: 10px 14px; }
+  /* Compact row tiles on phones so six services don't become six screens */
+  .app-screen .service-card { flex-direction: row; align-items: center; min-height: 0; padding: 16px; gap: 14px; }
+  .app-screen .service-card-name { padding-inline-end: 0; font-size: 15px; }
+  .app-screen .service-badge { position: static; align-self: flex-start; flex-shrink: 0; }
+  #screen-lessons .service-cards { grid-template-columns: 1fr 1fr; gap: 12px; }
+  #screen-lessons .service-card { flex-direction: column; align-items: stretch; padding: 8px 8px 12px; gap: 10px; }
+  #screen-lessons .service-card-icon { height: 84px; }
+  #screen-lessons .service-card-icon svg { width: 30px; height: 30px; }
+  #screen-lessons .service-card-name { font-size: 13.5px; }
+  #screen-lessons .service-card-desc { font-size: 11.5px; }
+  #screen-lessons .service-badge { position: absolute; top: 62px; inset-inline-end: 14px; font-size: 10.5px; }
+  .app-screen .cd-unit { min-width: 58px; padding: 10px 4px 6px; border-radius: 14px; }
+  .app-screen .cd-val { font-size: 28px; }
+  .app-screen .cd-sep { font-size: 20px; padding-bottom: 24px; }
+  .app-screen .skill-card-header { padding: 14px; gap: 10px; }
+  .app-screen .skill-card-icon { display: none; }
+  .app-screen .skill-tab { font-size: 12px; min-width: 0; padding: 8px 6px; }
+  .app-screen .skill-tab svg { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-screen .la-bar > span, .app-screen .analysis-table tr.la-row,
+  .app-screen .skill-card.open .skill-card-body,
+  body:has(.app-screen.active) .modal-overlay .modal-box { animation: none !important; }
+  .app-screen .service-card, .app-screen .service-card-icon, .app-screen .quick-btn,
+  .app-screen .skill-card-chevron, .app-screen .jt-node-simple, .app-screen .jt-level { transition: none !important; }
+}
+@media print {
+  .app-screen::before, .app-screen::after { display: none !important; }
+  .app-screen .la-bar, .app-screen .skill-card-prio { display: none !important; }
+}

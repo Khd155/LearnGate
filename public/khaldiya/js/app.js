@@ -2255,12 +2255,12 @@ const App = {
     // /academic/biology-g1/, which stays a separate static page (its own
     // sizeable interactive lesson content, out of scope for this merge).
     const SUBJECTS = [
-      { icon: '📐', name: 'الرياضيات' },
-      { icon: '🔬', name: 'الأحياء', href: slug === 'g10' ? '/academic/biology-g1/' : null },
-      { icon: '⚡', name: 'الفيزياء' },
-      { icon: '🧪', name: 'الكيمياء', href: slug === 'g10' ? '/academic/chemistry-g1/' : null },
-      { icon: '🌐', name: 'اللغة الإنجليزية' },
-      { icon: '📖', name: 'اللغة العربية' },
+      { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18L12 4Z"/><path d="M8.5 20a3.5 3.5 0 0 1 3.5-3.5"/></svg>', name: 'الرياضيات' },
+      { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0 0-14h-1"/><path d="M9 14h2"/><path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"/><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/></svg>', name: 'الأحياء', href: slug === 'g10' ? '/academic/biology-g1/' : null },
+      { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1.5"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/></svg>', name: 'الفيزياء' },
+      { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6L4.6 18.4A1.8 1.8 0 0 0 6.2 21h11.6a1.8 1.8 0 0 0 1.6-2.6L14 9V3"/><path d="M7.5 15h9"/></svg>', name: 'الكيمياء', href: slug === 'g10' ? '/academic/chemistry-g1/' : null },
+      { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19"/><path d="M12 2.5a14.5 14.5 0 0 1 0 19 14.5 14.5 0 0 1 0-19Z"/></svg>', name: 'اللغة الإنجليزية' },
+      { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg>', name: 'اللغة العربية' },
     ];
     const listEl = document.getElementById('acad-subjects-list');
     if (!listEl) return;
@@ -3410,11 +3410,15 @@ const App = {
     const quant  = sorted.filter(g => g.category === 'quantitative');
     const buildRow = g => {
       const cls = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
-      return `<tr>
-        <td>${g.skillName}</td>
-        <td style="text-align:center;"><span class="gap-score ${cls}">${g.pct}%</span></td>
-        <td>${App.levelLabel(g.pct)}</td>
-        <td>${App.matchLabel(g.pct, g.selfAssess)}</td>
+      // la-row / la-bar are presentation hooks only (card layout + animated
+      // bar on screen; print keeps the plain table) — cell order and the
+      // .gap-score badge are unchanged.
+      const pct = Math.max(0, Math.min(100, Number(g.pct) || 0));
+      return `<tr class="la-row la-${cls}" style="--pct:${pct}%">
+        <td class="la-skill">${g.skillName}<span class="la-bar" aria-hidden="true"><span></span></span></td>
+        <td class="la-score" style="text-align:center;"><span class="gap-score ${cls}">${g.pct}%</span></td>
+        <td class="la-level" data-label="تحليل المستوى">${App.levelLabel(g.pct)}</td>
+        <td class="la-match" data-label="التطابق مع تشخيصك">${App.matchLabel(g.pct, g.selfAssess)}</td>
       </tr>`;
     };
     document.getElementById('la-verbal-body').innerHTML = verbal.map(buildRow).join('');
@@ -3515,9 +3519,9 @@ const App = {
           وتتكون الخطة من عدة عناصر يمكنك مدارستها مع الموجه الأكاديمي، وقد ضُمِّنت معها مواد علمية تدريبية يمكنك البدء بها وفق التعليمات وبمراجعة الموجه الطلابي.
         </p>
         <div class="sp-summary-chips">
-          ${weak ? `<span class="sp-chip sp-chip-red">🔴 ${App.nSkills(weak)} تحتاج تدريباً مكثفاً</span>` : ''}
-          ${mid  ? `<span class="sp-chip sp-chip-orange">🟡 ${App.nSkills(mid)} متوسطة المستوى</span>` : ''}
-          ${high ? `<span class="sp-chip sp-chip-green">🟢 ${App.nSkills(high)} جيدة المستوى</span>` : ''}
+          ${weak ? `<span class="sp-chip sp-chip-red">${App.nSkills(weak)} تحتاج تدريباً مكثفاً</span>` : ''}
+          ${mid  ? `<span class="sp-chip sp-chip-orange">${App.nSkills(mid)} متوسطة المستوى</span>` : ''}
+          ${high ? `<span class="sp-chip sp-chip-green">${App.nSkills(high)} جيدة المستوى</span>` : ''}
         </div>
       </div>
       <p class="section-heading" style="margin-bottom:8px;">ثانياً / محتويات الدعم مرتبة حسب أولويات الخطة</p>
@@ -3526,21 +3530,25 @@ const App = {
     // Build accordion cards
     const buildCard = (g, idx) => {
       const cls  = g.level === 'high' ? 'score-high' : g.level === 'mid' ? 'score-mid' : 'score-low';
-      const icon = g.category === 'verbal' ? '📚' : '🔢';
+      const icon = g.category === 'verbal' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>';
+      // Priority = the same level the badge already encodes; lvl-* / --pct are
+      // presentation hooks for the accent rail and the mini bar only.
+      const prio = g.level === 'high' ? 'أولوية منخفضة' : g.level === 'mid' ? 'أولوية متوسطة' : 'أولوية عالية';
+      const pct = Math.max(0, Math.min(100, Number(g.pct) || 0));
       return `
-        <div class="skill-card" id="sk-card-${g.skillId}">
+        <div class="skill-card lvl-${g.level || 'low'}" id="sk-card-${g.skillId}" style="--pct:${pct}%">
           <div class="skill-card-header" onclick="App.toggleSkillCard('${g.skillId}')">
             <span class="skill-card-rank">${idx + 1}</span>
             <span class="skill-card-icon">${icon}</span>
-            <span class="skill-card-name">${g.skillName}</span>
+            <span class="skill-card-name">${g.skillName}<span class="skill-card-prio">${prio}</span><span class="la-bar" aria-hidden="true"><span></span></span></span>
             <span class="gap-score ${cls}" style="flex-shrink:0;">${g.pct}%</span>
-            <span class="skill-card-chevron">⌄</span>
+            <span class="skill-card-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
           </div>
           <div class="skill-card-body">
             <div class="skill-tabs">
-              <button class="skill-tab active" onclick="App.switchSkillTab('${g.skillId}','guide',this)">📖 دليل التدريب</button>
-              <button class="skill-tab" onclick="App.switchSkillTab('${g.skillId}','videos',this)">🎬 المواد العلمية</button>
-              <button class="skill-tab" onclick="App.switchSkillTab('${g.skillId}','quiz',this)">✏️ تدرّب الآن</button>
+              <button class="skill-tab active" onclick="App.switchSkillTab('${g.skillId}','guide',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg> دليل التدريب</button>
+              <button class="skill-tab" onclick="App.switchSkillTab('${g.skillId}','videos',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/></svg> المواد العلمية</button>
+              <button class="skill-tab" onclick="App.switchSkillTab('${g.skillId}','quiz',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> تدرّب الآن</button>
             </div>
             <div id="sk-guide-${g.skillId}"  class="skill-tab-content active">${App.buildGuideTab(g.skillId)}</div>
             <div id="sk-videos-${g.skillId}" class="skill-tab-content">${App.buildVideosTab(g.skillId)}</div>

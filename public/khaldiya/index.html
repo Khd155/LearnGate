@@ -1973,13 +1973,13 @@
         </div>
         <span class="service-badge badge-active">جديد</span>
       </div>
-      <div class="service-card disabled">
+      <div class="service-card active" id="sh-self-training-card" onclick="App.openSelfTraining()">
         <div class="service-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg></div>
         <div class="service-card-info">
-          <div class="service-card-name">التدريب على مهارات التعلم الذاتي</div>
-          <div class="service-card-desc">تطوير مهارات التعلم المستقل والذاتي</div>
+          <div class="service-card-name">بطاقة التدرب الذاتي للقدرات</div>
+          <div class="service-card-desc">خطة تدرّب متدرجة على ثلاث جولات للقسمين اللفظي والكمي</div>
         </div>
-        <span class="service-badge badge-soon">قريباً</span>
+        <span class="service-badge badge-active">جديد</span>
       </div>
       <div class="service-card disabled">
         <div class="service-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg></div>
@@ -3136,6 +3136,53 @@
     <div id="journey-full-content">
       <div class="inline-loading"><span class="inline-spinner"></span>جاري تحميل مسارك…</div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: SELF-TRAINING CARD (بطاقة التدرب الذاتي للقدرات)
+     Rendered and synced by js/self-training.js — every dynamic region below
+     is filled by SelfTraining.render(). IDs are prefixed st- to stay clear of
+     the rest of the app.
+═══════════════════════════════════════════════════════ -->
+<div id="screen-self-training" class="screen app-screen" data-section="verbal">
+  <div class="topbar">
+    <img class="topbar-logo" src="/logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">بطاقة التدرب الذاتي للقدرات</div>
+      <div class="topbar-sub">ثلاث جولات متدرجة · القسمان اللفظي والكمي</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر"></button>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
+  </div>
+  <div class="page-wrap st-wrap">
+    <section class="st-hero st-glass">
+      <div class="st-hero-text">
+        <p class="st-eyebrow">بوابة دعم التعلم · اختبار القدرات العامة</p>
+        <h1 class="st-title">بطاقة التدرب الذاتي</h1>
+        <p class="st-lead">تقدّم خطوة بخطوة: المقطع التأسيسي، ثم مقاطع التدريبات، ثم نماذج «تدرب الآن»، ثم الاختبارات التقويمية.</p>
+      </div>
+      <div class="st-overall" id="st-overall" role="img" aria-label="نسبة الإنجاز">
+        <span class="st-overall-in"><b class="st-num" id="st-overall-pct">٠٪</b><small id="st-overall-round">الجولة الأولى</small></span>
+      </div>
+      <div class="st-rounds" id="st-rounds" role="group" aria-label="الجولات"></div>
+    </section>
+
+    <section class="st-next st-glass" id="st-next" aria-live="polite"></section>
+
+    <nav class="st-sections" id="st-sections" aria-label="الأقسام"></nav>
+
+    <div class="st-board">
+      <ul class="st-skills" id="st-skills" aria-label="المهارات"></ul>
+      <article class="st-card st-glass" id="st-card"></article>
+    </div>
+
+    <footer class="st-foot">
+      <span class="st-sync" id="st-sync" role="status" aria-live="polite"></span>
+      <button class="st-ghost" id="st-reset" type="button"><svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg><span>البدء من الصفر</span></button>
+    </footer>
   </div>
 </div>
 
@@ -4304,5 +4351,6 @@
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
 <script src="/js/app.js?v=app5" defer></script>
+<script src="/js/self-training.js?v=st1" defer></script>
 </body>
 </html>

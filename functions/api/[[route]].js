@@ -11,7 +11,7 @@ import { buildPrereqAnalytics } from '../_lib/prereq-analytics.js';
 import { buildStudentJourney } from '../_lib/student-journey.js';
 import { safeEqual, devKeyMatches, secureDigits } from '../_lib/security.js';
 import { CHEM_SUBJECT_ID, normalizeExamSubject, summarizeExam, buildExamRoster } from '../_lib/exam-status.js';
-import { sanitizeSelfTraining, SELF_TRAINING_MAX_BYTES } from '../_lib/self-training.js';
+import { sanitizeSelfTraining, SELF_TRAINING_MAX_BYTES, buildSelfTrainingActivity } from '../_lib/self-training.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
 const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
@@ -3982,8 +3982,18 @@ export async function onRequest({ request, env }) {
         return { state: sanitizeSelfTraining(parsed), rev: Number(row.rev) || 0, updatedAt: row.updated_at };
       };
 
-      // GET /api/self-training — the student's own card (state:null when never saved)
-      if (!sub && method === 'GET') return ok(rowPayload(await readRow()), 200, CORS);
+      // GET /api/self-training — the student's saved card position (state:null when never saved)
+      // plus "activity": the progress the card displays, computed from what the student really did
+      // (lesson / practice-page clicks logged by js/telemetry.js, and in-app quiz results).
+      // Either source table may not exist yet on a fresh database — that just means no activity.
+      if (!sub && method === 'GET') {
+        const [row, clicks, progress] = await Promise.all([
+          readRow(),
+          DB.prepare('SELECT DISTINCT skill_key, resource_type, resource_index FROM student_engagement_logs WHERE student_id = ?').bind(stStudentId).all().catch(() => ({ results: [] })),
+          DB.prepare('SELECT quiz_skill_id, status, attempts FROM skill_progress WHERE student_id = ?').bind(stStudentId).all().catch(() => ({ results: [] })),
+        ]);
+        return ok({ ...rowPayload(row), activity: buildSelfTrainingActivity({ clicks: clicks.results || [], progressRows: progress.results || [] }) }, 200, CORS);
+      }
 
       // PUT /api/self-training { state, baseRev }
       if (!sub && method === 'PUT') {

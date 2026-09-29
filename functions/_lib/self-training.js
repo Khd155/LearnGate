@@ -120,3 +120,65 @@ export function summarizeSelfTraining(state) {
   const keys = Object.keys((state && state.progress) || {});
   return { records: keys.length, rounds: [...new Set(keys.map((k) => Number(k.split(':')[0])))].sort() };
 }
+
+
+/* ── Automated progress: derived from what the student actually did ─────────
+ * The card no longer takes self-reported input. Each card skill is tied to:
+ *   - its lesson page  /lessons/<slug>/  — clicks are logged by js/telemetry.js into
+ *     student_engagement_logs (resource_type 'video'; index 0 = the foundational
+ *     clip, N = clip N);
+ *   - its practice page /quizzes/<slug>/ — same log, resource_type 'practice_form',
+ *     index N = «تدرب الآن» model N;
+ *   - its quiz-skill code in the in-app quizzes (skill_progress rows keyed
+ *     "<section>-<level>-<code>"): passed = complete, any attempt = started.
+ */
+export const SELF_TRAINING_SOURCES = {
+  analogy:    { slug: 'analogy',       code: 'v4', section: 'verbal' },
+  completion: { slug: 'completion',    code: 'v5', section: 'verbal' },
+  contextual: { slug: 'contextual',    code: 'v2', section: 'verbal' },
+  odd:        { slug: 'inference',     code: 'v3', section: 'verbal' },
+  reading:    { slug: 'comprehension', code: 'v1', section: 'verbal' },
+  arithmetic: { slug: 'arithmetic',    code: 'q1', section: 'quantitative' },
+  algebra:    { slug: 'algebra',       code: 'q2', section: 'quantitative' },
+  geometry:   { slug: 'geometry',      code: 'q3', section: 'quantitative' },
+  statistics: { slug: 'statistics',    code: 'q5', section: 'quantitative' },
+  comparison: { slug: 'comparison',    code: 'q4', section: 'quantitative' },
+};
+
+/**
+ * Build the per-skill activity the card renders from.
+ *   clicks:       rows of { skill_key, resource_type, resource_index }
+ *   progressRows: rows of { quiz_skill_id, status, attempts }
+ * Returns { [cardSkillId]: { introSeen, clips:[n], models:[n], levels:{easy,medium,advanced} } }
+ * with levels as 0 not started / 1 started / 2 complete.
+ */
+export function buildSelfTrainingActivity({ clicks = [], progressRows = [] } = {}) {
+  const bySlug = {};
+  for (const c of clicks || []) {
+    const slug = String(c.skill_key || '');
+    const n = Number(c.resource_index);
+    if (!slug || !Number.isInteger(n) || n < 0 || n > 500) continue;
+    const b = (bySlug[slug] ||= { intro: false, clips: new Set(), models: new Set() });
+    if (c.resource_type === 'video') { if (n === 0) b.intro = true; else b.clips.add(n); }
+    else if (c.resource_type === 'practice_form' && n >= 1) b.models.add(n);
+  }
+  const prog = {};
+  for (const r of progressRows || []) prog[String(r.quiz_skill_id)] = r;
+  const levelState = (section, level, code) => {
+    const r = prog[section + '-' + level + '-' + code];
+    if (!r) return 0;
+    if (r.status === 'passed') return 2;
+    return Number(r.attempts) > 0 || r.status === 'failed' ? 1 : 0;
+  };
+  const out = {};
+  for (const [skillId, src] of Object.entries(SELF_TRAINING_SOURCES)) {
+    const b = bySlug[src.slug] || { intro: false, clips: new Set(), models: new Set() };
+    out[skillId] = {
+      introSeen: b.intro,
+      clips: [...b.clips].sort((x, y) => x - y),
+      models: [...b.models].sort((x, y) => x - y),
+      levels: Object.fromEntries(LEVEL_IDS.map((l) => [l, levelState(src.section, l, src.code)])),
+    };
+  }
+  return out;
+}

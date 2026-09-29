@@ -3470,6 +3470,31 @@ body:has(.app-screen.active) .modal-overlay .modal-box:not(.ro-box)::before {
 #screen-self-training .st-count-t.ok { color: var(--st-done); }
 #screen-self-training .st-count-t .st-i { width: 15px; height: 15px; }
 
+/* read-only capsules: lit = really opened by the student */
+#screen-self-training span.st-dot { cursor: default; }
+#screen-self-training .st-dot[data-on="true"] {
+  background: linear-gradient(180deg, var(--st-accent), color-mix(in srgb, var(--st-accent) 84%, #000));
+  border-color: var(--st-accent); color: #fff;
+  box-shadow: 0 0 0 3px var(--st-accent-soft), 0 10px 20px -10px var(--st-accent-glow), inset 0 1px 0 rgba(255,255,255,.35);
+}
+:root[data-theme="dark"] #screen-self-training .st-dot[data-on="true"] { color: #0f1720; background: linear-gradient(180deg, color-mix(in srgb, var(--st-accent) 88%, #fff), var(--st-accent)); }
+
+/* deep-link action beside every unfinished step */
+#screen-self-training .st-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#screen-self-training .st-act {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--st-accent) 55%, transparent);
+  background: var(--st-accent-soft); color: var(--st-accent);
+  font-family: inherit; font-size: 14px; font-weight: 800; text-decoration: none; cursor: pointer;
+  transition: transform .2s var(--ap-ease), background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+:root[data-theme="light"] #screen-self-training .st-act, :root:not([data-theme="dark"]) #screen-self-training .st-act { color: color-mix(in srgb, var(--st-accent) 82%, #000); }
+#screen-self-training .st-act:hover { background: var(--st-accent); color: #fff; transform: translateY(-1px); box-shadow: 0 12px 24px -14px var(--st-accent-glow); }
+:root[data-theme="dark"] #screen-self-training .st-act:hover { color: #0f1720; }
+#screen-self-training .st-act:focus-visible { outline: 2px solid var(--st-accent); outline-offset: 2px; }
+#screen-self-training .st-act .st-i { width: 18px; height: 18px; }
+@media (max-width: 560px) { #screen-self-training .st-act { width: 100%; justify-content: center; } }
+
 /* evaluation levels */
 #screen-self-training .st-levels { display: grid; gap: 8px; }
 #screen-self-training .st-lvl {

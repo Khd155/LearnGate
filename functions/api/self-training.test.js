@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 
 // The real onRequest against an in-memory fake of the one table this feature owns.
 let row = null; // { state, rev, updated_at }
+let clickRows = []; let quizRows = [];
 const calls = [];
 vi.mock('../_lib/db.js', () => ({
   getDB: () => ({
@@ -22,7 +23,7 @@ vi.mock('../_lib/db.js', () => ({
           return { meta: { changes: 0 } };
         },
         first: async () => (/FROM student_self_training/.test(sql) ? row : null),
-        all: async () => ({ results: [] }),
+        all: async () => { calls.push({ sql, args }); return { results: /student_engagement_logs/.test(sql) ? clickRows : /FROM skill_progress/.test(sql) ? quizRows : [] }; },
       });
       return { bind: (...a) => exec(a), ...exec([]) };
     },
@@ -49,7 +50,7 @@ const call = (method, body, auth = student) => onRequest({
 });
 const good = { ui: { round: 1, section: 'verbal', skill: 'analogy' }, progress: { '1:analogy': { intro: true, clips: [1, 2], models: [], levels: { easy: 0, medium: 0, advanced: 0 } } } };
 
-beforeEach(() => { row = null; calls.length = 0; });
+beforeEach(() => { row = null; calls.length = 0; clickRows = []; quizRows = []; });
 
 describe('/api/self-training', () => {
   it('is for students only', async () => {
@@ -61,7 +62,9 @@ describe('/api/self-training', () => {
   it('returns state:null / rev 0 before the first save', async () => {
     const res = await call('GET');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ state: null, rev: 0, updatedAt: null });
+    const body = await res.json();
+    expect(body).toMatchObject({ state: null, rev: 0, updatedAt: null });
+    expect(body.activity.analogy).toEqual({ introSeen: false, clips: [], models: [], levels: { easy: 0, medium: 0, advanced: 0 } });
   });
 
   it('saves, then reads back the same (sanitized) state with a new revision', async () => {
@@ -97,6 +100,15 @@ describe('/api/self-training', () => {
     const second = await call('PUT', { state: { progress: {} }, baseRev: 0 });
     expect((await second.json()).conflict).toBe(true);
     expect(row.rev).toBe(1);
+  });
+
+  it('GET returns the activity computed from this student clicks and quiz results', async () => {
+    clickRows = [{ skill_key: 'analogy', resource_type: 'video', resource_index: 0 }, { skill_key: 'analogy', resource_type: 'video', resource_index: 2 }];
+    quizRows = [{ quiz_skill_id: 'verbal-easy-v4', status: 'passed', attempts: 1 }];
+    const body = await (await call('GET')).json();
+    expect(body.activity.analogy).toEqual({ introSeen: true, clips: [2], models: [], levels: { easy: 2, medium: 0, advanced: 0 } });
+    const q = calls.find((c) => /student_engagement_logs/.test(c.sql));
+    expect(q.args).toEqual(['st1']);          // only this student's own activity
   });
 
   it('rejects a non-JSON body', async () => {

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sanitizeSelfTraining, SELF_TRAINING_PLAN, summarizeSelfTraining } from './self-training.js';
+import { sanitizeSelfTraining, SELF_TRAINING_PLAN, summarizeSelfTraining, buildSelfTrainingActivity, SELF_TRAINING_SOURCES } from './self-training.js';
 
 // Load the browser module (public/khaldiya/js/self-training.js) into a sandbox: its `core`
 // is pure, so the card's real unlocking/percentage logic is tested here without a DOM.
@@ -21,6 +21,11 @@ const done = (lv = { easy: 2, medium: 2, advanced: 2 }, intro = true) => ({ intr
 describe('plan parity', () => {
   it('the browser PLAN and the server PLAN are identical', () => {
     expect(JSON.parse(JSON.stringify(C.PLAN))).toEqual(SELF_TRAINING_PLAN);
+  });
+  it('the browser and server agree on where each skill activity comes from', () => {
+    expect(JSON.parse(JSON.stringify(C.SOURCES))).toEqual(SELF_TRAINING_SOURCES);
+    const all = C.PLAN.sections.flatMap((x) => x.skills.map((k) => k.id)).sort();
+    expect(Object.keys(SELF_TRAINING_SOURCES).sort()).toEqual(all);
   });
 });
 
@@ -158,5 +163,53 @@ describe('card logic (browser core, same as the approved prototype)', () => {
   it('normalize moves a student off a locked position', () => {
     const n = C.normalize({ ui: { round: 3, section: 'quant', skill: 'geometry' }, progress: {} });
     expect(n.ui).toEqual({ round: 1, section: 'verbal', skill: 'analogy' });
+  });
+});
+
+
+describe('automated progress (activity -> card)', () => {
+  const clicks = [
+    { skill_key: 'analogy', resource_type: 'video', resource_index: 0 },
+    ...[1, 2, 3, 4, 5, 9].map((n) => ({ skill_key: 'analogy', resource_type: 'video', resource_index: n })),
+    { skill_key: 'analogy', resource_type: 'practice_form', resource_index: 1 },
+    { skill_key: 'analogy', resource_type: 'practice_form', resource_index: 2 },
+    { skill_key: 'analogy', resource_type: 'practice_form', resource_index: 0 },   // not a model
+    { skill_key: 'inference', resource_type: 'video', resource_index: 3 },       // odd-word lesson folder
+    { skill_key: 'nonsense', resource_type: 'video', resource_index: 1 },
+    { skill_key: 'analogy', resource_type: 'video', resource_index: 'x' },
+  ];
+  const progressRows = [
+    { quiz_skill_id: 'verbal-easy-v4', status: 'passed', attempts: 2 },
+    { quiz_skill_id: 'verbal-medium-v4', status: 'failed', attempts: 1 },
+    { quiz_skill_id: 'quantitative-easy-q5', status: 'passed', attempts: 1 },
+  ];
+  const act = buildSelfTrainingActivity({ clicks, progressRows });
+
+  it('reads the foundational clip, training clips and practice models from the click log', () => {
+    expect(act.analogy).toMatchObject({ introSeen: true, clips: [1, 2, 3, 4, 5, 9], models: [1, 2] });
+    expect(act.odd.clips).toEqual([3]);                 // inference folder -> odd skill
+    expect(act.completion).toMatchObject({ introSeen: false, clips: [], models: [] });
+  });
+  it('reads the evaluation levels from the real quiz results', () => {
+    expect(act.analogy.levels).toEqual({ easy: 2, medium: 1, advanced: 0 });
+    expect(act.statistics.levels.easy).toBe(2);         // q5
+    expect(act.comparison.levels.easy).toBe(0);         // q4 untouched
+  });
+  it('is empty-safe', () => {
+    expect(buildSelfTrainingActivity().analogy).toEqual({ introSeen: false, clips: [], models: [], levels: { easy: 0, medium: 0, advanced: 0 } });
+  });
+
+  it('the card splits global clip numbers into each round and completes the skill without any manual input', () => {
+    const p = C.progressFromActivity(JSON.parse(JSON.stringify(act)));
+    expect(p['1:analogy']).toEqual({ intro: true, clips: [1, 2, 3, 4, 5], models: [1, 2], levels: { easy: 2, medium: 1, advanced: 0 } });
+    expect(p['2:analogy'].clips).toEqual([9]);          // clip 9 belongs to round 2 (8-14)
+    expect(p['2:analogy'].intro).toBe(null);            // round 2 has no foundational step
+    expect(C.skillComplete(p, R1, 'analogy')).toBe(true);
+    expect(C.skillUnlocked(p, R1, VERBAL, 1)).toBe(true);
+    expect(C.skillComplete(p, R1, 'completion')).toBe(false);
+  });
+  it('ignores garbage activity', () => {
+    expect(C.progressFromActivity(null)).toEqual({});
+    expect(C.progressFromActivity({ analogy: { clips: ['a', 99, -1], levels: { easy: 7 } } })).toEqual({});
   });
 });

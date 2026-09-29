@@ -4,13 +4,18 @@
    1) PLAN holds all content (sections, skills, rounds, evaluation levels).
       It must stay identical to SELF_TRAINING_PLAN in
       functions/_lib/self-training.js — a test enforces it.
-   2) Progress lives in state.progress under "roundId:skillId":
-        { intro: true|false|null, clips:[1,2,5], models:[1,2],
-          levels:{ easy:0|1|2, medium:0|1|2, advanced:0|1|2 } }
-   3) Persistence: the server (GET/PUT /api/self-training, one row per
-      student, revision-checked) is the source of truth. A per-student cache
-      in localStorage paints the card instantly and keeps edits made offline
-      until they can be saved. Saves are debounced and retried.
+   2) Progress is NOT entered by the student. It is derived from what they
+      actually did (GET /api/self-training -> activity):
+        - foundational clip / training clips: clicks on /lessons/<slug>/
+          (logged by js/telemetry.js: index 0 = foundational, N = clip N);
+        - «تدرب الآن» models: clicks on /quizzes/<slug>/ practice forms;
+        - evaluation levels: the in-app quizzes (skill_progress).
+      progressFromActivity() turns that into state.progress, keyed
+      "roundId:skillId" -> { intro, clips, models, levels }, which every
+      rule below reads unchanged.
+   3) Only the student's place on the card (round/section/skill) is saved
+      (PUT /api/self-training, revision-checked). The card refreshes itself
+      whenever the student comes back to it (tab focus / return from a lesson).
    4) Progressive unlocking (unchanged from the approved prototype):
       - a step opens only after the previous step of the same skill is done;
       - the next skill opens after the current skill's steps + the easy level;
@@ -229,10 +234,54 @@
 
   function ar(n) { return String(n).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]); }
 
+  /** Where each card skill's activity comes from — identical to SELF_TRAINING_SOURCES on the server. */
+  const SOURCES = {
+    analogy: { slug: 'analogy', code: 'v4', section: 'verbal' },
+    completion: { slug: 'completion', code: 'v5', section: 'verbal' },
+    contextual: { slug: 'contextual', code: 'v2', section: 'verbal' },
+    odd: { slug: 'inference', code: 'v3', section: 'verbal' },
+    reading: { slug: 'comprehension', code: 'v1', section: 'verbal' },
+    arithmetic: { slug: 'arithmetic', code: 'q1', section: 'quantitative' },
+    algebra: { slug: 'algebra', code: 'q2', section: 'quantitative' },
+    geometry: { slug: 'geometry', code: 'q3', section: 'quantitative' },
+    statistics: { slug: 'statistics', code: 'q5', section: 'quantitative' },
+    comparison: { slug: 'comparison', code: 'q4', section: 'quantitative' },
+  };
+
+  /**
+   * Activity (per skill, across the whole platform) -> card progress (per round).
+   * Clip/model numbers are global on the lesson/practice pages, so each round
+   * simply counts the ones inside its own range; quiz levels apply to every round.
+   */
+  function progressFromActivity(activity) {
+    const act = activity && typeof activity === 'object' ? activity : {};
+    const progress = {};
+    const nums = (list, range) => (Array.isArray(list) ? list : []).map(Number)
+      .filter((n) => Number.isInteger(n) && n >= range.from && n <= range.to);
+    for (const round of PLAN.rounds) {
+      for (const sec of PLAN.sections) {
+        for (const k of sec.skills) {
+          const a = act[k.id] || {};
+          const lv = a.levels || {};
+          const rec = {
+            intro: round.intro && a.introSeen ? true : null,
+            clips: [...new Set(nums(a.clips, round.clips))].sort((x, y) => x - y),
+            models: [...new Set(nums(a.models, round.models))].sort((x, y) => x - y),
+            levels: { easy: [1, 2].includes(+lv.easy) ? +lv.easy : 0, medium: [1, 2].includes(+lv.medium) ? +lv.medium : 0, advanced: [1, 2].includes(+lv.advanced) ? +lv.advanced : 0 },
+          };
+          if (rec.intro || rec.clips.length || rec.models.length || rec.levels.easy || rec.levels.medium || rec.levels.advanced) {
+            progress[round.id + ':' + k.id] = rec;
+          }
+        }
+      }
+    }
+    return progress;
+  }
+
   const core = {
     PLAN, emptyState, peek, stepKeys, stepDone, skillComplete, skillFullyEvaluated, skillPct,
     sectionComplete, sectionPct, roundComplete, roundPct, roundUnlocked, sectionUnlocked, skillUnlocked,
-    nextAction, pickFirstOpenSkill, applyAction, normalize, ar,
+    nextAction, pickFirstOpenSkill, applyAction, normalize, ar, SOURCES, progressFromActivity,
   };
 
   /* ───────────────────────────── view ───────────────────────────── */
@@ -247,6 +296,8 @@
     cloud: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6.2 11 3.5 3.5 0 0 0 7 18z"/></svg>',
     cloudOff: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h9M20.2 14.8A4 4 0 0 0 17.6 10 6 6 0 0 0 9 6.3M6 9.8A3.5 3.5 0 0 0 7 18M3 3l18 18"/></svg>',
     reset: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>',
+    open: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>',
+    quiz: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
   };
   const STEP_ICON = { intro: ICON.play, clips: ICON.film, models: ICON.pen, eval: ICON.target };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -254,8 +305,11 @@
   let state = emptyState();
   // pending = operations applied locally that the server hasn't acknowledged yet (persisted in the cache)
   const sync = { rev: 0, pending: [], dirty: false, inflight: false, timer: null, retry: 0, status: 'idle', studentId: null, loaded: false };
-  let resetArmed = null;
+  let activity = {};          // last activity received from the server (see progressFromActivity)
+  let lastRefresh = 0;
   let wired = false;
+  /** Rebuild the rendered state from a saved position + the current activity. */
+  const withActivity = (raw) => normalize({ ui: raw && raw.ui, progress: progressFromActivity(activity) });
 
   const $ = (id) => document.getElementById(id);
 
@@ -309,7 +363,8 @@
     // skills
     $('st-skills').innerHTML = sec.skills.map((k, ki) => {
       const open = skillUnlocked(p, round, sec, ki), full = skillFullyEvaluated(p, round, k.id), done = skillComplete(p, round, k.id), kp = skillPct(p, round, k.id);
-      const st = !open ? 'مقفلة' : full ? 'مكتملة بالمستويات الثلاثة' : done ? 'بقي المتوسط والمتقدم' : kp > 0 ? 'قيد التدرب' : 'لم تبدأ';
+      const left = PLAN.levels.filter((l) => peek(p, round.id, k.id).levels[l.id] !== 2).map((l) => l.name);
+      const st = !open ? 'مقفلة' : full ? 'مكتملة بالمستويات الثلاثة' : done ? 'بقي ' + left.join(' و') : kp > 0 ? 'قيد التدرب' : 'لم تبدأ';
       const ringHtml = !open ? `<span class="st-ring is-lock">${ICON.lock}</span>`
         : full ? `<span class="st-ring is-ok">${ICON.check}</span>`
         : `<span class="st-ring" style="--p:${kp}"><span class="st-num">${ar(ki + 1)}</span></span>`;
@@ -345,60 +400,65 @@
       ${full ? `<p class="st-done-note">${ICON.check}<span>أنهيت ${esc(skill.name)} في ${esc(round.name)}. ${ki + 1 < sec.skills.length ? 'انتقل إلى المهارة التالية: ' + esc(sec.skills[ki + 1].name) + '.' : 'راجع بقية المهارات حتى يكتمل ' + esc(sec.name) + '.'}</span></p>` : ''}`;
   }
 
+  const lessonUrl = (skillId) => '/lessons/' + SOURCES[skillId].slug + '/?from=self-training';
+  const practiceUrl = (skillId) => '/quizzes/' + SOURCES[skillId].slug + '/?from=self-training';
+  const LEVEL_TEXT = ['لم تبدأ', 'بدأت', 'مكتملة'];
+
   function stepHTML(key, round, r, locked, n, cls, d) {
-    const mk = `<span class="st-mk">${d ? ICON.check : locked ? ICON.lock : STEP_ICON[key]}</span>`;
-    const lockMsg = locked ? `<p class="st-lockmsg">${ICON.lock}<span>تُفتح بعد إكمال الخطوة ${ar(n - 1)}</span></p>` : '';
-    let title, q, hint, ctl;
+    const skillId = state.ui.skill;
+    const mk = `<span class="st-mk">${d ? ICON.check : STEP_ICON[key]}</span>`;
+    const lockMsg = locked && !d ? `<p class="st-lockmsg">${ICON.lock}<span>يُنصح بإكمال الخطوة ${ar(n - 1)} أولًا</span></p>` : '';
+    const link = (href, text, icon) => `<a class="st-act" href="${href}" target="_blank" rel="noopener">${icon}<span>${text}</span></a>`;
+    let title, status, hint, ctl = '', action = '';
     if (key === 'intro') {
       title = 'المقطع التأسيسي';
-      q = 'هل استمعت إلى المقطع التأسيسي للمهارة وشاهدته كاملًا؟';
-      hint = 'ابدأ به قبل أي تدريب، فهو يشرح فكرة المهارة وطريقة التعامل مع أسئلتها.';
-      ctl = `<div class="st-yn" role="group" aria-label="${q}">
-        <button type="button" class="y" data-st="intro" data-v="1" aria-pressed="${r.intro === true}" ${locked ? 'disabled' : ''}>نعم</button>
-        <button type="button" class="n" data-st="intro" data-v="0" aria-pressed="${r.intro === false}" ${locked ? 'disabled' : ''}>لا</button></div>`;
+      status = d ? 'شاهدت المقطع التأسيسي لهذه المهارة.' : 'لم تفتح المقطع التأسيسي بعد.';
+      hint = 'يُسجَّل تلقائيًا عند فتحك مقطع «تأسيس» في صفحة شروحات المهارة.';
+      if (!d) action = link(lessonUrl(skillId), 'افتح المقطع التأسيسي', ICON.play);
     } else if (key === 'clips') {
       const c = round.clips;
       title = 'مقاطع التدريبات';
-      q = `كم مقطعًا شاهدت من مقاطع الأسئلة (${ar(c.from)}–${ar(c.to)})؟`;
-      hint = round.intro
-        ? `اضغط رقم كل مقطع بعد مشاهدته. المطلوب ${ar(c.target)} مقاطع على الأقل في هذه الجولة.`
-        : `تبدأ ${esc(round.name)} من المقطع ${ar(c.from)}، بعد المقاطع التي شاهدتها في الجولة السابقة. المطلوب ${ar(c.target)} مقاطع على الأقل.`;
-      ctl = dots('clip', c, r.clips, 'المقطع', locked);
+      status = `المقاطع ${ar(c.from)}–${ar(c.to)} في ${esc(round.name)} — المطلوب ${ar(c.target)} على الأقل.`;
+      hint = 'تُحسب تلقائيًا كل مرة تفتح فيها مقطعًا من صفحة الشروحات.';
+      ctl = dots('clip', c, r.clips, 'المقطع');
+      if (!d) action = link(lessonUrl(skillId), 'افتح مقاطع التدريبات', ICON.film);
     } else if (key === 'models') {
       const m = round.models;
       title = 'تدرب الآن';
-      q = `كم نموذجًا حللت من أيقونة «تدرب الآن» (النماذج ${ar(m.from)}–${ar(m.to)})؟`;
-      hint = 'اقرأ دليل التدرب، ثم حل النموذج واطلع على النتيجة. شاهد مقاطع الحل لكل إجابة خاطئة وأعد الحل حتى تصل إلى ١٠/١٠، ثم صوّر النتيجة.';
-      ctl = dots('model', m, r.models, 'النموذج', locked);
+      status = `النماذج ${ar(m.from)}–${ar(m.to)} — المطلوب ${ar(m.target)} على الأقل.`;
+      hint = 'تُحسب تلقائيًا عند فتحك نموذجًا من صفحة «تدرب الآن». حل النموذج حتى تصل إلى ١٠/١٠، وشاهد مقاطع الحل لكل خطأ.';
+      ctl = dots('model', m, r.models, 'النموذج');
+      if (!d) action = link(practiceUrl(skillId), 'افتح نماذج «تدرب الآن»', ICON.pen);
     } else {
       title = 'الاختبارات التقويمية';
-      q = 'إلى أين وصلت في الاختبارات التقويمية لهذه المهارة؟';
-      hint = 'ابدأ بالمستوى السهل وأعد الحل عند الخطأ حتى تظهر عبارة «مكتملة». إكمال السهل يفتح المهارة التالية، والمتوسط والمتقدم مطلوبان لإنهاء القسم.';
+      status = 'تُقرأ حالتها من نتائجك الفعلية في الاختبارات القصيرة للمهارة.';
+      hint = 'إكمال المستوى السهل يفتح المهارة التالية، والمتوسط والمتقدم مطلوبان لإنهاء القسم.';
       ctl = `<div class="st-levels">${PLAN.levels.map((l, i) => {
         const v = r.levels[l.id];
-        const lk = locked || (i > 0 && r.levels[PLAN.levels[i - 1].id] !== 2);
-        return `<div class="st-lvl${lk ? ' is-lock' : ''}${v === 2 ? ' is-done' : ''}">
-          <span class="st-lvl-n">${lk ? ICON.lock : v === 2 ? ICON.check : ''}<span>المستوى ${l.name}</span>${i === 0 ? '<span class="st-tag">يفتح المهارة التالية</span>' : ''}</span>
-          <div class="st-seg" role="group" aria-label="حالة المستوى ${l.name}">
-            <button type="button" data-st="level" data-id="${l.id}" data-v="0" aria-pressed="${v === 0}" ${lk ? 'disabled' : ''}>لم أبدأ</button>
-            <button type="button" data-st="level" data-id="${l.id}" data-v="1" aria-pressed="${v === 1}" ${lk ? 'disabled' : ''}>بدأت</button>
-            <button type="button" class="d" data-st="level" data-id="${l.id}" data-v="2" aria-pressed="${v === 2}" ${lk ? 'disabled' : ''}>مكتملة</button>
-          </div></div>`;
+        return `<div class="st-lvl${v === 2 ? ' is-done' : ''}">
+          <span class="st-lvl-n">${v === 2 ? ICON.check : ''}<span>المستوى ${l.name}</span>${i === 0 ? '<span class="st-tag">يفتح المهارة التالية</span>' : ''}</span>
+          <span class="st-pill${v === 2 ? ' ok' : v === 1 ? ' go' : ''}">${LEVEL_TEXT[v] || LEVEL_TEXT[0]}</span></div>`;
       }).join('')}</div>`;
+      const nextLevel = PLAN.levels.find((l) => r.levels[l.id] !== 2);
+      if (nextLevel) {
+        action = `<button type="button" class="st-act" data-st="quiz" data-level="${nextLevel.id}">${ICON.quiz}<span>ابدأ اختبار المستوى ${nextLevel.name}</span></button>`;
+      }
     }
     return `<li class="st-step ${cls}">${mk}<div class="st-step-b">
       <h3>${title}${d ? ' <span class="st-pill ok">منجزة</span>' : ''}</h3>
-      <p class="st-q">${q}</p>${lockMsg}
-      <div class="st-ctl">${ctl}</div>
+      <p class="st-q">${status}</p>${lockMsg}
+      ${ctl ? `<div class="st-ctl">${ctl}</div>` : ''}
+      ${action ? `<div class="st-actions">${action}</div>` : ''}
       <p class="st-hint">${hint}</p></div></li>`;
   }
 
-  function dots(action, range, picked, label, locked) {
-    const verb = action === 'clip' ? 'شاهدت' : 'حللت';
+  /** Read-only indicators: a lit capsule is a clip/model the student has really opened. */
+  function dots(kind, range, picked, label) {
+    const verb = kind === 'clip' ? 'فتحت' : 'فتحت';
     let out = '';
     for (let n = range.from; n <= range.to; n++) {
       const on = picked.includes(n);
-      out += `<button type="button" class="st-dot st-num" data-st="${action}" data-n="${n}" aria-pressed="${on}" aria-label="${label} ${n}" ${locked ? 'disabled' : ''}>${on ? ICON.check : ''}<span>${ar(n)}</span></button>`;
+      out += `<span class="st-dot st-num" role="img" data-on="${on}" aria-label="${label} ${n}: ${on ? 'تم' : 'لم يُفتح بعد'}">${on ? ICON.check : ''}<span>${ar(n)}</span></span>`;
     }
     const got = picked.length, tgt = range.target;
     return `<div class="st-dots">${out}</div>
@@ -410,11 +470,11 @@
     const el = $('st-sync');
     if (!el) return;
     const map = {
-      idle: [ICON.cloud, 'يُحفظ تقدمك في حسابك تلقائيًا'],
-      loading: [ICON.cloud, 'جارٍ مزامنة تقدمك…'],
-      saving: [ICON.cloud, 'جارٍ الحفظ…'],
-      saved: [ICON.check, 'تم حفظ تقدمك في حسابك'],
-      offline: [ICON.cloudOff, 'تعذّر الاتصال — حُفظ على جهازك وسيُرفع تلقائيًا'],
+      idle: [ICON.cloud, 'يُحدَّث تلقائيًا من نشاطك في المنصة'],
+      loading: [ICON.cloud, 'جارٍ تحديث تقدمك…'],
+      saving: [ICON.cloud, 'جارٍ التحديث…'],
+      saved: [ICON.check, 'محدَّث من نشاطك الفعلي في المنصة'],
+      offline: [ICON.cloudOff, 'تعذّر الاتصال — يُعرض آخر تقدم محفوظ'],
     };
     const [ic, txt] = map[sync.status] || map.idle;
     el.className = 'st-sync is-' + sync.status;
@@ -422,9 +482,9 @@
   }
 
   /* ───────────────────────── persistence / sync ───────────────────────── */
-  const cacheKey = () => 'lg_st_v1_' + (sync.studentId || 'anon');
+  const cacheKey = () => 'lg_st_v2_' + (sync.studentId || 'anon');
   function writeCache() {
-    try { localStorage.setItem(cacheKey(), JSON.stringify({ state, rev: sync.rev, pending: sync.pending.slice(-400) })); } catch (e) { /* private mode / quota */ }
+    try { localStorage.setItem(cacheKey(), JSON.stringify({ ui: state.ui, activity, rev: sync.rev, pending: sync.pending.slice(-200) })); } catch (e) { /* private mode / quota */ }
   }
   function readCache() {
     try { const raw = localStorage.getItem(cacheKey()); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
@@ -445,7 +505,7 @@
    * server already has changes nothing; ops that no longer apply (e.g. now-locked) are dropped.
    */
   function rebase(server) {
-    state = normalize(server && server.state ? server.state : emptyState());
+    state = withActivity(server && server.state ? server.state : null);
     sync.rev = Number(server && server.rev) || 0;
     const kept = [];
     for (const op of sync.pending) if (applyAction(state, op)) kept.push(op);
@@ -461,7 +521,7 @@
     const sentOps = sync.pending.length;
     sync.status = 'saving'; renderSync();
     try {
-      const res = await api('/self-training', { method: 'PUT', body: JSON.stringify({ state, baseRev: sync.rev }) });
+      const res = await api('/self-training', { method: 'PUT', body: JSON.stringify({ state: { ui: state.ui }, baseRev: sync.rev }) });
       sync.retry = 0;
       if (res && res.conflict) {
         const merged = rebase(res);
@@ -499,7 +559,7 @@
       fetch('/api/self-training', {
         method: 'PUT', keepalive: true,
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ state, baseRev: sync.rev }),
+        body: JSON.stringify({ state: { ui: state.ui }, baseRev: sync.rev }),
       }).catch(() => {});
     } catch (e) { /* ignore */ }
   }
@@ -508,8 +568,11 @@
     sync.status = 'loading'; renderSync();
     try {
       const res = await api('/self-training');
+      lastRefresh = Date.now();
+      activity = res.activity && typeof res.activity === 'object' ? res.activity : {};
       const serverRev = Number(res.rev) || 0;
       if (serverRev !== sync.rev) rebase(res);  // server moved on (or was reset): rebase local ops onto it
+      else state = withActivity(state);          // same position, fresh activity
       sync.dirty = sync.pending.length > 0;
       if (sync.dirty) scheduleSave(200);
       sync.status = sync.dirty ? 'saving' : 'saved';
@@ -542,32 +605,44 @@
       const b = e.target.closest('[data-st]');
       if (!b || b.disabled || !screen.contains(b)) return;
       const t = b.dataset.st;
-      const op = { type: t, id: b.dataset.id, sec: b.dataset.sec, n: b.dataset.n };
-      if (t === 'intro') op.value = b.dataset.v === '1';
-      else if (t === 'level') op.value = Number(b.dataset.v);
-      else if (t === 'clip' || t === 'model') op.on = b.getAttribute('aria-pressed') !== 'true';
-      // progress is saved quickly; pure navigation (round/section/skill) lazily
-      if (!commit(op, ['intro', 'clip', 'model', 'level'].includes(t) ? 700 : 2000)) return;
+      if (t === 'quiz') { openQuiz(b.dataset.level); return; }
+      if (!['round', 'section', 'skill', 'goto'].includes(t)) return; // progress is never edited by hand
+      if (!commit({ type: t, id: b.dataset.id, sec: b.dataset.sec }, 2000)) return;
       if (t === 'goto' || t === 'round' || t === 'section') {
         const card = $('st-card');
         if (card && window.innerWidth < 900) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
-    const resetBtn = $('st-reset');
-    resetBtn.addEventListener('click', () => {
-      if (!resetArmed) {
-        resetBtn.querySelector('span').textContent = 'اضغط مرة أخرى لمسح التقدم';
-        resetBtn.classList.add('is-armed');
-        resetArmed = setTimeout(() => { resetArmed = null; resetBtn.querySelector('span').textContent = 'البدء من الصفر'; resetBtn.classList.remove('is-armed'); }, 4000);
-        return;
-      }
-      clearTimeout(resetArmed); resetArmed = null;
-      resetBtn.querySelector('span').textContent = 'البدء من الصفر'; resetBtn.classList.remove('is-armed');
-      commit({ type: 'reset' }, 300);
-    });
+    const refreshBtn = $('st-refresh');
+    if (refreshBtn) refreshBtn.addEventListener('click', () => refresh(true));
+    // Coming back from a lesson / practice tab (or the same tab via its back button) re-reads the activity.
+    const onReturn = () => { if (document.visibilityState === 'visible' && screen.classList.contains('active')) refresh(false); };
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushOnHide(); else onReturn(); });
+    window.addEventListener('focus', onReturn);
+    window.addEventListener('pageshow', onReturn);
     window.addEventListener('pagehide', flushOnHide);
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushOnHide(); });
-    window.addEventListener('online', () => { if (sync.dirty) scheduleSave(200); });
+    window.addEventListener('online', () => { if (sync.dirty) scheduleSave(200); onReturn(); });
+  }
+
+  /** Re-read the student's activity (throttled unless forced). */
+  function refresh(force) {
+    if (!sync.loaded) return;
+    if (!force && Date.now() - lastRefresh < 2500) return;
+    lastRefresh = Date.now();
+    load();
+  }
+
+  /** Evaluation step: open the in-app quiz list at this skill's section and level. */
+  async function openQuiz(level) {
+    const section = SOURCES[state.ui.skill].section;
+    try {
+      if (typeof App === 'undefined') return;
+      await App.openQuizHub();
+      App.openQuizLevels(section);
+      App.openQuizSkills(section, level);
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('تعذّر فتح الاختبار — حاول مرة أخرى');
+    }
   }
 
   /** Entry point: App.openSelfTraining() / deep link /self-training. */
@@ -580,10 +655,11 @@
       // a different student on this device — never show someone else's cache
       sync.studentId = student.id; sync.rev = 0; sync.pending = []; sync.dirty = false; sync.loaded = false;
       const cached = readCache();
-      state = cached ? normalize(cached.state) : emptyState();
+      activity = cached && cached.activity && typeof cached.activity === 'object' ? cached.activity : {};
+      state = withActivity(cached ? { ui: cached.ui } : null);
       if (cached) {
         sync.rev = Number(cached.rev) || 0;
-        sync.pending = Array.isArray(cached.pending) ? cached.pending.filter((op) => op && typeof op.type === 'string') : [];
+        sync.pending = Array.isArray(cached.pending) ? cached.pending.filter((op) => op && ['round', 'section', 'skill', 'goto'].includes(op.type)) : [];
         sync.dirty = sync.pending.length > 0;
       }
     }

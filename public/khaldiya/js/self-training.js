@@ -13,14 +13,19 @@
       progressFromActivity() turns that into state.progress, keyed
       "roundId:skillId" -> { intro, clips, models, levels }, which every
       rule below reads unchanged.
-   3) Only the student's place on the card (round/section/skill) is saved
-      (PUT /api/self-training, revision-checked). The card refreshes itself
-      whenever the student comes back to it (tab focus / return from a lesson).
-   4) Progressive unlocking (unchanged from the approved prototype):
-      - a step opens only after the previous step of the same skill is done;
-      - the next skill opens after the current skill's steps + the easy level;
-      - the quantitative section opens after all three levels of every
-        verbal skill; the next round opens after both sections are complete.
+   3) Only the student's place on the card (round/section/skill) and their
+      fast-track choices (ui.fast) are saved (PUT /api/self-training,
+      revision-checked). The card refreshes itself whenever the student comes
+      back to it (tab focus / return from a lesson).
+   4) Flexible access: every skill of both sections can be opened at any time;
+      nextAction() marks the suggested path («المسار المقترح») instead of a lock.
+      Steps inside a skill are suggested in order, never enforced. Rounds still
+      open one after the other (each round's content builds on the previous).
+   5) Fast track (external training): a student who studies from a course or
+      book can skip the foundational clip, short clips and «تدرب الآن» of a
+      skill. ui.fast holds "roundId:skillId" keys; those records get ext:true,
+      the skipped steps count as satisfied and the skill's percentage is
+      measured by its evaluation levels only.
    Everything below `core` is pure and has no DOM dependency.
    ═══════════════════════════════════════════════════════════════════════ */
 (function (root) {
@@ -59,7 +64,12 @@
   const blank = () => ({ intro: null, clips: [], models: [], levels: { easy: 0, medium: 0, advanced: 0 } });
   const roundById = (id) => PLAN.rounds.find((r) => r.id === id);
   const sectionById = (id) => PLAN.sections.find((s) => s.id === id);
-  const emptyState = () => ({ ui: { round: 1, section: 'verbal', skill: PLAN.sections[0].skills[0].id }, progress: {} });
+  const emptyState = () => ({ ui: { round: 1, section: 'verbal', skill: PLAN.sections[0].skills[0].id, fast: [] }, progress: {} });
+  /** A valid fast-track key ("roundId:skillId") or null. */
+  function fastKey(k) {
+    const m = /^(\d+):([a-z]+)$/.exec(String(k));
+    return m && roundById(Number(m[1])) && PLAN.sections.some((s) => s.skills.some((x) => x.id === m[2])) ? Number(m[1]) + ':' + m[2] : null;
+  }
 
   function peek(progress, roundId, skillId) { return progress[roundId + ':' + skillId] || blank(); }
   function rec(progress, roundId, skillId) {
@@ -68,13 +78,19 @@
     return progress[key];
   }
   function stepKeys(round) { return round.intro ? ['intro', 'clips', 'models', 'eval'] : ['clips', 'models', 'eval']; }
-  function stepDone(round, r, key) {
+  /** Was this step really done on the platform (ignoring the fast track)? */
+  function stepDoneReal(round, r, key) {
     if (key === 'intro') return r.intro === true;
     if (key === 'clips') return r.clips.length >= round.clips.target;
     if (key === 'models') return r.models.length >= round.models.target;
     if (key === 'eval') return r.levels.easy === 2;
     return false;
   }
+  /** Step satisfied: really done, or skipped by the fast track (never the evaluation step). */
+  function stepDone(round, r, key) {
+    return stepDoneReal(round, r, key) || (r.ext === true && key !== 'eval');
+  }
+  const isSkipped = (round, r, key) => r.ext === true && key !== 'eval' && !stepDoneReal(round, r, key);
   function skillComplete(p, round, skillId) { const r = peek(p, round.id, skillId); return stepKeys(round).every((k) => stepDone(round, r, k)); }
   function skillFullyEvaluated(p, round, skillId) {
     const r = peek(p, round.id, skillId);
@@ -83,6 +99,11 @@
   function skillPct(p, round, skillId) {
     const r = peek(p, round.id, skillId);
     let got = 0, total = 0;
+    if (r.ext === true) {
+      // fast track: the skill is measured by its evaluation levels only (nothing is credited for skipped steps)
+      PLAN.levels.forEach((l) => { total += 1; got += r.levels[l.id] === 2 ? 1 : r.levels[l.id] === 1 ? 0.4 : 0; });
+      return Math.round((got / total) * 100);
+    }
     if (round.intro) { total += 1; got += r.intro === true ? 1 : 0; }
     total += round.clips.target; got += Math.min(r.clips.length, round.clips.target);
     total += round.models.target; got += Math.min(r.models.length, round.models.target);
@@ -94,11 +115,9 @@
   function roundComplete(p, round) { return PLAN.sections.every((s) => sectionComplete(p, round, s)); }
   function roundPct(p, round) { return Math.round(PLAN.sections.reduce((a, s) => a + sectionPct(p, round, s), 0) / PLAN.sections.length); }
   function roundUnlocked(p, i) { return i === 0 || roundComplete(p, PLAN.rounds[i - 1]); }
-  function sectionUnlocked(p, round, si) { return si === 0 || sectionComplete(p, round, PLAN.sections[si - 1]); }
-  function skillUnlocked(p, round, sec, ki) {
-    const si = PLAN.sections.indexOf(sec);
-    return sectionUnlocked(p, round, si) && (ki === 0 || skillComplete(p, round, sec.skills[ki - 1].id));
-  }
+  // Flexible access: sections and skills are always open (the suggested path is shown, not enforced).
+  function sectionUnlocked(p, round, si) { return si >= 0 && si < PLAN.sections.length; }
+  function skillUnlocked(p, round, sec, ki) { return !!sec && ki >= 0 && ki < sec.skills.length; }
 
   /** The suggested next step for the student in a round, or null when the round is done. */
   function nextAction(p, round) {
@@ -109,7 +128,7 @@
         const key = stepKeys(round).find((s) => !stepDone(round, r, s));
         const msg = {
           intro: 'استمع إلى المقطع التأسيسي',
-          clips: 'شاهد مقاطع التدريبات (' + ar(r.clips.length) + ' من ' + ar(round.clips.target) + ')',
+          clips: 'شاهد المقاطع القصيرة (' + ar(r.clips.length) + ' من ' + ar(round.clips.target) + ')',
           models: 'حل نماذج «تدرب الآن» (' + ar(r.models.length) + ' من ' + ar(round.models.target) + ')',
           eval: 'أكمل المستوى السهل في الاختبارات التقويمية',
         }[key];
@@ -191,6 +210,20 @@
         if (v !== 2) PLAN.levels.slice(idx + 1).forEach((l) => { lv[l.id] = 0; });
         return true;
       }
+      case 'fast': {
+        // fast track on/off for one "roundId:skillId" (explicit `on`, so replaying it is idempotent)
+        const key = fastKey(a.key);
+        if (!key || typeof a.on !== 'boolean') return false;
+        const list = state.ui.fast || (state.ui.fast = []);
+        const i = list.indexOf(key);
+        if (a.on === (i >= 0)) return false;
+        if (a.on) list.push(key); else list.splice(i, 1);
+        list.sort();
+        const [rid, sid] = key.split(':');
+        if (a.on) rec(p, Number(rid), sid).ext = true;
+        else if (p[key]) delete p[key].ext;
+        return true;
+      }
       case 'reset':
         state.progress = {};
         state.ui = emptyState().ui;
@@ -218,6 +251,12 @@
         models: Array.isArray(v.models) ? v.models.map(Number).filter(Number.isInteger) : [],
         levels: { easy: +v.levels?.easy || 0, medium: +v.levels?.medium || 0, advanced: +v.levels?.advanced || 0 },
       };
+    }
+    // fast-track choices live in ui.fast; the records they cover are marked ext:true
+    out.ui.fast = [...new Set((Array.isArray(ui.fast) ? ui.fast : []).map(fastKey).filter(Boolean))].sort();
+    for (const key of out.ui.fast) {
+      const [rid, sid] = key.split(':');
+      rec(out.progress, Number(rid), sid).ext = true;
     }
     // never leave the student parked on a round/section/skill that is locked
     const p = out.progress;
@@ -279,7 +318,7 @@
   }
 
   const core = {
-    PLAN, emptyState, peek, stepKeys, stepDone, skillComplete, skillFullyEvaluated, skillPct,
+    PLAN, emptyState, peek, stepKeys, stepDone, stepDoneReal, isSkipped, fastKey, skillComplete, skillFullyEvaluated, skillPct,
     sectionComplete, sectionPct, roundComplete, roundPct, roundUnlocked, sectionUnlocked, skillUnlocked,
     nextAction, pickFirstOpenSkill, applyAction, normalize, ar, SOURCES, progressFromActivity,
   };
@@ -298,6 +337,9 @@
     reset: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>',
     open: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>',
     quiz: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
+    gauge: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.2"/></svg>',
+    route: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.8"/></svg>',
+    book: '<svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>',
   };
   const STEP_ICON = { intro: ICON.play, clips: ICON.film, models: ICON.pen, eval: ICON.target };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -351,25 +393,27 @@
 
     // sections
     $('st-sections').innerHTML = PLAN.sections.map((s, si) => {
-      const open = sectionUnlocked(p, round, si), sp = sectionPct(p, round, s), done = sectionComplete(p, round, s);
+      const sp = sectionPct(p, round, s), done = sectionComplete(p, round, s);
       const doneSkills = s.skills.filter((k) => skillComplete(p, round, k.id)).length;
-      return `<button class="st-sec" type="button" data-st="section" data-id="${s.id}" data-sid="${s.id}" aria-pressed="${s.id === sec.id}" ${open ? '' : 'disabled'}>
-        <span class="st-sec-h">${open ? '' : ICON.lock}<span>${esc(s.name)}</span>${done ? '<span class="st-pill ok">مكتمل</span>' : ''}<b class="st-num">${ar(sp)}٪</b></span>
+      const suggested = !done && nx && nx.sec === s.id && s.id !== sec.id;
+      return `<button class="st-sec" type="button" data-st="section" data-id="${s.id}" data-sid="${s.id}" aria-pressed="${s.id === sec.id}">
+        <span class="st-sec-h"><span>${esc(s.name)}</span>${done ? '<span class="st-pill ok">مكتمل</span>' : ''}<b class="st-num">${ar(sp)}٪</b></span>
         <span class="st-bar"><i style="width:${sp}%"></i></span>
-        <span class="st-sec-meta">${open ? 'المهارات المنجزة ' + ar(doneSkills) + ' من ' + ar(s.skills.length) : 'يُفتح بعد إكمال ' + esc(PLAN.sections[si - 1].name)}</span>
+        <span class="st-sec-meta">المهارات المنجزة ${ar(doneSkills)} من ${ar(s.skills.length)}${suggested ? ' · فيه خطوتك المقترحة' : ''}</span>
       </button>`;
     }).join('');
 
     // skills
     $('st-skills').innerHTML = sec.skills.map((k, ki) => {
-      const open = skillUnlocked(p, round, sec, ki), full = skillFullyEvaluated(p, round, k.id), done = skillComplete(p, round, k.id), kp = skillPct(p, round, k.id);
-      const left = PLAN.levels.filter((l) => peek(p, round.id, k.id).levels[l.id] !== 2).map((l) => l.name);
-      const st = !open ? 'مقفلة' : full ? 'مكتملة بالمستويات الثلاثة' : done ? 'بقي ' + left.join(' و') : kp > 0 ? 'قيد التدرب' : 'لم تبدأ';
-      const ringHtml = !open ? `<span class="st-ring is-lock">${ICON.lock}</span>`
-        : full ? `<span class="st-ring is-ok">${ICON.check}</span>`
+      const kr = peek(p, round.id, k.id);
+      const full = skillFullyEvaluated(p, round, k.id), done = skillComplete(p, round, k.id), kp = skillPct(p, round, k.id);
+      const left = PLAN.levels.filter((l) => kr.levels[l.id] !== 2).map((l) => l.name);
+      const st = full ? 'مكتملة بالمستويات الثلاثة' : done ? 'بقي ' + left.join(' و') : kr.ext ? 'مسار سريع: الاختبارات مباشرة' : kp > 0 ? 'قيد التدرب' : 'لم تبدأ';
+      const rec = !full && nx && nx.sec === sec.id && nx.skill === k.id;
+      const ringHtml = full ? `<span class="st-ring is-ok">${ICON.check}</span>`
         : `<span class="st-ring" style="--p:${kp}"><span class="st-num">${ar(ki + 1)}</span></span>`;
-      return `<li><button class="st-skill" type="button" data-st="skill" data-id="${k.id}" aria-current="${k.id === state.ui.skill}" ${open ? '' : 'disabled'}>
-        ${ringHtml}<span class="st-skill-t"><span class="st-skill-n">${esc(k.name)}</span><span class="st-skill-s">${st}</span></span></button></li>`;
+      return `<li><button class="st-skill${rec ? ' is-rec' : ''}" type="button" data-st="skill" data-id="${k.id}" aria-current="${k.id === state.ui.skill}">
+        ${ringHtml}<span class="st-skill-t"><span class="st-skill-n">${esc(k.name)}</span><span class="st-skill-s">${st}</span>${rec ? `<span class="st-rec">${ICON.route}<span>المسار المقترح</span></span>` : ''}</span></button></li>`;
     }).join('');
 
     renderCard(round, sec);
@@ -382,20 +426,35 @@
     const skill = sec.skills[ki];
     const r = peek(p, round.id, skill.id);
     const full = skillFullyEvaluated(p, round, skill.id), done = skillComplete(p, round, skill.id);
-    const status = full ? '<span class="st-pill ok">مكتملة</span>' : done ? '<span class="st-pill go">مجتازة، بقيت مستويات</span>' : '<span class="st-pill">قيد التدرب</span>';
+    const status = full ? '<span class="st-pill ok">مكتملة</span>' : done ? '<span class="st-pill go">مجتازة، بقيت مستويات</span>'
+      : r.ext ? '<span class="st-pill go">مسار سريع</span>' : '<span class="st-pill">قيد التدرب</span>';
     let prevDone = true;
     const steps = stepKeys(round).map((key, i) => {
-      const d = stepDone(round, r, key);
+      const skip = isSkipped(round, r, key);
+      const d = stepDoneReal(round, r, key);
       const locked = !prevDone;
-      const html = stepHTML(key, round, r, locked, i + 1, d ? 'is-done' : locked ? 'is-lock' : 'is-cur', d);
-      prevDone = prevDone && d;
+      const cls = skip ? 'is-skip' : d ? 'is-done' : locked ? 'is-lock' : 'is-cur';
+      const html = stepHTML(key, round, r, locked, i + 1, cls, d, skip);
+      prevDone = prevDone && (d || skip);
       return html;
     }).join('');
+    // fast track: offered while some preparation step is still open; once on, it can be undone
+    const prepLeft = stepKeys(round).some((k) => k !== 'eval' && !stepDoneReal(round, r, k));
+    const fast = r.ext
+      ? `<div class="st-fast is-on" role="status"><span class="st-fast-ic">${ICON.book}</span>
+          <p><strong>أنت في المسار السريع لهذه المهارة</strong><small>تخطّيت الخطوات التمهيدية لأنك تتدرب من مصدر خارجي، ويُقاس تقدمك هنا بالمستويات التقويمية.</small></p>
+          <button type="button" class="st-ghost st-fast-btn" data-st="fast" data-on="0">العودة إلى المسار الكامل</button></div>`
+      : prepLeft
+      ? `<div class="st-fast"><span class="st-fast-ic">${ICON.gauge}</span>
+          <p><strong>هل تتدرب من مصدر خارجي وتريد الاختبار مباشرة؟</strong><small>تُتخطّى الخطوات التمهيدية لهذه المهارة وتبدأ فورًا بالمستويات التقويمية.</small></p>
+          <button type="button" class="st-act st-fast-btn" data-st="fast" data-on="1">${ICON.target}<span>تخطي للمستويات التقويمية</span></button></div>`
+      : '';
     $('st-card').innerHTML = `
       <header class="st-card-h">
         <div><p class="st-card-eyebrow">${esc(sec.name)} · ${esc(round.name)} · المهارة ${ar(ki + 1)} من ${ar(sec.skills.length)}</p><h2 class="st-card-t">${esc(skill.name)}</h2></div>
         ${status}
       </header>
+      ${fast}
       <ol class="st-steps">${steps}</ol>
       ${full ? `<p class="st-done-note">${ICON.check}<span>أنهيت ${esc(skill.name)} في ${esc(round.name)}. ${ki + 1 < sec.skills.length ? 'انتقل إلى المهارة التالية: ' + esc(sec.skills[ki + 1].name) + '.' : 'راجع بقية المهارات حتى يكتمل ' + esc(sec.name) + '.'}</span></p>` : ''}`;
   }
@@ -404,10 +463,19 @@
   const practiceUrl = (skillId) => '/quizzes/' + SOURCES[skillId].slug + '/?from=self-training';
   const LEVEL_TEXT = ['لم تبدأ', 'بدأت', 'مكتملة'];
 
-  function stepHTML(key, round, r, locked, n, cls, d) {
+  function stepHTML(key, round, r, locked, n, cls, d, skip) {
     const skillId = state.ui.skill;
     const mk = `<span class="st-mk">${d ? ICON.check : STEP_ICON[key]}</span>`;
-    const lockMsg = locked && !d ? `<p class="st-lockmsg">${ICON.lock}<span>يُنصح بإكمال الخطوة ${ar(n - 1)} أولًا</span></p>` : '';
+    const SKIP_TITLE = { intro: 'المقطع التأسيسي', clips: 'المقاطع القصيرة', models: 'تدرب الآن' };
+    if (skip) {
+      // skipped by the fast track: a compact note, still with the link for whoever wants to come back to it
+      const href = key === 'models' ? practiceUrl(skillId) : lessonUrl(skillId);
+      return `<li class="st-step ${cls}">${mk}<div class="st-step-b">
+        <h3>${SKIP_TITLE[key]} <span class="st-pill skip">تدريب خارجي</span></h3>
+        <p class="st-q">تخطّيتها لأنك تتدرب من مصدر خارجي. يمكنك الرجوع إليها متى شئت.</p>
+        <div class="st-actions"><a class="st-link" href="${href}" target="_blank" rel="noopener">${STEP_ICON[key]}<span>فتح ${SKIP_TITLE[key]}</span></a></div></div></li>`;
+    }
+    const lockMsg = locked && !d ? `<p class="st-lockmsg">${ICON.route}<span>يُنصح بإكمال الخطوة ${ar(n - 1)} أولًا</span></p>` : '';
     const link = (href, text, icon) => `<a class="st-act" href="${href}" target="_blank" rel="noopener">${icon}<span>${text}</span></a>`;
     let title, status, hint, ctl = '', action = '';
     if (key === 'intro') {
@@ -417,11 +485,11 @@
       if (!d) action = link(lessonUrl(skillId), 'افتح المقطع التأسيسي', ICON.play);
     } else if (key === 'clips') {
       const c = round.clips;
-      title = 'مقاطع التدريبات';
+      title = 'المقاطع القصيرة';
       status = `المقاطع ${ar(c.from)}–${ar(c.to)} في ${esc(round.name)} — المطلوب ${ar(c.target)} على الأقل.`;
       hint = 'تُحسب تلقائيًا كل مرة تفتح فيها مقطعًا من صفحة الشروحات.';
       ctl = dots('clip', c, r.clips, 'المقطع');
-      if (!d) action = link(lessonUrl(skillId), 'افتح مقاطع التدريبات', ICON.film);
+      if (!d) action = link(lessonUrl(skillId), 'افتح المقاطع القصيرة', ICON.film);
     } else if (key === 'models') {
       const m = round.models;
       title = 'تدرب الآن';
@@ -432,11 +500,11 @@
     } else {
       title = 'الاختبارات التقويمية';
       status = 'تُقرأ حالتها من نتائجك الفعلية في الاختبارات القصيرة للمهارة.';
-      hint = 'إكمال المستوى السهل يفتح المهارة التالية، والمتوسط والمتقدم مطلوبان لإنهاء القسم.';
+      hint = 'إكمال المستوى السهل يُنجز خطوات المهارة، والمستويات الثلاثة مطلوبة لإنهائها وفتح الجولة التالية.';
       ctl = `<div class="st-levels">${PLAN.levels.map((l, i) => {
         const v = r.levels[l.id];
         return `<div class="st-lvl${v === 2 ? ' is-done' : ''}">
-          <span class="st-lvl-n">${v === 2 ? ICON.check : ''}<span>المستوى ${l.name}</span>${i === 0 ? '<span class="st-tag">يفتح المهارة التالية</span>' : ''}</span>
+          <span class="st-lvl-n">${v === 2 ? ICON.check : ''}<span>المستوى ${l.name}</span>${i === 0 ? '<span class="st-tag">الحد الأدنى للمهارة</span>' : ''}</span>
           <span class="st-pill${v === 2 ? ' ok' : v === 1 ? ' go' : ''}">${LEVEL_TEXT[v] || LEVEL_TEXT[0]}</span></div>`;
       }).join('')}</div>`;
       const nextLevel = PLAN.levels.find((l) => r.levels[l.id] !== 2);
@@ -606,6 +674,17 @@
       if (!b || b.disabled || !screen.contains(b)) return;
       const t = b.dataset.st;
       if (t === 'quiz') { openQuiz(b.dataset.level); return; }
+      if (t === 'fast') {
+        const on = b.dataset.on === '1';
+        if (!commit({ type: 'fast', key: state.ui.round + ':' + state.ui.skill, on }, 0)) return;
+        if (on) {
+          // straight to the first evaluation level that isn't complete yet
+          const r = peek(state.progress, state.ui.round, state.ui.skill);
+          const lvl = PLAN.levels.find((l) => r.levels[l.id] !== 2) || PLAN.levels[0];
+          openQuiz(lvl.id);
+        }
+        return;
+      }
       if (!['round', 'section', 'skill', 'goto'].includes(t)) return; // progress is never edited by hand
       if (!commit({ type: t, id: b.dataset.id, sec: b.dataset.sec }, 2000)) return;
       if (t === 'goto' || t === 'round' || t === 'section') {
@@ -659,7 +738,7 @@
       state = withActivity(cached ? { ui: cached.ui } : null);
       if (cached) {
         sync.rev = Number(cached.rev) || 0;
-        sync.pending = Array.isArray(cached.pending) ? cached.pending.filter((op) => op && ['round', 'section', 'skill', 'goto'].includes(op.type)) : [];
+        sync.pending = Array.isArray(cached.pending) ? cached.pending.filter((op) => op && ['round', 'section', 'skill', 'goto', 'fast'].includes(op.type)) : [];
         sync.dirty = sync.pending.length > 0;
       }
     }

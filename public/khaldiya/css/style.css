@@ -3537,6 +3537,52 @@ body:has(.app-screen.active) .modal-overlay .modal-box:not(.ro-box)::before {
 #screen-self-training .st-ghost.is-armed { border-color: var(--danger); color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
 #screen-self-training .st-ghost .st-i { width: 16px; height: 16px; }
 
+/* ── flexible access: «المسار المقترح» badge instead of locks ── */
+#screen-self-training { --st-ink: color-mix(in srgb, var(--st-accent) 82%, #000); }
+:root[data-theme="dark"] #screen-self-training { --st-ink: var(--st-accent); }
+#screen-self-training .st-rec {
+  justify-self: start; display: inline-flex; align-items: center; gap: 5px; margin-top: 4px;
+  font-size: 11.5px; font-weight: 800; color: var(--st-ink);
+  padding: 2px 9px 2px 10px; border-radius: 99px;
+  background: var(--st-accent-soft); border: 1px solid color-mix(in srgb, var(--st-accent) 35%, transparent);
+}
+#screen-self-training .st-rec .st-i { width: 13px; height: 13px; }
+#screen-self-training .st-skill.is-rec:not([aria-current="true"]) { border-color: color-mix(in srgb, var(--st-accent) 35%, transparent); border-style: dashed; }
+
+/* ── fast track (external training) banner ── */
+#screen-self-training .st-fast {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 14px;
+  padding: 14px 16px; border-radius: 16px;
+  background: color-mix(in srgb, var(--st-accent) 5%, var(--ap-glass));
+  border: 1.5px dashed color-mix(in srgb, var(--st-accent) 38%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+#screen-self-training .st-fast.is-on { border-style: solid; background: color-mix(in srgb, var(--st-accent) 9%, var(--ap-glass)); }
+#screen-self-training .st-fast-ic {
+  width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--st-accent-soft); color: var(--st-ink);
+}
+#screen-self-training .st-fast p { margin: 0; display: grid; gap: 2px; min-width: 0; }
+#screen-self-training .st-fast strong { font-size: 14.5px; font-weight: 800; color: var(--text); }
+#screen-self-training .st-fast small { font-size: 12.5px; font-weight: 600; color: var(--muted); line-height: 1.6; }
+#screen-self-training .st-fast-btn { white-space: nowrap; }
+@media (max-width: 640px) {
+  #screen-self-training .st-fast { grid-template-columns: auto minmax(0, 1fr); }
+  #screen-self-training .st-fast-btn { grid-column: 1 / -1; width: 100%; justify-content: center; }
+}
+
+/* ── a step skipped by the fast track ── */
+#screen-self-training .st-pill.skip { background: var(--st-accent-soft); color: var(--st-ink); }
+#screen-self-training .st-step.is-skip .st-mk { border-style: dashed; border-color: color-mix(in srgb, var(--st-accent) 50%, transparent); color: var(--st-ink); background: transparent; }
+#screen-self-training .st-step.is-skip::before { background: repeating-linear-gradient(180deg, color-mix(in srgb, var(--st-accent) 45%, transparent) 0 5px, transparent 5px 10px); }
+#screen-self-training .st-step.is-skip .st-step-b { gap: 6px; }
+#screen-self-training .st-link {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 4px;
+  font-size: 13px; font-weight: 700; color: var(--st-ink); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px;
+}
+#screen-self-training .st-link:hover { text-decoration-thickness: 2px; }
+#screen-self-training .st-link .st-i { width: 16px; height: 16px; }
+
 /* ── responsive: mobile-first compact layout ── */
 @media (max-width: 900px) {
   #screen-self-training .st-board { grid-template-columns: minmax(0, 1fr); }

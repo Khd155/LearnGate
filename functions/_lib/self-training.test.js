@@ -32,7 +32,7 @@ describe('plan parity', () => {
 describe('sanitizeSelfTraining (server)', () => {
   it('keeps a valid record as is', () => {
     const s = sanitizeSelfTraining({ ui: { round: 1, section: 'verbal', skill: 'completion' }, progress: { '1:analogy': { intro: true, clips: [3, 1, 2], models: [2], levels: { easy: 2, medium: 1, advanced: 0 } } } });
-    expect(s.ui).toEqual({ round: 1, section: 'verbal', skill: 'completion' });
+    expect(s.ui).toEqual({ round: 1, section: 'verbal', skill: 'completion', fast: [] });
     expect(s.progress['1:analogy']).toEqual({ intro: true, clips: [1, 2, 3], models: [2], levels: { easy: 2, medium: 1, advanced: 0 } });
   });
   it('drops unknown rounds, skills and malformed keys', () => {
@@ -58,8 +58,13 @@ describe('sanitizeSelfTraining (server)', () => {
   it('drops empty records and repairs a bad ui', () => {
     const s = sanitizeSelfTraining({ ui: { round: 7, section: 'x', skill: 'geometry' }, progress: { '1:analogy': { intro: null, clips: [], models: [] } } });
     expect(s.progress).toEqual({});
-    expect(s.ui).toEqual({ round: 1, section: 'verbal', skill: 'analogy' });
+    expect(s.ui).toEqual({ round: 1, section: 'verbal', skill: 'analogy', fast: [] });
     expect(sanitizeSelfTraining({ ui: { section: 'quant', skill: 'analogy' } }).ui.skill).toBe('arithmetic');
+  });
+  it('keeps only known fast-track keys, unique and sorted', () => {
+    const s = sanitizeSelfTraining({ ui: { fast: ['1:geometry', '1:analogy', '1:analogy', '01:odd', '9:analogy', '1:hacker', '1:analogy;x', 5, null, { a: 1 }] } });
+    expect(s.ui.fast).toEqual(['1:analogy', '1:geometry', '1:odd']);
+    expect(sanitizeSelfTraining({ ui: { fast: 'x' } }).ui.fast).toEqual([]);
   });
   it('never throws on garbage input', () => {
     for (const bad of [null, undefined, 1, 'x', [], { progress: 5 }, { progress: [] }, { ui: 'x' }]) expect(() => sanitizeSelfTraining(bad)).not.toThrow();
@@ -78,20 +83,18 @@ describe('card logic (browser core, same as the approved prototype)', () => {
     expect(C.skillComplete(p, R1, 'analogy')).toBe(false);
   });
 
-  it('the next skill unlocks only after the current one is complete', () => {
+  it('flexible access: every skill of both sections is open from the start', () => {
     const p = {};
-    expect(C.skillUnlocked(p, R1, VERBAL, 0)).toBe(true);
-    expect(C.skillUnlocked(p, R1, VERBAL, 1)).toBe(false);
-    p['1:analogy'] = done({ easy: 2, medium: 0, advanced: 0 });
-    expect(C.skillUnlocked(p, R1, VERBAL, 1)).toBe(true);
+    C.PLAN.sections.forEach((sec, si) => {
+      expect(C.sectionUnlocked(p, R1, si)).toBe(true);
+      sec.skills.forEach((k, ki) => expect(C.skillUnlocked(p, R1, sec, ki)).toBe(true));
+    });
+    expect(C.skillUnlocked(p, R1, VERBAL, 99)).toBe(false);
   });
 
-  it('the quantitative section opens only after all three levels of every verbal skill', () => {
-    const p = {};
-    VERBAL.skills.forEach((k) => { p['1:' + k.id] = done({ easy: 2, medium: 2, advanced: 1 }); });
-    expect(C.sectionUnlocked(p, R1, 1)).toBe(false);
-    VERBAL.skills.forEach((k) => { p['1:' + k.id].levels.advanced = 2; });
-    expect(C.sectionUnlocked(p, R1, 1)).toBe(true);
+  it('the suggested path still points at the first unfinished skill', () => {
+    const p = { '1:analogy': done({ easy: 2, medium: 0, advanced: 0 }) };
+    expect(C.nextAction(p, R1)).toMatchObject({ sec: 'verbal', skill: 'completion' });
   });
 
   it('round 2 opens only after both sections of round 1 are complete', () => {
@@ -152,17 +155,62 @@ describe('card logic (browser core, same as the approved prototype)', () => {
     expect(s).toEqual(C.emptyState());
   });
 
-  it('applyAction refuses navigation to locked skills, sections and rounds', () => {
+  it('applyAction lets the student pick any skill or section, but rounds stay in order', () => {
     const s = C.emptyState();
-    expect(C.applyAction(s, { type: 'skill', id: 'completion' })).toBe(false);
-    expect(C.applyAction(s, { type: 'section', id: 'quant' })).toBe(false);
+    expect(C.applyAction(s, { type: 'skill', id: 'reading' })).toBe(true);
+    expect(C.applyAction(s, { type: 'skill', id: 'geometry', sec: 'quant' })).toBe(true);
+    expect(s.ui).toMatchObject({ section: 'quant', skill: 'geometry' });
+    expect(C.applyAction(s, { type: 'section', id: 'verbal' })).toBe(true);
     expect(C.applyAction(s, { type: 'round', id: '2' })).toBe(false);
-    expect(s.ui).toEqual({ round: 1, section: 'verbal', skill: 'analogy' });
+    expect(C.applyAction(s, { type: 'skill', id: 'nope' })).toBe(false);
   });
 
-  it('normalize moves a student off a locked position', () => {
+  it('normalize keeps any section/skill but moves off a locked round', () => {
     const n = C.normalize({ ui: { round: 3, section: 'quant', skill: 'geometry' }, progress: {} });
-    expect(n.ui).toEqual({ round: 1, section: 'verbal', skill: 'analogy' });
+    expect(n.ui).toEqual({ round: 1, section: 'quant', skill: 'geometry', fast: [] });
+  });
+});
+
+describe('fast track (external training)', () => {
+  it('skipping marks the preparation steps as satisfied, never the evaluation', () => {
+    const s = C.emptyState();
+    expect(C.applyAction(s, { type: 'fast', key: '1:completion', on: true })).toBe(true);
+    const r = C.peek(s.progress, 1, 'completion');
+    expect(r.ext).toBe(true);
+    expect(['intro', 'clips', 'models'].every((k) => C.stepDone(R1, r, k) && C.isSkipped(R1, r, k))).toBe(true);
+    expect(C.stepDone(R1, r, 'eval')).toBe(false);
+    expect(C.skillComplete(s.progress, R1, 'completion')).toBe(false);
+    expect(C.nextAction(s.progress, R1).skill).toBe('analogy'); // the suggested path is unchanged
+  });
+  it('a fast-tracked skill completes with its evaluation levels, measured by them only', () => {
+    const s = C.normalize({ ui: { fast: ['1:completion'] }, progress: { '1:completion': { levels: { easy: 2, medium: 1, advanced: 0 } } } });
+    expect(C.skillComplete(s.progress, R1, 'completion')).toBe(true);
+    expect(C.skillPct(s.progress, R1, 'completion')).toBe(Math.round((1 + 0.4) / 3 * 100));
+    s.progress['1:completion'].levels = { easy: 2, medium: 2, advanced: 2 };
+    expect(C.skillFullyEvaluated(s.progress, R1, 'completion')).toBe(true);
+    expect(C.skillPct(s.progress, R1, 'completion')).toBe(100);
+  });
+  it('steps the student really did are shown as done, not skipped', () => {
+    const s = C.normalize({ ui: { fast: ['1:analogy'] }, progress: { '1:analogy': { intro: true, clips: [1] } } });
+    const r = C.peek(s.progress, 1, 'analogy');
+    expect(C.isSkipped(R1, r, 'intro')).toBe(false);
+    expect(C.isSkipped(R1, r, 'clips')).toBe(true);
+  });
+  it('the op is idempotent, can be undone, and rejects unknown keys', () => {
+    const s = C.emptyState();
+    expect(C.applyAction(s, { type: 'fast', key: '1:odd', on: true })).toBe(true);
+    expect(C.applyAction(s, { type: 'fast', key: '1:odd', on: true })).toBe(false);
+    expect(JSON.parse(JSON.stringify(s.ui.fast))).toEqual(['1:odd']);
+    expect(C.applyAction(s, { type: 'fast', key: '1:odd', on: false })).toBe(true);
+    expect(s.ui.fast.length).toBe(0);
+    expect(C.peek(s.progress, 1, 'odd').ext).toBeUndefined();
+    expect(C.applyAction(s, { type: 'fast', key: '9:odd', on: true })).toBe(false);
+    expect(C.applyAction(s, { type: 'fast', key: '1:hacker', on: true })).toBe(false);
+    expect(C.applyAction(s, { type: 'fast', key: '1:odd' })).toBe(false);
+  });
+  it('the client and server agree on the stored fast-track list', () => {
+    const raw = { ui: { fast: ['1:geometry', '01:odd', 'x', '1:geometry', '3:reading'] } };
+    expect(JSON.parse(JSON.stringify(C.normalize(raw).ui.fast))).toEqual(sanitizeSelfTraining(raw).ui.fast);
   });
 });
 

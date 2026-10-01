@@ -5,7 +5,8 @@
 // through sanitizeSelfTraining(), so a hand-crafted request can only ever
 // store values the card itself could have produced: known round/skill keys,
 // clip/model numbers inside that round's range, level states 0/1/2 with the
-// "a later level can't be ahead of an earlier one" rule applied.
+// "a later level can't be ahead of an earlier one" rule applied, and fast-track
+// keys (ui.fast) limited to known "roundId:skillId" pairs.
 //
 // SELF_TRAINING_PLAN must stay identical to PLAN in
 // public/khaldiya/js/self-training.js (a test enforces it).
@@ -92,7 +93,22 @@ function cleanUi(ui) {
   const section = sectionIds.includes(u.section) ? u.section : sectionIds[0];
   const skills = SELF_TRAINING_PLAN.sections.find((s) => s.id === section).skills;
   const skill = skills.some((k) => k.id === u.skill) ? u.skill : skills[0].id;
-  return { round, section, skill };
+  return { round, section, skill, fast: cleanFast(u.fast) };
+}
+
+/**
+ * Fast-track choices ("تخطي للمستويات التقويمية"): "roundId:skillId" keys for the skills a
+ * student trains on elsewhere. Only known round/skill pairs, unique and sorted (at most one
+ * per round x skill), so the stored list stays tiny and can't carry anything else.
+ */
+function cleanFast(list) {
+  if (!Array.isArray(list)) return [];
+  const out = new Set();
+  for (const v of list.slice(0, 200)) {
+    const m = /^(\d+):([a-z]+)$/.exec(typeof v === 'string' ? v : '');
+    if (m && ROUNDS.has(Number(m[1])) && SKILL_SECTION.has(m[2])) out.add(`${Number(m[1])}:${m[2]}`);
+  }
+  return [...out].sort();
 }
 
 /**

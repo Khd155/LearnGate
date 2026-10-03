@@ -160,6 +160,15 @@ app.use('/api', async (req, res) => {
   }
 });
 
+// الكيمياء (أول ثانوي) is locked for now: its card shows «قريباً» in the
+// subjects list, and the static page itself (and anything under it) is not
+// served — a direct link lands on the subjects screen instead. To reopen it,
+// delete this route and restore the href in app.js renderAcademicSubjects().
+app.get(/^\/academic\/chemistry-g1(?:\/.*)?$/i, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.redirect(302, '/academic');
+});
+
 // "/academic" and "/lessons" are native SPA screens (see app.js's
 // _SCREEN_PATHS) but also real directories on disk — academic/biology-g1/
 // and lessons/<skill>/ hold separate static sub-pages. Without this, a bare

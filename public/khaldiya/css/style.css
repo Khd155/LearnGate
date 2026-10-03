@@ -2329,3 +2329,240 @@ button:focus-visible, a:focus-visible, .btn:focus-visible {
    transition runs on opacity before the .open class is dropped. */
 #student-welcome-modal { transition: opacity .25s ease; }
 #student-welcome-modal.sw-closing { opacity: 0; }
+
+/* ═════════════════════════════════════════════════════════════════════
+   SELF-TRAINING CARD — #screen-self-training (js/self-training.js)
+   Classic flat styling taken from the approved design (qudurat-card.html):
+   solid surfaces, 1px quiet borders, a simple vertical step line, plain
+   number capsules — no blur, no glow, no gradients. Colors ride on main's
+   tokens (--surface, --border, --text, --muted, --bg, --bg-tint), so light
+   and dark follow the rest of the app. Section accent: verbal = brand blue,
+   quantitative = teal; "done" is its own green. SVG line icons, no emoji.
+   ═════════════════════════════════════════════════════════════════════ */
+#screen-self-training {
+  --st-verbal: #2B5F94; --st-quant: #0B7A63; --st-done: #1F7A4B; --st-on-accent: #fff;
+  --st-warn: #A4520B; --st-lock: #64748B;
+  --st-accent: var(--st-verbal);
+  --st-accent-soft: color-mix(in srgb, var(--st-accent) 10%, var(--surface));
+  --st-sunk: var(--bg-tint);
+  --st-r: 14px;
+}
+:root[data-theme="dark"] #screen-self-training {
+  --st-verbal: #7DB3E6; --st-quant: #4FC6A7; --st-done: #6FCB98; --st-on-accent: #0f1720;
+  --st-warn: #F0B062; --st-lock: #8C9BAB;
+}
+#screen-self-training[data-section="quant"] { --st-accent: var(--st-quant); }
+#screen-self-training .st-wrap { max-width: 1080px; display: grid; gap: 18px; padding-top: 22px; }
+#screen-self-training .st-num { font-variant-numeric: tabular-nums; }
+#screen-self-training .st-i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+#screen-self-training button { font-family: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#screen-self-training button:disabled { cursor: not-allowed; }
+#screen-self-training button:focus-visible,
+#screen-self-training a:focus-visible { outline: 2px solid var(--st-accent); outline-offset: 2px; }
+.st-home-ic { color: var(--primary); }
+
+/* ── header: title, overall bar, rounds ── */
+#screen-self-training .st-top { display: grid; gap: 14px; }
+#screen-self-training .st-title-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; }
+#screen-self-training .st-hero-text { min-width: 0; flex: 1 1 320px; }
+#screen-self-training .st-eyebrow { margin: 0; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+#screen-self-training .st-title { margin: 2px 0 0; font-family: 'Cairo', sans-serif; font-size: clamp(22px, 4vw, 30px); font-weight: 800; line-height: 1.3; color: var(--text); text-wrap: balance; }
+#screen-self-training .st-lead { margin: 6px 0 0; font-size: 14px; line-height: 1.8; color: var(--muted); max-width: 62ch; }
+#screen-self-training .st-overall { --p: 0; display: flex; align-items: center; gap: 12px; min-width: 240px; flex: 0 1 300px; }
+#screen-self-training .st-overall-bar { flex: 1; }
+#screen-self-training .st-overall-bar > i { width: calc(var(--p) * 1%); background: var(--st-accent); }
+#screen-self-training .st-overall-in { display: grid; line-height: 1.2; text-align: center; }
+#screen-self-training .st-overall-in b { font-family: 'Cairo', sans-serif; font-size: 20px; font-weight: 800; color: var(--text); }
+#screen-self-training .st-overall-in small { font-size: 11px; font-weight: 700; color: var(--muted); }
+#screen-self-training .st-rounds { display: flex; flex-wrap: wrap; gap: 6px; }
+#screen-self-training .st-round {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px;
+  border: 1px solid var(--border); border-radius: 99px; background: var(--surface);
+  font-size: 14px; font-weight: 700; color: var(--text); transition: border-color .15s ease;
+}
+#screen-self-training .st-round:hover:not(:disabled):not([aria-pressed="true"]) { border-color: var(--st-accent); }
+#screen-self-training .st-round-pct { font-size: 12px; font-weight: 700; color: var(--muted); }
+#screen-self-training .st-round[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
+#screen-self-training .st-round[aria-pressed="true"] .st-round-pct { color: inherit; opacity: .85; }
+#screen-self-training .st-round:disabled, #screen-self-training .st-round:disabled .st-round-pct { color: var(--st-lock); }
+#screen-self-training .st-round.is-done:not([aria-pressed="true"]) .st-i { color: var(--st-done); }
+
+/* shared progress bar */
+#screen-self-training .st-bar { display: block; height: 8px; border-radius: 99px; background: var(--st-sunk); overflow: hidden; }
+#screen-self-training .st-bar > i { display: block; height: 100%; border-radius: inherit; background: var(--c, var(--st-accent)); transition: width .4s ease; }
+
+/* ── next step ── */
+#screen-self-training .st-next {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px;
+  background: var(--st-accent-soft); border: 1px solid color-mix(in srgb, var(--st-accent) 30%, transparent); border-radius: var(--st-r);
+}
+#screen-self-training .st-next-ic { width: 36px; height: 36px; border-radius: 10px; flex: none; display: grid; place-items: center; background: var(--st-accent); color: var(--st-on-accent); }
+#screen-self-training .st-next-ic.is-done { background: var(--st-done); }
+#screen-self-training .st-next-ic .st-i { width: 18px; height: 18px; }
+#screen-self-training .st-next p { margin: 0; flex: 1; min-width: min(100%, 220px); }
+#screen-self-training .st-next small { display: block; font-size: 12px; font-weight: 700; color: var(--muted); }
+#screen-self-training .st-next strong { font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.6; }
+#screen-self-training .st-btn {
+  border: 0; min-height: 40px; padding: 0 16px; border-radius: 10px;
+  background: var(--st-accent); color: var(--st-on-accent); font-size: 14px; font-weight: 700;
+}
+#screen-self-training .st-btn:hover { filter: brightness(1.06); }
+
+/* ── sections ── */
+#screen-self-training .st-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#screen-self-training .st-sec {
+  --c: var(--st-verbal);
+  display: grid; gap: 8px; text-align: start; padding: 12px 16px;
+  border: 1px solid var(--border); border-radius: var(--st-r); background: var(--surface);
+  transition: border-color .15s ease;
+}
+#screen-self-training .st-sec[data-sid="quant"] { --c: var(--st-quant); }
+#screen-self-training .st-sec:hover:not([aria-pressed="true"]) { border-color: var(--border-strong); }
+#screen-self-training .st-sec[aria-pressed="true"] { border-color: var(--c); box-shadow: inset 0 -3px 0 var(--c); }
+#screen-self-training .st-sec-h { display: flex; align-items: center; gap: 8px; font-family: 'Cairo', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); }
+#screen-self-training .st-sec-h b { margin-inline-start: auto; font-size: 15px; color: var(--text); }
+#screen-self-training .st-sec-meta { font-size: 13px; color: var(--muted); }
+
+/* ── board: skill list + skill card ── */
+#screen-self-training .st-board { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
+#screen-self-training .st-skills { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#screen-self-training .st-skill {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; min-height: 52px; text-align: start;
+  border: 1px solid transparent; border-radius: 12px; background: transparent; transition: background .15s ease, border-color .15s ease;
+}
+#screen-self-training .st-skill:hover { background: var(--surface); }
+#screen-self-training .st-skill[aria-current="true"] { background: var(--surface); border-color: var(--border); box-shadow: inset -3px 0 0 var(--st-accent); }
+#screen-self-training .st-skill-t { flex: 1; min-width: 0; display: grid; gap: 1px; }
+#screen-self-training .st-skill-n { font-size: 14.5px; font-weight: 700; color: var(--text); }
+#screen-self-training .st-skill-s { font-size: 12px; color: var(--muted); }
+#screen-self-training .st-ring {
+  --p: 0; width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: conic-gradient(var(--st-accent) calc(var(--p) * 1%), var(--st-sunk) 0);
+  font-family: 'Cairo', sans-serif; font-size: 12px; font-weight: 700; color: var(--text);
+}
+#screen-self-training .st-ring > span { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); }
+#screen-self-training .st-skill[aria-current="true"] .st-ring > span { background: var(--surface); }
+#screen-self-training .st-ring.is-ok { background: var(--st-done); color: var(--st-on-accent); }
+#screen-self-training .st-ring .st-i { width: 14px; height: 14px; stroke-width: 2.6; }
+/* suggested path badge (flexible access: nothing is locked) */
+#screen-self-training .st-rec {
+  justify-self: start; display: inline-flex; align-items: center; gap: 4px; margin-top: 3px;
+  font-size: 11.5px; font-weight: 700; color: var(--st-ink); padding: 1px 8px; border-radius: 99px;
+  background: var(--st-accent-soft); border: 1px solid color-mix(in srgb, var(--st-accent) 35%, transparent);
+}
+#screen-self-training .st-rec .st-i { width: 12px; height: 12px; }
+#screen-self-training .st-skill.is-rec:not([aria-current="true"]) { border: 1px dashed color-mix(in srgb, var(--st-accent) 40%, transparent); }
+
+#screen-self-training { --st-ink: color-mix(in srgb, var(--st-accent) 85%, #000); }
+:root[data-theme="dark"] #screen-self-training { --st-ink: var(--st-accent); }
+
+#screen-self-training .st-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 20px; display: grid; gap: 18px; min-width: 0; scroll-margin-top: 84px; }
+#screen-self-training .st-card-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+#screen-self-training .st-card-eyebrow { margin: 0; font-size: 13px; color: var(--muted); }
+#screen-self-training .st-card-t { margin: 0; font-family: 'Cairo', sans-serif; font-size: 22px; font-weight: 800; color: var(--text); }
+#screen-self-training .st-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; white-space: nowrap; border-radius: 99px; padding: 3px 10px; background: var(--st-sunk); color: var(--muted); }
+#screen-self-training .st-pill.ok { background: color-mix(in srgb, var(--st-done) 14%, var(--surface)); color: var(--st-done); }
+#screen-self-training .st-pill.go { background: color-mix(in srgb, var(--st-warn) 14%, var(--surface)); color: var(--st-warn); }
+#screen-self-training .st-pill.skip { background: var(--st-accent-soft); color: var(--st-ink); }
+
+/* fast track (external training) */
+#screen-self-training .st-fast {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px 14px;
+  padding: 12px 14px; border-radius: 12px; background: var(--bg); border: 1px dashed var(--border-strong);
+}
+#screen-self-training .st-fast.is-on { border: 1px solid color-mix(in srgb, var(--st-accent) 35%, transparent); background: var(--st-accent-soft); }
+#screen-self-training .st-fast-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--st-accent-soft); color: var(--st-ink); }
+#screen-self-training .st-fast.is-on .st-fast-ic { background: var(--surface); }
+#screen-self-training .st-fast-ic .st-i { width: 18px; height: 18px; }
+#screen-self-training .st-fast p { margin: 0; display: grid; gap: 2px; min-width: 0; }
+#screen-self-training .st-fast strong { font-size: 14.5px; font-weight: 700; color: var(--text); }
+#screen-self-training .st-fast small { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+#screen-self-training .st-fast-btn { white-space: nowrap; }
+
+/* steps: a simple vertical line */
+#screen-self-training .st-steps { list-style: none; margin: 0; padding: 0; display: grid; }
+#screen-self-training .st-step { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 0 14px; position: relative; padding-bottom: 22px; }
+#screen-self-training .st-step:last-child { padding-bottom: 0; }
+#screen-self-training .st-step::before { content: ''; position: absolute; inset-inline-start: 17px; top: 38px; bottom: 4px; width: 2px; background: var(--border); }
+#screen-self-training .st-step:last-child::before { display: none; }
+#screen-self-training .st-step.is-done::before { background: var(--st-done); }
+#screen-self-training .st-step.is-skip::before { background: repeating-linear-gradient(180deg, var(--border-strong) 0 5px, transparent 5px 10px); }
+#screen-self-training .st-mk { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--border); background: var(--surface); color: var(--muted); }
+#screen-self-training .st-step.is-cur .st-mk { border-color: var(--st-accent); color: var(--st-accent); }
+#screen-self-training .st-step.is-done .st-mk { background: var(--st-done); border-color: var(--st-done); color: var(--st-on-accent); }
+#screen-self-training .st-step.is-lock .st-mk { color: var(--st-lock); }
+#screen-self-training .st-step.is-skip .st-mk { border-style: dashed; border-color: var(--border-strong); color: var(--muted); }
+#screen-self-training .st-step-b { display: grid; gap: 10px; min-width: 0; padding-top: 4px; }
+#screen-self-training .st-step.is-skip .st-step-b { gap: 6px; }
+#screen-self-training .st-step-b h3 { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-family: 'Cairo', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); }
+#screen-self-training .st-q { margin: 0; font-size: 14.5px; line-height: 1.8; color: var(--text); }
+#screen-self-training .st-hint { margin: 0; font-size: 13px; line-height: 1.8; color: var(--muted); max-width: 62ch; }
+#screen-self-training .st-lockmsg { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--st-lock); }
+#screen-self-training .st-step.is-lock .st-ctl { opacity: .6; }
+
+/* plain number capsules (read-only: lit = opened on the platform) */
+#screen-self-training .st-dots { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#screen-self-training .st-dot {
+  min-width: 38px; height: 38px; padding: 0 8px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+  border: 1.5px dashed var(--border-strong); background: var(--bg);
+  font-family: 'Cairo', sans-serif; font-size: 14px; font-weight: 700; color: var(--muted); cursor: default;
+}
+#screen-self-training .st-dot[data-on="true"] { border: 1.5px solid var(--st-accent); background: var(--st-accent); color: var(--st-on-accent); }
+#screen-self-training .st-dot .st-i { width: 12px; height: 12px; stroke-width: 2.8; }
+#screen-self-training .st-count { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 13px; color: var(--muted); }
+#screen-self-training .st-count b { font-family: 'Cairo', sans-serif; color: var(--text); }
+#screen-self-training .st-count-t { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+#screen-self-training .st-count-t.ok { color: var(--st-done); }
+
+/* clear step buttons */
+#screen-self-training .st-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#screen-self-training .st-act {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 16px; border-radius: 10px;
+  border: 1px solid var(--st-accent); background: var(--surface); color: var(--st-ink);
+  font-family: inherit; font-size: 14px; font-weight: 700; text-decoration: none; cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+#screen-self-training .st-act:hover { background: var(--st-accent); color: var(--st-on-accent); }
+#screen-self-training .st-link { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; font-size: 13px; font-weight: 700; color: var(--st-ink); text-decoration: underline; text-underline-offset: 4px; }
+
+/* evaluation levels */
+#screen-self-training .st-levels { display: grid; gap: 8px; }
+#screen-self-training .st-lvl { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+#screen-self-training .st-lvl.is-done { border-color: color-mix(in srgb, var(--st-done) 45%, var(--border)); }
+#screen-self-training .st-lvl-n { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text); }
+#screen-self-training .st-lvl.is-done .st-lvl-n .st-i { color: var(--st-done); }
+#screen-self-training .st-tag { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+#screen-self-training .st-done-note { margin: 0; display: flex; gap: 8px; align-items: flex-start; padding: 10px 14px; border: 1px dashed var(--st-done); border-radius: 12px; color: var(--text); font-size: 14px; line-height: 1.8; }
+#screen-self-training .st-done-note .st-i { color: var(--st-done); margin-top: 5px; }
+
+/* footer: sync status + refresh */
+#screen-self-training .st-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--muted); }
+#screen-self-training .st-sync { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+#screen-self-training .st-sync.is-saved .st-i { color: var(--st-done); }
+#screen-self-training .st-sync.is-offline { color: var(--st-warn); }
+#screen-self-training .st-ghost {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px;
+  border: 1px solid var(--border-strong); border-radius: 9px; background: transparent; font-size: 13px; font-weight: 600; color: var(--text);
+}
+#screen-self-training .st-ghost:hover { border-color: var(--st-accent); color: var(--st-ink); }
+
+@media (max-width: 760px) {
+  #screen-self-training .st-board { grid-template-columns: minmax(0, 1fr); }
+  #screen-self-training .st-skills { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 4px; scrollbar-width: thin; }
+  #screen-self-training .st-skills li { flex: none; }
+  #screen-self-training .st-skill { width: auto; border-color: var(--border); background: var(--surface); }
+  #screen-self-training .st-skill[aria-current="true"] { box-shadow: inset 0 -3px 0 var(--st-accent); }
+  #screen-self-training .st-card { padding: 16px; }
+  #screen-self-training .st-fast { grid-template-columns: auto minmax(0, 1fr); }
+  #screen-self-training .st-fast-btn, #screen-self-training .st-act { width: 100%; justify-content: center; }
+}
+@media (max-width: 420px) {
+  #screen-self-training .st-sections { grid-template-columns: 1fr; }
+  #screen-self-training .st-overall { min-width: 0; flex-basis: 100%; }
+  #screen-self-training .st-step { grid-template-columns: 30px minmax(0, 1fr); gap: 0 10px; }
+  #screen-self-training .st-mk { width: 30px; height: 30px; }
+  #screen-self-training .st-step::before { inset-inline-start: 14px; top: 32px; }
+  #screen-self-training .st-dot { min-width: 34px; height: 34px; }
+}
+@media (prefers-reduced-motion: reduce) { #screen-self-training * { transition: none !important; } }

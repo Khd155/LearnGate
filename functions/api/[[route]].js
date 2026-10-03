@@ -11,6 +11,7 @@ import { buildPrereqAnalytics } from '../_lib/prereq-analytics.js';
 import { buildStudentJourney } from '../_lib/student-journey.js';
 import { safeEqual, devKeyMatches, secureDigits } from '../_lib/security.js';
 import { CHEM_SUBJECT_ID, normalizeExamSubject, summarizeExam, buildExamRoster } from '../_lib/exam-status.js';
+import { sanitizeSelfTraining, SELF_TRAINING_MAX_BYTES, buildSelfTrainingActivity } from '../_lib/self-training.js';
 
 const _extraOrigin = (typeof process !== 'undefined' && process.env && process.env.EXTRA_ALLOWED_ORIGIN) || '';
 const ALLOWED_ORIGINS = ['https://learngate.khormi.site', 'http://localhost:8788', 'http://localhost:3000', ...(_extraOrigin ? [_extraOrigin] : [])];
@@ -714,6 +715,7 @@ async function cascadeDeleteStudent(DB, studentId) {
   try { await DB.prepare('DELETE FROM test_results WHERE student_id = ?').bind(studentId).run(); } catch {}
   try { await DB.prepare('DELETE FROM broadcast_dismissals WHERE student_id = ?').bind(studentId).run(); } catch {}
   try { await DB.prepare('DELETE FROM broadcast_targets WHERE student_id = ?').bind(studentId).run(); } catch {}
+  try { await DB.prepare('DELETE FROM student_self_training WHERE student_id = ?').bind(studentId).run(); } catch {}
 }
 
 // ── JWT (HS256 via WebCrypto) ─────────────────────────────────────────────
@@ -3954,6 +3956,73 @@ export async function onRequest({ request, env }) {
         await DB.prepare('DELETE FROM student_prereq_results WHERE student_id = ? AND subject_id = ?').bind(studentId, subj).run();
         await DB.prepare('DELETE FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(studentId, subj).run();
         return ok({ ok: true }, 200, CORS);
+      }
+
+      return err('غير موجود', 404, CORS);
+    }
+
+    // ── SELF-TRAINING CARD (بطاقة التدرب الذاتي للقدرات) ─────────────────────
+    // One JSON document per student in its own additive table — nothing else
+    // reads or writes it, so it can never collide with the test/plan tables.
+    // Writes use a revision number (optimistic concurrency): a stale tab or a
+    // second device sending an older baseRev gets {conflict:true} + the current state
+    // instead of silently overwriting newer progress. Every stored value goes
+    // through sanitizeSelfTraining() (functions/_lib/self-training.js).
+    if (resource === 'self-training') {
+      const stClaims = await verifyToken(request, env, DB);
+      if (!stClaims || stClaims.role !== 'student' || !stClaims.sub) return err('غير مصرح', 401, CORS);
+      const stStudentId = String(stClaims.sub);
+      try { await DB.prepare(`CREATE TABLE IF NOT EXISTS student_self_training (
+        student_id TEXT PRIMARY KEY, state TEXT NOT NULL, rev INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL
+      )`).run(); } catch {}
+      const readRow = () => DB.prepare('SELECT state, rev, updated_at FROM student_self_training WHERE student_id = ?').bind(stStudentId).first();
+      const rowPayload = (row) => {
+        if (!row) return { state: null, rev: 0, updatedAt: null };
+        let parsed = null; try { parsed = JSON.parse(row.state); } catch {}
+        return { state: sanitizeSelfTraining(parsed), rev: Number(row.rev) || 0, updatedAt: row.updated_at };
+      };
+
+      // GET /api/self-training — the student's saved card position (state:null when never saved)
+      // plus "activity": the progress the card displays, computed from what the student really did
+      // (lesson / practice-page clicks logged by js/telemetry.js, and in-app quiz results).
+      // Either source table may not exist yet on a fresh database — that just means no activity.
+      if (!sub && method === 'GET') {
+        const [row, clicks, progress] = await Promise.all([
+          readRow(),
+          DB.prepare('SELECT DISTINCT skill_key, resource_type, resource_index FROM student_engagement_logs WHERE student_id = ?').bind(stStudentId).all().catch(() => ({ results: [] })),
+          DB.prepare('SELECT quiz_skill_id, status, attempts FROM skill_progress WHERE student_id = ?').bind(stStudentId).all().catch(() => ({ results: [] })),
+        ]);
+        return ok({ ...rowPayload(row), activity: buildSelfTrainingActivity({ clicks: clicks.results || [], progressRows: progress.results || [] }) }, 200, CORS);
+      }
+
+      // PUT /api/self-training { state, baseRev }
+      if (!sub && method === 'PUT') {
+        if (!await rateLimit(DB, 'st:' + stStudentId, 'self-training-save', 90)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
+        const body = await request.json().catch(() => null);
+        if (!body || typeof body !== 'object') return err('بيانات غير صالحة', 400, CORS);
+        const clean = sanitizeSelfTraining(body.state);
+        const json = JSON.stringify(clean);
+        if (json.length > SELF_TRAINING_MAX_BYTES) return err('حجم البيانات أكبر من المسموح', 413, CORS);
+        const baseRev = Number(body.baseRev) || 0;
+        const now = new Date().toISOString();
+        let changes = 0;
+        if (baseRev === 0) {
+          const r = await DB.prepare(
+            'INSERT INTO student_self_training (student_id, state, rev, updated_at) VALUES (?, ?, 1, ?) ON CONFLICT (student_id) DO NOTHING'
+          ).bind(stStudentId, json, now).run();
+          changes = r?.meta?.changes || 0;
+        } else {
+          const r = await DB.prepare(
+            'UPDATE student_self_training SET state = ?, rev = rev + 1, updated_at = ? WHERE student_id = ? AND rev = ?'
+          ).bind(json, now, stStudentId, baseRev).run();
+          changes = r?.meta?.changes || 0;
+        }
+        if (!changes) {
+          // someone else (another tab / device) saved first — hand back theirs. A normal 200 (not a
+          // 409) on purpose: this is an expected outcome the client merges, not an error to log.
+          return ok({ conflict: true, ...rowPayload(await readRow()) }, 200, CORS);
+        }
+        return ok({ rev: baseRev + 1, updatedAt: now, state: clean }, 200, CORS);
       }
 
       return err('غير موجود', 404, CORS);

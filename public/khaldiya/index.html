@@ -21,7 +21,7 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="/css/style.css?v=quiz12">
+  <link rel="stylesheet" href="/css/style.css?v=quiz13">
   <style>
     .diag-radio { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
     .diag-radio input { display:none; }
@@ -1338,13 +1338,13 @@
         </div>
         <span class="service-badge badge-active">جديد</span>
       </div>
-      <div class="service-card disabled">
-        <div class="service-card-icon">🎯</div>
+      <div class="service-card active" id="sh-self-training-card" role="button" tabindex="0" onclick="App.openSelfTraining()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();App.openSelfTraining();}">
+        <div class="service-card-icon st-home-ic"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg></div>
         <div class="service-card-info">
-          <div class="service-card-name">التدريب على مهارات التعلم الذاتي</div>
-          <div class="service-card-desc">تطوير مهارات التعلم المستقل والذاتي</div>
+          <div class="service-card-name">بطاقة التدرب الذاتي للقدرات</div>
+          <div class="service-card-desc">خطة تدرّب متدرجة على ثلاث جولات للقسمين اللفظي والكمي</div>
         </div>
-        <span class="service-badge badge-soon">قريباً</span>
+        <span class="service-badge badge-active">جديد</span>
       </div>
       <div class="service-card disabled">
         <div class="service-card-icon">📋</div>
@@ -2200,7 +2200,7 @@
           </tr>
           <tr>
             <td style="font-size:9pt;">الثالث</td>
-            <td>الانتقال للمهارة الثانية في القسم اللفظي بالمقطع التأسيسي ثم مقاطع التدريبات</td>
+            <td>الانتقال للمهارة الثانية في القسم اللفظي بالمقطع التأسيسي ثم المقاطع القصيرة</td>
             <td>تطبيق نفس خطوات المهارة السابقة على المهارة الحالية</td>
             <td>نفس خطوات الفقرة أعلاه</td>
           </tr>
@@ -2497,6 +2497,55 @@
     <div id="journey-full-content">
       <div class="inline-loading"><span class="inline-spinner"></span>جاري تحميل مسارك…</div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: SELF-TRAINING CARD (بطاقة التدرب الذاتي للقدرات)
+     Rendered and synced by js/self-training.js — every dynamic region below
+     is filled by SelfTraining.render(). IDs are prefixed st- to stay clear of
+     the rest of the app. Classic flat styling (css/style.css, SELF-TRAINING).
+═══════════════════════════════════════════════════════ -->
+<div id="screen-self-training" class="screen" data-section="verbal">
+  <div class="topbar">
+    <img class="topbar-logo" src="/logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">بطاقة التدرب الذاتي للقدرات</div>
+      <div class="topbar-sub">ثلاث جولات متدرجة · القسمان اللفظي والكمي</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
+  </div>
+  <div class="page-wrap st-wrap">
+    <header class="st-top">
+      <div class="st-title-row">
+        <div class="st-hero-text">
+          <p class="st-eyebrow">بوابة دعم التعلم · اختبار القدرات العامة</p>
+          <h1 class="st-title">بطاقة التدرب الذاتي</h1>
+          <p class="st-lead">تتحدّث البطاقة تلقائيًا من نشاطك: المقاطع التي تفتحها، ونماذج «تدرب الآن»، ونتائج اختباراتك القصيرة.</p>
+        </div>
+        <div class="st-overall" id="st-overall" role="img" aria-label="نسبة الإنجاز">
+          <span class="st-bar st-overall-bar" aria-hidden="true"><i></i></span>
+          <span class="st-overall-in"><b class="st-num" id="st-overall-pct">٠٪</b><small id="st-overall-round">الجولة الأولى</small></span>
+        </div>
+      </div>
+      <div class="st-rounds" id="st-rounds" role="group" aria-label="الجولات"></div>
+    </header>
+
+    <section class="st-next" id="st-next" aria-live="polite"></section>
+
+    <nav class="st-sections" id="st-sections" aria-label="الأقسام"></nav>
+
+    <div class="st-board">
+      <ul class="st-skills" id="st-skills" aria-label="المهارات"></ul>
+      <article class="st-card" id="st-card"></article>
+    </div>
+
+    <footer class="st-foot">
+      <span class="st-sync" id="st-sync" role="status" aria-live="polite"></span>
+      <button class="st-ghost" id="st-refresh" type="button"><svg class="st-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4.5h-4.5"/></svg><span>تحديث الآن</span></button>
+    </footer>
   </div>
 </div>
 
@@ -3646,6 +3695,7 @@
 </div>
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
-<script src="/js/app.js?v=quiz38" defer></script>
+<script src="/js/app.js?v=quiz39" defer></script>
+<script src="/js/self-training.js?v=st2" defer></script>
 </body>
 </html>

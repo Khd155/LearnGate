@@ -332,6 +332,7 @@ async function apiFetch(path, opts = {}) {
     ActivityLog.error(`✗ ${method} /api${path} — ${res.status} ${data.error || res.statusText}`);
     const e = new Error(data.error || res.statusText || 'HTTP ' + res.status);
     e.status = res.status;
+    e.data = data; // the response body, for callers that need more than the message (e.g. a 409 carrying the current state)
     // A 401 while we believe we're logged in (_authToken set) means the
     // token itself expired/was revoked server-side mid-session — every
     // authenticated call on the current screen fails this way at once
@@ -614,6 +615,7 @@ const _SCREEN_PATHS = {
   'screen-about':         '/about',
   'screen-faq':           '/faq',
   'screen-journey-full':  '/journey',
+  'screen-self-training': '/self-training',
 
   'screen-intro':          '/diagnostic',
   'screen-section-choice': '/diagnostic/section',
@@ -2179,6 +2181,14 @@ const App = {
   // localStorage write: /academic/biology-g1/ is still a separate static
   // page and falls back to reading this if the student's real session
   // somehow isn't present when it loads.
+  // بطاقة التدرب الذاتي للقدرات — its own module (js/self-training.js): the
+  // progressive round/section/skill card, synced to the student's account via
+  // GET/PUT /api/self-training.
+  async openSelfTraining() {
+    if (typeof SelfTraining === 'undefined' || !State.student) return false;
+    return SelfTraining.open();
+  },
+
   goToAcademic() {
     const user = State.student || State.admin || {};
     const name = user.name || user.admin_name || '';
@@ -6986,6 +6996,9 @@ async function _restoreFromPathInner(screenId, params) {
     case 'screen-tickets': App.goToTickets(); return true;
     case 'screen-about': show('screen-about'); return true;
     case 'screen-faq': App.openFaq(); return true;
+
+    case 'screen-self-training':
+      return await App.openSelfTraining();
 
     case 'screen-journey-full':
       await App.loadJourney();

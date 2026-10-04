@@ -3799,3 +3799,91 @@ a.res-card:hover .res-play { transform: scale(1.1); }
   .faq-side-btn { width: auto; flex-shrink: 0; white-space: nowrap; }
 }
 @media (max-width: 640px) { .study-continue-t strong { white-space: normal; } }
+
+/* ── /about «عن البوابة» — token-based glass layout (light + dark) ── */
+#screen-about .about-wrap { max-width: 900px; }
+#screen-about .about-hero {
+  position: relative; overflow: hidden; isolation: isolate;
+  border-radius: 26px; padding: 30px 28px; margin-bottom: 30px;
+  font-size: 15px; line-height: 2; color: #fff;
+  background: var(--grad-hero);
+  box-shadow: 0 30px 60px -30px rgba(63,124,184,.75), 0 10px 20px -14px rgba(15,23,42,.25);
+}
+#screen-about .about-hero::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(rgba(255,255,255,.16) 1px, transparent 1.3px) 0 0 / 22px 22px;
+  -webkit-mask-image: linear-gradient(105deg, #000 0%, transparent 70%); mask-image: linear-gradient(105deg, #000 0%, transparent 70%);
+}
+#screen-about .about-hero strong { font-weight: 800; }
+#screen-about .about-section-title {
+  display: flex; align-items: center; gap: 10px; border: 0; padding: 0;
+  font-size: 17px; font-weight: 800; color: var(--text); margin: 30px 0 16px;
+}
+#screen-about .about-section-title::before {
+  content: ''; width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
+  background: var(--grad-hero); transform: rotate(45deg); box-shadow: 0 0 0 4px var(--ap-ring);
+}
+/* Five-step vertical timeline */
+#screen-about .about-steps { position: relative; display: flex; flex-direction: column; gap: 14px; }
+#screen-about .about-steps::before {
+  content: ''; position: absolute; top: 22px; bottom: 22px; inset-inline-start: 21px; width: 3px; border-radius: 3px;
+  background: linear-gradient(180deg, #3F7CB8, #4A96A0 55%, #4FA877); opacity: .45;
+}
+#screen-about .about-step {
+  position: relative; display: flex; gap: 16px; align-items: flex-start; padding: 0; background: none; border: 0; box-shadow: none;
+}
+#screen-about .about-step-num {
+  position: relative; z-index: 1; flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #fff;
+  background: var(--grad-hero); box-shadow: 0 0 0 5px var(--bg), 0 0 18px 2px rgba(63,124,184,.45);
+  transition: transform .3s var(--ap-ease), box-shadow .3s ease;
+}
+#screen-about .about-step > div:last-child {
+  flex: 1; min-width: 0; padding: 14px 18px; border-radius: 18px;
+  background: var(--ap-glass); border: 1px solid var(--ap-glass-border);
+  -webkit-backdrop-filter: blur(14px) saturate(150%); backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: var(--ap-shadow); transition: transform .3s var(--ap-ease), box-shadow .3s var(--ap-ease);
+}
+#screen-about .about-step:hover > div:last-child { transform: translateX(-4px); box-shadow: var(--ap-shadow-hi); }
+#screen-about .about-step:hover .about-step-num { transform: scale(1.06); box-shadow: 0 0 0 5px var(--bg), 0 0 24px 4px rgba(79,168,119,.5); }
+#screen-about .about-step-title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+#screen-about .about-step-desc { font-size: 13.5px; line-height: 1.85; color: var(--muted); }
+/* Three support types */
+#screen-about .about-support-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+#screen-about .about-support-card {
+  position: relative; text-align: center; padding: 22px 18px; border-radius: 22px;
+  background: var(--ap-glass); border: 1px solid var(--ap-glass-border);
+  -webkit-backdrop-filter: blur(14px) saturate(150%); backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: var(--ap-shadow); transition: transform .3s var(--ap-ease), box-shadow .3s var(--ap-ease);
+}
+#screen-about .about-support-card:hover { transform: translateY(-4px); box-shadow: var(--ap-shadow-hi); }
+#screen-about .about-support-icon {
+  width: 54px; height: 54px; margin: 0 auto 14px; border-radius: 17px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ap-tile); color: var(--ap-tile-fg); transition: background .3s ease, color .3s ease, transform .3s var(--ap-ease);
+}
+#screen-about .about-support-icon svg { width: 26px; height: 26px; }
+#screen-about .about-support-card:hover .about-support-icon { background: var(--grad-hero); color: #fff; transform: rotate(-5deg); }
+#screen-about .about-support-name { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+#screen-about .about-support-desc { font-size: 13px; line-height: 1.8; color: var(--muted); }
+#screen-about .about-cycle {
+  margin-top: 30px; padding: 22px 24px; border-radius: 22px; text-align: center;
+  font-size: 14px; line-height: 2; color: var(--text);
+  background: var(--ap-glass); border: 1px solid rgba(63,124,184,.28);
+  box-shadow: var(--ap-shadow), 0 0 0 3px var(--ap-ring);
+}
+#screen-about .about-cycle strong { color: var(--primary-dk); font-weight: 800; }
+:root[data-theme="dark"] #screen-about .about-cycle strong { color: var(--primary-lt); }
+#screen-about .about-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 28px; }
+#screen-about .about-actions .btn { width: 100%; justify-content: center; }
+@media (max-width: 760px) {
+  #screen-about .about-support-grid { grid-template-columns: 1fr; }
+  #screen-about .about-actions { grid-template-columns: 1fr; }
+  #screen-about .about-hero { padding: 24px 20px; font-size: 14.5px; border-radius: 22px; }
+  #screen-about .about-step-num { width: 38px; height: 38px; font-size: 15px; }
+  #screen-about .about-steps::before { inset-inline-start: 18px; }
+  #screen-about .about-step > div:last-child { padding: 12px 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #screen-about .about-step > div:last-child, #screen-about .about-step-num, #screen-about .about-support-card, #screen-about .about-support-icon { transition: none; }
+}

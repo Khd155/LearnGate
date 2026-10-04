@@ -528,18 +528,27 @@ const DB = {
 // resolves against the CURRENT URL, not the site root, so it would silently
 // break the moment this card is reused from a nested route. Absolute is
 // correct regardless of where it's rendered from.
-const SKILL_LESSONS = {
-  v1: '/lessons/comprehension/',
-  v2: '/lessons/contextual/',
-  v3: '/lessons/inference/',
-  v4: '/lessons/analogy/',
-  v5: '/lessons/completion/',
-  q5: '/lessons/statistics/',
-  q1: '/lessons/arithmetic/',
-  q2: '/lessons/algebra/',
-  q3: '/lessons/geometry/',
-  q4: '/lessons/comparison/',
-};
+// One record per Qudurat skill. `slug` is the lesson slug used in URLs and
+// as the telemetry skillKey for BOTH resource kinds — it is also what the
+// self-training engine maps back to a skill (functions/_lib/self-training.js
+// SELF_TRAINING_SOURCES). The old /quizzes/<folder>/ pages had v2/v3 folder
+// names swapped; using one slug per skill here removes that mismatch.
+const SKILL_CATALOG = [
+  { code: 'v1', slug: 'comprehension', section: 'verbal',       name: 'الاستيعاب القرائي' },
+  { code: 'v2', slug: 'contextual',    section: 'verbal',       name: 'الخطأ السياقي' },
+  { code: 'v3', slug: 'inference',     section: 'verbal',       name: 'المفردة الشاذة' },
+  { code: 'v4', slug: 'analogy',       section: 'verbal',       name: 'التناظر اللفظي' },
+  { code: 'v5', slug: 'completion',    section: 'verbal',       name: 'إكمال الجمل' },
+  { code: 'q1', slug: 'arithmetic',    section: 'quantitative', name: 'الحساب' },
+  { code: 'q2', slug: 'algebra',       section: 'quantitative', name: 'الجبر' },
+  { code: 'q3', slug: 'geometry',      section: 'quantitative', name: 'الهندسة والقياس' },
+  { code: 'q4', slug: 'comparison',    section: 'quantitative', name: 'المقارنات الكمية' },
+  { code: 'q5', slug: 'statistics',    section: 'quantitative', name: 'الإحصاء والاحتمالات' },
+];
+const SKILL_BY_SLUG = Object.fromEntries(SKILL_CATALOG.map(s => [s.slug, s]));
+const SKILL_BY_CODE = Object.fromEntries(SKILL_CATALOG.map(s => [s.code, s]));
+// In-app lesson route per skill code (used by the plan's tabs and print table).
+const SKILL_LESSONS = Object.fromEntries(SKILL_CATALOG.map(s => [s.code, `/study/lessons/${s.slug}`]));
 
 // ── Idle auto-logout (30 min) ─────────────────────────────────────────────
 const IDLE_MS = 30 * 60 * 1000;
@@ -631,6 +640,9 @@ const _SCREEN_PATHS = {
   'screen-academic':      '/academic',
   'screen-study':         '/study',
   'screen-lessons':       '/lessons',
+  'screen-practice':      '/study/practice',
+  // screen-skill-resources is STATE-dependent (/study/<kind>/<slug>) — see
+  // _dynamicPathFor(); one template serves all ten skills, both kinds.
   // screen-academic-subjects has a STATE-dependent path (grade) — see
   // _dynamicPathFor() below, same pattern as the quiz hub's sub-screens.
 
@@ -660,6 +672,9 @@ const _SCREEN_PATHS = {
 // built from the exact same State their own render functions already read,
 // so the address bar can never drift out of sync with what's on screen.
 function _dynamicPathFor(id) {
+  if (id === 'screen-skill-resources') {
+    return State._res ? `/study/${State._res.kind}/${State._res.slug}` : '/study';
+  }
   if (id === 'screen-academic-subjects') {
     return State._academicGrade ? `/academic/${State._academicGrade}` : '/academic';
   }
@@ -691,6 +706,7 @@ const _PATH_TO_SCREEN = Object.fromEntries(
 const _QUIZ_SECTIONS = ['verbal', 'quantitative'];
 const _QUIZ_LEVELS = ['easy', 'medium', 'advanced'];
 const _ACADEMIC_GRADES = ['g10', 'g11', 'g12'];
+const _RES_KINDS = ['lessons', 'practice'];
 
 // Reverse of _pathForScreen() — turns a URL back into { screenId, params },
 // or null for anything unrecognized. Used on every popstate (browser back/
@@ -708,6 +724,11 @@ function resolvePath(pathname) {
   // real static page under /academic/ and falls through to the server.
   if (parts[0] === 'academic' && parts.length === 2 && _ACADEMIC_GRADES.includes(parts[1])) {
     return { screenId: 'screen-academic-subjects', params: { grade: parts[1] } };
+  }
+  // "/study/lessons/<slug>" and "/study/practice/<slug>" — the shared
+  // skill-resources screen (one dynamic template for all ten skills).
+  if (parts[0] === 'study' && parts.length === 3 && _RES_KINDS.includes(parts[1]) && SKILL_BY_SLUG[parts[2]]) {
+    return { screenId: 'screen-skill-resources', params: { kind: parts[1], slug: parts[2] } };
   }
   if (parts[0] !== 'skills' || !parts[1]) return null;
   const section = parts[1];
@@ -860,6 +881,8 @@ function show(id, opts) {
     _makeCardsAccessible(el);
     // Saved-school strip on the first sign-in step (see App._syncSavedSchool).
     if (id === 'screen-school') App._syncSavedSchool();
+    if (id === 'screen-study') App.renderStudyScreen();
+    if (id === 'screen-lessons' || id === 'screen-practice') App.renderResourceCounts();
   }
 
   if (!opts.fromPopstate) {
@@ -1076,6 +1099,26 @@ function goBack(fallbackId) {
 // State._quizTree), since the SAME DOM element is reused for every
 // section/level and would otherwise still show whichever one was rendered
 // last.
+// In-app links to the study area (/study/...) — rendered by the plan tabs and
+// the self-training card as real <a href> for accessibility / open-in-new-tab
+// — are routed inside the SPA on a plain click: no reload, no loading screen.
+document.addEventListener('click', (e) => {
+  const a = e.target && e.target.closest ? e.target.closest('a[href^="/study"]') : null;
+  if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  if (a.target && a.target !== '_self') return;
+  const url = new URL(a.getAttribute('href'), location.origin);
+  const resolved = resolvePath(url.pathname);
+  if (!resolved) return;
+  e.preventDefault();
+  if (resolved.screenId === 'screen-skill-resources') {
+    App.openSkillResources(resolved.params.kind, resolved.params.slug, url.searchParams.get('from') || '');
+  } else if (resolved.screenId === 'screen-practice') {
+    App.openPractice();
+  } else {
+    show(resolved.screenId);
+  }
+});
+
 window.addEventListener('popstate', (event) => {
   _historyDepth = (event.state && typeof event.state.depth === 'number') ? event.state.depth : 0;
   State.navStack = (event.state && Array.isArray(event.state.navStack)) ? event.state.navStack : [];
@@ -1084,6 +1127,15 @@ window.addEventListener('popstate', (event) => {
   if (!resolved) return; // unrecognized path (e.g. left the app and came back) — leave the screen as-is
   const { screenId, params } = resolved;
 
+  if (screenId === 'screen-skill-resources') {
+    // Back/forward between /study/lessons/x and /study/practice/x (or two
+    // skills) reuses one screen element — re-render from the URL so the
+    // content always matches the address bar, never the last render.
+    State._res = { ...(State._res || {}), kind: params.kind, slug: params.slug };
+    App.renderSkillResources();
+    show(screenId, { fromPopstate: true });
+    return;
+  }
   if (screenId === 'screen-academic-subjects') {
     State._academicGrade = params.grade;
     App.renderAcademicSubjects(params.grade);
@@ -2292,6 +2344,161 @@ const App = {
 
   openLessons() {
     show('screen-lessons');
+  },
+
+  openPractice() {
+    show('screen-practice');
+  },
+
+  // ── Skill resources: one dynamic template for all ten skills ─────────────
+  // kind: 'lessons' (Drive videos, LESSON_VIDEOS) | 'practice' (Google Forms,
+  // SKILL_QUIZZES). `from` ('plan' | 'self-training') only matters for a
+  // fresh deep link with no in-app history to go back through.
+  _resItems(kind, sk) {
+    if (kind === 'lessons') {
+      const d = (window.LESSON_VIDEOS || {})[sk.slug];
+      if (!d) return [];
+      const drive = id => `https://drive.google.com/file/d/${id}/view?usp=drive_link`;
+      return [{ idx: 0, intro: true, href: drive(d.intro) }]
+        .concat(d.videos.map((id, i) => ({ idx: i + 1, href: id ? drive(id) : null })));
+    }
+    const q = (typeof SKILL_QUIZZES !== 'undefined' && SKILL_QUIZZES[sk.code]) ? SKILL_QUIZZES[sk.code].urls : [];
+    return q.map((u, i) => ({ idx: i + 1, href: u }));
+  },
+
+  _resCount(kind, slug) {
+    const sk = SKILL_BY_SLUG[slug];
+    return sk ? App._resItems(kind, sk).filter(it => it.href).length : 0;
+  },
+
+  openSkillResources(kind, slug, from) {
+    if (!_RES_KINDS.includes(kind) || !SKILL_BY_SLUG[slug]) { show(kind === 'practice' ? 'screen-practice' : 'screen-lessons'); return; }
+    State._res = { kind, slug, from: from || (State._res && State._res.slug === slug ? State._res.from : '') };
+    App.renderSkillResources();
+    show('screen-skill-resources');
+  },
+
+  switchSkillResources(kind) {
+    if (!State._res || State._res.kind === kind) return;
+    App.openSkillResources(kind, State._res.slug, State._res.from);
+  },
+
+  backFromSkillResources() {
+    const r = State._res || {};
+    if (State.navStack && State.navStack.length) { goBack(); return; }
+    if (r.from === 'self-training') { App.openSelfTraining(); return; }
+    if (r.from === 'plan') { App.showSupportPlan(); return; }
+    show(r.kind === 'practice' ? 'screen-practice' : 'screen-lessons');
+  },
+
+  _resSeenKey() { return _skey('lg_res_seen', 'student') + '_' + (State.student ? State.student.id : 'anon'); },
+  _resSeen() { try { return JSON.parse(localStorage.getItem(App._resSeenKey()) || '{}'); } catch (_) { return {}; } },
+
+  renderSkillResources() {
+    const r = State._res; if (!r) return;
+    const sk = SKILL_BY_SLUG[r.slug]; if (!sk) return;
+    const isLessons = r.kind === 'lessons';
+    document.getElementById('screen-skill-resources').setAttribute('data-section', sk.section);
+    const items = App._resItems(r.kind, sk);
+    const live = items.filter(it => it.href);
+    const seen = (App._resSeen()[`${r.kind}:${r.slug}`]) || [];
+    const sec = sk.section === 'verbal' ? 'القسم اللفظي' : 'القسم الكمي';
+    const ar = n => Number(n).toLocaleString('ar-SA');
+    const title = (isLessons ? 'شروحات ' : 'اختبارات ') + sk.name;
+    document.getElementById('res-topbar-title').textContent = title;
+    document.getElementById('res-topbar-sub').textContent = sec;
+    document.getElementById('res-pill').textContent = sec;
+    document.getElementById('res-title').textContent = title;
+    document.getElementById('res-sub').textContent = isLessons
+      ? 'ابدأ بمقطع التأسيس، ثم تابع المقاطع بالترتيب. يُفتح كل مقطع في تبويب جديد.'
+      : 'اختر اختباراً تدريبياً وحلّه حتى تصل إلى الدرجة الكاملة. يُفتح كل اختبار في تبويب جديد.';
+    const seenLive = live.filter(it => seen.includes(it.idx)).length;
+    document.getElementById('res-stats').innerHTML = `
+      <span class="res-stat"><b>${ar(live.length)}</b>${isLessons ? 'مقطع متاح' : 'اختبار متاح'}</span>
+      <span class="res-stat"><b>${ar(seenLive)}</b>${isLessons ? 'فتحتها' : 'فتحتها'}</span>
+      ${isLessons && items.length > live.length ? `<span class="res-stat is-muted"><b>${ar(items.length - live.length)}</b>قريباً</span>` : ''}`;
+    for (const k of _RES_KINDS) {
+      const t = document.getElementById('res-tab-' + k);
+      t.classList.toggle('is-on', k === r.kind);
+      t.setAttribute('aria-selected', String(k === r.kind));
+    }
+    const tip = document.getElementById('res-tip');
+    tip.hidden = !isLessons || seen.includes(0);
+    tip.innerHTML = isLessons ? `<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 8v4M12 16h.01"/></svg><span>نوصيك بمشاهدة مقطع <strong>التأسيس</strong> أولاً، فهو الأساس الذي يُبنى عليه كل ما يليه.</span>` : '';
+    document.getElementById('res-grid-title').textContent = isLessons ? 'المقاطع' : 'الاختبارات التدريبية';
+    document.getElementById('res-count').textContent = ar(live.length);
+    const grid = document.getElementById('res-grid');
+    grid.classList.toggle('is-practice', !isLessons);
+    const PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
+    const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+    const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+    const type = isLessons ? 'video' : 'practice_form';
+    grid.innerHTML = items.map(it => {
+      const label = it.intro ? 'تأسيس' : (isLessons ? `المقطع ${ar(it.idx)}` : `اختبار ${ar(it.idx)}`);
+      const hint = it.intro ? 'ابدأ من هنا' : !it.href ? 'قريباً' : seen.includes(it.idx) ? 'تم الفتح' : (isLessons ? 'مقطع مرئي' : 'نموذج تدريبي');
+      const media = isLessons
+        ? `<span class="res-media"><span class="res-play">${PLAY}</span>${it.intro ? '' : `<span class="res-num">${ar(it.idx)}</span>`}</span>`
+        : `<span class="res-media"><span class="res-qn">${ar(it.idx)}</span><span class="res-pen">${PEN}</span></span>`;
+      const done = seen.includes(it.idx) ? `<span class="res-done" title="تم الفتح">${CHECK}</span>` : '';
+      if (!it.href) return `<div class="res-card is-soon" aria-disabled="true">${media}<span class="res-label">${label}</span><span class="res-hint">${hint}</span></div>`;
+      return `<a class="res-card${it.intro ? ' is-intro' : ''}${seen.includes(it.idx) ? ' is-seen' : ''}" href="${escapeHtml(it.href)}" target="_blank" rel="noopener"
+        onclick="App._openResource('${type}',${it.idx},this)">${done}${media}<span class="res-label">${label}</span><span class="res-hint">${hint}</span></a>`;
+    }).join('');
+  },
+
+  // Same beacon the old static pages sent from js/telemetry.js (identical
+  // payload shape), plus a per-viewer "opened" mark and the «تابع من حيث
+  // توقفت» pointer on /study. The link's own target="_blank" navigation is
+  // never blocked.
+  _openResource(type, idx, a) {
+    const r = State._res; if (!r) return;
+    try {
+      if (_authToken) {
+        const payload = JSON.stringify({ token: _authToken, skillKey: r.slug, resourceType: type, resourceIndex: idx, targetUrl: a.href });
+        const blob = new Blob([payload], { type: 'application/json' });
+        if (!(navigator.sendBeacon && navigator.sendBeacon('/api/telemetry/click', blob))) {
+          fetch('/api/telemetry/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
+        }
+      }
+    } catch (_) {}
+    try {
+      const all = App._resSeen(); const k = `${r.kind}:${r.slug}`;
+      all[k] = Array.from(new Set([...(all[k] || []), idx]));
+      localStorage.setItem(App._resSeenKey(), JSON.stringify(all));
+      localStorage.setItem(App._resSeenKey() + '_last', JSON.stringify({ kind: r.kind, slug: r.slug, idx, at: Date.now() }));
+    } catch (_) {}
+    setTimeout(() => App.renderSkillResources(), 300);
+  },
+
+  renderResourceCounts() {
+    const ar = n => Number(n).toLocaleString('ar-SA');
+    document.querySelectorAll('[data-res-count]').forEach(el => {
+      const [kind, slug] = el.getAttribute('data-res-count').split(':');
+      const n = App._resCount(kind, slug);
+      el.textContent = kind === 'lessons' ? `${ar(n)} مقطع` : `${ar(n)} اختبار`;
+    });
+  },
+
+  renderStudyScreen() {
+    const ar = n => Number(n).toLocaleString('ar-SA');
+    const sum = kind => SKILL_CATALOG.reduce((t, s) => t + App._resCount(kind, s.slug), 0);
+    const lm = document.getElementById('study-lessons-meta');
+    const pm = document.getElementById('study-practice-meta');
+    if (lm) lm.textContent = `${ar(sum('lessons'))} مقطعاً مرئياً`;
+    if (pm) pm.textContent = `${ar(sum('practice'))} اختباراً تدريبياً`;
+    const box = document.getElementById('study-continue');
+    if (!box) return;
+    let last = null;
+    try { last = JSON.parse(localStorage.getItem(App._resSeenKey() + '_last') || 'null'); } catch (_) {}
+    const sk = last && SKILL_BY_SLUG[last.slug];
+    if (!sk) { box.hidden = true; return; }
+    const isL = last.kind === 'lessons';
+    const what = isL ? (last.idx === 0 ? 'مقطع التأسيس' : `المقطع ${ar(last.idx)}`) : `اختبار ${ar(last.idx)}`;
+    box.hidden = false;
+    box.innerHTML = `
+      <span class="study-continue-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3 2"/></svg></span>
+      <span class="study-continue-t"><small>تابع من حيث توقفت</small><strong>${isL ? 'شروحات' : 'اختبارات'} ${escapeHtml(sk.name)} · آخر ما فتحته: ${what}</strong></span>
+      <button type="button" class="btn btn-primary btn-sm" onclick="App.openSkillResources('${last.kind}','${sk.slug}')">متابعة</button>`;
   },
 
   // Hands off to a page this merge deliberately leaves as a separate static
@@ -3682,33 +3889,32 @@ const App = {
     // Chromebook contexts) silently ignore it and navigate the SAME tab —
     // in that case the student's only way back is this button, so it has
     // to know where "back" actually means regardless of which happened.
-    const backUrl = url + (url.includes('?') ? '&' : '?') + 'from=plan';
+    const backUrl = url + '?from=plan';
     return `
       <p class="videos-note">
         تجد هنا جميع المقاطع والشروحات المتعلقة بهذه المهارة — ابدأ بمقطع التأسيس ثم انتقل للمقاطع بالترتيب.
       </p>
       <div class="videos-btn-wrap">
-        <a href="${backUrl}" target="_blank" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
+        <a href="${backUrl}" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
           عرض المقاطع التعليمية
         </a>
-        <p style="color:var(--muted);font-size:12px;margin-top:10px;">يفتح في تبويب جديد</p>
       </div>`;
   },
 
   buildQuizTab(skillId) {
     const q = (typeof SKILL_QUIZZES !== 'undefined') ? SKILL_QUIZZES[skillId] : null;
     if (q && q.urls && q.urls.length) {
-      const QUIZ_FOLDERS = {v1:'comprehension',v2:'inference',v3:'contextual',v4:'analogy',v5:'completion',q1:'arithmetic',q2:'algebra',q3:'geometry',q4:'comparison',q5:'statistics'};
-      const pageUrl = `quizzes/${QUIZ_FOLDERS[skillId] || '?skill=' + skillId}/`;
+      const sk = SKILL_BY_CODE[skillId];
+      const pageUrl = sk ? `/study/practice/${sk.slug}?from=plan` : '/study/practice';
       return `
         <p class="videos-note">
           تجد هنا جميع الاختبارات التدريبية المتعلقة بهذه المهارة — تدرّب بشكل منتظم لتحسين أدائك.
         </p>
         <div class="videos-btn-wrap">
-          <a href="${pageUrl}" target="_blank" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
+          <a href="${pageUrl}" class="sp-lesson-btn" style="font-size:15px;padding:13px 28px;">
             عرض الاختبارات التدريبية
           </a>
-          <p style="color:var(--muted);font-size:12px;margin-top:10px;">${q.urls.length >= 3 && q.urls.length <= 10 ? q.urls.length + ' اختبارات متاحة' : q.urls.length + ' اختبار متاح'} · يفتح في تبويب جديد</p>
+          <p style="color:var(--muted);font-size:12px;margin-top:10px;">${q.urls.length >= 3 && q.urls.length <= 10 ? q.urls.length + ' اختبارات متاحة' : q.urls.length + ' اختبار متاح'}</p>
         </div>`;
     }
     return `
@@ -6196,14 +6402,15 @@ const App = {
   renderFaq() {
     const el = document.getElementById('faq-list');
     if (!el) return;
+    const CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
     el.innerHTML = FAQ_DATA.map((cat, ci) => `
-      <div class="faq-cat">
-        <div class="faq-cat-title">${cat.title}</div>
+      <section class="faq-cat" id="faq-cat-${ci}" data-ci="${ci}">
+        <h2 class="faq-cat-title">${escapeHtml(cat.title)}</h2>
         ${cat.items.map((it, qi) => `
-          <div class="faq-item" id="faq-item-${ci}-${qi}">
+          <div class="faq-item" id="faq-item-${ci}-${qi}" data-search="${escapeHtml(App._faqNorm(it.q + ' ' + it.a))}">
             <button type="button" class="faq-q" aria-expanded="false" aria-controls="faq-a-${ci}-${qi}" onclick="App.toggleFaqItem(${ci},${qi})">
               <span>${escapeHtml(it.q)}</span>
-              <span class="faq-q-chevron" aria-hidden="true">▾</span>
+              <span class="faq-q-chevron" aria-hidden="true">${CHEV}</span>
             </button>
             <div class="faq-a" id="faq-a-${ci}-${qi}" aria-hidden="true">
               <div class="faq-a-inner">
@@ -6212,7 +6419,56 @@ const App = {
               </div>
             </div>
           </div>`).join('')}
-      </div>`).join('');
+      </section>`).join('');
+    const side = document.getElementById('faq-cats');
+    if (side) {
+      side.innerHTML = `<button type="button" class="faq-side-btn is-on" data-ci="all" onclick="App.jumpFaqCat('all')"><span>كل الأسئلة</span><b id="faq-side-n-all"></b></button>` +
+        FAQ_DATA.map((cat, ci) => `<button type="button" class="faq-side-btn" data-ci="${ci}" onclick="App.jumpFaqCat(${ci})"><span>${escapeHtml(cat.title)}</span><b id="faq-side-n-${ci}"></b></button>`).join('');
+    }
+    const input = document.getElementById('faq-search');
+    App.filterFaq(input ? input.value : '');
+  },
+
+  // Arabic-aware normalisation for the live FAQ search: drops diacritics and
+  // tatweel, and folds the alef / ya / ta-marbuta variants students mix up.
+  _faqNorm(t) {
+    return String(t || '').toLowerCase()
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+      .replace(/[إأآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
+      .replace(/\s+/g, ' ').trim();
+  },
+
+  filterFaq(q) {
+    const needle = App._faqNorm(q);
+    const words = needle ? needle.split(' ') : [];
+    const ar = n => Number(n).toLocaleString('ar-SA');
+    let total = 0;
+    document.querySelectorAll('#faq-list .faq-cat').forEach(cat => {
+      let n = 0;
+      cat.querySelectorAll('.faq-item').forEach(item => {
+        const hay = item.getAttribute('data-search') || '';
+        // "الخطة" should still find "خطة": a leading definite article is optional.
+        const hit = words.every(w => hay.includes(w) || (w.length > 3 && w.startsWith('ال') && hay.includes(w.slice(2))));
+        item.hidden = !hit;
+        if (hit) n++;
+      });
+      cat.hidden = n === 0;
+      total += n;
+      const b = document.getElementById('faq-side-n-' + cat.getAttribute('data-ci'));
+      if (b) b.textContent = ar(n);
+      const sb = document.querySelector(`.faq-side-btn[data-ci="${cat.getAttribute('data-ci')}"]`);
+      if (sb) sb.disabled = n === 0;
+    });
+    const all = document.getElementById('faq-side-n-all'); if (all) all.textContent = ar(total);
+    const cnt = document.getElementById('faq-search-count');
+    if (cnt) cnt.textContent = needle ? `${ar(total)} نتيجة` : '';
+    const empty = document.getElementById('faq-empty'); if (empty) empty.hidden = total !== 0;
+  },
+
+  jumpFaqCat(ci) {
+    document.querySelectorAll('.faq-side-btn').forEach(b => b.classList.toggle('is-on', String(b.getAttribute('data-ci')) === String(ci)));
+    const target = ci === 'all' ? document.getElementById('faq-list') : document.getElementById('faq-cat-' + ci);
+    if (target) target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   },
 
   toggleFaqItem(ci, qi) {
@@ -7122,6 +7378,10 @@ async function _restoreFromPathInner(screenId, params) {
     case 'screen-academic-subjects': App.selectAcademicGrade(params.grade); return true;
     case 'screen-study': show('screen-study'); return true;
     case 'screen-lessons': show('screen-lessons'); return true;
+    case 'screen-practice': App.openPractice(); return true;
+    case 'screen-skill-resources':
+      App.openSkillResources(params.kind, params.slug, new URLSearchParams(location.search).get('from') || '');
+      return true;
 
     // The take/result screens are a single timed attempt in progress —
     // same anti-cheat reasoning as the diagnostic test above.

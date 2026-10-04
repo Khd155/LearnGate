@@ -21,7 +21,7 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="/css/style.css?v=app6">
+  <link rel="stylesheet" href="/css/style.css?v=app7">
   <style>
     .diag-radio { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
     .diag-radio input { display:none; }
@@ -1505,27 +1505,31 @@
 <!-- ═══════════════════════════════════════════════════════
      SCREEN 0d: FAQ ("الأسئلة الشائعة")
 ═══════════════════════════════════════════════════════ -->
-<div id="screen-faq" class="screen">
-  <div style="background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
-              color:#fff;padding:14px 24px;display:flex;align-items:center;
-              justify-content:space-between;gap:12px;box-shadow:0 6px 24px -10px rgba(7,54,105,.55);
-              min-height:64px;">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <img src="/logo-white.png" alt="وزارة التعليم" style="height:34px;opacity:.92;">
-      <div>
-        <div style="font-size:17px;font-weight:800;">بوابة دعم التعلم</div>
-        <div style="font-size:12px;opacity:.85;">الأسئلة الشائعة</div>
+<div id="screen-faq" class="screen app-screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="/logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">الأسئلة الشائعة</div>
+      <div class="topbar-sub">إجابات سريعة عن البوابة واستخدامها</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر"></button>
+    <button class="topbar-back" onclick="goBack('screen-landing')">رجوع</button>
+  </div>
+  <div class="page-wrap faq-wrap">
+    <label class="faq-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" id="faq-search" placeholder="ابحث في الأسئلة، مثلاً: الخطة، التشخيص، رمز الدخول" autocomplete="off" oninput="App.filterFaq(this.value)">
+      <span class="faq-search-count" id="faq-search-count" aria-live="polite"></span>
+    </label>
+    <div class="faq-layout">
+      <nav class="faq-side" id="faq-cats" aria-label="تصنيفات الأسئلة"></nav>
+      <div class="faq-main">
+        <div id="faq-list"></div>
+        <div class="faq-empty" id="faq-empty" hidden>لا توجد أسئلة مطابقة. جرّب كلمة أخرى، أو تواصل مع الدعم الفني.</div>
       </div>
     </div>
-    <button onclick="goBack('screen-landing')"
-      style="background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);
-             color:#fff;border-radius:99px;padding:6px 18px;font-size:13px;
-             font-family:inherit;font-weight:700;cursor:pointer;">
-      رجوع
-    </button>
-  </div>
-  <div class="page-wrap" style="max-width:760px;">
-    <div id="faq-list"></div>
   </div>
 </div>
 
@@ -2122,22 +2126,32 @@
     <button class="topbar-back" onclick="goBack('screen-student-home')">رجوع</button>
   </div>
   <div class="page-wrap">
-    <div class="service-cards">
+    <div class="study-continue" id="study-continue" hidden></div>
+    <div class="service-cards study-cards">
       <div class="service-card active" onclick="App.openLessons()">
-        <div class="service-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg></div>
+        <div class="service-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">الشروحات</div>
           <div class="service-card-desc">مقاطع وشروحات مرئية لكل مهارة من المهارات اللفظية والكمية</div>
+          <div class="study-meta" id="study-lessons-meta"></div>
         </div>
+        <span class="service-badge badge-active">١٠ مهارات</span>
       </div>
-      <div class="service-card active" onclick="App.goToExternal('/quizzes')">
+      <div class="service-card active" onclick="App.openPractice()">
         <div class="service-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">الاختبارات التدريبية</div>
           <div class="service-card-desc">اختبارات تدريبية لقياس مستواك وتعزيز مهاراتك</div>
+          <div class="study-meta" id="study-practice-meta"></div>
         </div>
+        <span class="service-badge badge-active">١٠ مهارات</span>
       </div>
     </div>
+    <button type="button" class="study-st" onclick="App.openSelfTraining()">
+      <span class="study-st-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></svg></span>
+      <span class="study-st-t"><strong>بطاقة التدرب الذاتي</strong><small>تابع جولاتك ومهاراتك خطوة بخطوة، ويُحسب تقدمك تلقائياً من المقاطع والاختبارات التي تفتحها هنا.</small></span>
+      <span class="study-st-go">فتح البطاقة</span>
+    </button>
   </div>
 </div>
 
@@ -2161,90 +2175,234 @@
   <div class="page-wrap">
     <div class="service-section-title">القسم اللفظي</div>
     <div class="service-cards service-cards-stations">
-      <div class="service-card active" onclick="App.goToExternal('/lessons/comprehension/')">
+      <div class="service-card active" onclick="App.openSkillResources('lessons','comprehension')">
         <div class="service-card-icon" data-step="١"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">الاستيعاب القرائي</div>
           <div class="service-card-desc">فهم النصوص واستيعاب مضامينها</div>
         </div>
-        <span class="service-badge badge-active">شرح</span>
+        <span class="service-badge badge-active" data-res-count="lessons:comprehension">شرح</span>
       </div>
-      <div class="service-card active" onclick="App.goToExternal('/lessons/contextual/')">
+      <div class="service-card active" onclick="App.openSkillResources('lessons','contextual')">
         <div class="service-card-icon" data-step="٢"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">الخطأ السياقي</div>
           <div class="service-card-desc">تحديد الكلمة التي تُخل بسياق الجملة</div>
         </div>
-        <span class="service-badge badge-active">شرح</span>
+        <span class="service-badge badge-active" data-res-count="lessons:contextual">شرح</span>
       </div>
-      <div class="service-card active" onclick="App.goToExternal('/lessons/inference/')">
+      <div class="service-card active" onclick="App.openSkillResources('lessons','inference')">
         <div class="service-card-icon" data-step="٣"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">المفردة الشاذة</div>
           <div class="service-card-desc">تحديد الكلمة التي لا تنتمي للمجموعة</div>
         </div>
-        <span class="service-badge badge-active">شرح</span>
+        <span class="service-badge badge-active" data-res-count="lessons:inference">شرح</span>
       </div>
-      <div class="service-card active" onclick="App.goToExternal('/lessons/analogy/')">
+      <div class="service-card active" onclick="App.openSkillResources('lessons','analogy')">
         <div class="service-card-icon" data-step="٤"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">التناظر اللفظي</div>
           <div class="service-card-desc">إدراك العلاقة بين الكلمات والمفاهيم</div>
         </div>
-        <span class="service-badge badge-active">شرح</span>
+        <span class="service-badge badge-active" data-res-count="lessons:analogy">شرح</span>
       </div>
-      <div class="service-card active" onclick="App.goToExternal('/lessons/completion/')">
+      <div class="service-card active" onclick="App.openSkillResources('lessons','completion')">
         <div class="service-card-icon" data-step="٥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">إكمال الجمل</div>
           <div class="service-card-desc">اختيار الكلمة المناسبة لإكمال السياق</div>
         </div>
-        <span class="service-badge badge-active">شرح</span>
+        <span class="service-badge badge-active" data-res-count="lessons:completion">شرح</span>
       </div>
     </div>
     <div class="service-section-title" style="margin-top:24px;">القسم الكمي</div>
     <div class="service-cards service-cards-stations quant">
-      <div class="service-card active" onclick="App.goToExternal('/lessons/arithmetic/')">
+      <div class="service-card active" onclick="App.openSkillResources('lessons','arithmetic')">
         <div class="service-card-icon" data-step="١"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">الحساب</div>
           <div class="service-card-desc">العمليات الحسابية والنسب والمسائل</div>
         </div>
-        <span class="service-badge badge-active">شرح</span>
+        <span class="service-badge badge-active" data-res-count="lessons:arithmetic">شرح</span>
       </div>
-      <div class="service-card active" onclick="App.goToExternal('/lessons/algebra/')">
+      <div class="service-card active" onclick="App.openSkillResources('lessons','algebra')">
         <div class="service-card-icon" data-step="٢"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18L12 4Z"/><path d="M8.5 20a3.5 3.5 0 0 1 3.5-3.5"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">الجبر</div>
           <div class="service-card-desc">المعادلات والمتتابعات والمسائل الجبرية</div>
         </div>
-        <span class="service-badge badge-active">شرح</span>
+        <span class="service-badge badge-active" data-res-count="lessons:algebra">شرح</span>
       </div>
-      <div class="service-card active" onclick="App.goToExternal('/lessons/geometry/')">
+      <div class="service-card active" onclick="App.openSkillResources('lessons','geometry')">
         <div class="service-card-icon" data-step="٣"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.3 8.7 8.7 21.3a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4L15.3 2.7a1 1 0 0 1 1.4 0l4.6 4.6a1 1 0 0 1 0 1.4Z"/><path d="m7.5 10.5 2 2M10.5 7.5l2 2M13.5 4.5l2 2M4.5 13.5l2 2"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">الهندسة والقياس</div>
           <div class="service-card-desc">الأشكال الهندسية والقياس والمسائل</div>
         </div>
-        <span class="service-badge badge-active">شرح</span>
+        <span class="service-badge badge-active" data-res-count="lessons:geometry">شرح</span>
       </div>
-      <div class="service-card active" onclick="App.goToExternal('/lessons/comparison/')">
+      <div class="service-card active" onclick="App.openSkillResources('lessons','comparison')">
         <div class="service-card-icon" data-step="٤"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M5 21h14"/><path d="M3 8h18"/><path d="m6 8-3 7a3.5 3.5 0 0 0 6 0Z"/><path d="m18 8-3 7a3.5 3.5 0 0 0 6 0Z"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">المقارنات الكمية</div>
           <div class="service-card-desc">مقارنة الكميات وتحديد العلاقة بينها</div>
         </div>
-        <span class="service-badge badge-active">شرح</span>
+        <span class="service-badge badge-active" data-res-count="lessons:comparison">شرح</span>
       </div>
-      <div class="service-card active" onclick="App.goToExternal('/lessons/statistics/')">
+      <div class="service-card active" onclick="App.openSkillResources('lessons','statistics')">
         <div class="service-card-icon" data-step="٥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 16v-4"/><path d="M13 16V8"/><path d="M18 16v-7"/></svg></div>
         <div class="service-card-info">
           <div class="service-card-name">الإحصاء والاحتمالات</div>
           <div class="service-card-desc">تحليل البيانات والاحتمالات</div>
         </div>
-        <span class="service-badge badge-active">شرح</span>
+        <span class="service-badge badge-active" data-res-count="lessons:statistics">شرح</span>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: PRACTICE — «الاختبارات التدريبية» skill picker (same grid as
+     الشروحات; replaces the separate /quizzes/ static page)
+═══════════════════════════════════════════════════════ -->
+<div id="screen-practice" class="screen app-screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="/logo-white.png" alt="">
+    <div>
+      <div class="topbar-title">الاختبارات التدريبية</div>
+      <div class="topbar-sub">اختر المهارة التي تريد التدرب عليها</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر"></button>
+    <button class="topbar-back" onclick="goBack('screen-study')">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <div class="service-section-title">القسم اللفظي</div>
+    <div class="service-cards service-cards-stations">
+      <div class="service-card active" onclick="App.openSkillResources('practice','comprehension')">
+        <div class="service-card-icon" data-step="١"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg></div>
+        <div class="service-card-info">
+          <div class="service-card-name">الاستيعاب القرائي</div>
+          <div class="service-card-desc">فهم النصوص واستيعاب مضامينها</div>
+        </div>
+        <span class="service-badge badge-active" data-res-count="practice:comprehension">تدريب</span>
+      </div>
+      <div class="service-card active" onclick="App.openSkillResources('practice','contextual')">
+        <div class="service-card-icon" data-step="٢"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
+        <div class="service-card-info">
+          <div class="service-card-name">الخطأ السياقي</div>
+          <div class="service-card-desc">تحديد الكلمة التي تُخل بسياق الجملة</div>
+        </div>
+        <span class="service-badge badge-active" data-res-count="practice:contextual">تدريب</span>
+      </div>
+      <div class="service-card active" onclick="App.openSkillResources('practice','inference')">
+        <div class="service-card-icon" data-step="٣"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg></div>
+        <div class="service-card-info">
+          <div class="service-card-name">المفردة الشاذة</div>
+          <div class="service-card-desc">تحديد الكلمة التي لا تنتمي للمجموعة</div>
+        </div>
+        <span class="service-badge badge-active" data-res-count="practice:inference">تدريب</span>
+      </div>
+      <div class="service-card active" onclick="App.openSkillResources('practice','analogy')">
+        <div class="service-card-icon" data-step="٤"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></div>
+        <div class="service-card-info">
+          <div class="service-card-name">التناظر اللفظي</div>
+          <div class="service-card-desc">إدراك العلاقة بين الكلمات والمفاهيم</div>
+        </div>
+        <span class="service-badge badge-active" data-res-count="practice:analogy">تدريب</span>
+      </div>
+      <div class="service-card active" onclick="App.openSkillResources('practice','completion')">
+        <div class="service-card-icon" data-step="٥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+        <div class="service-card-info">
+          <div class="service-card-name">إكمال الجمل</div>
+          <div class="service-card-desc">اختيار الكلمة المناسبة لإكمال السياق</div>
+        </div>
+        <span class="service-badge badge-active" data-res-count="practice:completion">تدريب</span>
+      </div>
+    </div>
+    <div class="service-section-title" style="margin-top:24px;">القسم الكمي</div>
+    <div class="service-cards service-cards-stations quant">
+      <div class="service-card active" onclick="App.openSkillResources('practice','arithmetic')">
+        <div class="service-card-icon" data-step="١"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg></div>
+        <div class="service-card-info">
+          <div class="service-card-name">الحساب</div>
+          <div class="service-card-desc">العمليات الحسابية والنسب والمسائل</div>
+        </div>
+        <span class="service-badge badge-active" data-res-count="practice:arithmetic">تدريب</span>
+      </div>
+      <div class="service-card active" onclick="App.openSkillResources('practice','algebra')">
+        <div class="service-card-icon" data-step="٢"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18L12 4Z"/><path d="M8.5 20a3.5 3.5 0 0 1 3.5-3.5"/></svg></div>
+        <div class="service-card-info">
+          <div class="service-card-name">الجبر</div>
+          <div class="service-card-desc">المعادلات والمتتابعات والمسائل الجبرية</div>
+        </div>
+        <span class="service-badge badge-active" data-res-count="practice:algebra">تدريب</span>
+      </div>
+      <div class="service-card active" onclick="App.openSkillResources('practice','geometry')">
+        <div class="service-card-icon" data-step="٣"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.3 8.7 8.7 21.3a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4L15.3 2.7a1 1 0 0 1 1.4 0l4.6 4.6a1 1 0 0 1 0 1.4Z"/><path d="m7.5 10.5 2 2M10.5 7.5l2 2M13.5 4.5l2 2M4.5 13.5l2 2"/></svg></div>
+        <div class="service-card-info">
+          <div class="service-card-name">الهندسة والقياس</div>
+          <div class="service-card-desc">الأشكال الهندسية والقياس والمسائل</div>
+        </div>
+        <span class="service-badge badge-active" data-res-count="practice:geometry">تدريب</span>
+      </div>
+      <div class="service-card active" onclick="App.openSkillResources('practice','comparison')">
+        <div class="service-card-icon" data-step="٤"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M5 21h14"/><path d="M3 8h18"/><path d="m6 8-3 7a3.5 3.5 0 0 0 6 0Z"/><path d="m18 8-3 7a3.5 3.5 0 0 0 6 0Z"/></svg></div>
+        <div class="service-card-info">
+          <div class="service-card-name">المقارنات الكمية</div>
+          <div class="service-card-desc">مقارنة الكميات وتحديد العلاقة بينها</div>
+        </div>
+        <span class="service-badge badge-active" data-res-count="practice:comparison">تدريب</span>
+      </div>
+      <div class="service-card active" onclick="App.openSkillResources('practice','statistics')">
+        <div class="service-card-icon" data-step="٥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 16v-4"/><path d="M13 16V8"/><path d="M18 16v-7"/></svg></div>
+        <div class="service-card-info">
+          <div class="service-card-name">الإحصاء والاحتمالات</div>
+          <div class="service-card-desc">تحليل البيانات والاحتمالات</div>
+        </div>
+        <span class="service-badge badge-active" data-res-count="practice:statistics">تدريب</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: SKILL RESOURCES — one template for all ten skills, both kinds
+     (lesson videos / practice forms). Rendered by App.renderSkillResources()
+     from LESSON_VIDEOS (js/lessons-data.js) and SKILL_QUIZZES (js/data.js).
+     Routes: /study/lessons/<slug>, /study/practice/<slug>.
+═══════════════════════════════════════════════════════ -->
+<div id="screen-skill-resources" class="screen app-screen">
+  <div class="topbar">
+    <img class="topbar-logo" src="/logo-white.png" alt="">
+    <div>
+      <div class="topbar-title" id="res-topbar-title">الشروحات</div>
+      <div class="topbar-sub" id="res-topbar-sub">بوابة دعم التعلم</div>
+    </div>
+    <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
+    <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" style="display:none;" onclick="App.toggleTheme()" title="تبديل المظهر"></button>
+    <button class="topbar-back" onclick="App.backFromSkillResources()">رجوع</button>
+  </div>
+  <div class="page-wrap">
+    <section class="res-hero">
+      <div class="res-hero-top">
+        <span class="res-pill" id="res-pill"></span>
+        <div class="res-switch" role="tablist" aria-label="نوع المحتوى">
+          <button type="button" role="tab" id="res-tab-lessons" onclick="App.switchSkillResources('lessons')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/></svg><span>الشروحات</span></button>
+          <button type="button" role="tab" id="res-tab-practice" onclick="App.switchSkillResources('practice')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>الاختبارات التدريبية</span></button>
+        </div>
+      </div>
+      <h1 class="res-title" id="res-title"></h1>
+      <p class="res-sub" id="res-sub"></p>
+      <div class="res-stats" id="res-stats"></div>
+    </section>
+    <div class="res-tip" id="res-tip"></div>
+    <div class="res-head"><h2 id="res-grid-title">المقاطع المتاحة</h2><span class="res-count" id="res-count"></span></div>
+    <div class="res-grid" id="res-grid"></div>
   </div>
 </div>
 
@@ -4350,7 +4508,8 @@
 </div>
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
-<script src="/js/app.js?v=app5" defer></script>
-<script src="/js/self-training.js?v=st2" defer></script>
+<script src="/js/lessons-data.js?v=ld1" defer></script>
+<script src="/js/app.js?v=app6" defer></script>
+<script src="/js/self-training.js?v=st3" defer></script>
 </body>
 </html>

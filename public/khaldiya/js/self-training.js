@@ -6,9 +6,9 @@
       functions/_lib/self-training.js — a test enforces it.
    2) Progress is NOT entered by the student. It is derived from what they
       actually did (GET /api/self-training -> activity):
-        - foundational clip / training clips: clicks on /lessons/<slug>/
-          (logged by js/telemetry.js: index 0 = foundational, N = clip N);
-        - «تدرب الآن» models: clicks on /quizzes/<slug>/ practice forms;
+        - foundational clip / training clips: clicks on /study/lessons/<slug> (in-app)
+          (beacon from App._openResource: index 0 = foundational, N = clip N);
+        - «تدرب الآن» models: clicks on /study/practice/<slug> practice forms;
         - evaluation levels: the in-app quizzes (skill_progress).
       progressFromActivity() turns that into state.progress, keyed
       "roundId:skillId" -> { intro, clips, models, levels }, which every
@@ -459,8 +459,8 @@
       ${full ? `<p class="st-done-note">${ICON.check}<span>أنهيت ${esc(skill.name)} في ${esc(round.name)}. ${ki + 1 < sec.skills.length ? 'انتقل إلى المهارة التالية: ' + esc(sec.skills[ki + 1].name) + '.' : 'راجع بقية المهارات حتى يكتمل ' + esc(sec.name) + '.'}</span></p>` : ''}`;
   }
 
-  const lessonUrl = (skillId) => '/lessons/' + SOURCES[skillId].slug + '/?from=self-training';
-  const practiceUrl = (skillId) => '/quizzes/' + SOURCES[skillId].slug + '/?from=self-training';
+  const lessonUrl = (skillId) => '/study/lessons/' + SOURCES[skillId].slug + '?from=self-training';
+  const practiceUrl = (skillId) => '/study/practice/' + SOURCES[skillId].slug + '?from=self-training';
   const LEVEL_TEXT = ['لم تبدأ', 'بدأت', 'مكتملة'];
 
   function stepHTML(key, round, r, locked, n, cls, d, skip) {
@@ -473,10 +473,10 @@
       return `<li class="st-step ${cls}">${mk}<div class="st-step-b">
         <h3>${SKIP_TITLE[key]} <span class="st-pill skip">تدريب خارجي</span></h3>
         <p class="st-q">تخطّيتها لأنك تتدرب من مصدر خارجي. يمكنك الرجوع إليها متى شئت.</p>
-        <div class="st-actions"><a class="st-link" href="${href}" target="_blank" rel="noopener">${STEP_ICON[key]}<span>فتح ${SKIP_TITLE[key]}</span></a></div></div></li>`;
+        <div class="st-actions"><a class="st-link" href="${href}">${STEP_ICON[key]}<span>فتح ${SKIP_TITLE[key]}</span></a></div></div></li>`;
     }
     const lockMsg = locked && !d ? `<p class="st-lockmsg">${ICON.route}<span>يُنصح بإكمال الخطوة ${ar(n - 1)} أولًا</span></p>` : '';
-    const link = (href, text, icon) => `<a class="st-act" href="${href}" target="_blank" rel="noopener">${icon}<span>${text}</span></a>`;
+    const link = (href, text, icon) => `<a class="st-act" href="${href}">${icon}<span>${text}</span></a>`;
     let title, status, hint, ctl = '', action = '';
     if (key === 'intro') {
       title = 'المقطع التأسيسي';

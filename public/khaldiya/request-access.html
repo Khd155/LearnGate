@@ -109,7 +109,7 @@
     .ra-radio-card input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
     .ra-radio-card:hover { transform: translateY(-1px); background: rgba(255,255,255,.2); }
     .ra-radio-card:has(input:checked) {
-      background: #fff; color: var(--primary-dk); border-color: #fff;
+      background: #fff; color: var(--primary-fill); border-color: #fff;
       font-weight: 800; box-shadow: 0 8px 22px -8px rgba(0,0,0,.35);
     }
 
@@ -178,6 +178,7 @@
       .ra-radio-card { font-size: 12px; padding: 9px 4px; }
     }
   </style>
+<script>!function(){try{var t=localStorage.getItem("theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}}();</script>
 </head>
 <body class="ra-body">
   <div class="ra-glow ra-glow-a" aria-hidden="true"></div>
@@ -267,7 +268,7 @@
       </div>
       <h2>تم استلام طلبك بنجاح</h2>
       <p>طلبك الآن قيد المراجعة لدى الإدارة، وسيتم إرسال بيانات الدخول إلى حسابك عبر واتساب فور الاعتماد.</p>
-      <a href="/">← العودة إلى الصفحة الرئيسية</a>
+      <a href="/">العودة إلى الصفحة الرئيسية</a>
     </div>
 
     <div class="ra-unavailable" id="raUnavailable">

@@ -21,7 +21,7 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="/css/style.css?v=app9">
+  <link rel="stylesheet" href="/css/style.css?v=app11">
   <style>
     .diag-radio { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
     .diag-radio input { display:none; }
@@ -147,7 +147,7 @@
     .sp-table tbody tr:nth-child(even) { background:var(--bg-tint); }
     .sp-lesson-btn {
       display:inline-flex; align-items:center; gap:6px;
-      background:var(--primary); color:#fff; border-radius:10px;
+      background:var(--primary-fill); color:#fff; border-radius:10px;
       padding:7px 14px; font-size:13px; font-weight:700;
       text-decoration:none; font-family:inherit; transition:opacity .2s;
       white-space:nowrap;
@@ -185,7 +185,7 @@
     }
     .skill-card-rank {
       width:26px; height:26px; border-radius:50%;
-      background:var(--primary); color:#fff;
+      background:var(--primary-fill); color:#fff;
       display:flex; align-items:center; justify-content:center;
       font-size:12px; font-weight:800; flex-shrink:0;
     }
@@ -337,17 +337,17 @@
     .sp-training-table tbody tr:nth-child(even) { background:var(--bg-tint); }
     .sp-training-table tbody tr:nth-child(even) td:first-child { background:var(--bg-tint); }
     .sp-training-table .row-span td {
-      background:#fff8e1 !important; font-weight:700; color:#7c4d00;
-      text-align:center; border-bottom:2px solid #ffe082;
+      background:var(--tint-warn-bg) !important; font-weight:700; color:var(--tx-warn);
+      text-align:center; border-bottom:2px solid var(--tint-warn-bd);
     }
     .sp-training-table .row-span td:first-child {
-      background:#fff3cd !important; color:#7c4d00;
+      background:var(--tint-warn-bg) !important; color:var(--tx-warn);
     }
     .sp-training-note {
       margin-top:12px; padding:10px 14px;
-      background:#fffbeb; border:1.5px solid #fde68a;
+      background:var(--tint-warn-bg); border:1.5px solid var(--tint-warn-bd);
       border-radius:10px; font-size:13px; line-height:1.75;
-      color:#78350f; display:flex; gap:8px; align-items:flex-start;
+      color:var(--tx-warn); display:flex; gap:8px; align-items:flex-start;
     }
 
     /* ── FAQ ("الأسئلة الشائعة") ─────────────────────── */
@@ -395,7 +395,7 @@
     .faq-a-text { padding:0 16px 16px; font-size:13px; color:var(--muted); line-height:1.85; margin-bottom:10px; }
     .faq-a-btn {
       display:inline-flex; align-items:center; gap:6px;
-      margin:0 16px 16px; background:var(--primary); color:#fff; border:none; border-radius:9px;
+      margin:0 16px 16px; background:var(--primary-fill); color:#fff; border:none; border-radius:9px;
       padding:8px 16px; font-size:12.5px; font-weight:700;
       font-family:inherit; cursor:pointer; transition:opacity .15s cubic-bezier(.2,0,0,1);
     }
@@ -556,7 +556,7 @@
     .lp-btn-dark:hover { transform: translateY(-1px); box-shadow: 0 12px 28px -10px rgba(15,23,42,.75); }
     .lp-btn-ghost { background: transparent; color: var(--lp-ink); border-color: var(--border-strong); }
     .lp-btn-ghost:hover { background: var(--surface); border-color: var(--primary); color: var(--primary-dk); }
-    .lp-btn-white { background: #fff; color: var(--primary-dk); }
+    .lp-btn-white { background: #fff; color: var(--primary-fill); }
     .lp-btn-white:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -12px rgba(0,0,0,.35); }
     .lp-btn-outline-light { background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
     .lp-btn-outline-light:hover { background: rgba(255,255,255,.12); border-color: #fff; }
@@ -890,8 +890,7 @@
      SCREEN LOADING (auto-login fast path)
 ═══════════════════════════════════════════════════════ -->
 <div id="screen-loading" class="screen">
-  <div style="min-height:100vh;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
-              background:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);">
+  <div class="loading-shell">
     <img src="/logo-white.png" alt="وزارة التعليم" style="height:64px;margin-bottom:28px;opacity:.92;">
     <div style="width:52px;height:52px;border:5px solid rgba(255,255,255,.25);border-top-color:#fff;
                 border-radius:50%;animation:spin .8s linear infinite;margin-bottom:22px;"></div>
@@ -1784,7 +1783,7 @@
 <!-- ═══════════════════════════════════════════════════════
      SCREEN: SUPPORT ADMIN LOGIN
 ═══════════════════════════════════════════════════════ -->
-<div id="screen-support-login" class="screen">
+<div id="screen-support-login" class="screen app-screen">
   <div class="topbar">
     <img class="topbar-logo" src="/logo-white.png" alt="">
     <div>
@@ -1792,6 +1791,7 @@
       <div class="topbar-sub">لفريق الدعم الفني</div>
     </div>
     <div style="flex:1;min-width:8px;"></div>
+    <button class="tb-theme-btn" onclick="App.toggleTheme()" title="تبديل المظهر"></button>
     <button class="topbar-back" onclick="goBack('screen-admin-login')">رجوع</button>
   </div>
   <div class="page-wrap" style="display:flex;flex-direction:column;justify-content:center;flex:1;">
@@ -1811,7 +1811,7 @@
 <!-- ═══════════════════════════════════════════════════════
      SCREEN: SUPPORT ADMIN DASHBOARD
 ═══════════════════════════════════════════════════════ -->
-<div id="screen-support-admin" class="screen">
+<div id="screen-support-admin" class="screen app-screen">
   <div class="topbar">
     <img class="topbar-logo" src="/logo-white.png" alt="">
     <div>
@@ -1849,7 +1849,7 @@
       <div id="sa-log-filter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
         <button class="filter-chip active" onclick="App.filterLog('all',this)">الكل</button>
         <button class="filter-chip" onclick="App.filterLog('success',this)">نجاح</button>
-        <button class="filter-chip" onclick="App.filterLog('info',this)">ℹ️ معلومة</button>
+        <button class="filter-chip" onclick="App.filterLog('info',this)">معلومة</button>
         <button class="filter-chip" onclick="App.filterLog('warn',this)">تحذير</button>
         <button class="filter-chip" onclick="App.filterLog('error',this)">خطأ</button>
       </div>
@@ -1860,13 +1860,13 @@
 
 <!-- Phone gate modal — non-dismissible overlay shown on top of home screen -->
 <div id="phone-gate-modal" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(15,23,42,.7);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px;">
-  <div style="background:#fff;border-radius:24px;width:100%;max-width:400px;padding:36px 28px;box-shadow:0 32px 64px -16px rgba(7,54,105,.55);text-align:center;">
+  <div class="pg-box">
     <div style="font-size:48px;margin-bottom:12px;"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg></div>
-    <h2 style="font-size:20px;font-weight:800;color:#1e293b;margin-bottom:8px;">أضف رقم جوالك</h2>
-    <p style="font-size:14px;color:#64748b;margin-bottom:24px;line-height:1.6;">نحتاج رقم جوالك لتتمكن من التواصل مع المشرف وتلقي الإشعارات.</p>
-    <input id="req-phone-input" type="tel" dir="ltr" maxlength="10" placeholder="05xxxxxxxx" onkeydown="if(event.key==='Enter')App.submitRequiredPhone()" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;font-size:16px;font-family:inherit;text-align:center;outline:none;transition:border-color .2s;box-sizing:border-box;margin-bottom:8px;" onfocus="this.style.borderColor='#3F7CB8'" onblur="this.style.borderColor='#e2e8f0'">
-    <div id="req-phone-err" style="display:none;color:#ef4444;font-size:13px;font-weight:600;margin-bottom:8px;"></div>
-    <button id="req-phone-btn" onclick="App.submitRequiredPhone()" style="width:100%;background:linear-gradient(135deg,#3F7CB8,#4FA877);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;margin-top:4px;transition:opacity .2s;" onmouseenter="this.style.opacity='.9'" onmouseleave="this.style.opacity='1'">حفظ ومتابعة</button>
+    <h2 class="pg-title">أضف رقم جوالك</h2>
+    <p class="pg-text">نحتاج رقم جوالك لتتمكن من التواصل مع المشرف وتلقي الإشعارات.</p>
+    <input id="req-phone-input" class="form-input pg-input" type="tel" dir="ltr" maxlength="10" placeholder="05xxxxxxxx" onkeydown="if(event.key==='Enter')App.submitRequiredPhone()">
+    <div id="req-phone-err" class="tx-danger" style="display:none;font-size:13px;margin-bottom:8px;"></div>
+    <button id="req-phone-btn" class="btn btn-primary btn-full" onclick="App.submitRequiredPhone()">حفظ ومتابعة</button>
   </div>
 </div>
 <!-- ═══════════════════════════════════════════════════════
@@ -2476,18 +2476,16 @@
           <span style="display:block;margin-top:6px;line-height:1.8;">
             يهدف هذا الاختبار إلى تحديد مستواك القبلي، وهذا القسم يتطلب أن تكون مهيأً له في وقت مناسب ومكان يساعد على التركيز.
           </span>
-          <div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:8px;
-                      padding:10px 14px;margin-top:10px;font-size:13.5px;line-height:1.75;">
+          <div class="note-warn">
             <strong>ملاحظة مهمة:</strong> في السؤال الذي لا تعرف إجابته لا تختر إجابة عشوائية أو بمجرد التخمين، بل اختر خيار <strong>"لا أعرف الإجابة"</strong> حتى تحصل على نتائج مطابقة لمستواك الفعلي.
           </div>
         </div>
       </div>
     </div>
 
-    <div class="intro-box" style="margin-bottom:24px;
-         background:linear-gradient(135deg,#dcfce7,#d1fae5);border-color:#86efac;">
-      <strong style="font-size:15px;color:#166534;">ماذا بعد الانتهاء من الاختبار التشخيصي؟</strong>
-      <p style="font-size:13.5px;color:#15803d;margin-top:8px;line-height:1.8;">
+    <div class="intro-box intro-next">
+      <strong class="intro-next-t">ماذا بعد الانتهاء من الاختبار التشخيصي؟</strong>
+      <p class="intro-next-p">
         ستظهر لك مسودة الخطة متضمنةً الفجوات التي تتطلب منك التدرب عليها، ثم تنتقل لاختيار المواد العلمية المناسبة لمستواك بإشراف من الموجه المختص.
       </p>
     </div>
@@ -2518,9 +2516,9 @@
   </div>
   <div class="page-wrap">
     <div class="alert alert-info show" style="margin-bottom:20px;">
-      <span style="color:#15803d;font-weight:800;">● متقن</span> &nbsp;|&nbsp;
-      <span style="color:#b45309;font-weight:800;">● متوسط</span> &nbsp;|&nbsp;
-      <span style="color:#dc2626;font-weight:800;">● غير متقن</span>
+      <span class="tx-good">● متقن</span> &nbsp;|&nbsp;
+      <span class="tx-warn">● متوسط</span> &nbsp;|&nbsp;
+      <span class="tx-danger">● غير متقن</span>
     </div>
     <div id="selfdiag-content"></div>
     <div style="margin-top:24px;">
@@ -2601,9 +2599,7 @@
 
     <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:32px;">
 
-      <div style="display:flex;gap:14px;align-items:flex-start;
-                  background:#f7fafd;border-radius:12px;padding:14px 16px;
-                  border-right:4px solid var(--primary);">
+      <div class="pi-card">
         <span style="font-size:22px;flex-shrink:0;"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg></span>
         <div>
           <div style="font-weight:800;font-size:14px;margin-bottom:3px;">محتوى الاختبار</div>
@@ -2613,9 +2609,7 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:14px;align-items:flex-start;
-                  background:#f7fafd;border-radius:12px;padding:14px 16px;
-                  border-right:4px solid var(--primary);">
+      <div class="pi-card">
         <span style="font-size:22px;flex-shrink:0;"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg></span>
         <div>
           <div style="font-weight:800;font-size:14px;margin-bottom:3px;">طريقة الإجابة</div>
@@ -2625,9 +2619,7 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:14px;align-items:flex-start;
-                  background:#f7fafd;border-radius:12px;padding:14px 16px;
-                  border-right:4px solid var(--primary);">
+      <div class="pi-card">
         <span style="font-size:22px;flex-shrink:0;"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2Z"/></svg></span>
         <div>
           <div style="font-weight:800;font-size:15px;margin-bottom:5px;">نصيحة</div>
@@ -2637,12 +2629,10 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:14px;align-items:flex-start;
-                  background:#fff7ed;border-radius:12px;padding:14px 16px;
-                  border-right:4px solid #f97316;">
+      <div class="pi-card is-time">
         <span style="font-size:22px;flex-shrink:0;"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3 2"/></svg></span>
         <div>
-          <div style="font-weight:800;font-size:14px;margin-bottom:3px;color:#c2410c;">مدة الاختبار: 50 دقيقة</div>
+          <div class="pi-time-title" style="font-weight:800;font-size:14px;margin-bottom:3px;">مدة الاختبار: 50 دقيقة</div>
           <div style="font-size:13.5px;color:var(--text);line-height:1.7;">
             يبدأ العدّ التنازلي فور الضغط على زر البدء. عند انتهاء الوقت <strong>يُسلَّم الاختبار تلقائياً</strong> بما أجبت عنه حتى تلك اللحظة.
           </div>
@@ -4008,7 +3998,7 @@
     <img class="topbar-logo" src="/logo-white.png" alt="">
     <div>
       <div class="topbar-title">الدعم الفني</div>
-      <div class="topbar-sub" style="font-size:11px;color:rgba(255,255,255,.65);margin-top:1px;">متابعة وإرسال تذاكر الدعم والمساعدة</div>
+      <div class="topbar-sub">متابعة وإرسال تذاكر الدعم والمساعدة</div>
     </div>
     <span class="tb-chip tb-uname" style="display:none;"><span class="tb-dot"></span><span class="tb-uname-text"></span></span>
     <div style="flex:1;min-width:8px;"></div>
@@ -4022,9 +4012,7 @@
     <div id="st-ticket-list"></div>
     <!-- New ticket button -->
     <button class="btn btn-primary btn-full" onclick="App.openNewTicketModal()"
-      style="margin-top:16px;padding:14px;font-size:15px;border-radius:14px;
-             background:linear-gradient(135deg,var(--primary),#4FA877);border:none;
-             box-shadow:0 4px 16px rgba(63,124,184,.35);">
+      style="margin-top:16px;padding:14px;font-size:15px;border-radius:14px;">
       رفع طلب جديد
     </button>
   </div>
@@ -4119,13 +4107,13 @@
     <!-- Step 3: Details -->
     <div class="form-group">
       <label class="form-label">التفاصيل <span style="color:var(--danger)">*</span></label>
-      <textarea id="nt-body" class="form-input" id="nt-body" rows="4"
+      <textarea id="nt-body" class="form-input" rows="4"
         placeholder="اشرح المشكلة بالتفصيل..." style="resize:vertical;"></textarea>
     </div>
 
     <!-- Urgency toggle -->
     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;margin-bottom:14px;user-select:none;">
-      <input type="checkbox" id="nt-urgent" style="width:18px;height:18px;accent-color:#ef4444;cursor:pointer;">
+      <input type="checkbox" id="nt-urgent" style="width:18px;height:18px;accent-color:var(--danger);cursor:pointer;">
       <span style="font-size:13px;font-weight:600;color:var(--text);">هذا الطلب عاجل</span>
     </label>
 
@@ -4222,8 +4210,8 @@
     <!-- Chat -->
     <div class="ticket-chat" id="td-thread"></div>
     <!-- Rating (shown after resolve for student) -->
-    <div id="td-rating-area" style="display:none;background:#fffbeb;border-top:1px solid #fde68a;padding:12px 16px;text-align:center;flex-shrink:0;">
-      <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px;">قيّم جودة الخدمة</div>
+    <div id="td-rating-area" class="td-rating" style="display:none;">
+      <div class="td-rating-t">قيّم جودة الخدمة</div>
       <div class="star-rating" id="td-stars" style="font-size:26px;">
         <span onclick="App.rateTicket(1)">☆</span>
         <span onclick="App.rateTicket(2)">☆</span>
@@ -4237,7 +4225,7 @@
       <textarea id="td-reply-input" class="form-input" rows="2" placeholder="اكتب ردك هنا..." style="resize:none;margin-bottom:8px;"></textarea>
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
         <button class="btn btn-outline" style="font-size:13px;" onclick="App.closeTicketDetail()">إغلاق</button>
-        <button class="btn btn-outline" id="td-student-close-btn" style="display:none;font-size:13px;" onclick="App.studentCloseTicket()">✔ تم الحل</button>
+        <button class="btn btn-outline" id="td-student-close-btn" style="display:none;font-size:13px;" onclick="App.studentCloseTicket()">تم الحل</button>
         <button class="btn btn-outline" id="td-resolve-btn" style="display:none;font-size:13px;" onclick="App.resolveTicket()">حل التذكرة</button>
         <button class="btn btn-primary" id="td-send-btn" style="font-size:13px;" onclick="App.sendTicketReply()">إرسال</button>
       </div>
@@ -4445,7 +4433,7 @@
 
 <script src="/js/data.js?v=a1b2c3d" defer></script>
 <script src="/js/lessons-data.js?v=ld1" defer></script>
-<script src="/js/app.js?v=app8" defer></script>
+<script src="/js/app.js?v=app10" defer></script>
 <script src="/js/self-training.js?v=st3" defer></script>
 </body>
 </html>

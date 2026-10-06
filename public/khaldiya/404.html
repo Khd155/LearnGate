@@ -11,12 +11,18 @@
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --primary:#3F7CB8;--accent:#4FA877;
-    --grad:linear-gradient(135deg,#3F7CB8 0%,#4A96A0 55%,#4FA877 100%);
-    --bg:#f4f8fb;--surface:#fff;--border:#e2e8f0;
-    --text:#0f172a;--muted:#64748b;
-    --radius:16px;--shadow:0 8px 24px -8px rgba(63,124,184,.20);
+    --primary:#356FA6;--accent:#4FA877;
+    --grad:linear-gradient(135deg,#356FA6 0%,#3E8790 55%,#3E8F63 100%);
+    --bg:#f4f8fb;--surface:rgba(255,255,255,.82);--border:#e2e8f0;
+    --text:#0f172a;--muted:#475569;--bad-bg:#fee2e2;--bad-tx:#b91c1c;
+    --radius:16px;--shadow:0 30px 70px -28px rgba(63,124,184,.45),0 2px 8px rgba(15,23,42,.05);
   }
+  :root[data-theme="dark"]{
+    --primary:#8FC0E8;--bg:#0f1720;--surface:rgba(26,37,48,.82);--border:#2b3947;
+    --text:#e7edf3;--muted:#9fb0c0;--bad-bg:rgba(241,101,101,.14);--bad-tx:#fca5a5;
+    --shadow:0 30px 70px -28px rgba(0,0,0,.7);
+  }
+  body{background:radial-gradient(520px 360px at 88% -60px,rgba(63,124,184,.2),transparent 70%),radial-gradient(480px 340px at 6% 100%,rgba(79,168,119,.16),transparent 70%),var(--bg) !important;}
   html,body{
     min-height:100vh;font-family:'Tajawal','Cairo',Arial,sans-serif;
     background:var(--bg);color:var(--text);direction:rtl;
@@ -25,8 +31,9 @@
   }
 
   .card{
-    background:var(--surface);border:1.5px solid var(--border);
-    border-radius:24px;box-shadow:var(--shadow);
+    background:var(--surface);border:1px solid var(--border);
+    -webkit-backdrop-filter:blur(22px) saturate(160%);backdrop-filter:blur(22px) saturate(160%);
+    border-radius:28px;box-shadow:var(--shadow);
     padding:48px 40px;text-align:center;max-width:480px;width:calc(100% - 40px);
   }
 
@@ -35,7 +42,8 @@
     background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
     background-clip:text;margin-bottom:8px;
   }
-  .error-icon{font-size:48px;margin-bottom:16px;display:block;}
+  .error-icon{display:flex;justify-content:center;margin-bottom:16px;color:var(--primary);}
+  .error-icon svg{width:48px;height:48px;}
   h1{font-family:'Cairo',sans-serif;font-size:22px;font-weight:800;margin-bottom:10px;color:var(--text);}
   p{font-size:14px;color:var(--muted);line-height:1.8;margin-bottom:28px;}
 
@@ -65,15 +73,16 @@
   .btn:hover{opacity:.85;}
 
   .path-hint{
-    display:inline-block;margin-top:18px;background:#fee2e2;color:#b91c1c;
+    display:inline-block;margin-top:18px;background:var(--bad-bg);color:var(--bad-tx);
     border-radius:8px;padding:4px 14px;font-size:12px;font-weight:700;
     font-family:monospace;word-break:break-all;max-width:100%;
   }
 </style>
+<script>!function(){try{var t=localStorage.getItem("theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}}();</script>
 </head>
 <body>
 <div class="card">
-  <span class="error-icon">🔍</span>
+  <span class="error-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M8.5 8.5l5 5M13.5 8.5l-5 5"/></svg></span>
   <div class="error-code">404</div>
   <h1>الصفحة غير موجودة</h1>
   <p>يبدو أن الرابط الذي فتحته غير صحيح أو تم حذفه.<br>سيتم تحويلك للصفحة الرئيسية تلقائياً.</p>
@@ -94,7 +103,7 @@
     <div class="countdown-num" id="num">3</div>
   </div>
 
-  <a class="btn" href="/">← الصفحة الرئيسية</a>
+  <a class="btn" href="/">الصفحة الرئيسية</a>
 </div>
 
 <script>
@@ -102,7 +111,7 @@
   const p = location.pathname;
   document.getElementById('path-display').textContent = p;
 
-  // Countdown 3 → 0 then redirect
+  // Countdown 3 to 0, then redirect
   const TOTAL = 3;
   const circumference = 2 * Math.PI * 28; // ≈ 175.9
   const ring = document.getElementById('ring');

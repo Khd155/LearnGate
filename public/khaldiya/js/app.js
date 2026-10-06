@@ -2847,7 +2847,7 @@ const App = {
       const { tests } = await apiFetch('/general-tests');
       App.renderGeneralTestsList(tests);
     } catch (e) {
-      list.innerHTML = '<div style="text-align:center;color:#dc2626;padding:24px;">تعذّر تحميل الاختبارات</div>';
+      list.innerHTML = '<div class="tx-danger" style="text-align:center;padding:24px;">تعذّر تحميل الاختبارات</div>';
     }
   },
 
@@ -3034,7 +3034,7 @@ const App = {
       State._quizTree = tree;
       App.renderQuizProgress();
     } catch (e) {
-      el.innerHTML = '<div style="text-align:center;color:#dc2626;padding:24px;">تعذّر تحميل المؤشرات</div>';
+      el.innerHTML = '<div class="tx-danger" style="text-align:center;padding:24px;">تعذّر تحميل المؤشرات</div>';
     }
   },
 
@@ -3084,7 +3084,7 @@ const App = {
       State._quizTree = tree;
       App.renderQuizHub();
     } catch (e) {
-      el.innerHTML = '<div style="text-align:center;color:#dc2626;padding:24px;">تعذّر تحميل الاختبارات</div>';
+      el.innerHTML = '<div class="tx-danger" style="text-align:center;padding:24px;">تعذّر تحميل الاختبارات</div>';
     }
   },
 
@@ -4742,7 +4742,7 @@ const App = {
            ondragleave="App._dragLeave(event)"
            ondragend="App._dragEnd(event)">
         <div style="color:#cbd5e1;font-size:20px;cursor:grab;flex-shrink:0;padding:0 2px;line-height:1;" title="اسحب لإعادة الترتيب">⠿</div>
-        <div style="min-width:36px;height:36px;border-radius:8px;background:var(--primary);color:#fff;
+        <div style="min-width:36px;height:36px;border-radius:8px;background:var(--primary-fill);color:#fff;
                     display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">
           ${q.qnum}
         </div>
@@ -5859,9 +5859,7 @@ const App = {
         <td>${date}</td>
         <td style="text-align:center;"><span class="gap-score ${cls}">${avg}%</span></td>
         <td style="text-align:center;">
-          <button onclick="App.viewAttempt(${i})"
-                  style="background:var(--primary);color:#fff;border:none;border-radius:8px;
-                         padding:6px 14px;font-size:12px;font-family:inherit;cursor:pointer;">
+          <button class="btn btn-primary btn-sm" onclick="App.viewAttempt(${i})">
             عرض
           </button>
         </td>
@@ -6256,9 +6254,9 @@ const App = {
         const resolved = tickets.filter(t => t.status === 'resolved').length;
         statsBar.style.display = tickets.length ? 'grid' : 'none';
         statsBar.innerHTML = `
-          <div class="tstat-mini"><div class="tstat-mini-val" style="color:#1e40af;">${open}</div><div class="tstat-mini-lbl">مفتوحة</div></div>
-          <div class="tstat-mini"><div class="tstat-mini-val" style="color:#854d0e;">${progress}</div><div class="tstat-mini-lbl">قيد المعالجة</div></div>
-          <div class="tstat-mini"><div class="tstat-mini-val" style="color:#166534;">${resolved}</div><div class="tstat-mini-lbl">تم الحل</div></div>`;
+          <div class="tstat-mini"><div class="tstat-mini-val tx-info">${open}</div><div class="tstat-mini-lbl">مفتوحة</div></div>
+          <div class="tstat-mini"><div class="tstat-mini-val tx-warn">${progress}</div><div class="tstat-mini-lbl">قيد المعالجة</div></div>
+          <div class="tstat-mini"><div class="tstat-mini-val tx-good">${resolved}</div><div class="tstat-mini-lbl">تم الحل</div></div>`;
       }
 
       // Notification badge
@@ -6290,9 +6288,9 @@ const App = {
         const date       = new Date(t.created_at).toLocaleDateString('ar-SA', { day:'numeric', month:'short', year:'numeric' });
         const catIcon    = catIcons[t.category] || '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg>';
         const unreadBadge = t.unread_count > 0
-          ? `<span style="background:#dc2626;color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:2px 8px;">● رد جديد</span>` : '';
+          ? `<span class="pill-danger">● رد جديد</span>` : '';
         const urgentBadge = t.priority === 'عالية'
-          ? `<span style="font-size:10px;font-weight:700;color:#dc2626;">عاجل</span>` : '';
+          ? `<span class="tx-danger" style="font-size:10px;">عاجل</span>` : '';
         return `<div class="ticket-card" onclick="App.openTicketDetail('${t.id}','student')"
           style="${t.unread_count > 0 ? 'border-color:var(--primary);background:var(--surface);' : ''}">
           <div class="ticket-card-top">
@@ -6335,7 +6333,7 @@ const App = {
     // Auto-suggest subject if empty
     const subjectEl = document.getElementById('nt-subject');
     if (!subjectEl.value.trim()) {
-      subjectEl.placeholder = btn.dataset.icon + ' ' + btn.dataset.cat;
+      subjectEl.placeholder = btn.dataset.cat;
     }
   },
 
@@ -6597,7 +6595,7 @@ const App = {
       const prioIcon = ticket.priority === 'عالية' ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>' : ticket.priority === 'منخفضة' ? '<span class="ic-dot ic-dot-green" aria-hidden="true"></span>' : '<span class="ic-dot ic-dot-amber" aria-hidden="true"></span>';
       document.getElementById('td-meta-chips').innerHTML = `
         ${ticket.ticket_num ? `<span class="ticket-num-badge">${escapeHtml(ticket.ticket_num)}</span>` : ''}
-        ${String(ticket.student_id || '').startsWith('guest-') ? '<span class="cat-chip" style="background:#fef3c7;color:#92400e;">بدون حساب</span>' : ''}
+        ${String(ticket.student_id || '').startsWith('guest-') ? '<span class="cat-chip chip-warn">بدون حساب</span>' : ''}
         ${ticket.category   ? `<span class="cat-chip">${escapeHtml(ticket.category)}</span>` : ''}
         ${ticket.priority   ? `<span style="font-size:11px;">${prioIcon} ${escapeHtml(ticket.priority)}</span>` : ''}
         ${ticket.phone      ? `<span style="font-size:11px;">${escapeHtml(ticket.phone)}</span>` : ''}
@@ -6642,7 +6640,7 @@ const App = {
 
   _renderStars(val) {
     document.querySelectorAll('#td-stars span').forEach((s, i) => {
-      s.textContent = i < val ? '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9Z"/></svg>' : '☆';
+      s.textContent = i < val ? '★' : '☆';
       s.classList.toggle('lit', i < val);
     });
   },
@@ -6697,7 +6695,7 @@ const App = {
       document.getElementById('td-reply-area').style.display = 'none';
       document.getElementById('td-rating-area').style.display = 'block';
       document.getElementById('td-status-badge').innerHTML = '<span class="tbadge-resolved">تم الحل</span>';
-      showToast('تم إغلاق الطلب ✔');
+      showToast('تم إغلاق الطلب');
       App.loadStudentTickets();
     } catch { showToast('تعذّر التحديث'); }
   },
@@ -6796,8 +6794,8 @@ const App = {
       if (sb && stats.total !== undefined) {
         sb.innerHTML = `
           <div class="stat-card"><div class="stat-num">${stats.total}</div><div class="stat-label">إجمالي</div></div>
-          <div class="stat-card"><div class="stat-num" style="color:#1e40af;">${stats.open || 0}</div><div class="stat-label">جديد</div></div>
-          <div class="stat-card"><div class="stat-num" style="color:#92400e;">${stats.inProgress || 0}</div><div class="stat-label">معالجة</div></div>
+          <div class="stat-card"><div class="stat-num tx-info">${stats.open || 0}</div><div class="stat-label">جديد</div></div>
+          <div class="stat-card"><div class="stat-num tx-warn">${stats.inProgress || 0}</div><div class="stat-label">معالجة</div></div>
           <div class="stat-card urgent"><div class="stat-num">${stats.urgent || 0}</div><div class="stat-label">عاجل</div></div>`;
       }
 
@@ -6829,7 +6827,7 @@ const App = {
         <div class="ticket-card-top">
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
             <span class="ticket-num-badge">${escapeHtml(t.ticket_num || '—')}</span>
-            ${String(t.student_id || '').startsWith('guest-') ? '<span class="cat-chip" style="background:#fef3c7;color:#92400e;">بدون حساب</span>' : ''}
+            ${String(t.student_id || '').startsWith('guest-') ? '<span class="cat-chip chip-warn">بدون حساب</span>' : ''}
             <div class="ticket-subject">${escapeHtml(t.subject)}</div>
           </div>
           <span class="${badgeCls}" style="flex-shrink:0;">${badgeTxt}</span>

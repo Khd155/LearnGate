@@ -9,7 +9,7 @@ import {
 } from '../_lib/journey.js';
 import { buildPrereqAnalytics } from '../_lib/prereq-analytics.js';
 import { buildStudentJourney } from '../_lib/student-journey.js';
-import { safeEqual, devKeyMatches, secureDigits } from '../_lib/security.js';
+import { safeEqual, devKeyMatches, secureDigits, isUsableDevKey } from '../_lib/security.js';
 import { CHEM_SUBJECT_ID, normalizeExamSubject, summarizeExam, buildExamRoster } from '../_lib/exam-status.js';
 import { sanitizeSelfTraining, SELF_TRAINING_MAX_BYTES, buildSelfTrainingActivity } from '../_lib/self-training.js';
 
@@ -1026,6 +1026,18 @@ export async function onRequest({ request, env }) {
       return targetStudentId;
     }
 
+    // Whether `claims` may read/write data belonging to `studentId`: a student
+    // only their own, a school-scoped admin/director only their school's
+    // students, dev and company-wide ('*') staff any existing student.
+    async function _canAccessStudent(claims, studentId) {
+      if (!claims || !studentId) return false;
+      if (claims.role === 'student') return claims.sub === studentId;
+      if (!['admin', 'director', 'dev'].includes(claims.role)) return false;
+      if (claims.role === 'dev' || !claims.school || claims.school === '*') return true;
+      const st = await DB.prepare('SELECT school FROM students WHERE id = ?').bind(studentId).first();
+      return !!st && (st.school || '').trim() === claims.school.trim();
+    }
+
     // ── Shared app_settings (small key/value config store) ─────────────────
     // Generic on purpose — the only key used today is the quiz-skills passing
     // ratio (see below), but this avoids a one-off table per future setting.
@@ -1145,6 +1157,14 @@ export async function onRequest({ request, env }) {
       // Rate-limited per phone (not just per IP) since SendPulse's own IP is
       // shared across every user of the bot.
       if (sub === 'recover-link' && method === 'GET') {
+        // Only the SendPulse bot may call this: it must present the shared
+        // webhook secret. Fails closed when the secret is not configured.
+        const hookSecret = env.SENDPULSE_WEBHOOK_SECRET;
+        const presented = request.headers.get('X-Webhook-Secret') || '';
+        if (!isUsableDevKey(hookSecret) || !safeEqual(presented, hookSecret)) {
+          await logEvent(DB, { level: 'warn', category: 'recover-link', message: 'طلب مرفوض (توقيع غير صالح)', ip });
+          return err('غير مصرح', 401, CORS);
+        }
         const rawPhone = url.searchParams.get('phone') || '';
         if (!await rateLimit(DB, ip, 'recover-link', 20)) {
           await logEvent(DB, { level: 'warn', category: 'recover-link', message: `طلب مرفوض (تجاوز الحد) — الرقم المُرسَل: "${rawPhone}"`, ip });
@@ -1582,9 +1602,13 @@ export async function onRequest({ request, env }) {
 
           // Batch update existing students if upsert mode
           if (upsert && toUpdate.length) {
-            const stmts = toUpdate.map(({ name, code, school: s, phone }) =>
-              DB.prepare('UPDATE students SET name = ?, school = ?, phone = COALESCE(?, phone) WHERE code = ?')
-                .bind(name, effectiveSchool || s || school, phone || null, code)
+            // A school-scoped admin may only touch students already in their
+            // own school (and can never move a student between schools).
+            const stmts = toUpdate.map(({ name, code, school: s, phone }) => effectiveSchool
+              ? DB.prepare('UPDATE students SET name = ?, phone = COALESCE(?, phone) WHERE code = ? AND school = ?')
+                .bind(name, phone || null, code, effectiveSchool)
+              : DB.prepare('UPDATE students SET name = ?, school = ?, phone = COALESCE(?, phone) WHERE code = ?')
+                .bind(name, s || school, phone || null, code)
             );
             const results = await DB.batch(stmts);
             updated = results.filter(r => r.changes).length;
@@ -1674,15 +1698,16 @@ export async function onRequest({ request, env }) {
         const claims = await verifyToken(request, env, DB);
         if (!claims || !['admin','director','dev'].includes(claims.role)) return err('غير مصرح', 401, CORS);
         const delTarget = await DB.prepare('SELECT name, school FROM students WHERE id = ?').bind(sub).first();
-        await cascadeDeleteStudent(DB, sub);
-        if (claims.role === 'dev') {
-          await DB.prepare('DELETE FROM students WHERE id = ?').bind(sub).run();
-        } else {
-          // Non-dev admins can only delete students from their own school
+        if (!delTarget) return err('الطالب غير موجود', 404, CORS);
+        // Ownership is checked BEFORE anything is deleted: non-dev admins can
+        // only delete students from their own school.
+        if (claims.role !== 'dev') {
           const effectiveSchool = claims.school && claims.school !== '*' ? claims.school : school;
           if (!effectiveSchool) return err('المدرسة مطلوبة', 400, CORS);
-          await DB.prepare('DELETE FROM students WHERE id = ? AND school = ?').bind(sub, effectiveSchool).run();
+          if (delTarget.school !== effectiveSchool) return err('غير مصرح', 403, CORS);
         }
+        await cascadeDeleteStudent(DB, sub);
+        await DB.prepare('DELETE FROM students WHERE id = ?').bind(sub).run();
         await logEvent(DB, { level: 'warn', category: 'student', message: `حذف طالب: ${delTarget?.name || sub}`, user_name: claims.name || '', user_role: claims.role, school: claims.school || delTarget?.school || school || '' });
         return ok({ ok: true }, 200, CORS);
       }
@@ -2981,6 +3006,7 @@ export async function onRequest({ request, env }) {
         const { studentId, lessonId, type } = await request.json();
         const sid = prClaims.role === 'student' ? prClaims.sub : studentId;
         if (!sid || !lessonId) return err('حقول مفقودة', 400, CORS);
+        if (!await _canAccessStudent(prClaims, sid)) return err('غير مسموح', 403, CORS);
         const t = ['video', 'summary', 'quiz'].includes(type) ? type : 'video';
         await DB.prepare(
           `INSERT INTO student_progress (id, student_id, lesson_id, type, completed, completed_at)
@@ -2994,7 +3020,7 @@ export async function onRequest({ request, env }) {
       if (sub && method === 'GET') {
         const prClaims = await verifyToken(request, env, DB);
         if (!prClaims) return err('غير مصرح', 401, CORS);
-        if (prClaims.role === 'student' && prClaims.sub !== sub) return err('غير مسموح', 403, CORS);
+        if (!await _canAccessStudent(prClaims, sub)) return err('غير مسموح', 403, CORS);
         const { results } = await DB.prepare(
           `SELECT lesson_id, type, completed_at FROM student_progress WHERE student_id = ? ORDER BY completed_at DESC`
         ).bind(sub).all();
@@ -3207,26 +3233,6 @@ export async function onRequest({ request, env }) {
         await logEvent(DB, { level: 'warn', category: 'questions', message: `حذف سؤال`, user_name: claims.name || '', user_role: claims.role, school: claims.school || '' });
         return ok({ ok: true }, 200, CORS);
       }
-    }
-
-    // ── QUIZ GRADING (server-side, requires student JWT) ─────────────────────
-    if (resource === 'quiz' && sub === 'grade' && method === 'POST') {
-      const claims = await verifyToken(request, env, DB);
-      if (!claims || claims.role !== 'student') return err('غير مصرح', 401, CORS);
-      const { answers } = await request.json(); // [{qnum, ans}, ...]
-      if (!Array.isArray(answers) || answers.length === 0) return err('إجابات مطلوبة', 400, CORS);
-      const qnums = answers.map(a => Number(a.qnum)).filter(n => !isNaN(n));
-      if (qnums.length === 0) return err('أرقام أسئلة غير صالحة', 400, CORS);
-      const placeholders = qnums.map(() => '?').join(',');
-      const { results } = await DB.prepare(
-        `SELECT qnum, skill_id, ans FROM questions WHERE qnum IN (${placeholders})`
-      ).bind(...qnums).all();
-      const qmap = Object.fromEntries(results.map(r => [r.qnum, r]));
-      const graded = answers.map(a => {
-        const q = qmap[Number(a.qnum)];
-        return { qnum: Number(a.qnum), skill_id: q?.skill_id || null, correct: q ? Number(a.ans) === Number(q.ans) : false };
-      });
-      return ok({ results: graded }, 200, CORS);
     }
 
     // ── QUIZ SKILLS (hierarchical short-tests: section → level → skill) ───────
@@ -3747,6 +3753,7 @@ export async function onRequest({ request, env }) {
         if (!claims) return err('غير مصرح', 401, CORS);
         const studentId = claims.role === 'student' ? claims.sub : (url.searchParams.get('studentId') || null);
         if (!studentId) return err('معرّف الطالب مطلوب', 400, CORS);
+        if (!await _canAccessStudent(claims, studentId)) return err('غير مسموح', 403, CORS);
         const subj = (url.searchParams.get('subject') || '').trim();
         if (!subj) return err('subject مطلوب', 400, CORS);
         const meta = PREREQ_SUBJECT_META[subj];
@@ -3953,6 +3960,7 @@ export async function onRequest({ request, env }) {
         const studentId = (url.searchParams.get('studentId') || '').trim();
         if (!subj) return err('subject مطلوب', 400, CORS);
         if (!studentId) return err('studentId مطلوب', 400, CORS);
+        if (!isDevKeyReset && !await _canAccessStudent(resetClaims, studentId)) return err('غير مسموح', 403, CORS);
         await DB.prepare('DELETE FROM student_prereq_results WHERE student_id = ? AND subject_id = ?').bind(studentId, subj).run();
         await DB.prepare('DELETE FROM student_prereq_progress WHERE student_id = ? AND subject_id = ?').bind(studentId, subj).run();
         return ok({ ok: true }, 200, CORS);
@@ -4127,9 +4135,14 @@ export async function onRequest({ request, env }) {
     }
 
     if (resource === 'admins' && sub && method === 'GET') {
-      // Requires valid JWT — used by chat to look up admin info
-      const admClaims = await verifyToken(request, env, DB);
-      if (!admClaims) return err('غير مصرح', 401, CORS);
+      // Looks an admin up by login code, so it is an oracle for valid codes:
+      // director/dev only, and rate-limited like a login attempt.
+      const isDevKeyAdm = authDev(request, env);
+      const admClaims = isDevKeyAdm ? null : await verifyToken(request, env, DB);
+      if (!isDevKeyAdm && !admClaims) return err('غير مصرح', 401, CORS);
+      if (!isDevKeyAdm && admClaims.role !== 'director' && admClaims.role !== 'dev') return err('غير مصرح', 403, CORS);
+      const admIp = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
+      if (!await rateLimit(DB, admIp, 'admin-code-lookup', 10)) return err('طلبات كثيرة — أعد المحاولة بعد دقيقة', 429, CORS);
       // sub = admin code, school = selected school
       const admin = await DB.prepare('SELECT id, name, school, role FROM admins WHERE code = ?').bind(sub).first();
       if (!admin) return ok({ admin: null }, 404, CORS);
